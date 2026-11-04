@@ -18,6 +18,7 @@ export const EXAMPLE_HOME_SCREEN: HomeScreenResponse = {
     durationSeconds: 252,
     detail: 'Next up: friction on a slope.',
     artwork: 'forces',
+    canReplay: false,
   },
   picks: [
     {

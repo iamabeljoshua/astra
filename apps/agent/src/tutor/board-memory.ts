@@ -202,6 +202,18 @@ function getAnswerWords(tex: string): RegExp | null {
   return new RegExp(`\\b(?:${answer.letter}\\s+(?:is|equals|=|must be|has to be|comes to)|the answer is|answer's|it's|it is)\\s+${value}\\b`, 'i');
 }
 
+const PICTURE = '(picture|scene|animation|video|clip)';
+/** A scene may never come, so words that count on one are false until it is on screen. Drawing on the board is always true, so "I'll draw it" stays allowed. */
+const COUNTS_ON_A_PICTURE = [
+  new RegExp(`\\b${PICTURE}\\b[^.?!]*\\b(coming(?! up)|loading|on (its|the) way|in a (moment|sec|second|bit)|being (made|drawn)|ready soon|almost ready)\\b`, 'i'),
+  /\b(picture|animation|video|clip)\b[^.?!]*\b(pop up|show up|appear)\b/i,
+  new RegExp(`\\b(let me|let's|i'll|i will|i'm going to|i am going to|i'm gonna|going to)\\s+(show|pull up|bring up|put up|load|make|get|see|watch|look at)\\s+(you\\s+)?(a|an|the|this|that|up a)?\\s*${PICTURE}\\b`, 'i'),
+  new RegExp(`\\b(look at|watch|see|check out)\\s+(the|this|that)\\s+${PICTURE}\\b`, 'i'),
+];
+const NO_PICTURE_YET = 'You spoke as if a picture were on screen or on its way, and none is. Say nothing about a picture, and teach on with your voice and the board.';
+
+export const getPictureProblem = (text: string, { kinds }: BoardMemory): string | null => (COUNTS_ON_A_PICTURE.some((pattern) => pattern.test(text)) && ![...kinds.values()].includes('richScene') ? NO_PICTURE_YET : null);
+
 /** The prompt's own list of what the tutor may never claim, held here too, because the model still says "I'm glad you told me" to a student in crisis. */
 const CLAIMS_A_FEELING = /\bI(?:'m| am)\s+(?:(?:really|so|very|truly|just)\s+)?(?:glad|happy|sorry|worried|proud)\b|\bI\s+(?:really\s+|do\s+)?care\b|\bmatters?\s+to\s+me\b/i;
 const SAY_WHAT_IS_TRUE = 'You are an AI, so you were about to claim a feeling you do not have, and the student did not hear it. Say what is true instead, such as "that sounds serious" or "you did the right thing telling me". Keep everything else you were going to say.';

@@ -1,16 +1,18 @@
-import type { BoardElement, BoardState } from '@astra/board';
+import type { BoardState } from '@astra/board';
 import { getOpenTaskOnBoard } from '@astra/board/shared';
 import type { BoardProblemReport, ElementId, StudentWork } from '@astra/contracts';
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardProblem } from '../board/boardPainting';
 import { getVisualPlace, type VisualPeek } from '../board/boardStage';
 import { BoardStageView } from '../board/BoardStageView';
 import { getBoardRows } from '../board/boardRows';
 import { MathField } from '../board/MathField';
 import { MovingDot } from '../board/MovingDot';
+import { useDotTarget } from '../board/useDotTarget';
 import { PenBand } from '../board/PenBand';
 import { SharedBoard } from '../board/SharedBoard';
 import { TypedLine, type TypedLineHandle, useNextLineId } from '../board/TypedLine';
+import { getKeyMoments, getRecapMoment } from '../replay/keyMoments';
 import { BOARD_WORK_LABELS, VOICE_LABELS } from '../strings';
 import { AttachControl } from '../ui/AttachControl';
 import type { FilesComingSoon } from '../ui/useFilesComingSoon';
@@ -22,7 +24,7 @@ const DOT_SHOWS_MS = 280;
 
 const LINES_BEFORE_THE_HINT_GOES = 2;
 
-interface BoardFrame {
+export interface BoardFrame {
   board: BoardState;
   atMs: number;
 }
@@ -51,59 +53,17 @@ function getLastWorkWords(board: BoardState): string {
   return line.verdict.status === 'right' ? `${read} ${BOARD_WORK_LABELS.checked}` : read;
 }
 
-const DOT_GOES_TO: ReadonlySet<BoardElement['content']['kind']> = new Set(['writeMath', 'studentLine', 'text', 'diagram', 'plot', 'task', 'table', 'timeline', 'code', 'image', 'drawing']);
-
-function getLatestRowId(board: BoardState): string | null {
-  const focused = board.focus?.split('.')[0];
-  if (focused && board.elements.has(focused as ElementId)) return focused;
-  const elements = [...board.elements.values()];
-  for (const { id, content } of elements.reverse()) {
-    const hangsOn = 'target' in content ? content.target : content.kind === 'task' && 'on' in content ? content.on : undefined;
-    if (hangsOn !== undefined) {
-      const root = hangsOn.split('.')[0] as string;
-      if (board.elements.has(root as ElementId)) return root;
-    }
-    if (DOT_GOES_TO.has(content.kind)) return id;
-  }
-  return null;
-}
-
-interface DotTarget {
-  rowId: string | null;
-  isWatching: boolean;
-}
-
-const AT_REST: DotTarget = { rowId: null, isWatching: false };
-const ON_THE_LIVE_LINE: DotTarget = { rowId: 'live', isWatching: true };
-
-// Says where the dot belongs: on what just happened, on the live line, or back over the tutor's words.
-function useDotTarget(board: BoardState, isTutorSpeaking: boolean) {
-  const [target, setTarget] = useState<DotTarget>(AT_REST);
-  const latest = getLatestRowId(board);
-  const [lastSeen, setLastSeen] = useState(latest);
-  if (latest !== lastSeen) {
-    setLastSeen(latest);
-    setTarget({ rowId: latest, isWatching: false });
-  }
-  const wasSpeaking = useRef(false);
-  useEffect(() => {
-    if (wasSpeaking.current && !isTutorSpeaking) setTarget(ON_THE_LIVE_LINE);
-    wasSpeaking.current = isTutorSpeaking;
-  }, [isTutorSpeaking]);
-  const watchLiveLine = useCallback(() => setTarget(ON_THE_LIVE_LINE), []);
-  const goToRest = useCallback(() => setTarget(AT_REST), []);
-  const watchRow = useCallback((rowId: string) => setTarget({ rowId, isWatching: true }), []);
-  return { target, watchLiveLine, watchRow, goToRest };
-}
-
 interface LiveBoardProps {
   voice: LiveVoice;
-  visual?: ReactNode;
+  /** What the session's right side shows while teaching, read every frame, because a scene plays on the board's clock. */
+  getVisual?(frame: BoardFrame): ReactNode;
   isConnecting?: boolean;
   onTutorState?(state: string | null): void;
   onTalk?: () => void;
   isTalkOn?: boolean;
   canTalk?: boolean;
+  /** The student has ended the session, so the board only looks back, and takes no more work. */
+  isLookingBack?: boolean;
   /** Without it the board offers no photo or PDF control. */
   filesComingSoon?: FilesComingSoon;
 }
@@ -121,7 +81,7 @@ function useDotInTheMiddle(isConnecting: boolean): boolean {
 }
 
 // The board is a pure reading of the clock, so one read per frame is all it needs.
-export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState, filesComingSoon }: LiveBoardProps) {
+export function LiveBoard({ voice, getVisual, onTalk, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState, isLookingBack = false, filesComingSoon }: LiveBoardProps) {
   const isDotInTheMiddle = useDotInTheMiddle(isConnecting);
   const [frame, setFrame] = useState<BoardFrame>(() => voice.getBoardNow());
   const [activity, setActivity] = useState(0);
@@ -133,16 +93,21 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
   const typedLine = useRef<TypedLineHandle>(null);
   const isVisualBigNow = useRef(false);
   const { board, atMs } = frame;
+  const visual = getVisual?.(frame) ?? null;
   const view = voice.getView();
   const { target: dotTarget, watchLiveLine, watchRow, goToRest } = useDotTarget(board, view.isTutorSpeaking);
+
+  const keyMoments = useMemo(() => (isLookingBack ? getKeyMoments(voice.player.getOperations()) : []), [isLookingBack, voice]);
 
   useEffect(() => {
     let animationFrame = requestAnimationFrame(function draw() {
       animationFrame = requestAnimationFrame(draw);
-      setFrame(voice.getBoardNow());
+      const { tutorHeard, tutorComing, recap } = voice.getView();
+      const moment = recap ? getRecapMoment(keyMoments, tutorHeard.length / Math.max(1, tutorHeard.length + tutorComing.length)) : null;
+      setFrame(moment === null ? voice.getBoardNow() : { board: voice.player.getBoard(moment), atMs: moment });
     });
     return () => cancelAnimationFrame(animationFrame);
-  }, [voice]);
+  }, [voice, keyMoments]);
 
   useEffect(() => {
     const stopOnEscape = (event: KeyboardEvent) => {
@@ -279,22 +244,21 @@ export function LiveBoard({ voice, visual = null, onTalk, isTalkOn = false, canT
     </div>
   );
   return (
-    <BoardStageView stage={board.stage} atMs={atMs} visual={visual} ariaLabel={VOICE_LABELS.board} peek={peek} onPeek={setPeek} footer={tools}>
+    <BoardStageView stage={board.stage} atMs={atMs} visual={visual} ariaLabel={VOICE_LABELS.board} peek={peek} onPeek={setPeek} footer={isLookingBack ? null : tools}>
       <p role="status" className="sr-only">{getLastWorkWords(board)}</p>
       <MovingDot arrival={isConnecting ? 'hidden' : isDotInTheMiddle ? 'shown' : null} rowId={dotTarget.rowId} isWatching={dotTarget.isWatching} isThinking={isThinking} isLively={!view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)} getLoudness={voice.getLoudness} />
       <SharedBoard
         board={board}
         atMs={atMs}
         onBoardProblem={reportProblem}
-        onWork={sendWork}
-        onMovePoint={movePoint}
+        {...(isLookingBack ? {} : { onWork: sendWork, onMovePoint: movePoint })}
         lineInTheBand={lineInTheBand}
         onFixReading={(text) => {
           setIsPenOpen(false);
           typedLine.current?.setLine(text);
         }}
         liveRow={
-          <TypedLine
+          !isLookingBack && <TypedLine
             handleRef={typedLine}
             task={task}
             getBoard={getBoard}

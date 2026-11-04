@@ -1,7 +1,7 @@
 import { type BoardState, createChoosingClock, createScenePlayer, type FiredCue, type OutputLevel, type ScenePlayer } from '@astra/board';
 import { checkWorkOnBoard, cleanTypedLine, getNod } from '@astra/board/shared';
 import { getKeptBoard, keepBoard } from './keptBoard.ts';
-import { type AgentMessage, type BoardProblemReport, type BrowserMessage, clipTypedText, type components, type ElementId, type InkPoint, LINK_QUIET_LIMIT_MS, parseAgentMessage, PULSE_EVERY_MS, type StudentWork, type TutorClosedReason } from '@astra/contracts';
+import { type AgentMessage, type BoardProblemReport, type BrowserMessage, clipTypedText, type components, type ElementId, type InkPoint, LINK_QUIET_LIMIT_MS, parseAgentMessage, parseSceneAgentMessage, PULSE_EVERY_MS, SCENE_TOPIC, type SceneAgentMessage, type SceneBrowserMessage, type SessionRecap, type StudentWork, type TutorClosedReason } from '@astra/contracts';
 import { DisconnectReason, type RemoteTrack, Room, RoomEvent, Track } from 'livekit-client';
 import heldMicWorkletUrl from './held-mic-worklet.js?url';
 import { createLocalYield } from './localYield';
@@ -67,6 +67,9 @@ export interface LiveVoiceView {
   /** Words the student has heard this turn, and the ones already known that are still to come. */
   tutorHeard: readonly string[];
   tutorComing: readonly string[];
+  /** What the session's end says, once the tutor has decided. */
+  recap: SessionRecap | null;
+  isRecapDecided: boolean;
 }
 
 export type RoomAccess = NonNullable<components['schemas']['LiveRoomResponseDto']['access']>;
@@ -93,6 +96,9 @@ export interface LiveVoice {
   sendTyped(text: string): void;
   /** Starts the turn with words the student did not write, so they never appear as the student's. */
   sendOpening(text: string): void;
+  canAskForRecap(): boolean;
+  /** Asks the tutor for its recap, which also ends its teaching, and says whether the ask could be sent. */
+  askForRecap(): boolean;
   /** The board could not draw this mark, so the agent can tell the tutor the student did not see it. */
   reportMarkNotDrawn(markId: string): void;
   reportBoardProblem(report: BoardProblemReport): void;
@@ -109,6 +115,9 @@ export interface LiveVoice {
   /** Answers a quiet warning, so the room stays open. */
   sayStillHere(): void;
   turnOnSound(): Promise<void>;
+  /** Scenes travel on their own topic, so a slow or refused take never touches the words or the board's clock. */
+  sendScene(message: SceneBrowserMessage): void;
+  onSceneMessage(listener: (message: SceneAgentMessage) => void): () => void;
   mark(note: object): void;
   close(): Promise<void>;
   records: LiveVoiceRecords;
@@ -153,7 +162,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
   let typingNotedAtMs = -Infinity;
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -171,7 +180,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   let wasTutorThere = false;
   let joining: Promise<void> | null = null;
   /** A line the tutor has not said it heard. If its room closes first, the next tutor gets it, or the student would wait on a tutor who never saw it. */
-  let lineAwaitingTutor: string | null = null;
+  let lineAwaitingTutor: { text: string; isOpening?: boolean } | null = null;
   let connectedAtEpochMs = getEpochMs();
 
   const setView = (changes: Partial<LiveVoiceView>) => {
@@ -195,6 +204,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
 
   const flushOutbox = () => {
     for (const message of outbox.splice(0)) send(message);
+    for (const message of sceneOutbox.splice(0)) sendScene(message);
   };
 
   const getStamp = () => ({ clockId, browserMs: Math.round(clock.getNowMs()), startedMsAgo: 0 });
@@ -259,6 +269,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     }
     if (message.type === 'quietWarning') return setView({ isQuietWarning: message.isOn });
     if (message.type === 'closingForQuiet') return leaveRoom('closedForQuiet');
+    if (message.type === 'recap') return setView({ recap: message.recap, isRecapDecided: true, isThinking: false });
     if (message.type === 'heard') {
       lineAwaitingTutor = null;
       return showHeard();
@@ -285,10 +296,10 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     player.receive(message);
   };
 
-  const sendLine = (text: string) => {
+  const sendLine = (text: string, isOpening = false) => {
     showHeard();
-    lineAwaitingTutor = text;
-    send({ type: 'typed', ...getStamp(), text });
+    lineAwaitingTutor = { text, ...(isOpening ? { isOpening } : {}) };
+    send({ type: 'typed', ...getStamp(), ...lineAwaitingTutor });
   };
 
   const onProbe = (note: ProbeNote) => {
@@ -346,13 +357,32 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     void room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: false, topic: LIVE_TOPIC }).catch((error: unknown) => records.refused.push(`pulse not sent: ${String(error)}`));
   };
 
+  const sceneListeners = new Set<(message: SceneAgentMessage) => void>();
+  let sceneDevice: SceneBrowserMessage | null = null;
+  const sceneOutbox: SceneBrowserMessage[] = [];
+
+  const sendScene = (message: SceneBrowserMessage) => {
+    if (message.type === 'sceneDevice') sceneDevice = message;
+    if (room.state !== 'connected' || !canReachAgent()) {
+      sceneOutbox.push(message);
+      return;
+    }
+    void room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic: SCENE_TOPIC }).catch(() => sceneOutbox.push(message));
+  };
+
   const onDataReceived = (payload: Uint8Array, topic?: string) => {
-    if (topic !== LIVE_TOPIC) return;
+    if (topic !== LIVE_TOPIC && topic !== SCENE_TOPIC) return;
     let value: unknown;
     try {
       value = JSON.parse(decoder.decode(payload));
     } catch {
       records.refused.push('message: expected JSON');
+      return;
+    }
+    if (topic === SCENE_TOPIC) {
+      const scene = parseSceneAgentMessage(value);
+      if (scene.ok) for (const listener of sceneListeners) listener(scene.value);
+      else records.refused.push(scene.problem);
       return;
     }
     const parsed = parseAgentMessage(value);
@@ -368,7 +398,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     // Each room has its own job, and a new job holds nothing of what was said, so the student hears that here and not from a tutor who has forgotten. A tutor they never heard has forgotten nothing.
     const isNewRoom = roomName !== null && access.roomName !== roomName;
     if (hasHeardTutor && isNewRoom) setView({ startedFresh: true, isThinking: false });
-    if (isNewRoom && lineAwaitingTutor !== null && !outbox.some((message) => message.type === 'typed')) outbox.push({ type: 'typed', ...getStamp(), text: lineAwaitingTutor });
+    if (isNewRoom && lineAwaitingTutor !== null && !outbox.some((message) => message.type === 'typed')) outbox.push({ type: 'typed', ...getStamp(), ...lineAwaitingTutor });
     if (isNewRoom && !hasHeardTutor) startTutorWait();
     if (roomName === null) player.addStudentOperations(getKeptBoard(access.roomName));
     roomName = access.roomName;
@@ -473,6 +503,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     send({ type: 'hello', ...getStamp(), wantsGreeting: wantsGreeting && !hasSaidHello });
     hasSaidHello = true;
     sendAudioState();
+    // A new room holds a new job, which has not heard what this page can play.
+    if (sceneDevice && !sceneOutbox.includes(sceneDevice)) sceneOutbox.push(sceneDevice);
     flushOutbox();
     beat();
   });
@@ -528,13 +560,25 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       const atMs = clock.getNowMs();
       return { board: player.getBoard(atMs), atMs };
     },
+    sendScene,
+    onSceneMessage(listener) {
+      sceneListeners.add(listener);
+      return () => sceneListeners.delete(listener);
+    },
     sendTyped(text) {
       const clipped = clipTypedText(text);
       addStudentWords({ text: clipped, isFinal: true });
       sendLine(clipped);
     },
     sendOpening(text) {
-      sendLine(clipTypedText(text));
+      sendLine(clipTypedText(text), true);
+    },
+    canAskForRecap: () => !hasLeftRoom && canReachAgent(),
+    askForRecap() {
+      if (hasLeftRoom || !canReachAgent()) return false;
+      void mic.setOn(false);
+      send({ type: 'endingSession', ...getStamp() });
+      return true;
     },
     reportMarkNotDrawn(markId) {
       send({ type: 'markNotDrawn', ...getStamp(), markId });

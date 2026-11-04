@@ -262,7 +262,7 @@ Abel's rule: everything a student can see or do on the prototype exists on the r
 ## For later owners
 
 - M3.9 is in `docs/tests/lesson-plan.md`.
-- M3.10: the session log stays in memory until you store it, and the privacy page's planned list says it will hold this work.
+- M3.10: M4.4 stores the session log. `docs/tests/recap-replay.md` says how.
 - M3.11: handwriting is here. Uploads, photos, and PDFs are yours.
 - PR 87's scene: the seam is the `visual` prop of `BoardStageView`.
 - The tutor's pen colour is a proposal, in `docs/DESIGN.md`, waiting for Abel.

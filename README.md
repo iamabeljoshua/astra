@@ -47,7 +47,7 @@ The API stores its data in Postgres and connects through `DATABASE_URL`. If you 
 | `pnpm db:up` | Starts the local Supabase stack in Docker if it is not running. It needs no account. It then creates the local sign-in accounts and writes `apps/web/.env.development.local`, so run it once in each worktree. |
 | `pnpm db:migrate` | Creates the database in `DATABASE_URL` if it is missing, then runs the migrations. A database from before the move to `public` keeps its rows. |
 | `pnpm db:migration <name>` | Runs the migrations that the database in `DATABASE_URL` is missing, then writes a new migration from the entity changes. It works only on the local stack, on port 54422. |
-| `pnpm db:seed` | Replaces the two example students, Maya with her six sessions and Tola with none, and makes the `new-student@astra.test` account new again. It works only on the local stack, on port 54422. |
+| `pnpm db:seed` | Replaces the two example students, Maya with her six sessions, one of which has a saved replay, and Tola with none, and makes the `new-student@astra.test` account new again. It works only on the local stack, on port 54422. |
 | `pnpm db:reset` | Drops the database in `DATABASE_URL` and builds it again from the migrations. It works only on an app database on the local stack, on port 54422. |
 | `pnpm exec supabase stop` | Stops the local stack for every worktree and every agent that shares it. The data stays in a Docker volume. Run it, then `pnpm db:up`, only if an interrupted start leaves Postgres running without the other services and nothing else is using the stack. |
 | `pnpm lab` | Plays a scripted lesson in the real voice through the board player, on a local LiveKit server. It needs `livekit-server` on the path and spends about 100 ElevenLabs credits a run. `pnpm lab --fake` plays a tone and spends nothing. Add `&lesson=algebra` to the address it prints for the math lesson, or `dense`, `every-word`, or `hostile`. See `docs/tests/scene-player.md` and `docs/tests/math-board.md`. |
@@ -244,6 +244,8 @@ pnpm agent
 | `ANTHROPIC_API_KEY` | Agent | The tutor's model, Sonnet 5.5. |
 | `ASTRA_TUTOR_MODEL` | Agent | A model by name from `providers/anthropic.ts`, `recorded` for canned replies that spend nothing and that a proof can stall or break by typing `stall`, `invalid`, `wrong math`, `tag`, `refuse`, or `silent`, or `stand-in` for the simple lines M3.6's proofs use. |
 | `ASTRA_SPEND_FILE`, `ASTRA_SPEND_LIMIT_USD` | Agent | Adds each turn's real cost to a file, and past the limit, $8 by default, the tutor says it cannot reply. |
+| `ASTRA_TUTOR_SCENES=1` | Agent | Lets the tutor ask for ManimGX scenes in a session. Needs `SCENE_STORE_DIR`, the same on the API, the scene worker's image, and `VITE_TUTOR_SCENES=1` on the web build. Off, a session never mentions a picture and fetches no engine. See `docs/tests/scenes.md`. |
+| `ASTRA_SCENE_SESSION_LIMIT_USD` | Agent | What new scenes may cost in one session, $0.80 by default. Scene spending counts toward the student's day, and it never closes the tutor. |
 | `ASTRA_VOICE_TRACE=<folder>` | Agent | Writes each session's timings there, with no words. `ASTRA_VOICE_TRACE_WORDS=1` adds the words, for test speech only. |
 | `ASTRA_QUIET_LIMIT_MS=<ms>` | Agent | Replaces the 10 minutes a quiet room lasts, for a test. |
 

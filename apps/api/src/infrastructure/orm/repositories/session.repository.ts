@@ -61,6 +61,11 @@ export class SessionRepository {
   }
 
   // Only the agent asks this, because it holds a key and no student's token. Every other read names the student.
+  async findTopicIdOfSession(sessionId: string): Promise<string | null> {
+    const session = await this.sessions.findOne({ where: { id: sessionId }, select: { topicId: true } });
+    return session?.topicId ?? null;
+  }
+
   async findStudentIdOfSession(sessionId: string): Promise<string | null> {
     const session = await this.sessions.findOne({ where: { id: sessionId }, select: { studentId: true } });
     return session?.studentId ?? null;
@@ -73,6 +78,14 @@ export class SessionRepository {
   ): Promise<SessionEntity | null> {
     await this.sessions.update({ id: sessionId, studentId, status: 'in_progress' }, changes);
     return this.findForStudent(studentId, sessionId);
+  }
+
+  async saveRecap(sessionId: string, recap: object): Promise<void> {
+    await this.sessions.update({ id: sessionId, replayDeletedAt: IsNull() }, { recap });
+  }
+
+  async saveRecapAnswerForStudent(studentId: string, sessionId: string, recapAnswer: string): Promise<void> {
+    await this.sessions.update({ id: sessionId, studentId, replayDeletedAt: IsNull() }, { recapAnswer });
   }
 
   async renameUnfinishedForStudent(studentId: string, sessionId: string, title: string): Promise<void> {
