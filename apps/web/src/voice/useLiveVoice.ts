@@ -57,6 +57,7 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
 
   const connect = useCallback(({ wantsGreeting, startsOver = false }: { wantsGreeting: boolean; startsOver?: boolean } = { wantsGreeting: true }) => {
     if (startsOver) asksToStartOver.current = true;
+    isGone.current = false;
     opening.current ??= (async () => {
       setStatus('connecting');
       const getAccess = async () => {
@@ -123,11 +124,11 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
     [connect],
   );
 
-  // The last view stays, so the screen holds still while the page fades away.
+  // The last view stays, so the screen holds still while the page fades away. A room still opening closes itself when it arrives, so finishing does not wait on it.
   const leave = async () => {
-    const old = await opening.current;
+    isGone.current = true;
     opening.current = null;
-    await old?.close().catch(() => {});
+    await voice?.close().catch(() => {});
   };
 
   const isTalkOn = view ? view.mic === 'on' || view.mic === 'starting' : isTalkWaiting;
