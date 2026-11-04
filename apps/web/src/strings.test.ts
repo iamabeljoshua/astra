@@ -5,7 +5,7 @@ import { createElement } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from './App';
 import { LEGAL_PATHS } from './legal/legalPaths';
-import { MENU_LABELS, PRODUCT_NAME, SIDEBAR_LABELS } from './strings';
+import { LEGAL_PAGES, MENU_LABELS, PRODUCT_NAME, SIDEBAR_LABELS } from './strings';
 import { EXAMPLE_HOME_SCREEN, stubFetchWithHomeScreen } from './test/homeScreenApi';
 
 vi.mock('./auth/session', () => import('./test/signedInSession'));
@@ -78,11 +78,12 @@ describe('strings.ts', () => {
     expect(texts.filter((text) => !MARKED_STRING.test(text) && text !== STUDENT_NAME_FROM_API)).toEqual([]);
   });
 
-  it.each(Object.values(LEGAL_PATHS))('supplies all the text on %s, so a lawyer edits one file', async (path) => {
+  it.each(Object.entries(LEGAL_PATHS) as ['terms' | 'privacy', string][])('supplies all the text on the %s page at %s, so a lawyer edits one file', async (documentName, path) => {
+    vi.stubGlobal('matchMedia', () => ({ matches: true }));
     window.history.replaceState(null, '', path);
 
     render(createElement(App));
-    await screen.findByRole('heading', { level: 1 });
+    await screen.findByRole('heading', { level: 1, name: LEGAL_PAGES[documentName].title });
 
     const texts = getTextsOnPage();
     expect(texts.length).toBeGreaterThan(0);
