@@ -206,15 +206,15 @@ Abel: "can connect even if student hasn't pressed talk, or atleast prompt them t
 
 | From the screen opening to the first sound, fake voice, this Mac | p50 ms | Best to worst |
 | --- | --- | --- |
-| Now, a new session, warmed as it starts, with the stand-in tutor, 8 joins | 6722 | 4576 to 14275 |
-| The same with Sonnet in the job, 7 joins with a reading | 7239 | 4317 to 11574 |
-| Now, a session continued from Home with no room yet, Sonnet in the job, 8 joins | 7852 | 6656 to 12240 |
+| Now, a new session, warmed as it starts, 8 joins | 5143 | 4457 to 7431 |
+| Now, a third new session or more in 2 minutes, not warmed, 8 joins | 7380 | 6131 to 8961 |
+| Now, a session continued from Home with no room yet, 8 joins | 7586 | 5426 to 12047 |
 | Before, from pressing **Talk** at once on a new session | 5421 | 4715 to 8531 |
 | Before, from pressing **Talk** 5 s after the screen opened | 3050 | 2676 to 3162 |
 
-So the student no longer has to press anything, and the first sound comes about 6.7 s after the screen opens. It misses PRD section 6.3's 3 s. The clock now starts at the screen opening, and the last row's clock started 5 s later, with the job already in the room. What limits it is the job: on the new-session rows the page is in the room at about 3000 ms, and the job at about 5270 ms, because creating the room took about 1100 to 1450 ms and the job then took 2000 to 4400 ms to start. These ran at a machine load of 6 to 10, with other lanes on this Mac, and the best joins were 4317 and 4576 ms. A continued session also lists every room first, about 1700 ms, because the API has lost its name.
+So the student no longer has to press anything, and the first sound comes about 5.1 s after the screen opens, about what pressing at once took. It misses PRD section 6.3's 3 s. The 3050 ms row started its clock 5 s after the screen opened, with the job already in the room, so it is not the same wait. What limits it is the job: on the warmed row the job started at about 3500 ms, and the sound came about 1300 ms later. A continued session has no warm room, so it first lists every room, about 1700 ms, because the API has lost its name, and then creates one. These ran at a machine load of 10 to 19, with other lanes on this Mac. All of them used the stand-in tutor and the fake voice, and the first sound is a stored take.
 
-`getUserMedia` is not called until the student presses **Talk**. `run-safety-proof.ts --only noPress` proved that on real Chromium: with the tutor having said 32 words, there were 0 microphone asks, 0 tracks captured, and 0 audio senders. After the press there was 1 ask, 1 live track, and 1 live sender.
+`getUserMedia` is not called until the student presses **Talk**. `run-safety-proof.ts --only noPress` proved that on real Chromium: with the tutor speaking, there were 0 microphone asks, 0 tracks captured, and 0 audio senders. After the press there was 1 ask, 1 live track, and 1 live sender.
 
 | What the student sees | When |
 | --- | --- |
@@ -227,8 +227,10 @@ The tutor no longer says "Take your time." after asking a question. It says that
 | Kept working, proved live | Result |
 | --- | --- |
 | A second tab | The new tab takes over. The first says `Your connection to the tutor ended.`, with the microphone off, and asked for a room 1 time in the next 15 s, so the tabs do not fight. One student in the room |
-| Leaving the screen | The job closed 19.6 s after the student left the screen, which holds the 15 s that lets a reload come back, and no one was left in the room |
+| Leaving the screen | The job closed about 18 s after the student left the screen, which holds the 15 s that lets a reload come back, and no one was left in the room |
 | The daily limit | The route answered `dailyLimit` as the screen opened, no job started, the screen said so, and there was no **Try again** |
+| The limit on rooms | At 12 rooms in 10 minutes the page says how long the wait is as it opens, and offers **Try again**, which answered 429 until the wait passed. A student who opens many sessions quickly meets this limit sooner than before, because opening one now starts a room |
+| A job that dies | A page opening on a room whose job had died said `Your tutor could not connect just now.` at about 25 s with **Try again**, on reloads 0.2 to 30 s after the kill. **Try again** brought a tutor back in about 7 s |
 | A warmed room no page joins | With the screen never opened, the job started at 5611 ms, heard nothing, and closed itself at 127 s. Opening the screen later called a new tutor, in 10876 ms |
 
 ## With the tutor brain
