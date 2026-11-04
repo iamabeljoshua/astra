@@ -62,19 +62,19 @@ describe('the projectile model', () => {
   });
 });
 
-describe('two controls that share a speed', () => {
+describe('a value a flight cannot run on', () => {
   const BASE = { horizontalSpeed: 4, upwardSpeed: 6, releaseHeight: 2, gravity: 9.8 };
 
-  it('gives the student the sideways speed they set, after an angle was set', () => {
-    const { horizontalSpeed, upwardSpeed } = resolveProjectileParameters(BASE, { launchAngle: 30, horizontalSpeed: 15 });
-    expect(horizontalSpeed).toBe(15);
-    expect(upwardSpeed).toBeCloseTo(Math.hypot(4, 6) * Math.sin(Math.PI / 6), 9);
+  it('holds gravity at its lowest allowed, so a flight always lands', () => {
+    for (const gravity of [0, -5]) expect(resolveProjectileParameters(BASE, { gravity }).gravity).toBe(0.1);
   });
 
-  it('gives the student the angle they set, after a sideways speed was set', () => {
-    const { horizontalSpeed, upwardSpeed } = resolveProjectileParameters(BASE, { horizontalSpeed: 15, launchAngle: 30 });
-    expect((Math.atan2(upwardSpeed, horizontalSpeed) * 180) / Math.PI).toBeCloseTo(30, 9);
-    expect(Math.hypot(horizontalSpeed, upwardSpeed)).toBeCloseTo(Math.hypot(15, 6), 9);
+  it('holds every other value inside its rule', () => {
+    expect(resolveProjectileParameters(BASE, { releaseHeight: -1 }).releaseHeight).toBe(0);
+    expect(resolveProjectileParameters(BASE, { horizontalSpeed: 1e9 }).horizontalSpeed).toBe(100);
+  });
+
+  it('ignores a name a flight does not have', () => {
+    expect(resolveProjectileParameters(BASE, { a: 5 })).toEqual(BASE);
   });
 });
-

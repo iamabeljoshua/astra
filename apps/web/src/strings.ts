@@ -342,6 +342,7 @@ export const BOARD_LABELS = {
       launchAngle: { label: 'Launch angle', unit: '\u00b0' },
       launchSpeed: { label: 'Launch speed', unit: 'm/s' },
     },
+    tooFine: 'Too fine to draw here',
   },
   numberLine: 'Number line',
   geometry: 'Geometry figure',

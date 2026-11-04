@@ -149,16 +149,97 @@ describe('a move landing during another', () => {
   });
 });
 
-describe('two sliders that share a speed', () => {
-  const shot: BoardOperation = { kind: 'command', atMs: 0, overMs: null, command: { kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 6, releaseHeight: 2, gravity: 9.8 } } } as never };
-  const sample = (atMs: number, parameter: string, value: number): BoardOperation => ({ kind: 'parameterSample', atMs, target: 'shot' as never, parameter, value });
-  const getValues = (operations: BoardOperation[]) => getBoardAt(operations, 5000).elements.get('shot' as never)?.placedScene?.scene.values;
+describe('a figure placed again', () => {
+  const up = place({ kind: 'plot', id: 'v', expression: 'x^2', domain: [-2, 2] });
+  const down = place({ kind: 'plot', id: 'v', expression: '0-x^2', domain: [-2, 2] }, 5000);
+  const marks = [place({ kind: 'markValue', id: 'lowest', target: 'v', at: 0, label: 'minimum' }), place({ kind: 'annotate', id: 'note', target: 'v.curve', mark: 'circle', label: 'bends up' })];
 
-  it('shows the value of the slider moved last, whichever came first', () => {
-    expect(getValues([shot, sample(10, 'launchAngle', 30), sample(20, 'horizontalSpeed', 15)])?.horizontalSpeed).toBe(15);
-    expect(getValues([shot, sample(10, 'horizontalSpeed', 15), sample(20, 'launchAngle', 30)])?.launchAngle).toBeCloseTo(30, 9);
-    expect(getValues([shot, sample(10, 'launchAngle', 30), sample(20, 'horizontalSpeed', 15), sample(30, 'launchAngle', 45)])?.launchAngle).toBeCloseTo(45, 9);
-    expect(getValues([shot, sample(10, 'launchAngle', 30), sample(20, 'horizontalSpeed', 15), sample(30, 'launchAngle', 45), sample(40, 'horizontalSpeed', 9)])?.horizontalSpeed).toBe(9);
+  it('takes what hangs on it when it changes, so no old mark reads on the new curve', () => {
+    const operations = [up, ...marks, down];
+    expect(ids(operations, 4000)).toEqual(['v', 'lowest', 'note']);
+    expect(ids(operations, 6000)).toEqual(['v']);
+  });
+
+  it('keeps what hangs on it when the same figure is placed again, because every word on it still holds', () => {
+    expect(ids([up, ...marks, place({ kind: 'plot', id: 'v', expression: 'x^2', domain: [-2, 2] }, 5000)], 6000)).toEqual(['v', 'lowest', 'note']);
+  });
+
+  it('takes sliders, shading, and the curves drawn over it too, with what hangs on those', () => {
+    const operations = [place({ kind: 'plot', id: 'v', expression: 'a*x', constants: [{ name: 'a', value: 1, min: 0, max: 2 }], domain: [0, 1] }), place({ kind: 'slider', id: 's', target: 'v', constant: 'a', min: 0, max: 2 }), place({ kind: 'shadeArea', id: 'area', target: 'v', from: 0, to: 1 }), place({ kind: 'plot', id: 'second', over: 'v', expression: 'x', domain: [0, 1] }), place({ kind: 'markValue', id: 'on-second', target: 'second', at: 0 }), place({ kind: 'text', id: 'title', text: 'stays' }), down];
+    expect(ids(operations, 6000)).toEqual(['v', 'title']);
+  });
+
+  it('lets a new slider arrive under the old id on the new figure', () => {
+    const slider = (constant: string, atMs: number) => place({ kind: 'slider', id: 's', target: 'v', constant, min: 0, max: 2 }, atMs);
+    const curve = (name: string, atMs: number) => place({ kind: 'plot', id: 'v', expression: `${name}*x`, constants: [{ name, value: 1, min: 0, max: 2 }], domain: [0, 1] }, atMs);
+    const operations = [curve('a', 0), slider('a', 0), curve('b', 5000), slider('b', 5000)];
+    expect(element(operations, 's', 6000).content).toMatchObject({ constant: 'b' });
+  });
+
+  it('replays what the student saw, from a stored row', () => {
+    const script = [{ kind: 'plot', id: 'v', expression: 'x^2', domain: [-2, 2] }, { kind: 'markValue', id: 'lowest', target: 'v', at: 0, label: 'minimum' }, 'One two three '];
+    const row = (atMs: number, seq: number, beatId: string, beatScript: unknown[]) => parseSessionEvent({ seq, atMs, kind: 'beatPlayed', beat: { id: beatId, expectsReply: false, script: beatScript }, reportedBy: 'browser', turnId: 'turn-1', wordStartsMs: [0, 10, 20], durationMs: 40, playedWords: 3, firedCueMs: beatScript.filter((part) => typeof part !== 'string').map((_, index) => index), ending: 'finished', frozen: [] });
+    const first = row(0, 0, 'first', script);
+    const second = row(5000, 1, 'second', [{ kind: 'plot', id: 'v', expression: '0-x^2', domain: [-2, 2] }, 'One two three ']);
+    if (!first.ok || !second.ok) throw new Error('the rows should parse');
+    expect([...rebuildBoard([first.value], 4000).elements.keys()]).toEqual(['v', 'lowest']);
+    expect([...rebuildBoard([first.value, second.value], 6000).elements.keys()]).toEqual(['v']);
+  });
+});
+
+describe('sliders on one flight', () => {
+  const shot: BoardOperation = { kind: 'command', atMs: 0, overMs: null, command: { kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 10, upwardSpeed: 10, releaseHeight: 0, gravity: 9.8 } } } as never };
+  const sample = (atMs: number, parameter: string, value: number): BoardOperation => ({ kind: 'parameterSample', atMs, target: 'shot' as never, parameter, value });
+  const slider = (id: string, parameter: string, atMs = 0) => place({ kind: 'slider', id, target: 'shot', parameter, min: 1, max: 80 }, atMs);
+  const tutorSets = (atMs: number, parameter: string, value: number) => place({ kind: 'setParameter', target: 'shot', parameter, value }, atMs);
+  const getValues = (operations: BoardOperation[]) => getBoardAt(operations, 90_000).elements.get('shot' as never)?.placedScene?.scene.values as Record<string, number>;
+
+  it('refuses a second slider that says the same speed another way, keeps the first, and says which', () => {
+    const operations = [shot, slider('angle', 'launchAngle'), slider('sideways', 'horizontalSpeed', 100)];
+    const board = getBoardAt(operations, 200);
+    expect([...board.elements.keys()]).toEqual(['shot', 'angle']);
+    expect(board.refusedSliders.map(({ id }) => id)).toEqual(['sideways']);
+  });
+
+  it('takes the pairs that do not overlap', () => {
+    for (const pair of [['launchSpeed', 'launchAngle'], ['horizontalSpeed', 'upwardSpeed'], ['launchAngle', 'gravity'], ['horizontalSpeed', 'releaseHeight']] as const) {
+      const board = getBoardAt([shot, slider('first', pair[0]), slider('second', pair[1], 100)], 200);
+      expect([...board.elements.keys()]).toEqual(['shot', 'first', 'second']);
+      expect(board.refusedSliders).toEqual([]);
+    }
+  });
+
+  it('takes the slider when the one it overlapped has gone', () => {
+    const board = getBoardAt([shot, slider('angle', 'launchAngle'), place({ kind: 'hide', target: 'angle' }, 50), slider('sideways', 'horizontalSpeed', 100)], 200);
+    expect([...board.elements.keys()]).toEqual(['shot', 'sideways']);
+  });
+
+  it('moves only the number the student moved, on either coherent pair', () => {
+    const polar = getValues([shot, sample(10, 'launchAngle', 30), sample(20, 'launchSpeed', 20), sample(30, 'launchAngle', 31)]);
+    expect(polar.launchSpeed).toBeCloseTo(20, 9);
+    expect(polar.launchAngle).toBeCloseTo(31, 9);
+    const sideways = getValues([shot, sample(10, 'horizontalSpeed', 3), sample(20, 'upwardSpeed', 7), sample(30, 'horizontalSpeed', 4)]);
+    expect(sideways.horizontalSpeed).toBe(4);
+    expect(sideways.upwardSpeed).toBe(7);
+  });
+
+  it('never jumps the total speed on one angle step, from any 300 starts the tutor can leave behind', () => {
+    let worstJump = 0;
+    for (let angle = 10; angle <= 80; angle += 5) {
+      for (let sideways = 1; sideways <= 20; sideways += 1) {
+        const before = [shot, tutorSets(10, 'launchAngle', angle), tutorSets(20, 'horizontalSpeed', sideways)];
+        const shown = getValues(before);
+        const after = getValues([...before, sample(30, 'launchAngle', (shown.launchAngle as number) + 1)]);
+        worstJump = Math.max(worstJump, Math.abs((after.launchSpeed as number) / (shown.launchSpeed as number) - 1));
+      }
+    }
+    expect(worstJump).toBeLessThan(1e-9);
+  });
+
+  it('holds the angle the student set while the speed is zero', () => {
+    const values = getValues([shot, sample(10, 'launchSpeed', 0), sample(20, 'launchAngle', 40)]);
+    expect(values.launchAngle).toBe(40);
+    expect(getValues([shot, sample(10, 'launchSpeed', 0), sample(20, 'launchAngle', 40), sample(30, 'launchSpeed', 10)]).launchAngle).toBeCloseTo(40, 9);
   });
 });
 

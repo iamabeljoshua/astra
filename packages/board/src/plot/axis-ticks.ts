@@ -56,19 +56,25 @@ const ROUGH_TICKS = 8;
 const FLAT_ROOM = 1;
 const FLAT_ROOM_SHARE = 1e-3;
 /** A value past this can overflow a range's width, and nothing this far out fits a figure with anything else. */
-const LARGEST_FITTED_VALUE = 1e300;
+export const LARGEST_FITTED_VALUE = 1e300;
 
 function getQuantile(sorted: readonly number[], share: number): number {
   return sorted[Math.round(share * (sorted.length - 1))] as number;
 }
 
-function getCoreRange(sorted: readonly number[]): [number, number] {
+/** The furthest finite top past `beyond` on one side, or null when all that lies there grows without bound. */
+export type MeasureTop = (side: { beyond: number; direction: 1 | -1 }) => number | null;
+
+function getCoreRange(sorted: readonly number[], measureTop: MeasureTop): [number, number] {
   const coreLow = getQuantile(sorted, LOW_SHARE);
   const coreHigh = getQuantile(sorted, HIGH_SHARE);
   const room = OUTLIER_FACTOR * (coreHigh - coreLow);
   const lowest = sorted[0] as number;
   const highest = sorted.at(-1) as number;
-  return [coreLow - lowest > room ? coreLow - (coreHigh - coreLow) / 2 : lowest, highest - coreHigh > room ? coreHigh + (coreHigh - coreLow) / 2 : highest];
+  const coreRoom = (coreHigh - coreLow) / 2;
+  const low = coreLow - lowest > room ? Math.min(coreLow - coreRoom, measureTop({ beyond: coreLow - room, direction: -1 }) ?? Number.POSITIVE_INFINITY) : lowest;
+  const high = highest - coreHigh > room ? Math.max(coreHigh + coreRoom, measureTop({ beyond: coreHigh + room, direction: 1 }) ?? Number.NEGATIVE_INFINITY) : highest;
+  return [low, high];
 }
 
 function pullToZero([low, high]: [number, number]): [number, number] {
@@ -78,11 +84,11 @@ function pullToZero([low, high]: [number, number]): [number, number] {
   return [low, high];
 }
 
-/** Fits the curve's values, leaving out the far reaches near an asymptote, on round numbers. */
-export function getAutoYRange(values: readonly number[]): AxisRange {
+/** Fits the curve's values on round numbers. Only what `measureTop` finds growing without bound is left out, because a finite peak cut short reads as an asymptote. */
+export function getAutoYRange(values: readonly number[], measureTop: MeasureTop = () => null): AxisRange {
   const sorted = values.filter((value) => Math.abs(value) <= LARGEST_FITTED_VALUE).sort((first, second) => first - second);
   if (sorted.length === 0) return [-FLAT_ROOM, FLAT_ROOM];
-  const [low, high] = pullToZero(getCoreRange(sorted));
+  const [low, high] = pullToZero(getCoreRange(sorted, measureTop));
   const room = Math.max(FLAT_ROOM, Math.abs(low) * FLAT_ROOM_SHARE);
   if (high - low < 1e-9) return [low - room, high + room];
   const step = getTickStep([low, high], ROUGH_TICKS);

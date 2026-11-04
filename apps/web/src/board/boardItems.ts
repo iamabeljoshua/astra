@@ -16,6 +16,7 @@ export interface ItemContext {
   onLabelWithoutRoom(text: string): void;
   onMarkWithoutPart(mark: BoardElement): void;
   onMarkDrawn(mark: BoardElement): void;
+  onCurveTooFine(curve: BoardElement): void;
   progress: number;
   maxWidth: number;
   fontSize: number;
@@ -212,13 +213,13 @@ function createFigureItem(wrapper: HTMLElement, content: BoardElement['content']
       const { fit, size } = getFigureFit(element, maxWidth);
       return { fit, size, fromSize: null };
     },
-    paint({ element, board, atMs, placedSize, isReducedMotion, onLabelWithoutRoom, onMarkWithoutPart, onMarkDrawn }) {
+    paint({ element, board, atMs, placedSize, isReducedMotion, onLabelWithoutRoom, onMarkWithoutPart, onMarkDrawn, onCurveTooFine }) {
       if (!placedSize) return;
       const width = String(Math.round(placedSize.width));
       const height = String(Math.round(placedSize.height));
       if (svg.getAttribute('width') !== width) svg.setAttribute('width', width);
       if (svg.getAttribute('height') !== height) svg.setAttribute('height', height);
-      painter.paint(getFigureMarks({ board, element, atMs, width: Math.round(placedSize.width), height: Math.round(placedSize.height), isReducedMotion, words: BOARD_LABELS.figures, onLabelWithoutRoom, onMarkWithoutPart, onMarkDrawn }));
+      painter.paint(getFigureMarks({ board, element, atMs, width: Math.round(placedSize.width), height: Math.round(placedSize.height), isReducedMotion, words: BOARD_LABELS.figures, onLabelWithoutRoom, onMarkWithoutPart, onMarkDrawn, onCurveTooFine }));
     },
     remove: () => svg.remove(),
   };

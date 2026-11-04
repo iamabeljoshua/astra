@@ -11,6 +11,12 @@ type Range = readonly [number, number];
 function sample(expression: string, domain: Range, yRange: Range): Branch[] {
   const node = parsePlotExpression(expression);
   if (!node) throw new Error(`could not parse ${expression}`);
+  return sampleCurve({ evaluate: (x) => evaluatePlotExpression(node, x), domain, yRange }).branches;
+}
+
+function drawCurve(expression: string, domain: Range, yRange: Range) {
+  const node = parsePlotExpression(expression);
+  if (!node) throw new Error(`could not parse ${expression}`);
   return sampleCurve({ evaluate: (x) => evaluatePlotExpression(node, x), domain, yRange });
 }
 
@@ -93,7 +99,7 @@ describe('sampling near discontinuities', () => {
   it('stays inside its step budget on a curve that never settles, and draws no line from edge to edge of the axes', () => {
     let evaluations = 0;
     const node = parsePlotExpression('tan(3000*x)') as NonNullable<ReturnType<typeof parsePlotExpression>>;
-    const branches = sampleCurve({ domain: [-5, 5], yRange: [-1, 1], evaluate: (x) => {
+    const { branches } = sampleCurve({ domain: [-5, 5], yRange: [-1, 1], evaluate: (x) => {
       evaluations += 1;
       return evaluatePlotExpression(node, x);
     } });
@@ -129,7 +135,7 @@ const CONTINUOUS_CURVES: readonly (readonly [string, Range])[] = [
 function getPlotCurve(expression: string, domain: Range, changes = {}): { curve: readonly Branch[]; yRange: Range } {
   const plot: Plot = { kind: 'plot', id: 'graph' as never, expression, domain: [domain[0], domain[1]], ...(expression.includes('a*') ? { constants: [{ name: 'a', value: 1, min: 1, max: 10 }] } : {}) };
   const frame = createPlotScene(plot, changes)?.getFrame(0) as PlotFrame;
-  return { curve: frame.getCurve(frame.yRange), yRange: frame.yRange };
+  return { curve: frame.getCurve(frame.yRange).branches, yRange: frame.yRange };
 }
 
 const getCoverage = (branches: readonly Branch[], [low, high]: Range) => branches.reduce((sum, branch) => sum + (branch.at(-1) as Point).x - (branch[0] as Point).x, 0) / (high - low);
@@ -160,7 +166,7 @@ describe('a continuous curve that needs many samples', () => {
   it.each(['sin(300*x)', 'sin(1000*x)', 'sin(24*pi*x)'])('draws %s as the band it is, inside the budget, and not as a slower wave', (expression) => {
     let evaluations = 0;
     const node = parsePlotExpression(expression) as NonNullable<ReturnType<typeof parsePlotExpression>>;
-    const branches = sampleCurve({ domain: [-10, 10], yRange: [-1, 1], evaluate: (x) => {
+    const { branches } = sampleCurve({ domain: [-10, 10], yRange: [-1, 1], evaluate: (x) => {
       evaluations += 1;
       return evaluatePlotExpression(node, x);
     } });
@@ -253,7 +259,7 @@ describe('a plot as a scene', () => {
 
   it('takes its constants as parameters', () => {
     const first = frameOf();
-    const curve = frameOf({ a: 2 }).getCurve(first.yRange);
+    const curve = frameOf({ a: 2 }).getCurve(first.yRange).branches;
     expect(curve[0]?.at(-1)?.y).toBeCloseTo(8, 6);
     expect(createPlotScene(plot, { a: 2 })?.values).toEqual({ a: 2 });
   });
@@ -281,3 +287,114 @@ describe('a plot as a scene', () => {
     expect(createPlotScene(plot, { a: 2 })).toBe(createPlotScene(plot, { a: 2 }));
   });
 });
+
+describe('past the budget', () => {
+  const crossingsOf = (branches: readonly Branch[], low: number, high: number) => {
+    let count = 0;
+    for (const branch of branches) for (let index = 1; index < branch.length; index += 1) {
+      const [first, second] = [(branch[index - 1] as Point).y, (branch[index] as Point).y];
+      if (Math.min(first, second) <= low && Math.max(first, second) >= high) count += 1;
+    }
+    return count;
+  };
+
+  for (const a of [60, 72, 74, 80, 90, 95, 100, 120, 150, 200, 300, 500, 1000]) {
+    it(`draws a square wave at a = ${a} as two lines and never a block`, () => {
+      const { branches } = drawCurve(`abs(sin(${a}*x))/sin(${a}*x)`, [-10, 10], [-1, 1]);
+      expect(crossingsOf(branches, -0.5, 0.5)).toBe(0);
+      expect(branches.flat().every((point) => Math.abs(point.y) === 1)).toBe(true);
+    });
+  }
+
+  for (const a of [70, 72, 100, 150, 300, 1000]) {
+    it(`draws no line through a pole of 1/sin(${a}*x), which has no value between -1 and 1`, () => {
+      const { branches } = drawCurve(`1/sin(${a}*x)`, [-10, 10], [-8, 8]);
+      expect(crossingsOf(branches, -1, 1)).toBe(0);
+    });
+  }
+
+  it('says when it could not finish, and draws only what it proved', () => {
+    expect(drawCurve('abs(sin(100*x))/sin(100*x)', [-10, 10], [-1, 1]).isTooFine).toBe(true);
+    expect(drawCurve('1/sin(100*x)', [-10, 10], [-8, 8]).isTooFine).toBe(true);
+    expect(drawCurve('tan(100*x)', [-10, 10], [-20, 20]).isTooFine).toBe(true);
+    expect(drawCurve('sin(300*x)', [-10, 10], [-1, 1]).isTooFine).toBe(true);
+  });
+
+  for (const a of [1, 2, 4, 10, 30, 50, 75, 100, 120, 150]) {
+    it(`keeps sin(${a}*x) whole, with nothing to say`, () => {
+      const { branches, isTooFine } = drawCurve(`sin(${a}*x)`, [-10, 10], [-1, 1]);
+      expect(branches).toHaveLength(1);
+      expect(isTooFine).toBe(false);
+    });
+  }
+
+  it('draws sin(300*x) as an honest band, filling most of each column from top to bottom', () => {
+    const { branches } = drawCurve('sin(300*x)', [-10, 10], [-1, 1]);
+    const columns = 640;
+    const rows = 40;
+    const filled = new Set<number>();
+    for (const branch of branches) for (let index = 1; index < branch.length; index += 1) {
+      const [first, second] = [branch[index - 1] as Point, branch[index] as Point];
+      const column = Math.min(columns - 1, Math.floor(((first.x + 10) / 20) * columns));
+      const [low, high] = [Math.min(first.y, second.y), Math.max(first.y, second.y)];
+      for (let row = Math.floor(((low + 1) / 2) * rows); row < Math.ceil(((high + 1) / 2) * rows); row += 1) filled.add(column * rows + row);
+    }
+    expect(filled.size / (columns * rows)).toBeGreaterThan(0.85);
+    expect(branches.length).toBeLessThan(30);
+  });
+
+  it('keeps a jump in a fast wave as a gap, and draws both bands', () => {
+    const { branches } = drawCurve('0.1*sin(300*x)+abs(x-2)/(x-2)', [-10, 10], [-1.2, 1.2]);
+    expect(crossingsOf(branches, -0.8, 0.8)).toBe(0);
+    expect(branches.flat().some((point) => point.y > 0.9)).toBe(true);
+    expect(branches.flat().some((point) => point.y < -0.9)).toBe(true);
+  });
+
+  it('stays within the budget however fine the curve', () => {
+    for (const expression of ['abs(sin(1000*x))/sin(1000*x)', 'tan(1000*x)', 'sin(100000*x)', '1/sin(300*x)']) {
+      let evaluations = 0;
+      const node = parsePlotExpression(expression);
+      if (!node) throw new Error(expression);
+      sampleCurve({ evaluate: (x) => { evaluations += 1; return evaluatePlotExpression(node, x); }, domain: [-10, 10], yRange: [-5, 5] });
+      expect(evaluations).toBeLessThanOrEqual(CURVE_LIMITS.evaluations);
+    }
+  });
+});
+
+describe('fitting y to a curve with a tall part', () => {
+  const fitted = (expression: string, domain: [number, number], constants?: Plot['constants']) => (createPlotScene({ kind: 'plot', id: 'p' as never, expression, domain, ...(constants ? { constants } : {}) } as Plot, {})?.getFrame(0) as PlotFrame).yRange;
+
+  for (const [expression, domain, peak] of [['1/(1+100*x*x)', [-10, 10], 1], ['1/(1+10000*x*x)', [-10, 10], 1], ['1/(1+10000*(x-1.23)^2)', [-10, 10], 1], ['sin(x)/x', [-30, 30], 1], ['sin(x)/x', [-100, 100], 1], ['exp(-100*x*x)', [-5, 5], 1], ['1/(1+100*abs(x))', [-10, 10], 1], ['x/(x*x+0.0001)', [-5, 5], 50], ['exp(x)', [-5, 20], Math.exp(20)], ['x^10', [-3, 3], 3 ** 10]] as const) {
+    it(`keeps the whole finite peak of ${expression} on [${domain.join(', ')}]`, () => {
+      const [, top] = fitted(expression, [domain[0], domain[1]]);
+      expect(top).toBeGreaterThanOrEqual(peak * (1 - 1e-6));
+      expect(top).toBeLessThan(peak * 1.5);
+    });
+  }
+
+  it('keeps the valley of a finite dip too', () => {
+    const [bottom] = fitted('0-1/(1+100*x*x)', [-10, 10]);
+    expect(bottom).toBeLessThanOrEqual(-1 + 1e-6);
+  });
+
+  it('keeps a peak a constant only reaches at the far end of its range', () => {
+    const [, top] = fitted('1/(1+a*(x-1.23)^2)', [-10, 10], [{ name: 'a', value: 1, min: 1, max: 1e4 }]);
+    expect(top).toBeGreaterThanOrEqual(1 - 1e-6);
+  });
+
+  it('still clips what truly grows without bound, to the same axes as before', () => {
+    expect(fitted('1/x', [-5, 5])).toEqual([-2, 2]);
+    expect(fitted('1/x', [-10, 10])).toEqual([-1, 1]);
+    expect(fitted('tan(x)', [-5, 5])).toEqual([-8, 8]);
+    expect(fitted('1/(x*x)', [-3, 3])).toEqual([0, 16]);
+    expect(fitted('1/(x*x-2)', [-5, 5])).toEqual([-1.5, 1.5]);
+    expect(fitted('tan(10*x)', [-10, 10])).toEqual([-6, 6]);
+  });
+
+  it('measures a finite peak beside a pole, and still clips the pole', () => {
+    const [, top] = fitted('1/(x-5)+10/(1+100*x*x)', [-10, 10]);
+    expect(top).toBeGreaterThanOrEqual(10);
+    expect(top).toBeLessThan(15);
+  });
+});
+

@@ -7,6 +7,7 @@ export interface FigureWords {
   parameters: Record<SimulationParameter, { label: string; unit: string }>;
   metres: string;
   degrees: string;
+  tooFine: string;
 }
 
 export interface FigureFrame {
@@ -20,6 +21,7 @@ export interface FigureFrame {
   onLabelWithoutRoom?(text: string): void;
   onMarkWithoutPart?(mark: BoardElement): void;
   onMarkDrawn?(mark: BoardElement): void;
+  onCurveTooFine?(curve: BoardElement): void;
 }
 
 /** A mark's mark and label, whichever command made it, for a figure that draws marks on its parts. */

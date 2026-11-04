@@ -13,6 +13,7 @@ const WORDS: FigureWords = {
   degrees: '°',
   readouts: { time: QUANTITY, height: { label: 'Height', unit: 'm' }, distance: QUANTITY, speed: QUANTITY, 'velocity-x': QUANTITY, 'velocity-y': QUANTITY, 'peak-height': QUANTITY, 'landing-distance': QUANTITY },
   parameters: { horizontalSpeed: QUANTITY, upwardSpeed: QUANTITY, releaseHeight: QUANTITY, gravity: QUANTITY, launchAngle: QUANTITY, launchSpeed: QUANTITY },
+  tooFine: 'Too fine to draw here',
 };
 
 const SIZES = [{ width: 712, height: 512 }, { width: 326, height: 235 }];
@@ -507,11 +508,11 @@ describe('axes that hold still', () => {
     for (const value of [10, 30, 60, 80]) expect(tickAt(value)).toBe(atRest);
   });
 
-  it('keeps every arc on the figure with an angle and a sideways speed on sliders, whichever moved last', () => {
-    const sliders = [place({ kind: 'slider', id: 'angle', target: 'shot', parameter: 'launchAngle', min: 10, max: 80 }), place({ kind: 'slider', id: 'sideways', target: 'shot', parameter: 'horizontalSpeed', min: 0, max: 15 })];
+  it('keeps every arc on the figure with a speed and an angle on sliders, wherever they are', () => {
+    const sliders = [place({ kind: 'slider', id: 'angle', target: 'shot', parameter: 'launchAngle', min: 10, max: 80 }), place({ kind: 'slider', id: 'speed', target: 'shot', parameter: 'launchSpeed', min: 0, max: 15 })];
     const size = SIZES[0] as { width: number; height: number };
     const sample = (atMs: number, parameter: string, value: number): BoardOperation => ({ kind: 'parameterSample', atMs, target: 'shot' as never, parameter, value });
-    for (const moves of [[sample(2000, 'launchAngle', 80), sample(2100, 'horizontalSpeed', 15)], [sample(2000, 'horizontalSpeed', 15), sample(2100, 'launchAngle', 80)], [sample(2000, 'horizontalSpeed', 15), sample(2100, 'launchAngle', 10)]]) {
+    for (const moves of [[sample(2000, 'launchAngle', 80), sample(2100, 'launchSpeed', 15)], [sample(2000, 'launchSpeed', 15), sample(2100, 'launchAngle', 45)], [sample(2000, 'launchSpeed', 15), sample(2100, 'launchAngle', 10)]]) {
       const marks = getMarks([shot, ...sliders, ...moves], 'shot', size);
       const path = marks.find((mark) => mark.key === 'path') as FigureMark & { kind: 'path' };
       for (const { x, y } of path.branches.flat()) {
@@ -552,5 +553,85 @@ describe('axes that hold still', () => {
     const board = getBoardAt([place({ kind: 'plot', id: 'p', expression: 'x', domain: [0, 1], label: 'a label with no room at all' })], LATE_MS);
     getFigureMarks({ board, element: board.elements.get('p' as never) as FigureFrame['element'], atMs: LATE_MS, width: 40, height: 20, isReducedMotion: false, words: WORDS, onLabelWithoutRoom: (text) => lost.push(text) });
     expect(lost).toEqual(['a label with no room at all']);
+  });
+});
+
+describe('marks on a curve placed again', () => {
+  const up = place({ kind: 'plot', id: 'v', expression: 'x^2', domain: [-2, 2] });
+  const lowest = place({ kind: 'markValue', id: 'lowest', target: 'v', at: 0, label: 'minimum' });
+  const note = place({ kind: 'annotate', id: 'note', target: 'v.curve', mark: 'circle', label: 'bends up' });
+  const words = (marks: readonly FigureMark[]) => getText(marks).flatMap((mark) => mark.lines).join(' ');
+
+  it('reads no old words on a downward parabola', () => {
+    expect(words(getMarks([up, lowest, note], 'v'))).toContain('minimum (0, 0)');
+    expect(words(getMarks([up, lowest, note, place({ kind: 'plot', id: 'v', expression: '0-x^2', domain: [-2, 2] }, 5000)], 'v'))).not.toMatch(/minimum|bends up/);
+  });
+});
+
+describe('a curve too fine to draw', () => {
+  const getFine = (expression: string, domain: [number, number] = [-10, 10]) => {
+    const operations = [place({ kind: 'plot', id: 'c', expression, domain })];
+    const board = getBoardAt(operations, LATE_MS);
+    const tooFine: string[] = [];
+    const marks = getFigureMarks({ board, element: board.elements.get('c' as never) as FigureFrame['element'], atMs: LATE_MS, ...SIZES[0] as { width: number; height: number }, isReducedMotion: false, words: WORDS, onCurveTooFine: (element) => tooFine.push(element.id) });
+    return { marks, tooFine, note: getText(marks).find((mark) => mark.key === 'too-fine') };
+  };
+
+  for (const expression of ['abs(sin(100*x))/sin(100*x)', '1/sin(100*x)', 'tan(100*x)', 'sin(300*x)']) {
+    it(`says so in the figure and to the tutor for ${expression}`, () => {
+      const { note, tooFine, marks } = getFine(expression);
+      expect(note?.lines).toEqual([WORDS.tooFine]);
+      expect(tooFine).toEqual(['c']);
+      expect(getOverlappingText(marks)).toEqual([]);
+      expect(getTextOutside(marks, SIZES[0] as { width: number; height: number })).toEqual([]);
+    });
+  }
+
+  for (const expression of ['sin(x)', 'sin(30*x)', 'sin(150*x)', '1/x', 'tan(x)', 'abs(sin(20*x))/sin(20*x)']) {
+    it(`says nothing for ${expression}, which it drew`, () => {
+      const { note, tooFine } = getFine(expression);
+      expect(note).toBeUndefined();
+      expect(tooFine).toEqual([]);
+    });
+  }
+
+  it('keeps the note clear of a phone-width figure', () => {
+    const operations = [place({ kind: 'plot', id: 'c', expression: 'tan(100*x)', domain: [-10, 10], label: 'y = tan(100 x)', xLabel: 'x', yLabel: 'y' })];
+    const size = SIZES[1] as { width: number; height: number };
+    const marks = getMarks(operations, 'c', size);
+    expect(getText(marks).some((mark) => mark.key === 'too-fine')).toBe(true);
+    expect(getOverlappingText(marks)).toEqual([]);
+    expect(getTextOutside(marks, size)).toEqual([]);
+  });
+});
+
+describe('every way a number reaches a flight', () => {
+  const BOUNDS = { horizontalSpeed: [-100, 100], upwardSpeed: [-100, 100], releaseHeight: [0, 1000], gravity: [0.1, 100], launchAngle: [-90, 90], launchSpeed: [0, 150] } as const;
+  const readouts = (['time', 'height', 'distance', 'speed', 'velocity-x', 'velocity-y', 'peak-height', 'landing-distance'] as const).map((quantity) => place({ kind: 'readout', id: `r-${quantity}`, target: 'shot', quantity }));
+  const shot = place({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 6, releaseHeight: 2, gravity: 9.8 } } });
+
+  const expectHonest = (operations: BoardOperation[]) => {
+    for (const atMs of [3000, LATE_MS]) {
+      const marks = getMarks(operations, 'shot', undefined, atMs);
+      const text = JSON.stringify(marks, (_, value: unknown) => (typeof value === 'number' && !Number.isFinite(value) ? 'NOT FINITE' : value));
+      expect(text).not.toMatch(/NOT FINITE|NaN|Infinity/);
+    }
+  };
+
+  for (const [name, [low, high]] of Object.entries(BOUNDS)) {
+    it(`stays honest with ${name} at either end, as a slider or from the tutor`, () => {
+      for (const value of [low, high]) {
+        expectHonest([shot, ...readouts, { kind: 'parameterSample', atMs: 1000, target: 'shot' as never, parameter: name, value }]);
+        expectHonest([shot, ...readouts, place({ kind: 'setParameter', target: 'shot', parameter: name, value }, 1000)]);
+      }
+    });
+  }
+
+  it('leaves gravity above zero and the height above the ground whatever a sample says', () => {
+    for (const [parameter, value, lowest] of [['gravity', 0, 0.1], ['gravity', -5, 0.1], ['releaseHeight', -5, 0], ['launchSpeed', -5, 0]] as const) {
+      const operations: BoardOperation[] = [shot, ...readouts, { kind: 'parameterSample', atMs: 1000, target: 'shot' as never, parameter, value }];
+      expectHonest(operations);
+      expect(getBoardAt(operations, LATE_MS).elements.get('shot' as never)?.placedScene?.scene.values?.[parameter]).toBe(lowest);
+    }
   });
 });

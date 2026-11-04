@@ -1,13 +1,13 @@
 import { evaluatePlotExpression, parsePlotExpression, type Plot, type PlotNode } from '@astra/contracts';
-import type { Branch } from '../figure/figure-marks.ts';
 import type { Scene, SceneParameters } from '../player/scene.ts';
 import { type AxisRange, getAutoYRange } from './axis-ticks.ts';
-import { sampleCurve } from './sample-curve.ts';
+import { getFiniteTop } from './measure-peak.ts';
+import { type CurveDrawing, sampleCurve } from './sample-curve.ts';
 
 export interface PlotFrame {
   yRange: AxisRange;
   /** Only where it lies inside `xRange`, because a curve drawn over another can reach past its axes. */
-  getCurve(yRange: AxisRange, xRange?: AxisRange): readonly Branch[];
+  getCurve(yRange: AxisRange, xRange?: AxisRange): CurveDrawing;
   getValue(x: number): number;
 }
 
@@ -20,6 +20,7 @@ interface PlotData {
 const RANGE_SAMPLES = 96;
 const REMEMBERED_SCENES = 48;
 const NO_MOMENTS = {};
+const NOTHING_DRAWN: CurveDrawing = { branches: [], isTooFine: false };
 const PLOT_PARTS = ['curve'] as const;
 const LEVELS_BY_CONSTANT_COUNT = [1, 9, 5, 3, 3];
 
@@ -40,12 +41,14 @@ function getConstantSets(plot: Plot): ReadonlyMap<string, number>[] {
 
 function getPlotYRange(plot: Plot, node: PlotNode): AxisRange {
   if (plot.yRange) return plot.yRange;
-  const [low, high] = plot.domain;
-  const values = getConstantSets(plot).flatMap((constants) => {
+  const { domain } = plot;
+  const spacing = (domain[1] - domain[0]) / RANGE_SAMPLES;
+  const curves = getConstantSets(plot).map((constants) => {
     const evaluate = getEvaluator(node, constants);
-    return Array.from({ length: RANGE_SAMPLES + 1 }, (_, index) => evaluate(low + ((high - low) * index) / RANGE_SAMPLES));
+    const xs = Array.from({ length: RANGE_SAMPLES + 1 }, (_, index) => domain[0] + ((domain[1] - domain[0]) * index) / RANGE_SAMPLES);
+    return { evaluate, samples: xs.map((x) => ({ x, y: evaluate(x) })) };
   });
-  return getAutoYRange(values);
+  return getAutoYRange(curves.flatMap(({ samples }) => samples.map(({ y }) => y)), ({ beyond, direction }) => getFiniteTop(curves, { above: beyond, direction, spacing, domain }));
 }
 
 function getPlotData(plot: Plot): PlotData | null {
@@ -63,14 +66,14 @@ function getConstantValues(plot: Plot, changes: SceneParameters): SceneParameter
 
 function buildPlotScene(plot: Plot, { node, yRange }: PlotData, values: SceneParameters): Scene<PlotFrame> {
   const evaluate = getEvaluator(node, new Map(Object.entries(values)));
-  const curves = new Map<string, readonly Branch[]>();
+  const curves = new Map<string, CurveDrawing>();
   const frame: PlotFrame = {
     yRange,
     getValue: evaluate,
     getCurve(asked, [low, high] = plot.domain) {
       const domain: AxisRange = [Math.max(low, plot.domain[0]), Math.min(high, plot.domain[1])];
       const key = `${asked.join()}|${domain.join()}`;
-      const curve = curves.get(key) ?? (domain[1] > domain[0] ? sampleCurve({ evaluate, domain, yRange: asked }) : []);
+      const curve = curves.get(key) ?? (domain[1] > domain[0] ? sampleCurve({ evaluate, domain, yRange: asked }) : NOTHING_DRAWN);
       curves.set(key, curve);
       return curve;
     },

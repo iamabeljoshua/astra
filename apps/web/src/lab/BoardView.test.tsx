@@ -626,6 +626,34 @@ describe('BoardView, figures', () => {
     });
   });
 
+  describe('what the board tells the tutor about a figure', () => {
+    it('says once when a curve is too fine to draw, and notes it in the figure', () => {
+      const onBoardProblem = vi.fn();
+      const operations = [place({ kind: 'plot', id: 'fine', expression: 'tan(100*x)', domain: [-10, 10] })];
+      const { container, rerender } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} onBoardProblem={onBoardProblem} />);
+      rerender(<BoardView board={getBoardAt(operations, 5100)} atMs={5100} onBoardProblem={onBoardProblem} />);
+      expect(onBoardProblem.mock.calls).toEqual([[{ kind: 'curveTooFine', target: 'fine' }]]);
+      expect(container.querySelector('[data-mark="too-fine"]')?.textContent).toBe('Too fine to draw here');
+    });
+
+    it('says nothing about a curve it drew', () => {
+      const onBoardProblem = vi.fn();
+      const { container } = render(<BoardView board={getBoardAt([place({ kind: 'plot', id: 'wave', expression: 'sin(10*x)', domain: [-10, 10] })], 5000)} atMs={5000} onBoardProblem={onBoardProblem} />);
+      expect(onBoardProblem).not.toHaveBeenCalled();
+      expect(container.querySelector('[data-mark="too-fine"]')).toBeNull();
+    });
+
+    it('says once when a slider would say a speed another way than the one on the flight, and draws only the first', () => {
+      const onBoardProblem = vi.fn();
+      const flight = place({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 10, upwardSpeed: 10, releaseHeight: 0, gravity: 9.8 } } });
+      const operations = [flight, place({ kind: 'slider', id: 'angle', target: 'shot', parameter: 'launchAngle', min: 10, max: 80 }), place({ kind: 'slider', id: 'sideways', target: 'shot', parameter: 'horizontalSpeed', min: 0, max: 20 }, 100)];
+      const { container, rerender } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} onBoardProblem={onBoardProblem} />);
+      rerender(<BoardView board={getBoardAt(operations, 5100)} atMs={5100} onBoardProblem={onBoardProblem} />);
+      expect(onBoardProblem.mock.calls).toEqual([[{ kind: 'sliderOverlaps', sliderId: 'sideways', target: 'shot' }]]);
+      expect(container.querySelectorAll('.board-slider input')).toHaveLength(1);
+    });
+  });
+
   describe('an id placed again', () => {
     const second = place({ kind: 'plot', id: 'curve-two', expression: 'b*x', constants: [{ name: 'b', value: 15, min: 10, max: 20 }], domain: [0, 5], label: 'second' }, 6000);
     const reused = place({ kind: 'slider', id: 'a-slider', target: 'curve-two', constant: 'b', min: 10, max: 20 }, 6000);
@@ -693,12 +721,24 @@ describe('BoardView, figures', () => {
       expect(container.querySelector('.board-slider')?.textContent).toContain('4.2');
     });
 
-    it('moves nothing and says nothing when its curve no longer has that constant', () => {
-      const replaced = [plot, slider, place({ kind: 'plot', id: 'curve', expression: 'x', domain: [0, 2] }, 6000)];
-      const { container } = render(<BoardView board={getBoardAt(replaced, 8000)} atMs={8000} canMoveSliders />);
+    it('moves nothing and says nothing on a curve without that constant', () => {
+      const onSliderMove = vi.fn();
+      const operations = [place({ kind: 'plot', id: 'curve', expression: 'x^2', domain: [0, 2] }), place({ kind: 'slider', id: 'a-slider', target: 'curve', constant: 'a', min: 0, max: 4 })];
+      const { container } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} canMoveSliders onSliderMove={onSliderMove} />);
       const input = container.querySelector<HTMLInputElement>('.board-slider input') as HTMLInputElement;
       expect(input.disabled).toBe(true);
-      expect(input.getAttribute('aria-valuetext')).toBeNull();
+      expect(input.hasAttribute('aria-valuetext')).toBe(false);
+      expect(container.querySelector('.board-slider-value')?.textContent).toBe('');
+    });
+
+    it('goes when its curve is replaced, and an old mark goes with it', () => {
+      const operations = [plot, slider, place({ kind: 'markValue', id: 'lowest', target: 'curve', at: 0, label: 'minimum' }), place({ kind: 'plot', id: 'curve', expression: 'x^2', domain: [0, 2] }, 6000)];
+      const { container, rerender } = render(<BoardView board={getBoardAt(operations, 5000)} atMs={5000} canMoveSliders />);
+      expect(container.querySelector('.board-slider')).not.toBeNull();
+      expect(container.textContent).toContain('minimum');
+      rerender(<BoardView board={getBoardAt(operations, 8000)} atMs={8000} canMoveSliders />);
+      expect(container.querySelector('.board-slider')).toBeNull();
+      expect(container.textContent).not.toContain('minimum');
     });
   });
 

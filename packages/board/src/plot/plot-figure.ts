@@ -8,13 +8,14 @@ import { getReshapedValues } from '../player/board-state.ts';
 import { PLANNED_SCENES } from '../player/planned-scenes.ts';
 import { formatNumber } from './axis-ticks.ts';
 import type { PlotFrame } from './plot-scene.ts';
-import { getBranchesUpTo } from './sample-curve.ts';
+import { type CurveDrawing, getBranchesUpTo } from './sample-curve.ts';
 
 const PLOT_MARGIN = { left: 42, right: 14, top: 14, bottom: 26 };
 const AXES_SHARE_OF_ENTRANCE = 1 / 3;
 const MARK_DOT_RADIUS = 4;
 const WIDEST_LEFT_MARGIN_SHARE = 0.3;
 const TICK_ROOM = 8;
+const TOO_FINE_KEY = 'too-fine';
 
 type PlotElement = BoardElement & { content: Plot };
 
@@ -39,13 +40,22 @@ function getDrawnUpToX(element: PlotElement, frame: FigureFrame): number {
   return domain[0] + (domain[1] - domain[0]) * curveShare;
 }
 
-function getCurvePoints(element: PlotElement, frame: FigureFrame, { xRange, yRange }: FigureView): readonly Branch[] {
-  const plotFrame = getPlotFrame(element, frame);
-  return plotFrame ? plotFrame.getCurve(yRange, xRange) : [];
+function getCurveDrawing(element: PlotElement, frame: FigureFrame, { xRange, yRange }: FigureView): CurveDrawing {
+  return getPlotFrame(element, frame)?.getCurve(yRange, xRange) ?? { branches: [], isTooFine: false };
+}
+
+const getCurvePoints = (element: PlotElement, frame: FigureFrame, view: FigureView) => getCurveDrawing(element, frame, view).branches;
+
+// In the clear margin above the axes, so it reads over a solid band and appearing moves nothing, and first in line so every other label keeps clear of it.
+function addTooFineNote(draft: FigureDraft, element: PlotElement, { frame, view }: { frame: FigureFrame; view: FigureView }): void {
+  frame.onCurveTooFine?.(element);
+  if (getAxesShare(frame.element, frame) < 1 || draft.labels.some(({ key }) => key === TOO_FINE_KEY)) return;
+  draft.labels.unshift({ key: TOO_FINE_KEY, text: frame.words.tooFine, anchor: { x: view.rect.right, y: 0 }, gap: 0, sides: ['below-left'], tone: 'ink', isFixed: true });
 }
 
 function addCurve(draft: FigureDraft, element: PlotElement, { frame, view, isFirst }: { frame: FigureFrame; view: FigureView; isFirst: boolean }): void {
-  const world = getCurvePoints(element, frame, view);
+  const { branches: world, isTooFine } = getCurveDrawing(element, frame, view);
+  if (isTooFine) addTooFineNote(draft, element, { frame, view });
   const upToX = getDrawnUpToX(element, frame);
   const isWhole = upToX >= element.content.domain[1];
   const drawn = isWhole ? getPixelBranches(world, view) : getBranchesUpTo(world, upToX).map((branch) => branch.map(view.toPixel));

@@ -15,7 +15,7 @@ export interface BoardFrame {
 }
 
 /** The board drew what it could and something a tutor asked for is not as asked. Math the board refused goes to `onMathRefused`. */
-export type BoardProblem = MarkWithoutTarget | ({ kind: 'fontFallback' } & MathFontProblem) | { kind: 'labelWithoutRoom'; text: string };
+export type BoardProblem = MarkWithoutTarget | ({ kind: 'fontFallback' } & MathFontProblem) | { kind: 'labelWithoutRoom'; text: string } | { kind: 'curveTooFine'; target: string } | { kind: 'sliderOverlaps'; sliderId: string; target: string };
 
 export interface BoardPaintingOptions extends SliderHandlers {
   boardElement: HTMLElement;
@@ -76,6 +76,21 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
     onBoardProblem?.({ kind: 'labelWithoutRoom', text });
   };
   const reportedFonts = new Set<string>();
+  const reportedCurves = new Set<string>();
+  const onCurveTooFine = ({ id, placedAtMs }: BoardElement) => {
+    const placement = `${id}@${placedAtMs}`;
+    if (reportedCurves.has(placement)) return;
+    reportedCurves.add(placement);
+    onBoardProblem?.({ kind: 'curveTooFine', target: id });
+  };
+  const reportedSliders = new Set<string>();
+  const reportRefusedSliders = ({ refusedSliders }: BoardState) => {
+    for (const { id, target } of refusedSliders) {
+      if (reportedSliders.has(id)) continue;
+      reportedSliders.add(id);
+      onBoardProblem?.({ kind: 'sliderOverlaps', sliderId: id, target });
+    }
+  };
 
   const syncItems = (placed: readonly BoardElement[]) => {
     const live = new Set(placed.map((element) => element.id as string));
@@ -144,10 +159,11 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
       const elements = [...board.elements.values()];
       const placed = getPlacingOrder(elements.filter((element) => hasOwnPlace(element.content) && getWrapper(element.id)));
       syncItems(placed);
+      reportRefusedSliders(board);
       const area = getArea(boardElement);
       const fontSize = Number.parseFloat(getComputedStyle(boardElement).fontSize) || 16;
       const maxWidth = Math.max(0, area.width - 2 * area.padding);
-      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, canMoveSliders, onLabelWithoutRoom, onMarkWithoutPart: marks.reportMarkWithoutPart, onMarkDrawn: marks.noteMarkDrawn, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
+      const contexts = placed.map((element): ItemContext => ({ element, board, atMs, placedSize: null, canMoveSliders, onLabelWithoutRoom, onMarkWithoutPart: marks.reportMarkWithoutPart, onMarkDrawn: marks.noteMarkDrawn, onCurveTooFine, progress: getMotionValue(element.entrance, atMs), maxWidth, fontSize, isReducedMotion }));
       const { placements, isMakingRoom } = placeMovingElements(prepareBoxes(contexts), area, getSharedProgress(contexts, isReducedMotion));
       const placementsById = new Map(placements.map((placement) => [placement.id, placement]));
       for (const context of contexts) paintItem(context, placementsById.get(context.element.id), isMakingRoom);

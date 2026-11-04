@@ -1,5 +1,6 @@
-import type { ElementId, ElementRef, FrozenFrame, InkPoint, SceneCommand, SimulationPoint } from '@astra/contracts';
+import { type ElementId, type ElementRef, type FrozenFrame, getOverlappingSlider, type InkPoint, type SceneCommand, type SimulationPoint, type Slider } from '@astra/contracts';
 import { type MathLine, startMathLine, transformMathLine } from '../math/math-line.ts';
+import { getChangesSaidLike } from '../motion/projectile-scene.ts';
 import type { BoardOperation } from './board-operations.ts';
 import { getMotionEndMs, getMotionValue, holdMotion, isMoving, type Motion, moveOver, retimeMotion } from './motion.ts';
 import { PLANNED_SCENES } from './planned-scenes.ts';
@@ -49,6 +50,8 @@ export interface BoardElement {
 export interface BoardState {
   readonly elements: ReadonlyMap<ElementId, BoardElement>;
   readonly focus: ElementRef | null;
+  /** Sliders the board did not place, because each said a speed another way than a live one on its flight. */
+  readonly refusedSliders: readonly Slider[];
 }
 
 interface PendingMove {
@@ -61,6 +64,7 @@ interface BoardDraft {
   focus: ElementRef | null;
   isFrozen: boolean;
   pendingMoves: Map<ElementId, PendingMove>;
+  refusedSliders: Slider[];
 }
 
 function holdAll(board: BoardDraft, atMs: number): void {
@@ -129,8 +133,8 @@ function runScene(element: BoardElement, command: SceneCommand & { kind: 'runSim
 function setSceneParameter(element: BoardElement, { parameter, value, atMs, keepsMoving, catalog }: { parameter: string; value: number; atMs: number; keepsMoving: boolean; catalog: SceneCatalog }): void {
   const placed = element.placedScene;
   if (!placed || element.content.kind === 'ink') return;
-  // Moved to the end, because two controls that share a speed apply in the order they were set.
-  const parameterChanges = Object.fromEntries([...Object.entries(placed.parameterChanges).filter(([name]) => name !== parameter), [parameter, value]]);
+  // A speed is held one way at a time, so no later change can replay against an older one and move a number nobody touched.
+  const parameterChanges = { ...getChangesSaidLike(parameter, placed.parameterChanges, placed.scene.values), [parameter]: value };
   const scene = catalog(element.content, parameterChanges) ?? placed.scene;
   const playhead = keepsMoving ? moveOver({ from: 0, to: scene.durationSeconds, atMs, overMs: scene.durationSeconds * MS_PER_SECOND }) : holdMotion(0, atMs);
   element.placedScene = { scene, parameterChanges, playhead, reshapingFrom: null };
@@ -175,9 +179,13 @@ function getTargetSecondsNow(board: BoardDraft, command: PlacingCommand, atMs: n
   return playhead ? getMotionValue(playhead, atMs) : null;
 }
 
+const isSameCommand = (first: BoardElement['content'], second: PlacingCommand) => JSON.stringify(first) === JSON.stringify(second);
+
 function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
   const scene = catalog(command, {});
   board.pendingMoves.delete(command.id);
+  const placedBefore = board.elements.get(command.id);
+  if (placedBefore && !isSameCommand(placedBefore.content, command)) removeAttached(board, command.id);
   board.elements.set(command.id, {
     id: command.id,
     placedAtMs: atMs,
@@ -231,11 +239,20 @@ export function getAttachedElementId(element: BoardElement): ElementId | null {
   return getAttachedTarget(element.content) as ElementId | null;
 }
 
+// What hangs on an element was said about what it showed, so it goes when that goes or changes.
+function removeAttached(board: BoardDraft, id: ElementId): void {
+  for (const element of [...board.elements.values()]) if (element.id !== id && getAttachedTarget(element.content) === id) removeWithAttached(board, element.id);
+}
+
 function removeWithAttached(board: BoardDraft, id: ElementId): void {
   board.elements.delete(id);
   board.pendingMoves.delete(id);
   if (board.focus?.split('.')[0] === id) board.focus = null;
-  for (const element of [...board.elements.values()]) if (getAttachedTarget(element.content) === id) removeWithAttached(board, element.id);
+  removeAttached(board, id);
+}
+
+function getLiveSliders(board: BoardDraft): Slider[] {
+  return [...board.elements.values()].flatMap(({ content }) => (content.kind === 'slider' ? [content] : []));
 }
 
 function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, catalog }: { atMs: number; overMs: number | null; catalog: SceneCatalog }): void {
@@ -244,6 +261,7 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       board.elements.clear();
       board.pendingMoves.clear();
       board.focus = null;
+      board.refusedSliders = [];
       return;
     case 'hide':
       removeWithAttached(board, command.target);
@@ -276,6 +294,10 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       element.revealedUpTo = moveOver({ from, to, atMs, overMs: overMs ?? (isCurve ? CURVE_DRAWING_MS : 0) });
       return;
     }
+    case 'slider':
+      if (getOverlappingSlider(command, getLiveSliders(board))) board.refusedSliders.push(command);
+      else place(board, command, { atMs, overMs, catalog });
+      return;
     default:
       place(board, command, { atMs, overMs, catalog });
   }
@@ -339,6 +361,7 @@ function applyOperation(board: BoardDraft, operation: BoardOperation, { operatio
       board.elements = before.elements;
       board.focus = before.focus;
       board.pendingMoves = before.pendingMoves;
+      board.refusedSliders = before.refusedSliders;
       freeze(board, [], operation.toMs);
     }
   }
@@ -349,7 +372,7 @@ function isReplacedByNext(operation: BoardOperation, next: BoardOperation | unde
 }
 
 function reduce(operations: readonly BoardOperation[], context: ReduceContext, atMs: number): BoardDraft {
-  const board: BoardDraft = { elements: new Map(), focus: null, isFrozen: false, pendingMoves: new Map() };
+  const board: BoardDraft = { elements: new Map(), focus: null, isFrozen: false, pendingMoves: new Map(), refusedSliders: [] };
   for (const [index, operation] of operations.entries()) {
     if (operation.atMs > atMs) break;
     if (!isReplacedByNext(operation, operations[index + 1], atMs)) applyOperation(board, operation, context);

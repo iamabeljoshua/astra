@@ -16,11 +16,25 @@ const HALVINGS_TO_SUSPECT_A_POLE = 1;
 const HALVINGS_TO_STOP_SMOOTHING = 2;
 const GOLDEN_RATIO = 0.618033988749895;
 const BASE_UNEVENNESS = 0.25;
+/** Past the budget a line may not cross a height this tall that no sample nearby reached, because a wave passes through its heights and a jump or a pole does not. */
+const UNSEEN_SHARE_OF_VIEW = 1 / 32;
+/** Enough samples that a wave's heights all show, at any speed past the budget, and few enough to stay near the step. */
+const SAMPLES_SEEN_TOGETHER = 1024;
+/** Up and down steps both this tall mean about 6 samples or fewer for each wave, so this is a band and no longer a wave. */
+const ZIGZAG_SHARE_OF_VIEW = 1 / 4;
+/** A few zigzags are a grid meeting a wave at an unlucky phase. This many are the whole curve. */
+const ZIGZAGS_IN_A_BAND_SHARE = 1 / 64;
 
 export interface CurveRequest {
   evaluate(x: number): number;
   domain: AxisRange;
   yRange: AxisRange;
+}
+
+/** `isTooFine` says the budget ran out with heights left unproven, so `branches` holds only what was proven and the figure must say so. */
+export interface CurveDrawing {
+  branches: Branch[];
+  isTooFine: boolean;
 }
 
 /** A continuous curve shrinks when halved and a jump or a pole does not, so `stuckHalvings` counts how many halvings in a row left the step ending here as tall as it was. */
@@ -43,6 +57,25 @@ const leavesView = (first: Point, second: Point, yRange: AxisRange) => isAbove(f
 // A tall step still stuck when the budget ran out stays a gap, because a line through a pole is worse than a hole in a curve too fine to see.
 function isLeftUnsure(first: Sample, second: Sample, yRange: AxisRange): boolean {
   return isTall(first, second, yRange) && second.stuckHalvings >= (leavesView(first, second, yRange) ? HALVINGS_TO_SUSPECT_A_POLE : HALVINGS_TO_SUSPECT_A_BREAK);
+}
+
+type Height = readonly [low: number, high: number];
+
+function getUnseenHeights(samples: readonly Sample[], [viewLow, viewHigh]: AxisRange): Height[] {
+  const heights = samples.filter(isReal).map(({ y }) => Math.min(viewHigh, Math.max(viewLow, y))).sort((first, second) => first - second);
+  const tallestUnseen = (viewHigh - viewLow) * UNSEEN_SHARE_OF_VIEW;
+  return heights.flatMap((height, index): Height[] => (index > 0 && height - (heights[index - 1] as number) > tallestUnseen ? [[heights[index - 1] as number, height]] : []));
+}
+
+function crossesUnseenHeight(first: Sample, second: Sample, unseen: readonly Height[]): boolean {
+  const [low, high] = [Math.min(first.y, second.y), Math.max(first.y, second.y)];
+  return unseen.some(([from, to]) => low <= from && high >= to);
+}
+
+function isZigzag(before: Sample, at: Sample, after: Sample, yRange: AxisRange): boolean {
+  const tall = getViewHeight(yRange) * ZIGZAG_SHARE_OF_VIEW;
+  const [up, next] = [at.y - before.y, after.y - at.y];
+  return up * next < 0 && Math.abs(up) > tall && Math.abs(next) > tall;
 }
 
 function isOnTheLine(first: Sample, second: Sample, yRange: AxisRange): boolean {
@@ -107,14 +140,22 @@ function addDetail(samples: readonly Sample[], steps: ReadonlySet<number>, reque
   return refined;
 }
 
-function getRefinedSamples(request: CurveRequest): Sample[] {
+// What is left of the budget goes evenly across the curve, because a band only gets more honest with more samples anywhere in it.
+function getEvenShare(steps: ReadonlySet<number>, room: number): Set<number> {
+  const every = [...steps];
+  return new Set(Array.from({ length: room }, (_, index) => every[Math.floor((index * every.length) / room)] as number));
+}
+
+function getRefinedSamples(request: CurveRequest): { samples: Sample[]; isUnfinished: boolean } {
   let samples = getBaseSamples(request);
   for (let pass = 0; pass < CURVE_LIMITS.passes; pass += 1) {
     const steps = getStepEndsToHalve(samples, request);
-    if (steps.size === 0 || samples.length + steps.size > CURVE_LIMITS.evaluations) break;
+    if (steps.size === 0) break;
+    const room = CURVE_LIMITS.evaluations - samples.length;
+    if (steps.size > room) return { samples: addDetail(samples, getEvenShare(steps, room), request), isUnfinished: true };
     samples = addDetail(samples, steps, request);
   }
-  return samples;
+  return { samples, isUnfinished: false };
 }
 
 function clipToView(first: Point, second: Point, [low, high]: AxisRange): [Point, Point] {
@@ -125,12 +166,15 @@ function clipToView(first: Point, second: Point, [low, high]: AxisRange): [Point
   return [getInside(first, second), getInside(second, first)];
 }
 
-/** A line stops only where halving a step could not shrink it, or where it leaves the view or has no value. */
-export function sampleCurve(request: CurveRequest): Branch[] {
+/** A line stops only where halving a step could not shrink it, or where it leaves the view or has no value. Past the budget it also stops where nothing proves it, and the drawing says so. */
+export function sampleCurve(request: CurveRequest): CurveDrawing {
   const { yRange } = request;
-  const samples = getRefinedSamples(request);
+  const { samples, isUnfinished } = getRefinedSamples(request);
   const branches: Point[][] = [];
   let current: Point[] = [];
+  let unseen: readonly Height[] = [];
+  let isTooFine = false;
+  let zigzags = 0;
   const closeBranch = () => {
     if (current.length > 1) branches.push(current);
     current = [];
@@ -138,17 +182,24 @@ export function sampleCurve(request: CurveRequest): Branch[] {
   for (let index = 1; index < samples.length; index += 1) {
     const first = samples[index - 1] as Sample;
     const second = samples[index] as Sample;
-    if (!isOnTheLine(first, second, yRange) || isLeftUnsure(first, second, yRange)) {
+    if (isUnfinished && (index - 1) % SAMPLES_SEEN_TOGETHER === 0) unseen = getUnseenHeights(samples.slice(index - 1, index + SAMPLES_SEEN_TOGETHER), yRange);
+    if (!isOnTheLine(first, second, yRange)) {
       closeBranch();
       continue;
     }
+    if (isLeftUnsure(first, second, yRange) || (isUnfinished && crossesUnseenHeight(first, second, unseen))) {
+      if (second.stuckHalvings < HALVINGS_TO_SUSPECT_A_BREAK) isTooFine = true;
+      closeBranch();
+      continue;
+    }
+    if (isUnfinished && index + 1 < samples.length && isZigzag(first, second, samples[index + 1] as Sample, yRange)) zigzags += 1;
     const [start, end] = clipToView(first, second, yRange);
     if (current.length === 0) current.push(start);
     current.push(end);
     if (isAbove(second, yRange) || isBelow(second, yRange)) closeBranch();
   }
   closeBranch();
-  return branches;
+  return { branches, isTooFine: isTooFine || zigzags > samples.length * ZIGZAGS_IN_A_BAND_SHARE };
 }
 
 export function getBranchesUpTo(branches: readonly Branch[], x: number): Branch[] {

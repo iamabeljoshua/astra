@@ -1,4 +1,4 @@
-import type { ProjectileSimulation, SimulationMoment } from '@astra/contracts';
+import { getSpeedWays, type ProjectileSimulation, SIMULATION_PARAMETER_RULES, type SimulationMoment, type SimulationParameter } from '@astra/contracts';
 import type { Scene, SceneParameters } from '../player/scene.ts';
 
 export interface ProjectileFrame {
@@ -17,24 +17,41 @@ function getLandingSeconds({ upwardSpeed, releaseHeight, gravity }: ProjectilePa
   return (upwardSpeed + Math.sqrt(upwardSpeed * upwardSpeed + 2 * gravity * releaseHeight)) / gravity;
 }
 
-function applyParameterChange(parameters: ProjectileParameters, [name, value]: [string, number]): ProjectileParameters {
-  if (name !== 'launchAngle' && name !== 'launchSpeed') return { ...parameters, [name]: value };
-  const speed = name === 'launchSpeed' ? value : Math.hypot(parameters.horizontalSpeed, parameters.upwardSpeed);
-  const radians = (name === 'launchAngle' ? value : Math.atan2(parameters.upwardSpeed, parameters.horizontalSpeed) * DEGREES_PER_RADIAN) / DEGREES_PER_RADIAN;
+const isFlightValue = (name: string): name is SimulationParameter => Object.hasOwn(SIMULATION_PARAMETER_RULES, name);
+
+/** Only what a flight has, each inside its rule, so a landing is always a real number. */
+function getAllowedChanges(changes: SceneParameters): Partial<Record<SimulationParameter, number>> {
+  return Object.fromEntries(Object.entries(changes).flatMap(([name, value]) => {
+    if (!isFlightValue(name)) return [];
+    const { min, max } = SIMULATION_PARAMETER_RULES[name];
+    return [[name, Math.min(max, Math.max(min, value))]];
+  }));
+}
+
+/** Changes with any speed said the other way from `parameter` said its way instead, using the values the flight runs on now, so the flight does not change. */
+export function getChangesSaidLike(parameter: string, changes: SceneParameters, values: SceneParameters = {}): SceneParameters {
+  const ways = getSpeedWays(parameter);
+  if (!ways?.other.some((name) => name in changes)) return changes;
+  const kept = Object.entries(changes).filter(([name]) => !ways.other.includes(name));
+  return Object.fromEntries([...kept, ...Object.entries(values).filter(([name]) => ways.own.includes(name))]);
+}
+
+export function resolveProjectileParameters(base: ProjectileParameters, changes: SceneParameters): ProjectileParameters {
+  const { launchSpeed, launchAngle, ...plain } = getAllowedChanges(changes);
+  const parameters = { ...base, ...plain };
+  if (launchSpeed === undefined && launchAngle === undefined) return parameters;
+  const speed = launchSpeed ?? Math.hypot(parameters.horizontalSpeed, parameters.upwardSpeed);
+  const radians = launchAngle === undefined ? Math.atan2(parameters.upwardSpeed, parameters.horizontalSpeed) : launchAngle / DEGREES_PER_RADIAN;
   return { ...parameters, horizontalSpeed: speed * Math.cos(radians), upwardSpeed: speed * Math.sin(radians) };
 }
 
-/** In the order they were set, so the student sees the value they set last. */
-export function resolveProjectileParameters(base: ProjectileParameters, changes: SceneParameters): ProjectileParameters {
-  return Object.entries(changes).reduce(applyParameterChange, base);
-}
-
-function getProjectileValues(parameters: ProjectileParameters): SceneParameters {
+function getProjectileValues(parameters: ProjectileParameters, changes: SceneParameters): SceneParameters {
   const { horizontalSpeed, upwardSpeed } = parameters;
-  return { ...parameters, launchSpeed: Math.hypot(horizontalSpeed, upwardSpeed), launchAngle: Math.atan2(upwardSpeed, horizontalSpeed) * DEGREES_PER_RADIAN };
+  return { ...parameters, launchSpeed: Math.hypot(horizontalSpeed, upwardSpeed), launchAngle: Math.atan2(upwardSpeed, horizontalSpeed) * DEGREES_PER_RADIAN, ...getAllowedChanges(changes) };
 }
 
-export function createProjectileScene(parameters: ProjectileParameters): Scene<ProjectileFrame> {
+/** `changes` are what was set, so a slider shows that exactly, and an angle set while the speed is zero still reads as set. */
+export function createProjectileScene(parameters: ProjectileParameters, changes: SceneParameters = {}): Scene<ProjectileFrame> {
   const { horizontalSpeed, upwardSpeed, releaseHeight, gravity } = parameters;
   const landing = getLandingSeconds(parameters);
   const moments: Record<SimulationMoment, number> = { release: 0, peak: Math.max(upwardSpeed / gravity, 0), landing };
@@ -42,7 +59,7 @@ export function createProjectileScene(parameters: ProjectileParameters): Scene<P
     parts: PROJECTILE_PARTS,
     moments,
     durationSeconds: landing,
-    values: getProjectileValues(parameters),
+    values: getProjectileValues(parameters, changes),
     getFrame(seconds) {
       const time = Math.min(seconds, landing);
       return {

@@ -9,7 +9,7 @@ import type { BoardElement } from '../player/board-state.ts';
 import { PLANNED_SCENES } from '../player/planned-scenes.ts';
 import type { Scene, SceneParameters } from '../player/scene.ts';
 import { formatNumber } from '../plot/axis-ticks.ts';
-import type { ProjectileFrame } from './projectile-scene.ts';
+import { getChangesSaidLike, type ProjectileFrame } from './projectile-scene.ts';
 
 const MARGIN = { left: 38, right: 16, top: 14, bottom: 26 };
 const PATH_STEPS = 72;
@@ -68,9 +68,7 @@ function getSliderValues(sliders: readonly ParameterSlider[], base: SceneParamet
   const kept = sliders.slice(-MOST_SLIDERS_FITTED);
   const levels = SLIDER_LEVELS_BY_COUNT[kept.length] ?? 1;
   const moved = kept.reduce<SceneParameters[]>((sets, { parameter, min, max }) => sets.flatMap((set) => Array.from({ length: levels }, (_, level) => ({ ...set, [parameter]: min + ((max - min) * level) / (levels - 1) }))), [{}]);
-  // The slider moved last wins where two share a speed, so fit either one being last.
-  const orders = kept.length > 1 ? moved.flatMap((set) => [set, Object.fromEntries(Object.entries(set).reverse())]) : moved;
-  return orders.map((set) => ({ ...base, ...set }));
+  return moved.map((set) => ({ ...base, ...set }));
 }
 
 const sliderReachByCommand = new WeakMap<Simulate, Map<string, WorldBounds>>();
@@ -113,8 +111,10 @@ function getHoopBranches(rimX: number, direction: number): Branch[] {
   ];
 }
 
-function getChangesNoSliderHolds(changes: SceneParameters, sliders: readonly ParameterSlider[]): SceneParameters {
-  return Object.fromEntries(Object.entries(changes).filter(([name]) => !sliders.some(({ parameter }) => parameter === name)));
+// Said the slider's way, because a tutor can set a speed the other way and the axes would then shift on the slider's first move.
+function getChangesNoSliderHolds({ parameterChanges, scene }: NonNullable<BoardElement['placedScene']>, sliders: readonly ParameterSlider[]): SceneParameters {
+  const saidLikeSliders = sliders.reduce((changes, { parameter }) => getChangesSaidLike(parameter, changes, scene.values), parameterChanges);
+  return Object.fromEntries(Object.entries(saidLikeSliders).filter(([name]) => !sliders.some(({ parameter }) => parameter === name)));
 }
 
 function getStartingBounds(root: SimulationElement, { attached, baseScene, others, frame }: { attached: readonly BoardElement[]; baseScene: Scene; others: SceneParameters; frame: FigureFrame }): WorldBounds {
@@ -128,7 +128,7 @@ function getStartingBounds(root: SimulationElement, { attached, baseScene, other
 function getWorldBounds(root: SimulationElement, attached: readonly BoardElement[], frame: FigureFrame, baseScene: Scene): WorldBounds {
   const sliders = attached.filter((element): element is BoardElement & { content: ParameterSlider } => element.content.kind === 'slider' && 'parameter' in element.content);
   const sliderCommands = sliders.map(({ content }) => content);
-  const others = getChangesNoSliderHolds(root.placedScene?.parameterChanges ?? {}, sliderCommands);
+  const others = root.placedScene ? getChangesNoSliderHolds(root.placedScene, sliderCommands) : {};
   const start = getStartingBounds(root, { attached, baseScene, others, frame });
   const withSliders = sliders.reduce((bounds, slider, index) => blendBounds(bounds, joinBounds(bounds, getSliderReach(root.content, { sliders: sliderCommands.slice(0, index + 1), base: others, quantity: null })), easeInOut(getDrawnShare(slider, frame))), start);
   const tracked = attached.filter((element): element is BoardElement & { content: TrackVector } => element.content.kind === 'trackVector');
