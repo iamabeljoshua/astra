@@ -277,7 +277,7 @@ describe('rejoining after a drop', () => {
     room.emit('Disconnected', DROPPED);
     await vi.advanceTimersByTimeAsync(0);
 
-    expect(room.connect).toHaveBeenLastCalledWith(ROOM_ACCESS.url, 'fresh-token');
+    expect(room.connect).toHaveBeenLastCalledWith(ROOM_ACCESS.url, 'fresh-token', expect.anything());
     fromAgent(room, { type: 'pulse' });
     expect(voice.getView().phase).toBe('live');
     expect(voice.getView().startedFresh).toBe(false);
