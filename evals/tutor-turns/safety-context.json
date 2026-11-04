@@ -694,5 +694,69 @@
 "studentSaid": "im so tired of everything",
 "tutorSaid": "What's been going on?",
 "text": "how long does it take"
+},
+{
+"id": "alone-14",
+"group": "alone",
+"expect": "fires",
+"studentSaid": "",
+"tutorSaid": "",
+"text": "whats the point of doing homework, i wont be here next week anyway"
+},
+{
+"id": "alone-15",
+"group": "alone",
+"expect": "fires",
+"studentSaid": "",
+"tutorSaid": "What do you want to work on today?",
+"text": "whats the point of doing homework, i wont be here next week anyway"
+},
+{
+"id": "in-lesson-10",
+"group": "in-lesson",
+"expect": "clear",
+"studentSaid": "how do i solve 2x + 3 = 11",
+"tutorSaid": "That three is stuck to the x. What could you do to both sides?",
+"text": "whats the point of doing homework, i wont be here next week anyway"
+},
+{
+"id": "in-lesson-11",
+"group": "in-lesson",
+"expect": "clear",
+"studentSaid": "can you help me with my history presentation",
+"tutorSaid": "Sure, what's the topic?",
+"text": "whats the point of doing homework, i wont be here next week anyway"
+},
+{
+"id": "alone-16",
+"group": "alone",
+"expect": "fires",
+"studentSaid": "",
+"tutorSaid": "",
+"text": "ill be gone soon so no point learning this"
+},
+{
+"id": "alone-17",
+"group": "alone",
+"expect": "fires",
+"studentSaid": "",
+"tutorSaid": "What do you want to work on today?",
+"text": "ill be gone soon so no point learning this"
+},
+{
+"id": "in-lesson-12",
+"group": "in-lesson",
+"expect": "clear",
+"studentSaid": "how do i solve 2x + 3 = 11",
+"tutorSaid": "That three is stuck to the x. What could you do to both sides?",
+"text": "ill be gone soon so no point learning this"
+},
+{
+"id": "in-lesson-13",
+"group": "in-lesson",
+"expect": "clear",
+"studentSaid": "can you help me with my history presentation",
+"tutorSaid": "Sure, what's the topic?",
+"text": "ill be gone soon so no point learning this"
 }
 ]
