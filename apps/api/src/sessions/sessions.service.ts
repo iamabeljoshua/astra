@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import type { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 import { SessionRepository } from '../infrastructure/orm/repositories/session.repository';
-import { getRoomName } from '../livekit/live-room-grants';
 import { LiveRooms } from '../livekit/live-rooms';
 import type { SessionListOptions } from '../infrastructure/orm/repositories/session.repository';
 import type { TopicSession } from '../picks/topic-progress';
@@ -56,7 +55,7 @@ export class SessionsService {
     changes: UpdateSessionBodyDto,
   ): Promise<SessionResponseDto> {
     const session = requireSession(await this.sessions.updateUnfinishedForStudent(studentId, sessionId, changes));
-    if (session.status === 'finished') await this.liveRooms.close(getRoomName(session.id));
+    if (session.status === 'finished') await this.liveRooms.close(session.id);
     return toSessionResponse(session);
   }
 

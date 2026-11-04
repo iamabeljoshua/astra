@@ -138,6 +138,66 @@ describe('the microphone', () => {
     expect(microphone.getState()).toBe('off');
   });
 
+  it('answers a press after everything has settled, because a settled microphone must not ignore the next wish', async () => {
+    const { microphone, letCaptureFinish } = makeFake();
+    await microphone.setOn(false);
+    const on = microphone.setOn(true);
+    await flush();
+    letCaptureFinish();
+    await on;
+    expect(microphone.getState()).toBe('on');
+  });
+
+  it('shows off the moment off is pressed, even with the room still taking the track', async () => {
+    let finishPublishing = () => {};
+    const stopped: boolean[] = [];
+    const states: MicState[] = [];
+    const microphone = createMicrophone<{ stop(): void }>({
+      capture: async () => ({ stop: () => stopped.push(true) }),
+      publish: () => new Promise<void>((resolve) => { finishPublishing = resolve; }),
+      unpublish: async () => {},
+      onState: (state) => states.push(state),
+    });
+    void microphone.setOn(true);
+    await flush();
+    expect(microphone.getState()).toBe('on');
+    void microphone.setOn(false);
+    expect(microphone.getState()).toBe('off');
+    expect(stopped).toEqual([true]);
+    finishPublishing();
+    await flush();
+    expect(microphone.getState()).toBe('off');
+  });
+
+  it('opens a new line for off and on while the room still takes the old track, and never two at once', async () => {
+    let finishPublishing = () => {};
+    const lines: { stopped: boolean; stop(): void }[] = [];
+    const microphone = createMicrophone<{ stopped: boolean; stop(): void }>({
+      capture: async () => {
+        const open = { stopped: false, stop() { open.stopped = true; } };
+        lines.push(open);
+        return open;
+      },
+      publish: () => new Promise<void>((resolve) => { finishPublishing = resolve; }),
+      unpublish: async () => {},
+      onState: () => {},
+    });
+    void microphone.setOn(true);
+    await flush();
+    void microphone.setOn(false);
+    void microphone.setOn(true);
+    await flush();
+    expect(lines).toHaveLength(1);
+    expect(microphone.getState()).toBe('starting');
+    finishPublishing();
+    await flush();
+    expect(lines).toHaveLength(2);
+    expect(lines[0]?.stopped).toBe(true);
+    expect(lines[1]?.stopped).toBe(false);
+    expect(microphone.getState()).toBe('on');
+    expect(microphone.getLine()).toBe(lines[1]);
+  });
+
   it('settles to the last wish over a run of presses, and off means every line stopped', async () => {
     const { microphone, lines, published, letCaptureFinish } = makeFake();
     const presses = [microphone.toggle(), microphone.toggle(), microphone.toggle()];

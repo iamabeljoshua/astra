@@ -13,7 +13,8 @@ export interface LiveRoomKeys {
   agentName: string;
 }
 
-export function getRoomName(sessionId: string): string {
+/** Every room of a session starts with this, so a room can be found from its session. */
+export function getRoomPrefix(sessionId: string): string {
   return `session-${sessionId}`;
 }
 

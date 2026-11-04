@@ -31,7 +31,7 @@ export function installSpeechInPage(): void {
   AudioNode.prototype.connect = function (this: AudioNode, ...args: unknown[]) {
     const [target] = args;
     if (target instanceof AudioDestinationNode && this.context !== context) {
-      recordingOut ??= (this.context as AudioContext).createMediaStreamDestination();
+      if (recordingOut?.context !== this.context) recordingOut = (this.context as AudioContext).createMediaStreamDestination();
       connect.call(this, recordingOut);
     }
     return connect.apply(this, args);
@@ -59,7 +59,7 @@ export function installSpeechInPage(): void {
 
   navigator.mediaDevices.getUserMedia = async (constraints) => {
     if (!constraints?.audio) throw new DOMException('no camera in this proof', 'NotFoundError');
-    return new MediaStream(ensureContext().destination.stream.getAudioTracks());
+    return new MediaStream(ensureContext().destination.stream.getAudioTracks().map((track) => track.clone()));
   };
 
   window.speechInPage = {

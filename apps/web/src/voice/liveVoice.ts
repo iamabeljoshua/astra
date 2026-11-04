@@ -59,6 +59,7 @@ export interface LiveVoiceRecords {
   yieldEpochMs: { turnId: string; isYielding: boolean; atMs: number }[];
   localYieldEpochMs: number[];
   earsOpenEpochMs: number[];
+  replayedTurns: string[];
   probe: (ProbeNote & { epochMs: number })[];
   fired: (FiredCue & { firedEpochMs: number })[];
   refused: string[];
@@ -96,7 +97,7 @@ const getEpochMs = () => performance.timeOrigin + performance.now();
 const MIC_PUBLISH_OPTIONS = { source: Track.Source.Microphone, dtx: false, red: false };
 
 function createRecords(): LiveVoiceRecords {
-  return { firstAudioEpochMs: {}, turnStartedEpochMs: {}, stopEpochMs: {}, heardEpochMs: [], yieldEpochMs: [], localYieldEpochMs: [], earsOpenEpochMs: [], probe: [], fired: [], refused: [], clockKinds: [] };
+  return { firstAudioEpochMs: {}, turnStartedEpochMs: {}, stopEpochMs: {}, heardEpochMs: [], yieldEpochMs: [], localYieldEpochMs: [], earsOpenEpochMs: [], replayedTurns: [], probe: [], fired: [], refused: [], clockKinds: [] };
 }
 
 // Connects the session to its room, plays what the agent sends against what the student hears, and sends back what played. It knows nothing of React.
@@ -176,6 +177,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (message.type === 'pulse') {
       lastAgentPulseEpochMs = getEpochMs();
       rejoinsSincePulse = 0;
+      if (view.phase === 'reconnecting') setView({ phase: 'live' });
       flushOutbox();
       return;
     }
@@ -188,7 +190,9 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (message.type === 'closingForQuiet') return leaveRoom('closedForQuiet');
     if (message.type === 'heard') return showHeard();
     if (message.type === 'studentWords') return addStudentWords(message);
-    if (message.type === 'turnStarted') {
+    if (message.type === 'turnStarted' && message.turnId in records.turnStartedEpochMs) {
+      records.replayedTurns.push(message.turnId);
+    } else if (message.type === 'turnStarted') {
       records.turnStartedEpochMs[message.turnId] = getEpochMs();
       records.clockKinds.push(clock.getKind());
       currentTurnId = message.turnId;
@@ -235,7 +239,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   };
 
   const beat = () => {
-    if (hasLeftRoom) return;
+    if (hasLeftRoom || isRejoining) return;
     const nowMs = getEpochMs();
     const canHear = hearsAgent();
     if (!canHear && lastAgentPulseEpochMs !== null) player.freeze();
@@ -318,12 +322,14 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
           isRejoining = false;
           return leaveRoom('ended');
         }
-        const line = mic.getLine();
-        if (line) await publishMic(line);
-        if (line && mic.getLine() !== line) await room.localParticipant.unpublishTrack(line.track);
         connectedAtEpochMs = getEpochMs();
+        let published: MicLine | null = null;
+        while (mic.getLine() !== published) {
+          if (published) await room.localParticipant.unpublishTrack(published.track);
+          published = mic.getLine();
+          if (published) await publishMic(published);
+        }
         isRejoining = false;
-        setView({ phase: 'live' });
         return;
       } catch {
         await room.disconnect(false).catch(() => {});
@@ -339,7 +345,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     stopListening();
     stopListening = listenToTutor(track, { audioContext, gain, clock, onProbe });
     clearTimeout(tutorWait);
-    setView({ phase: 'live' });
+    // Only a pulse says the tutor came back after a drop, because a crashed job's track can outlive it.
+    if (view.phase === 'connecting') setView({ phase: 'live' });
     send({ type: 'hello', ...getStamp(), wantsGreeting: wantsGreeting && !hasSaidHello });
     hasSaidHello = true;
     sendAudioState();
@@ -353,7 +360,6 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   });
   room.on(RoomEvent.Reconnected, () => {
     connectedAtEpochMs = getEpochMs();
-    setView({ phase: 'live' });
   });
   room.on(RoomEvent.Disconnected, (reason) => {
     if (isRejoining || hasLeftRoom) return;

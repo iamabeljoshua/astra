@@ -218,6 +218,7 @@ export const VOICE_LABELS = {
   unavailable: 'Your tutor could not connect just now.',
   reconnecting: 'Your connection dropped. Reconnecting.',
   ended: 'Your connection to the tutor ended.',
+  sessionFinished: 'This session has finished.',
   tutorLost: 'Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far.',
   micDenied: 'Your browser did not allow the microphone. You can type instead.',
   micNoDevice: 'We could not find a microphone on this device. You can type instead.',
@@ -473,7 +474,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: 'Who receives your data',
         today: [
           'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
-          'When you use a session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. It also receives your IP address and a code made from your student number, which is how it knows whose connection is whose. We do not ask it to record any of this.',
+          'When you use a session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. It also receives your IP address and your student ID, a random code that does not include your name. We do not ask it to record any of this.',
           "While your microphone is on, Meta's Muse Voice Transcribe receives your voice and turns it into text. Meta's terms let it keep what it receives for safety checks and human review.",
           "ElevenLabs receives the tutor's words and turns them into its voice. For now the tutor repeats what you say or type, so ElevenLabs receives your words too.",
           'No other outside service receives student data today. The app serves its own fonts and pictures.',

@@ -47,7 +47,7 @@ function makeVoice() {
 async function runSession(context: JobContext): Promise<void> {
   const { room } = context;
   const trace = makeTraceFile(room.name ?? 'room');
-  trace('jobStarted');
+  trace('jobStarted', { pid: process.pid });
   // Publishing fails once the room has gone, and a stray rejection would end the whole process.
   const publish = (message: AgentMessage, isReliable = true) => void room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable: isReliable, topic: LIVE_TOPIC }).catch((error: unknown) => trace('publishFailed', { problem: String(error) }));
   const source = new AudioSource(RENDERED_SAMPLE_RATE, 1, AUDIO_QUEUE_MS);

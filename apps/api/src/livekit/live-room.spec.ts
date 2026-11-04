@@ -12,18 +12,20 @@ interface RoomCall {
   body: Record<string, unknown>;
 }
 
-// LiveKit answers over fetch, so the route runs for real and only the far end is replaced. A created room gets a new id after each delete, as Cloud's does once its old room has gone.
+// LiveKit answers over fetch, so the route runs for real and only the far end is replaced.
 function stubLiveKit() {
   const realFetch = global.fetch;
   const calls: RoomCall[] = [];
-  let roomId = 1;
+  const rooms = new Map<string, { sid: string; name: string }>();
   jest.spyOn(global, 'fetch').mockImplementation(async (input, init) => {
     const url = input instanceof Request ? input.url : String(input);
     if (!url.startsWith('https://astra-test.livekit.cloud/')) return realFetch(input, init);
     const method = url.split('/').at(-1) as string;
-    calls.push({ method, body: JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown> });
-    if (method === 'DeleteRoom') roomId += 1;
-    const answers: Record<string, object> = { CreateRoom: { sid: `RM_${roomId}` }, ListRooms: { rooms: [{ sid: `RM_${roomId}` }] }, DeleteRoom: {} };
+    const body = JSON.parse(String(init?.body ?? '{}')) as Record<string, unknown>;
+    calls.push({ method, body });
+    if (method === 'CreateRoom') rooms.set(String(body.name), { sid: `RM_${rooms.size}`, name: String(body.name) });
+    if (method === 'DeleteRoom') rooms.delete(String(body.room));
+    const answers: Record<string, object> = { CreateRoom: rooms.get(String(body.name)) ?? {}, ListRooms: { rooms: [...rooms.values()] }, DeleteRoom: {} };
     return new Response(JSON.stringify(answers[method] ?? {}), { status: 200, headers: { 'content-type': 'application/json' } });
   });
   return { calls, named: (method: string) => calls.filter((call) => call.method === method) };
@@ -65,8 +67,10 @@ describe('the live room route', () => {
     const sessionId = await startSession();
     const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
     const claims = decodeJwt((body as { token: string }).token) as Record<string, unknown> & { exp: number; nbf: number };
-    expect(claims.video).toEqual({ room: `session-${sessionId}`, roomJoin: true, canSubscribe: true, canPublish: true, canPublishSources: ['microphone'], canPublishData: true, canUpdateOwnMetadata: false });
-    expect(claims.roomConfig).toMatchObject({ name: `session-${sessionId}`, maxParticipants: 1, departureTimeout: 120 });
+    const room = (body as { roomName: string }).roomName;
+    expect(room).toMatch(new RegExp(`^session-${sessionId}-[0-9a-f]{8}$`));
+    expect(claims.video).toEqual({ room, roomJoin: true, canSubscribe: true, canPublish: true, canPublishSources: ['microphone'], canPublishData: true, canUpdateOwnMetadata: false });
+    expect(claims.roomConfig).toMatchObject({ name: room, maxParticipants: 1, departureTimeout: 120 });
     expect(claims.exp - claims.nbf).toBeLessThanOrEqual(120);
     expect(claims.sub).toMatch(/^student-/);
     expect(claims.name).toBeUndefined();
@@ -81,16 +85,24 @@ describe('the live room route', () => {
 
   it('calls the tutor in from the API alone, with the room limits, before it hands over the token', async () => {
     const sessionId = await startSession();
-    await post(`/sessions/${sessionId}/live-room`).expect(200);
+    const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
     expect(liveKit.named('CreateRoom')).toHaveLength(1);
-    expect(liveKit.named('CreateRoom')[0]?.body).toMatchObject({ name: `session-${sessionId}`, maxParticipants: 1, departureTimeout: 120, agents: [{ agentName: 'tutor-for-test' }] });
+    expect(liveKit.named('CreateRoom')[0]?.body).toMatchObject({ name: (body as { roomName: string }).roomName, maxParticipants: 1, departureTimeout: 120, agents: [{ agentName: 'tutor-for-test', restartPolicy: 'JRP_NEVER' }] });
+  });
+
+  it('sends a rejoin back to the room it has, so a rejoin never starts a second tutor', async () => {
+    const sessionId = await startSession();
+    const { body: first } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    const { body: second } = await post(`/sessions/${sessionId}/live-room`).expect(200);
+    expect((second as { roomName: string }).roomName).toBe((first as { roomName: string }).roomName);
+    expect(liveKit.named('CreateRoom')).toHaveLength(1);
   });
 
   it('closes the room when the session finishes, from any tab, and a finished session calls no tutor', async () => {
     const sessionId = await startSession();
-    await post(`/sessions/${sessionId}/live-room`).expect(200);
+    const { body } = await post(`/sessions/${sessionId}/live-room`).expect(200);
     await server().patch(`/sessions/${sessionId}`).set('Authorization', `Bearer ${student.token}`).send({ durationSeconds: 1, status: 'finished' }).expect(200);
-    expect(liveKit.named('DeleteRoom')[0]?.body).toMatchObject({ room: `session-${sessionId}` });
+    expect(liveKit.named('DeleteRoom')[0]?.body).toMatchObject({ room: (body as { roomName: string }).roomName });
     const createdBefore = liveKit.named('CreateRoom').length;
     await post(`/sessions/${sessionId}/live-room`).expect(409);
     expect(liveKit.named('CreateRoom')).toHaveLength(createdBefore);
@@ -111,11 +123,12 @@ describe('the live room route', () => {
 
   it('closes the old room and opens a new one when the student starts over, and not otherwise', async () => {
     const sessionId = await startSession();
-    await post(`/sessions/${sessionId}/live-room`).expect(200);
+    const { body: first } = await post(`/sessions/${sessionId}/live-room`).expect(200);
     expect(liveKit.named('DeleteRoom')).toHaveLength(0);
-    await post(`/sessions/${sessionId}/live-room?startOver=yes`).expect(200);
+    const { body: second } = await post(`/sessions/${sessionId}/live-room?startOver=yes`).expect(200);
     expect(liveKit.named('DeleteRoom')).toHaveLength(1);
     expect(liveKit.named('CreateRoom')).toHaveLength(2);
+    expect((second as { roomName: string }).roomName).not.toBe((first as { roomName: string }).roomName);
     await post(`/sessions/${sessionId}/live-room?startOver=maybe`).expect(400);
   });
 

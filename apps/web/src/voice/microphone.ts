@@ -28,54 +28,72 @@ function getProblemState(problem: unknown): MicState {
   return 'failed';
 }
 
-// One loop moves the microphone toward what the student last asked for, so a press only changes that wish. A second capture cannot start while one is open or opening, and off stops the capture before it waits on anything.
+// One loop moves the microphone toward what the student last asked for, so a press only changes that wish. A second capture cannot start while one is open or opening, and off stops the capture at once, before the loop waits on anything.
 export function createMicrophone<Line extends { stop(): void }>({ capture, publish, unpublish, onState }: MicrophoneOptions<Line>): Microphone<Line> {
   let wantsOn = false;
   let isClosed = false;
   let line: Line | null = null;
   let state: MicState = 'off';
   let settling: Promise<void> | null = null;
+  const toUnpublish: Line[] = [];
 
   const setState = (next: MicState) => {
     state = next;
     onState(next);
   };
 
-  const shut = async (open: Line) => {
-    open.stop();
-    line = null;
-    setState('off');
-    await unpublish(open).catch(() => {});
+  const stopLine = () => {
+    if (line) {
+      line.stop();
+      toUnpublish.push(line);
+      line = null;
+    }
+    if (state === 'on' || state === 'starting') setState('off');
   };
 
   const open = async () => {
     setState('starting');
+    let captured: Line | null = null;
     try {
-      line = await capture();
-      if (!wantsOn) return;
+      captured = await capture();
+      if (!wantsOn) {
+        captured.stop();
+        return;
+      }
+      line = captured;
       setState('on');
-      await publish(line);
+      await publish(captured);
     } catch (problem) {
+      captured?.stop();
+      const wasPressedOff = captured !== null && line !== captured;
+      if (wasPressedOff) return;
+      line = null;
       wantsOn = false;
-      if (line) await shut(line);
       setState(getProblemState(problem));
     }
   };
 
+  const move = async () => {
+    for (;;) {
+      const leftover = toUnpublish.shift();
+      if (leftover) await unpublish(leftover).catch(() => {});
+      else if (wantsOn && !line) await open();
+      else return;
+    }
+  };
+
   const settle = (): Promise<void> => {
-    settling ??= (async () => {
-      while (wantsOn !== (line !== null)) {
-        if (line) await shut(line);
-        else await open();
-      }
-      if (!wantsOn && state === 'starting') setState('off');
+    settling ??= move().finally(() => {
       settling = null;
-    })();
+      if (toUnpublish.length > 0 || (wantsOn && !line)) void settle();
+    });
     return settling;
   };
 
   const setOn = (isOn: boolean) => {
     wantsOn = isOn && !isClosed;
+    if (wantsOn && !line) setState('starting');
+    if (!wantsOn) stopLine();
     return settle();
   };
 
@@ -84,15 +102,10 @@ export function createMicrophone<Line extends { stop(): void }>({ capture, publi
     getLine: () => line,
     setOn,
     toggle: () => setOn(!wantsOn),
-    stopAtOnce() {
-      wantsOn = false;
-      line?.stop();
-      void settle();
-    },
+    stopAtOnce: () => void setOn(false),
     close() {
       isClosed = true;
-      wantsOn = false;
-      return settle();
+      return setOn(false);
     },
   };
 }

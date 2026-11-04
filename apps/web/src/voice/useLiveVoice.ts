@@ -3,7 +3,7 @@ import { ApiError } from '../api/apiError';
 import { api } from '../api/client';
 import { type LiveVoice, type LiveVoiceView, startLiveVoice } from './liveVoice';
 
-export type LiveVoiceStatus = 'idle' | 'connecting' | 'live' | 'unavailable';
+export type LiveVoiceStatus = 'idle' | 'connecting' | 'live' | 'unavailable' | 'finished';
 
 const SESSION_FINISHED_STATUS = 409;
 
@@ -55,8 +55,9 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
         try {
           return await api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId }, query } });
         } catch (problem) {
-          if (problem instanceof ApiError && problem.status === SESSION_FINISHED_STATUS) return null;
-          throw problem;
+          if (!(problem instanceof ApiError && problem.status === SESSION_FINISHED_STATUS)) throw problem;
+          setStatus('finished');
+          return null;
         }
       };
       try {
@@ -71,7 +72,7 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
         return opened;
       } catch {
         opening.current = null;
-        setStatus('unavailable');
+        setStatus((current) => (current === 'finished' ? current : 'unavailable'));
         return null;
       }
     })();

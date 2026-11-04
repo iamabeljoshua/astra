@@ -190,6 +190,7 @@ function BoardPicture({ artwork }: { artwork: Artwork }) {
 }
 
 function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView | null): string | null {
+  if (status === 'finished') return VOICE_LABELS.sessionFinished;
   if (status === 'connecting' || view?.phase === 'connecting') return VOICE_LABELS.connecting;
   if (status === 'unavailable' || view?.phase === 'noTutor') return VOICE_LABELS.unavailable;
   if (view?.phase === 'reconnecting') return VOICE_LABELS.reconnecting;
@@ -206,7 +207,8 @@ function getVoiceNote(status: LiveVoiceControls['status'], view: LiveVoiceView |
 
 function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
   const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
-  const isOver = view !== null && isVoiceOver(view.phase);
+  const isFinished = status === 'finished';
+  const isOver = isFinished || (view !== null && isVoiceOver(view.phase));
   const [replyWithNoRoom, setReplyWithNoRoom] = useState<string | null>(null);
   const voiceNote = getVoiceNote(status, view);
 
@@ -230,9 +232,9 @@ function ReplyBox({ liveVoice }: { liveVoice: LiveVoiceControls }) {
         )}
         {voiceNote && <p className="text-fine text-ink-2">{voiceNote}</p>}
       </div>
-      {isOver && (
+      {isOver && !isFinished && (
         <button type="button" onClick={() => void openAgain()} className="button button-outline self-start">
-          {view.phase === 'closedForQuiet' ? VOICE_LABELS.openAgain : VOICE_LABELS.tryAgain}
+          {view?.phase === 'closedForQuiet' ? VOICE_LABELS.openAgain : VOICE_LABELS.tryAgain}
         </button>
       )}
       {view?.isQuietWarning && (
