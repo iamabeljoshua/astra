@@ -7,6 +7,7 @@ export interface FakeMuseWire {
   getHandshakes(): Record<string, unknown>[];
   getConnectionCount(): number;
   getBytesHeard(): number;
+  getOpenCount(): number;
   /** Closes every socket as Muse does when frames stop, 1008. */
   closeAll(code: number): void;
   close(): Promise<void>;
@@ -68,6 +69,7 @@ export async function startFakeMuseWire({ words = ['one', 'two', 'three'], hands
     getHandshakes: () => handshakes,
     getConnectionCount: () => connections,
     getBytesHeard: () => bytesHeard,
+    getOpenCount: () => [...sockets.clients].filter((socket) => socket.readyState === WebSocket.OPEN).length,
     closeAll(code) {
       sockets.clients.forEach((socket) => socket.close(code));
     },

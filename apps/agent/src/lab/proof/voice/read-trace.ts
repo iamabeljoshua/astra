@@ -14,9 +14,13 @@ export interface TraceRow {
   [field: string]: unknown;
 }
 
-export function readTrace(folder: string, roomName: string): TraceRow[] {
+/** A session can have more than one room, each with its own trace, so this reads every room whose name starts with `roomPrefix`. */
+export function readTrace(folder: string, roomPrefix: string): TraceRow[] {
   try {
-    return readFileSync(join(folder, `${roomName}.jsonl`), 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line) as TraceRow);
+    return readdirSync(folder)
+      .filter((file) => file.startsWith(roomPrefix))
+      .flatMap((file) => readFileSync(join(folder, file), 'utf8').trim().split('\n').filter(Boolean).map((line) => JSON.parse(line) as TraceRow))
+      .sort((first, second) => first.atMs - second.atMs);
   } catch {
     return [];
   }

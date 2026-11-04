@@ -20,6 +20,7 @@ const LINES = [
   '42',
   'If I throw a ball straight up, how fast was it going when it left my hand?',
   'No, I mean the denominator, not the numerator.',
+  'I think it lands... (stop here for two seconds, as if still thinking) ...twice as far, because the speed doubled.',
 ];
 
 function VoiceTest({ sessionId, usesSpeechCleanup }: { sessionId: string; usesSpeechCleanup: boolean }) {

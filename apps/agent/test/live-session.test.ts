@@ -1,9 +1,10 @@
 import { type AgentMessage, type Beat, type BrowserMessage, parseBeat, type TurnId } from '@astra/contracts';
 import { initializeLogger, tts } from '@livekit/agents';
 import { afterEach, describe, expect, it } from 'vitest';
-import { type EarsEvent, createLiveSession, type LiveSession, VOICE_STALL_MS } from '../src/live/live-session.ts';
+import { type EarsEvent, createLiveSession, type LiveSession, QUIET_ROOM_LIMIT_MS, VOICE_STALL_MS } from '../src/live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../src/live/reactions.ts';
 import type { TutorBrain } from '../src/live/stand-in-tutor.ts';
+import type { TutorBeat } from '../src/tutor/brain.ts';
 import { TURN_TIMINGS } from '../src/live/turn-rule.ts';
 import { createVoiceLine, type VoiceOutput } from '../src/live/voice-line.ts';
 import { renderTone } from '../src/providers/fakes.ts';
@@ -44,6 +45,7 @@ interface Harness {
 
 function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutput {
   let queuedUntilMs = 0;
+  let endPlayoutWait = () => {};
   return {
     sampleRate: 24000,
     async captureFrame(frame) {
@@ -53,14 +55,18 @@ function makeOutput(frames: { atMs: number }[], failAfter = Infinity): VoiceOutp
     },
     clearQueue() {
       queuedUntilMs = 0;
+      endPlayoutWait();
     },
     async waitForPlayout() {
-      await delay(Math.max(0, queuedUntilMs - performance.now()));
+      await new Promise<void>((resolve) => {
+        endPlayoutWait = resolve;
+        setTimeout(resolve, Math.max(0, queuedUntilMs - performance.now()));
+      });
     },
   };
 }
 
-function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter }: { voice?: tts.TTS; failAfter?: number } = {}): Harness {
+function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts(), failAfter, quietLimitMs, onQuietLimit, tutorBeats }: { voice?: tts.TTS; failAfter?: number; quietLimitMs?: number; onQuietLimit?(): void; tutorBeats?: readonly TutorBeat[] } = {}): Harness {
   const messages: AgentMessage[] = [];
   const traces: Harness['traces'] = [];
   const frames: { atMs: number }[] = [];
@@ -74,7 +80,8 @@ function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone })
       signal.addEventListener('abort', () => {
         harness.aborted += 1;
       });
-      yield makeBeat(`reply-${replies}`, LONG_LINE);
+      if (tutorBeats) yield* tutorBeats;
+      else yield makeBeat(`reply-${replies}`, LONG_LINE);
     },
   };
   const send = (message: AgentMessage) => void messages.push(message);
@@ -86,6 +93,8 @@ function start({ voice = makeRenderedVoice({ name: 'fake', render: renderTone })
     takes: createTakePicker(TAKES),
     allTakes: TAKES,
     setTurnCap: () => {},
+    onQuietLimit,
+    ...(quietLimitMs === undefined ? {} : { quietLimitMs }),
     trace: (name, fields = {}) => void traces.push({ name, fields }),
   });
   sessions.push(session);
@@ -187,6 +196,16 @@ describe('barge-in', () => {
   });
 });
 
+describe('a student the tutor jumped in on', () => {
+  it('gets one reply to everything they said, not to the last half', { timeout: 6000 }, async () => {
+    const { say, brainRequests } = start();
+    await say('I think it lands.');
+    await delay(TURN_TIMINGS.reactionFloorMs + 900);
+    await say('twice as far because the speed doubled.');
+    expect(brainRequests).toEqual(['I think it lands.', 'I think it lands. twice as far because the speed doubled.']);
+  });
+});
+
 describe('a failing voice', () => {
   class SilentVoice extends tts.TTS {
     label = 'silent';
@@ -247,6 +266,141 @@ describe('a dropped link', () => {
     expect(resumed?.fields.reported).toBe(true);
     const lastWords = harness.messages.filter((message) => message.type === 'words').at(-1);
     expect(lastWords && lastWords.type === 'words' && lastWords.words[0]?.text).toBe('four');
+  });
+});
+
+describe('a report that reaches the agent twice', () => {
+  const LESSON_BEAT = makeBeat('flight', LONG_LINE);
+  const report = (playedWords: number, firedCues: number): BrowserMessage => ({ type: 'played', ...STAMP, turnId: 'unset' as never, beatId: LESSON_BEAT.id, wordStartsMs: Array.from({ length: playedWords }, (_, word) => word * 100), durationMs: playedWords * 100, playedWords, firedCueMs: Array.from({ length: firedCues }, () => 0), ending: 'interrupted', frozen: [] });
+
+  it('resumes from the true report when a replayed zero report follows it, and fires no cue again', { timeout: 8000 }, async () => {
+    const harness = start();
+    await harness.say('Show me the ball');
+    await delay(TURN_TIMINGS.reactionFloorMs + 900);
+    const replyTurn = harness.getTurnsStarted().at(-1) as TurnId;
+    const beatId = harness.messages.findLast((message) => message.type === 'words')?.beatId as Beat['id'];
+    const onTurn = (message: BrowserMessage) => ({ ...message, turnId: replyTurn, beatId }) as BrowserMessage;
+    harness.browser({ type: 'audioState', ...STAMP, isRunning: true });
+    harness.browser({ type: 'audioState', ...STAMP, isRunning: false });
+    await delay(30);
+    harness.browser(onTurn(report(5, 1)));
+    harness.browser(onTurn(report(0, 0)));
+    harness.browser({ type: 'audioState', ...STAMP, isRunning: true });
+    await delay(600);
+    const resumedBeat = harness.messages.findLast((message) => message.type === 'words');
+    expect(resumedBeat?.type === 'words' && resumedBeat.words[0]?.text).toBe('five');
+    const resumedCues = harness.messages.filter((message) => message.type === 'cue' && message.beatId !== beatId && message.turnId !== replyTurn);
+    expect(resumedCues).toHaveLength(0);
+    expect(harness.session.getLog().filter((event) => event.kind === 'beatPlayed' && event.beat.id === beatId).map((event) => event.kind === 'beatPlayed' && event.playedWords)).toEqual([5]);
+  });
+
+  it('names each turn for this job, so a new job in the same room never reuses a turn a page has seen', async () => {
+    const [first, second] = [start(), start()];
+    await first.say('Why');
+    await second.say('Why');
+    expect(first.getTurnsStarted()[0]).not.toBe(second.getTurnsStarted()[0]);
+  });
+});
+
+describe('a quiet room', () => {
+  const warnings = (messages: AgentMessage[]) => messages.flatMap((message) => (message.type === 'quietWarning' ? [message.isOn] : []));
+
+  it('sets the limit in one number, at ten minutes', () => {
+    expect(QUIET_ROOM_LIMIT_MS).toBe(600_000);
+  });
+
+  it('warns first, and only then closes', async () => {
+    let closed = 0;
+    const { messages } = start({ quietLimitMs: 120, onQuietLimit: () => (closed += 1) });
+    await delay(80);
+    expect(warnings(messages)).toEqual([true]);
+    expect(closed).toBe(0);
+    await delay(80);
+    expect(closed).toBe(1);
+    expect(messages.some((message) => message.type === 'closingForQuiet')).toBe(true);
+  });
+
+  it('takes the warning down and starts again when the student answers it, types, speaks, or moves the board', async () => {
+    let closed = 0;
+    const { browser, ears, messages } = start({ quietLimitMs: 150, onQuietLimit: () => (closed += 1) });
+    const answers: (() => void)[] = [
+      () => browser({ type: 'stillHere', ...STAMP }),
+      () => ears({ type: 'words', text: 'Hello', isFinal: false }),
+      () => browser({ type: 'acted', ...STAMP, action: { kind: 'sliderSet', element: 'slider' as never, parameter: 'angle', value: 1 } as never }),
+    ];
+    for (const answer of answers) {
+      await delay(100);
+      answer();
+    }
+    await delay(60);
+    expect(closed).toBe(0);
+    expect(warnings(messages).filter((isOn) => !isOn).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('counts the tutor speaking as something happening', async () => {
+    let closed = 0;
+    const { say } = start({ quietLimitMs: 400, onQuietLimit: () => (closed += 1) });
+    await delay(200);
+    await say('Show me a long answer');
+    await delay(300);
+    expect(closed).toBe(0);
+  });
+
+  const until = async (isDone: () => boolean, limitMs = 8000) => {
+    for (let waited = 0; waited < limitMs && !isDone(); waited += 10) await delay(10);
+  };
+
+  it('does not warn or close while the tutor speaks for longer than the limit, and does once it has stopped', async () => {
+    let closed = 0;
+    const { say, messages, traces } = start({ quietLimitMs: 300, onQuietLimit: () => (closed += 1), tutorBeats: [makeBeat('short', 'one two three four five six')] });
+    await say('Show me a long answer');
+    await until(() => traces.some(({ name, fields }) => name === 'turnFinished' && fields.kind === 'reply'));
+    expect(traces.some(({ name, fields }) => name === 'turnFinished' && fields.kind === 'reply')).toBe(true);
+    expect(warnings(messages)).toEqual([]);
+    expect(closed).toBe(0);
+    await until(() => closed === 1);
+    expect(warnings(messages)).toEqual([true]);
+    expect(closed).toBe(1);
+  }, 20_000);
+
+  it('does not count a breath between stretches as quiet, however long the student holds it', async () => {
+    let closed = 0;
+    const secondStretch = { ...makeBeat('second', 'And the next idea.'), pauseBeforeMs: 300 };
+    const { say, ears, messages, traces } = start({ quietLimitMs: 300, onQuietLimit: () => (closed += 1), tutorBeats: [makeBeat('first', 'one two three'), secondStretch] });
+    const replyTurns = () => traces.filter(({ name, fields }) => name === 'turnStarted' && fields.kind === 'reply');
+    await say('Show me a long answer');
+    await until(() => traces.some(({ name, fields }) => name === 'turnFinished' && fields.kind === 'reply'));
+    ears({ type: 'voiceStarted' });
+    await delay(700);
+    expect(replyTurns()).toHaveLength(1);
+    expect(warnings(messages)).toEqual([]);
+    expect(closed).toBe(0);
+    ears({ type: 'voiceEnded' });
+    await until(() => replyTurns().length === 2);
+    expect(replyTurns()).toHaveLength(2);
+    await until(() => closed === 1);
+    expect(closed).toBe(1);
+  }, 20_000);
+
+  it('hears a student keeping the room open even past the limit on other messages', async () => {
+    let closed = 0;
+    const { browser, messages } = start({ quietLimitMs: 200, onQuietLimit: () => (closed += 1) });
+    await until(() => warnings(messages).length === 1);
+    for (let index = 0; index < 300; index += 1) browser({ type: 'markNotDrawn', markId: 'forged', ...STAMP } as BrowserMessage);
+    browser({ type: 'stillHere', ...STAMP });
+    expect(warnings(messages)).toEqual([true, false]);
+    expect(closed).toBe(0);
+  });
+
+  it('does not count a transcript with no words, or the page\'s own pulses and reports', async () => {
+    let closed = 0;
+    const { browser, ears } = start({ quietLimitMs: 100, onQuietLimit: () => (closed += 1) });
+    await delay(50);
+    ears({ type: 'words', text: ' ', isFinal: false });
+    browser({ type: 'pulse', ...STAMP, hearsAgent: true });
+    browser({ type: 'audioState', ...STAMP, isRunning: true });
+    await delay(80);
+    expect(closed).toBe(1);
   });
 });
 

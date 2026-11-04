@@ -22,6 +22,8 @@ const AUDIO_QUEUE_MS = 200;
 const LEFT_ON_PURPOSE_MS = 15_000;
 /** A dropped link can come back, so the room waits this long before it closes. */
 const LINK_DROPPED_MS = 120_000;
+/** Long enough for the page to hear why before the room goes. */
+const SAY_WHY_BEFORE_CLOSING_MS = 500;
 const STUDENT_IDENTITY_PREFIX = 'student-';
 // The SDK refuses students at 70% load, and any limit below none still refuses them on a busy laptop at 100%, as 0.98 did. Hosting sets its own limit when it exists.
 const LOAD_LIMIT = Number(process.env.ASTRA_AGENT_LOAD_LIMIT ?? Infinity);
@@ -46,7 +48,7 @@ function makeVoice() {
 async function runSession(context: JobContext): Promise<void> {
   const { room } = context;
   const trace = makeTraceFile(room.name ?? 'room');
-  trace('jobStarted');
+  trace('jobStarted', { pid: process.pid });
   // Publishing fails once the room has gone, and a stray rejection would end the whole process.
   const publish = (message: AgentMessage, isReliable = true) => void room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable: isReliable, topic: LIVE_TOPIC }).catch((error: unknown) => trace('publishFailed', { problem: String(error) }));
   const source = new AudioSource(RENDERED_SAMPLE_RATE, 1, AUDIO_QUEUE_MS);
@@ -54,7 +56,13 @@ async function runSession(context: JobContext): Promise<void> {
   const voice = makeVoice();
   voice.on('error', (error) => trace('voiceError', { problem: String(error.error) }));
   voice.prewarm();
-  const transcriber = makeTutorTranscriber({ apiKey: readKey('META_API_KEY'), onNote: (note) => trace(`muse:${note.kind}`, note) }).makeStt();
+  const transcriber = makeTutorTranscriber({
+    apiKey: readKey('META_API_KEY'),
+    onNote(note) {
+      trace(`muse:${note.kind}`, note);
+      if (note.kind === 'hearing') publish({ type: 'earsOpen' });
+    },
+  }).makeStt();
   const allTakes = loadTakes();
   let ears: Ears | null = null;
   const { brain, flushSpend } = makeTutorBrain({ roomName: room.name ?? '', trace });
@@ -72,6 +80,8 @@ async function runSession(context: JobContext): Promise<void> {
     takes: createTakePicker(allTakes),
     allTakes,
     setTurnCap: (ms) => ears?.setTurnCap(ms),
+    onQuietLimit: () => void setTimeout(() => context.shutdown('the room stayed quiet'), SAY_WHY_BEFORE_CLOSING_MS),
+    ...(process.env.ASTRA_QUIET_LIMIT_MS ? { quietLimitMs: Number(process.env.ASTRA_QUIET_LIMIT_MS) } : {}),
     trace,
   });
   ears = await startEars({ room, transcriber, vad: context.proc.userData.vad as inference.VAD, onEvent: session.onEars });

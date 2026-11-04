@@ -40,7 +40,7 @@ export interface TurnState {
   isQuestionHeard: boolean;
   /** The words of the utterance still going, which can change. */
   partial: string;
-  /** Words the tutor has been asked to answer and has not begun to, which a new reply must carry. */
+  /** Words the tutor has been asked to answer and has not finished answering, which a new reply must carry. */
   unanswered: string;
   hasReacted: boolean;
   isReactionDue: boolean;
@@ -97,7 +97,8 @@ export type TurnAction =
   | { do: 'stop'; reason: StopReason; keepsThought: boolean }
   | { do: 'resume' }
   | { do: 'react' }
-  | { do: 'reply'; text: string; via: ReplyVia }
+  /** `carried` is how `text` starts: the words of a reply that was cut before it finished, already asked once. */
+  | { do: 'reply'; text: string; carried: string; via: ReplyVia }
   | { do: 'startTimer'; name: TimerName; ms: number }
   | { do: 'cancelTimer'; name: TimerName }
   | { do: 'setTurnCap'; ms: number }
@@ -194,11 +195,12 @@ function onEchoHeard(state: TurnState): TurnStep {
   return { state, actions: [] };
 }
 
-function startReply(state: TurnState, { text, via, answeredPartial = null }: { text: string; via: ReplyVia; answeredPartial?: string | null }): TurnStep {
+function startReply(state: TurnState, { fresh, carried = '', via, answeredPartial = null }: { fresh: string; carried?: string; via: ReplyVia; answeredPartial?: string | null }): TurnStep {
+  const text = joinWords(carried, fresh);
   const reactFirst = state.hasReacted ? [] : [REACT];
   const unyieldFirst = state.phase === 'yielding' ? [UNYIELD] : [];
   const next: TurnState = { ...INITIAL_TURN_STATE, tutor: 'thinking', isVoiceOn: state.isVoiceOn, unanswered: text, hasReacted: true, answeredPartial, answering: state.isVoiceOn ? 'no' : 'replied' };
-  return { state: next, actions: [...CANCEL_ALL, ...unyieldFirst, ...reactFirst, { do: 'setTurnCap', ms: TURN_TIMINGS.turnCapMs }, { do: 'reply', text, via }] };
+  return { state: next, actions: [...CANCEL_ALL, ...unyieldFirst, ...reactFirst, { do: 'setTurnCap', ms: TURN_TIMINGS.turnCapMs }, { do: 'reply', text, carried, via }] };
 }
 
 function onTurnDecided(state: TurnState, { text }: { text: string }): TurnStep {
@@ -208,12 +210,12 @@ function onTurnDecided(state: TurnState, { text }: { text: string }): TurnStep {
   if (!hasWords(fresh)) return { state: cleared, actions: [] };
   if (isSmallReaction(fresh) && state.startedOverTutor && !state.isQuestionHeard) return { state: cleared, actions: [] };
   if (isFiller(fresh)) return { state: { ...cleared, isWaitingOnStudent: true, partial: '', hasFinalWords: false }, actions: [startTimer('patience')] };
-  return startReply(cleared, { text: joinWords(state.unanswered, fresh), via: 'final' });
+  return startReply(cleared, { fresh, carried: state.unanswered, via: 'final' });
 }
 
 function onTyped(state: TurnState, { text }: { text: string }): TurnStep {
   const stopFirst: TurnAction[] = state.tutor === 'silent' ? [] : [{ do: 'stop', reason: 'typed', keepsThought: false }];
-  const step = startReply({ ...state, hasReacted: false }, { text, via: 'typed' });
+  const step = startReply({ ...state, hasReacted: false }, { fresh: text, via: 'typed' });
   return { state: step.state, actions: [...stopFirst, ...step.actions] };
 }
 
@@ -229,7 +231,7 @@ function onTimer(state: TurnState, { name }: { name: TimerName }): TurnStep {
     return { state: { ...state, isReactionDue: !state.hasReacted }, actions: [] };
   }
   if (name === 'heldFinal' && !state.isVoiceOn && !state.hasFinalWords && hasWords(state.partial) && (state.phase === 'stopped' || state.phase === 'clear')) {
-    return startReply(state, { text: joinWords(state.unanswered, state.partial), via: 'partial', answeredPartial: state.partial });
+    return startReply(state, { fresh: state.partial, carried: state.unanswered, via: 'partial', answeredPartial: state.partial });
   }
   if (name === 'patience' && state.isWaitingOnStudent && state.tutor === 'silent' && !state.isVoiceOn) return { state: { ...state, isWaitingOnStudent: false }, actions: [{ do: 'promptAfterSilence' }] };
   return { state, actions: [] };
@@ -241,16 +243,18 @@ function onTutorThinking(state: TurnState): TurnStep {
 
 function onTutorStarted(state: TurnState, { isReply }: { isReply: boolean }): TurnStep {
   const isAlreadyYielding = state.phase === 'yielding';
-  const replyStarted = isReply ? { phase: isAlreadyYielding ? ('yielding' as const) : ('clear' as const), unanswered: '', isQuestionHeard: false, isWaitingOnStudent: false, hasFinalWords: false, partial: '', heardReaction: false, isReactionFinal: false } : {};
+  const replyStarted = isReply ? { phase: isAlreadyYielding ? ('yielding' as const) : ('clear' as const), isQuestionHeard: false, isWaitingOnStudent: false, hasFinalWords: false, partial: '', heardReaction: false, isReactionFinal: false } : {};
   const fresh: TurnState = { ...state, tutor: 'speaking', ...replyStarted };
   if (isAlreadyYielding) return { state: fresh, actions: [] };
   if (fresh.phase !== 'clear' || !state.isVoiceOn) return { state: fresh, actions: isReply ? CANCEL_FLOOR_TIMERS : [] };
   return { state: { ...fresh, phase: 'yielding', heardReaction: false, isReactionFinal: false, startedOverTutor: true }, actions: [...CANCEL_FLOOR_TIMERS, { do: 'yield' }, startTimer('wordlessStop')] };
 }
 
+// A reply that played to its end has answered its words. A stop lands here in a stopped, held, or away phase, and those words are still owed.
 function onTutorFinished(state: TurnState): TurnStep {
-  if (state.phase === 'yielding') return { state: { ...state, phase: 'clear', tutor: 'silent', heardReaction: false, isReactionFinal: false }, actions: [...CANCEL_FLOOR_TIMERS, UNYIELD] };
-  return { state: { ...state, tutor: 'silent' }, actions: [] };
+  const unanswered = state.tutor === 'speaking' && (state.phase === 'clear' || state.phase === 'yielding') ? '' : state.unanswered;
+  if (state.phase === 'yielding') return { state: { ...state, phase: 'clear', tutor: 'silent', heardReaction: false, isReactionFinal: false, unanswered }, actions: [...CANCEL_FLOOR_TIMERS, UNYIELD] };
+  return { state: { ...state, tutor: 'silent', unanswered }, actions: [] };
 }
 
 function onQuestionHeard(state: TurnState): TurnStep {

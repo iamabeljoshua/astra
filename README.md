@@ -244,8 +244,9 @@ pnpm agent
 | `ASTRA_TUTOR_MODEL` | Agent | A model by name from `providers/anthropic.ts`, `recorded` for canned replies that spend nothing and that a proof can stall or break by typing `stall`, `invalid`, `wrong math`, `tag`, `refuse`, or `silent`, or `stand-in` for the simple lines M3.6's proofs use. |
 | `ASTRA_SPEND_FILE`, `ASTRA_SPEND_LIMIT_USD` | Agent | Adds each turn's real cost to a file, and past the limit, $8 by default, the tutor says it cannot reply. |
 | `ASTRA_VOICE_TRACE=<folder>` | Agent | Writes each session's timings there, with no words. `ASTRA_VOICE_TRACE_WORDS=1` adds the words, for test speech only. |
+| `ASTRA_QUIET_LIMIT_MS=<ms>` | Agent | Replaces the 10 minutes a quiet room lasts, for a test. |
 
-The browser only ever receives a room token from `POST /sessions/:id/live-room`. It holds one room, the microphone, and the data channel, and it lasts 10 minutes. It names the agent to call and nothing about the student, so LiveKit never receives the level, interests, or goal. Vendor keys stay on the servers. `docs/tests/voice.md` holds what was measured.
+The browser only ever receives a room token from `POST /sessions/:id/live-room`. It holds one room, the microphone, and the data channel, it lasts 2 minutes, and it cannot call the tutor in. Only the API does that, for a session that has not finished and a student under the daily limit, and the API closes the room when the session finishes. A new session calls its tutor in as it starts, so the first press does not wait for a job, and that tutor leaves if no student joins within 2 minutes. Starting a room over is limited to 5 per student per 10 minutes. The token says nothing about the student except their ID, so LiveKit never receives the level, interests, or goal. Vendor keys stay on the servers. `docs/tests/voice.md` holds what was measured.
 
 To change a vendor, see "Swapping a provider" in `docs/architecture/live-session.md`. `providers/choose.ts` is the one place that chooses.
 

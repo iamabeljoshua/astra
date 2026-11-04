@@ -1,7 +1,14 @@
-import { IsIn } from 'class-validator';
+import { IsIn, IsOptional } from 'class-validator';
 
 const LIVE_ROOM_UNAVAILABLE_REASONS = ['notSetUp', 'dailyLimit'] as const;
 type LiveRoomUnavailableReason = (typeof LIVE_ROOM_UNAVAILABLE_REASONS)[number];
+
+export class LiveRoomQueryDto {
+  /** Set to `yes` when the tutor has gone, to close this session's room and call a new tutor into a new one. Leave it out to join the room as it is. */
+  @IsOptional()
+  @IsIn(['yes'])
+  startOver?: 'yes';
+}
 
 export class LiveRoomAccessDto {
   /** The LiveKit address that the browser connects to. */

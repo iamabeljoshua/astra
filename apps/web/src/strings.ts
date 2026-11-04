@@ -221,8 +221,18 @@ export const VOICE_LABELS = {
   sessionLimit: 'This session has reached its limit. Start a new session to carry on.',
   dailyLimit: 'That is all your tutor time for now. It resets once a day, so please try again later. Your sessions are kept.',
   broken: 'Your tutor has stopped working in this session. Start a new one to carry on.',
+  sessionFinished: 'This session has finished.',
+  tutorLost: 'Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far.',
+  startedFresh: 'Your tutor had to start fresh, without what was said so far.',
   micDenied: 'Your browser did not allow the microphone. You can type instead.',
+  micNoDevice: 'We could not find a microphone on this device. You can type instead.',
+  micFailed: 'Your microphone could not start. You can type instead.',
   micOn: 'Your microphone is on.',
+  quietWarning: 'It has been quiet for a while, so this room closes in about a minute. Your session stays here either way.',
+  stillHere: 'Keep the room open',
+  closedForQuiet: 'This room closed because it stayed quiet. Your session is still here.',
+  openAgain: 'Open the room again',
+  tryAgain: 'Try again',
   turnOnSound: 'Turn on sound',
 };
 
@@ -470,7 +480,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: 'Who receives your data',
         today: [
           'Supabase runs our sign-in service and our database, so it holds everything we store on our servers, and it sends the sign-in email.',
-          'When you use a session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. We do not ask it to record any of this. A room knows you by an account ID. We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal, though it carries anything you say or type yourself.',
+          'When you use a session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. It also receives your IP address and your student ID, a random code that does not include your name. We do not ask it to record any of this. We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal, though it carries anything you say or type yourself.',
           "While your microphone is on, Meta's Muse Voice Transcribe receives your voice and turns it into text. Meta's terms let it keep what it receives for safety checks and human review.",
           "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, the tutor's earlier words, and your level, interests, and goal. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
           "ElevenLabs receives the tutor's words and turns them into its voice. Those words can repeat what you said or typed.",

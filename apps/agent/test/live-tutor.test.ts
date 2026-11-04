@@ -94,7 +94,7 @@ describe('the brain in a live session', () => {
     const { session, model, messages } = setup(() => ({ pieces: ['Okay, one two three four.'] }));
     session.onBrowser(typed('count'));
     await delay(250);
-    const turnId = (messages.find((message) => message.type === 'turnStarted' && message.turnId !== 'turn-1') as { turnId: TurnId }).turnId;
+    const turnId = (messages.findLast((message) => message.type === 'turnStarted') as { turnId: TurnId }).turnId;
     session.onBrowser({ type: 'played', turnId, beatId: 't1-b0' as never, wordStartsMs: [0, 280], durationMs: 560, playedWords: 2, firedCueMs: [], ending: 'interrupted', frozen: [], ...STAMP });
     session.onBrowser(typed('wait'));
     await delay(300);
@@ -325,5 +325,77 @@ describe('a reply in short stretches', () => {
     for (let waited = 0; waited < 6000 && replyTurns(notes).length < 2; waited += 10) await delay(10);
     expect(replyTurns(notes)).toHaveLength(2);
     await session.close();
+  });
+
+  describe('with a student jumping in', () => {
+    const ONE = 'Plants make their food from light and air.';
+    const TWO = 'The leaf is where all of it happens daily.';
+    const THREE = 'Roots pull the water up from the soil below.';
+    const THREE_STRETCHES = { pieces: [`${ONE}\n`, `${TWO}\n`, `${THREE}\n`] };
+    const THEN_SHORT = (_request: TutorModelRequest, attempt: number): FakeReply => (attempt === 1 ? THREE_STRETCHES : { pieces: ['Okay, roots then.'] });
+    const JUMP_IN = 'wait, what about the roots';
+    const getCut = (request: TutorModelRequest | undefined) => getSystemNotes(request).map((note) => JSON.parse(note) as { cut?: { heard: string; not_heard: string } }).find((note) => note.cut)?.cut;
+    const lastAssistant = (request: TutorModelRequest | undefined) => (request?.turns ?? []).flatMap((turn) => (turn.role === 'assistant' ? [turn.text] : [])).at(-1);
+    const reportHeard = (session: ReturnType<typeof setup>['session'], messages: readonly AgentMessage[], beatId: string, playedWords: number, ending: 'finished' | 'interrupted') => {
+      const turnId = (messages.findLast((message) => message.type === 'turnStarted') as { turnId: TurnId }).turnId;
+      session.onBrowser({ type: 'played', turnId, beatId: beatId as never, wordStartsMs: Array.from({ length: playedWords }, (_, index) => index * 280), durationMs: playedWords * 280, playedWords, firedCueMs: [], ending, frozen: [], ...STAMP });
+    };
+    const askAloud = (session: ReturnType<typeof setup>['session'], text: string) => {
+      session.onEars({ type: 'voiceStarted' });
+      session.onEars({ type: 'words', text, isFinal: true });
+      session.onEars({ type: 'voiceEnded' });
+      session.onEars({ type: 'turnDecided', text });
+    };
+    const until = async (isDone: () => boolean) => {
+      for (let waited = 0; waited < 8000 && !isDone(); waited += 10) await delay(10);
+      expect(isDone()).toBe(true);
+    };
+    const stretchIsSounding = (notes: ReturnType<typeof setup>['notes'], index: number) => notes.some((note) => note.name === 'firstFrameCaptured' && note.fields.turnId === replyTurns(notes)[index]?.fields.turnId);
+
+    it('in the first stretch, answers the new words alone, with the question once in the history and the next stretch told as not heard', async () => {
+      const { session, notes, model } = setup(THEN_SHORT);
+      askAloud(session, 'what is photosynthesis');
+      await until(() => stretchIsSounding(notes, 0));
+      askAloud(session, JUMP_IN);
+      await until(() => model.requests.length === 2);
+      expect(getUsers(model.requests[1])).toEqual(['what is photosynthesis', JUMP_IN]);
+      expect(getCut(model.requests[1])?.not_heard).toContain('The leaf is where');
+      expect(lastAssistant(model.requests[1])).not.toContain('Roots');
+      await session.close();
+    }, 20_000);
+
+    it('in a later stretch, knows the first was heard and the last was not, and nothing is repeated', async () => {
+      const { session, notes, messages, model } = setup(THEN_SHORT);
+      askAloud(session, 'what is photosynthesis');
+      await firstStretchDone(notes);
+      reportHeard(session, messages, 't1-b0', 8, 'finished');
+      await until(() => stretchIsSounding(notes, 1));
+      session.onEars({ type: 'voiceStarted' });
+      session.onEars({ type: 'words', text: JUMP_IN, isFinal: false });
+      reportHeard(session, messages, 't1-b1', 3, 'interrupted');
+      session.onEars({ type: 'words', text: JUMP_IN, isFinal: true });
+      session.onEars({ type: 'voiceEnded' });
+      session.onEars({ type: 'turnDecided', text: JUMP_IN });
+      await until(() => model.requests.length === 2);
+      expect(getUsers(model.requests[1])).toEqual(['what is photosynthesis', JUMP_IN]);
+      const cut = getCut(model.requests[1]);
+      expect(cut?.heard).toBe('Plants make their food from light and air. The leaf is');
+      expect(cut?.not_heard).toContain('where all of it happens daily');
+      await session.close();
+    }, 20_000);
+
+    it('in a breath, tells the stretch still to come as not heard, and carries nothing the brain holds', async () => {
+      const { session, notes, messages, model } = setup(THEN_SHORT);
+      askAloud(session, 'what is photosynthesis');
+      await firstStretchDone(notes);
+      reportHeard(session, messages, 't1-b0', 8, 'finished');
+      askAloud(session, JUMP_IN);
+      await until(() => model.requests.length === 2);
+      expect(getUsers(model.requests[1])).toEqual(['what is photosynthesis', JUMP_IN]);
+      const cut = getCut(model.requests[1]);
+      expect(cut?.heard).toBe('Plants make their food from light and air.');
+      expect(cut?.not_heard).toContain('The leaf is where');
+      await session.close();
+    }, 20_000);
   });
 });

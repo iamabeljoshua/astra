@@ -51,6 +51,8 @@ export interface StudentPage {
   waitForLive(): Promise<void>;
   getTrace(): Promise<PageTrace>;
   getRoundTripMs(): Promise<number | null>;
+  /** The state of every track the page captured, and of every audio sender with the bytes it has sent. */
+  getMicEvidence(): Promise<{ tracks: string[]; senders: { state: string; bytes: number }[] }>;
   videoStartedEpochMs: number;
 }
 
@@ -68,8 +70,9 @@ export interface PageTrace {
   outputLatencyMs: number;
 }
 
-export async function launchProofBrowser({ proxy }: { proxy?: string } = {}): Promise<Browser> {
+export async function launchProofBrowser({ proxy, captureFile }: { proxy?: string; captureFile?: string } = {}): Promise<Browser> {
   const args = ['--use-mock-keychain', '--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--no-sandbox'];
+  if (captureFile) args.push('--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${captureFile}`);
   if (proxy) args.push(`--proxy-server=${proxy}`, '--force-webrtc-ip-handling-policy=disable_non_proxied_udp');
   return chromium.launch({ headless: true, args });
 }
@@ -91,12 +94,20 @@ function blockTutorAudio(): void {
 }
 
 // Signs in as a seeded student through the real sign-in page, starts a real session, and opens its real screen.
-export async function openStudentPage(browser: Browser, { email, title, recordVideoDir, blocksAudio = false, viewport = { width: 1440, height: 900 } }: { email: string; title: string; recordVideoDir?: string; blocksAudio?: boolean; viewport?: { width: number; height: number } }): Promise<StudentPage> {
+export async function openStudentPage(browser: Browser, { email, title, recordVideoDir, blocksAudio = false, usesRealCapture = false, viewport = { width: 1440, height: 900 } }: { email: string; title: string; recordVideoDir?: string; blocksAudio?: boolean; usesRealCapture?: boolean; viewport?: { width: number; height: number } }): Promise<StudentPage> {
   const context = await browser.newContext({ baseURL: WEB_URL, viewport, recordVideo: recordVideoDir ? { dir: recordVideoDir, size: viewport } : undefined, permissions: ['microphone'] });
   const videoStartedEpochMs = Date.now();
   const page = await context.newPage();
-  await page.addInitScript(installSpeechInPage);
+  if (!usesRealCapture) await page.addInitScript(installSpeechInPage);
   await page.addInitScript(() => {
+    const capturedTracks: MediaStreamTrack[] = [];
+    (window as unknown as { capturedTracks: MediaStreamTrack[] }).capturedTracks = capturedTracks;
+    const getUserMedia = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+    navigator.mediaDevices.getUserMedia = async (constraints) => {
+      const stream = await getUserMedia(constraints);
+      capturedTracks.push(...stream.getAudioTracks());
+      return stream;
+    };
     const Original = RTCPeerConnection;
     const connections: RTCPeerConnection[] = [];
     (window as unknown as { peerConnections: RTCPeerConnection[] }).peerConnections = connections;
@@ -140,6 +151,24 @@ export async function openStudentPage(browser: Browser, { email, title, recordVi
     async waitForLive() {
       await page.waitForFunction(() => window.astraVoice?.getView().phase === 'live', undefined, { timeout: 30_000 });
     },
+    getMicEvidence: () =>
+      page.evaluate(async () => {
+        const { capturedTracks, peerConnections } = window as unknown as { capturedTracks: MediaStreamTrack[]; peerConnections: RTCPeerConnection[] };
+        const senders: { state: string; bytes: number }[] = [];
+        for (const connection of peerConnections) {
+          for (const sender of connection.getSenders()) {
+            let bytes = 0;
+            let isAudio = sender.track?.kind === 'audio';
+            (await sender.getStats()).forEach((report: { type: string; kind?: string; bytesSent?: number }) => {
+              if (report.type !== 'outbound-rtp') return;
+              bytes += report.bytesSent ?? 0;
+              isAudio ||= report.kind === 'audio';
+            });
+            if (isAudio) senders.push({ state: sender.track?.readyState ?? 'removed', bytes });
+          }
+        }
+        return { tracks: capturedTracks.map((track) => track.readyState), senders };
+      }),
     getRoundTripMs: () =>
       page.evaluate(async () => {
         const list = (window as unknown as { peerConnections: RTCPeerConnection[] }).peerConnections;
