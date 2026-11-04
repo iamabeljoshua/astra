@@ -70,7 +70,7 @@ function useOpeningMessage(session: Session, sendTyped: (text: string) => Promis
 }
 
 function isTutorOnTheWay(status: LiveVoiceControls['status'], view: LiveVoiceView | null): boolean {
-  if (view) return !isVoiceOver(view.phase) && view.phase !== 'reconnecting' && !view.closedBecause;
+  if (view) return !view.hasTutorStarted && !isVoiceOver(view.phase) && view.phase !== 'reconnecting' && !view.closedBecause;
   return status === 'idle' || status === 'connecting';
 }
 
@@ -100,7 +100,6 @@ function RunningSession({ session }: { session: Session }) {
   const liveVoice = useLiveVoice({ sessionId: session.id });
   const { status, view, voice } = liveVoice;
   useOpeningMessage(session, liveVoice.sendTyped);
-  const hasTutorWords = view !== null && view.tutorHeard.length + view.tutorComing.length > 0;
 
   return (
     <SessionFrame
@@ -110,8 +109,8 @@ function RunningSession({ session }: { session: Session }) {
     >
       <SessionPanels
         session={session}
-        tutorWords={!hasTutorWords && isTutorOnTheWay(status, view) ? VOICE_LABELS.connecting : null}
-        tutorCaption={hasTutorWords ? <TutorCaption heard={view.tutorHeard} coming={view.tutorComing} /> : null}
+        tutorWords={isTutorOnTheWay(status, view) ? VOICE_LABELS.connecting : null}
+        tutorCaption={view?.hasTutorStarted ? <TutorCaption heard={view.tutorHeard} coming={view.tutorComing} /> : null}
         isDotLively={view !== null && !view.closedBecause && (view.isTutorSpeaking || view.isHeard || view.isThinking)}
         boardNote={SESSION_LABELS.boardStandIn}
         liveVoice={voice}

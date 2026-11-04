@@ -46,6 +46,8 @@ export interface LiveVoiceView {
   closedBecause: TutorClosedReason | null;
   /** This page's room closed and it joined a new one, so the tutor now holds nothing of what was said. */
   startedFresh: boolean;
+  /** The tutor has begun its first turn in this page, so the wait for it is over. */
+  hasTutorStarted: boolean;
   studentLines: readonly StudentLine[];
   /** Words the student has heard this turn, and the ones already known that are still to come. */
   tutorHeard: readonly string[];
@@ -119,7 +121,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const decoder = new TextDecoder();
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, startedFresh: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -214,6 +216,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       records.replayedTurns.push(message.turnId);
     } else if (message.type === 'turnStarted') {
       records.turnStartedEpochMs[message.turnId] = getEpochMs();
+      if (!view.hasTutorStarted) setView({ hasTutorStarted: true });
       records.clockKinds.push(clock.getKind());
       currentTurnId = message.turnId;
       hasHeardFirstOnset = false;

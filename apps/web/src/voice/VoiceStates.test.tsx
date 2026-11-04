@@ -11,7 +11,7 @@ vi.mock('../auth/useAccount', () => import('../test/activeAccount'));
 const startLiveVoice = vi.hoisted(() => vi.fn());
 vi.mock('./liveVoice', async (importOriginal) => ({ ...(await importOriginal<typeof import('./liveVoice')>()), startLiveVoice }));
 
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, startedFresh: false, studentLines: [], tutorHeard: [], tutorComing: [] };
+const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [] };
 
 function makeVoice() {
   let view = BASE_VIEW;
@@ -119,7 +119,14 @@ describe('what the student sees of a room', () => {
     expect(screen.getByText(VOICE_LABELS.connecting)).toBeTruthy();
     act(() => setView({ phase: 'live' }));
     expect(screen.getByText(VOICE_LABELS.connecting)).toBeTruthy();
-    act(() => setView({ tutorHeard: ['Welcome,'], tutorComing: ['I', 'am'], isTutorSpeaking: true }));
+    act(() => setView({ hasTutorStarted: true }));
+    expect(screen.queryByText(VOICE_LABELS.connecting)).toBeNull();
+  });
+
+  it('does not say it is connecting between turns, when one turn has ended and the next has no words yet', async () => {
+    const { setView } = await openVoice();
+    act(() => setView({ hasTutorStarted: true, tutorHeard: ['Hello.'] }));
+    act(() => setView({ tutorHeard: [], tutorComing: [], isThinking: true }));
     expect(screen.queryByText(VOICE_LABELS.connecting)).toBeNull();
   });
 

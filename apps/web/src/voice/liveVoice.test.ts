@@ -234,6 +234,17 @@ describe('a room that opens with no press', () => {
   });
 });
 
+describe('a tutor that has not spoken yet', () => {
+  it('counts as started from its first turn, and stays started', async () => {
+    const { room } = await openVoice();
+    expect(voice.getView().hasTutorStarted).toBe(false);
+    fromAgent(room, { type: 'turnStarted', turnId: 'turn-a-1' });
+    expect(voice.getView().hasTutorStarted).toBe(true);
+    fromAgent(room, { type: 'stop', turnId: 'turn-a-1' });
+    expect(voice.getView().hasTutorStarted).toBe(true);
+  });
+});
+
 describe('the first pulses of a room', () => {
   const getPulses = (room: InstanceType<typeof FakeRoom>) => getSentMessages(room).filter((message) => message.type === 'pulse') as unknown as { hearsAgent: boolean }[];
 
