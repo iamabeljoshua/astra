@@ -13,6 +13,8 @@ const SHOT_SCALE = 0.25;
 const SHOT_QUALITY = 60;
 const AFTER_LAST_COMMAND_MS = 900;
 const STROBES = /strobe/;
+/** The boards that fill up and scroll furthest. A scroll is the one thing here the browser could run on its own clock, so these play on the real one too. */
+const LONG_BOARDS = ['hostile-widest-diagram', 'hostile-widest-timeline', 'hostile-many-at-once', 'math-board-fills-up', 'mixed-board-fills-and-moves-on', 'mixed-phone-heavy'];
 const THEMES = ['dark', 'light'] as const;
 /** A stalled browser never answers, so a frame this late names itself and ends the run. */
 const FRAME_LIMIT_MS = 60_000;
@@ -88,6 +90,50 @@ export async function getFlashesInScene(page: Page, shots: CDPSession, { scene, 
   return { flashes: getMostFlashesInASecond(changes), frames };
 }
 
+async function getFlashesOnTheRealClock(page: Page, shots: CDPSession, { scene, lastCommandMs, size }: { scene: string; lastCommandMs: number; size: { width: number; height: number } }): Promise<{ flashes: number; frames: number; furthestPxInASecond: number }> {
+  const changes: LuminanceChange[] = [];
+  const limits = { pixelsNeeded: Math.ceil(FLASH_AREA_PX * SHOT_SCALE * SHOT_SCALE), depth: FLASH_LUMINANCE_CHANGE, darkerSideLimit: DARKER_SIDE_LIMIT };
+  const scrolls: { atMs: number; top: number }[] = [];
+  await page.evaluate(() => {
+    (window as unknown as { flashTurn?: null }).flashTurn = null;
+  });
+  const startedAtMs = Date.now();
+  let frames = 0;
+  for (let atMs = 0; atMs <= lastCommandMs + AFTER_LAST_COMMAND_MS; atMs = Date.now() - startedAtMs) {
+    const moment = `${scene} ${atMs} ms on the real clock`;
+    const top = await withinLimit(page.evaluate(async (request) => {
+      await window.boardDeck?.show(request);
+      return document.querySelector('.board-scroll')?.scrollTop ?? 0;
+    }, { scene, size, atMs, mount: `real|${scene}` }), moment);
+    const direction = await withinLimit(readChange(page, shots, limits), moment);
+    frames += 1;
+    scrolls.push({ atMs, top });
+    if (direction !== 0) changes.push({ atMs, direction });
+  }
+  const furthestPxInASecond = Math.max(0, ...scrolls.map(({ atMs, top }) => Math.max(...scrolls.filter((other) => other.atMs >= atMs && other.atMs < atMs + 1000).map((other) => Math.abs(other.top - top)))));
+  return { flashes: getMostFlashesInASecond(changes), frames, furthestPxInASecond };
+}
+
+async function runRealClockScrolls(page: Page, shots: CDPSession, scenes: readonly { name: string; moments: readonly number[] }[], verdict: Verdict): Promise<void> {
+  let worst = { flashes: 0, scene: 'none', theme: 'none', furthestPxInASecond: 0 };
+  let frames = 0;
+  let ms = 0;
+  for (const theme of THEMES) {
+    await page.evaluate((chosen) => {
+      document.documentElement.dataset.theme = chosen;
+    }, theme);
+    for (const { name, moments } of scenes.filter(({ name }) => LONG_BOARDS.includes(name))) {
+      const startedAtMs = Date.now();
+      const seen = await getFlashesOnTheRealClock(page, shots, { scene: name, lastCommandMs: Math.max(...moments.slice(0, -1)), size: VIEWPORT });
+      frames += seen.frames;
+      ms += Date.now() - startedAtMs;
+      if (seen.flashes >= worst.flashes) worst = { flashes: seen.flashes, scene: name, theme, furthestPxInASecond: seen.furthestPxInASecond };
+      if (seen.flashes > MOST_FLASHES_IN_A_SECOND) verdict.failures.push(`${name} in ${theme} flashes ${seen.flashes} times in one second on the real clock, and the limit is ${MOST_FLASHES_IN_A_SECOND}`);
+    }
+  }
+  verdict.lines.push(`Real clock: ${LONG_BOARDS.length} long boards in both themes, ${frames} frames at ${Math.round((frames * 1000) / Math.max(ms, 1))} a second. Most flashes in a second: ${worst.flashes}, in ${worst.scene} ${worst.theme}, which scrolled ${Math.round(worst.furthestPxInASecond)} px in its fastest second`);
+}
+
 export async function runFlashCheck(page: Page, { isQuick, surface, only }: { isQuick: boolean; surface: DeckSurface; only?: readonly string[] }, verdict: Verdict): Promise<void> {
   const startedAtMs = Date.now();
   await page.setViewportSize(VIEWPORT);
@@ -106,6 +152,7 @@ export async function runFlashCheck(page: Page, { isQuick, surface, only }: { is
       if (seen.flashes > MOST_FLASHES_IN_A_SECOND) verdict.failures.push(`${name} in ${theme} flashes ${seen.flashes} times in one second, and the limit is ${MOST_FLASHES_IN_A_SECOND}`);
     }
   }
-  await shots.detach();
   verdict.lines.push(`Flash check: ${frames} frames across ${scenes.length} scenes in both themes in ${Math.round((Date.now() - startedAtMs) / 1000)} s. Most flashes in a second: ${worst.flashes}, in ${worst.scene} ${worst.theme}`);
+  if (!isQuick && surface === 'rows') await runRealClockScrolls(page, shots, scenes, verdict);
+  await shots.detach();
 }

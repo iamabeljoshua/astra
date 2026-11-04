@@ -304,17 +304,26 @@ function readDiagramEdge(place: Place, nodeNames: ReadonlySet<string>): Diagram[
   return { from: readEdgeEnd(fields.at('from'), nodeNames), to: readEdgeEnd(fields.at('to'), nodeNames), ...(isBlankOrNullLabel(fields.at('label').value) ? {} : fields.optional('label', readLabel)) };
 }
 
+// A model sometimes adds a kind to an event, which means nothing here and is no reason to lose a whole timeline.
+function readDrawingName(place: Place): DrawingName {
+  if (!DRAWINGS.includes(place.value as DrawingName)) fail(place, `one of ${DRAWINGS.filter((name) => DRAWING_PARTS[name].length > 0).join(', ')}`);
+  return place.value as DrawingName;
+}
+
 function readTimelineEvent(place: Place): Timeline['events'][number] {
-  const fields = readFields(place, ['when', 'label']);
+  const fields = readFields(place, ['when', 'label', 'kind']);
   return { when: readLabel(fields.at('when')), label: readLabel(fields.at('label')) };
 }
 
+// A comparison table has an empty corner, and a tutor may leave a cell empty.
+const readTableWords = (place: Place) => (isBlankOrNullLabel(place.value) ? '' : readLabel(place));
+
 function readTableRow(place: Place): string[] {
-  return readList(place, { maxLength: LIMITS.columns, readItem: readLabel });
+  return readList(place, { maxLength: LIMITS.columns, readItem: readTableWords });
 }
 
 function readTableCells(fields: CheckedFields): { columns: string[]; rows: string[][] } {
-  const columns = readFilledList(fields, { name: 'columns', maxLength: LIMITS.columns, readItem: readLabel });
+  const columns = readFilledList(fields, { name: 'columns', maxLength: LIMITS.columns, readItem: readTableWords });
   const rows = readFilledList(fields, { name: 'rows', maxLength: LIMITS.rows, readItem: readTableRow });
   if (rows.some((row) => row.length !== columns.length)) fail(fields.at('rows'), `${columns.length} cells in each row`);
   return { columns, rows };
@@ -561,7 +570,7 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
     drawing: {
       keys: ['id', 'name', 'labels'],
       read: (fields) => {
-        const name = readOneOf(fields.at('name'), DRAWINGS);
+        const name = readDrawingName(fields.at('name'));
         return {
           kind: 'drawing',
           id: readElementId(fields.at('id')),

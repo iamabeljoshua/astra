@@ -41,10 +41,13 @@ function getGutterWords(row: Element | null, flow: DOMRect) {
   });
 }
 
-function getMarksArea(overlay: SVGSVGElement, placements: ReadonlyMap<string, MovingPlacement>, rows: readonly (Element | null)[]) {
+export function getMarksArea(overlay: SVGSVGElement, placements: ReadonlyMap<string, MovingPlacement>, rows: readonly (Element | null)[]) {
   const flow = overlay.getBoundingClientRect();
-  const board = overlay.closest('.board-scroll')?.getBoundingClientRect() ?? flow;
-  return { left: board.left - flow.left, top: board.top - flow.top, width: board.right - flow.left, height: Math.max(0, ...[...placements.values()].map(({ y, height }) => y + height)) + LABEL_ROOM_BELOW_ROWS, alsoTaken: rows.flatMap((row) => getGutterWords(row, flow)) };
+  const scroller = overlay.closest('.board-scroll');
+  const board = scroller?.getBoundingClientRect() ?? flow;
+  // Marks scroll with their rows, so a row scrolled out of sight still has its whole ring.
+  const scrolledBy = scroller?.scrollTop ?? 0;
+  return { left: board.left - flow.left, top: board.top - flow.top - scrolledBy, width: board.right - flow.left, height: Math.max(0, ...[...placements.values()].map(({ y, height }) => y + height)) + LABEL_ROOM_BELOW_ROWS, alsoTaken: rows.flatMap((row) => getGutterWords(row, flow)) };
 }
 
 // Paints one frame of the shared board's rows from its state and the clock alone.

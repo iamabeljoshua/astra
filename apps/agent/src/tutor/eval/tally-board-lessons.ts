@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { CLAIMS_A_DRAWING, DRAWN_THINGS } from '../beat-text-reader.ts';
 
 interface TurnRow {
   group: string;
@@ -8,8 +9,8 @@ interface TurnRow {
   refused: string[];
 }
 
-const SHOWS = /\b(here'?s|here is|look at|see (?:the|this)|on the board|up there|i'?ve (?:drawn|put|written|added)|i (?:drew|put|wrote)|this (?:table|timeline|diagram|picture|drawing|graph|plot|code|painting))\b/i;
-const DRAWN_THINGS = new Set(['table', 'timeline', 'code', 'image', 'drawing', 'diagram', 'plot', 'writeMath', 'text', 'simulate']);
+
+const isDrawn = (kind: string) => DRAWN_THINGS.has(kind) || kind === 'writeMath';
 
 const rows = readFileSync(process.argv[2] as string, 'utf8').trim().split('\n').map((line) => JSON.parse(line) as TurnRow);
 interface LessonTally {
@@ -25,9 +26,9 @@ for (const { group, spoken, commands, refused } of rows) {
   const lesson: LessonTally = lessons.get(group) ?? { turns: 0, drew: new Map(), refused: [], claimed: [] };
   lessons.set(group, lesson);
   lesson.turns += 1;
-  for (const { kind } of commands) if (DRAWN_THINGS.has(kind)) lesson.drew.set(kind, (lesson.drew.get(kind) ?? 0) + 1);
+  for (const { kind } of commands) if (isDrawn(kind)) lesson.drew.set(kind, (lesson.drew.get(kind) ?? 0) + 1);
   lesson.refused.push(...refused);
-  if (SHOWS.test(spoken) && !commands.some(({ kind }) => DRAWN_THINGS.has(kind)) && lesson.drew.size === 0) lesson.claimed.push(spoken);
+  if (CLAIMS_A_DRAWING.test(spoken) && !commands.some(({ kind }) => isDrawn(kind)) && lesson.drew.size === 0) lesson.claimed.push(spoken);
 }
 
 for (const [name, { turns, drew, refused, claimed }] of lessons) {

@@ -21,6 +21,29 @@ function expectAccepted(command: unknown): void {
   expect(parseSceneCommand(command)).toEqual({ ok: true, value: command });
 }
 
+describe('what a real tutor writes on the board', () => {
+  it('takes a comparison table with a blank corner and a blank cell', () => {
+    const parsed = parseSceneCommand({ kind: 'table', id: 'cells', columns: ['', 'Mitosis', 'Meiosis'], rows: [['Divisions', '1', '2'], ['Daughter cells', ' ', null]] });
+    expect(parsed).toEqual({ ok: true, value: { kind: 'table', id: 'cells', columns: ['', 'Mitosis', 'Meiosis'], rows: [['Divisions', '1', '2'], ['Daughter cells', '', '']] } });
+  });
+
+  it('still refuses a table cell that is not words', () => {
+    expect(parseSceneCommand({ kind: 'table', id: 'cells', columns: [3], rows: [['a']] })).toEqual({ ok: false, problem: 'command.columns[0]: expected text' });
+  });
+
+  it('takes a timeline event that carries a stray kind, and draws it without one', () => {
+    const parsed = parseSceneCommand({ kind: 'timeline', id: 'rome', events: [{ kind: 'x', when: '330 AD', label: 'Constantinople founded' }] });
+    expect(parsed).toEqual({ ok: true, value: { kind: 'timeline', id: 'rome', events: [{ when: '330 AD', label: 'Constantinople founded' }] } });
+  });
+
+  it('never offers a tutor the drawing that only sits under a flight', () => {
+    const parsed = parseSceneCommand({ kind: 'drawing', id: 'd', name: 'volcano' });
+    expect(parsed.ok).toBe(false);
+    expect(JSON.stringify(parsed)).toContain('animal-cell');
+    expect(JSON.stringify(parsed)).not.toContain('hoop-side');
+  });
+});
+
 describe('parseSceneCommand', () => {
   it.each(SCENE_COMMAND_KINDS)('accepts a %s and returns it unchanged', (kind) => {
     expectAccepted(ONE_OF_EACH_COMMAND[kind]);

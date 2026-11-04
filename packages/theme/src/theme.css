@@ -447,7 +447,6 @@
     flex: 1;
     overflow: hidden auto;
     padding: 40px calc(44px + var(--board-kept-clear, 0px)) 24px 44px;
-    scroll-behavior: smooth;
   }
 
   .board-visual {

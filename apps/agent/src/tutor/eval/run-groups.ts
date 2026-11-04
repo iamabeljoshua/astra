@@ -221,7 +221,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
     for (const call of summary.toolCalls) console.log(`     tool ${JSON.stringify(call)}`);
     if (traces.length > 0) console.log(`   traces: ${traces.join(' | ')}`);
     recordCodeChecks(group, turn, summary, commands);
-    if (args.transcript) appendFileSync(args.transcript, `${JSON.stringify({ group: group.name, text, spoken: summary.spokenText, commands, refused: traces.filter((trace) => trace.startsWith('commandRefused')) })}\n`);
+    if (args.transcript) appendFileSync(args.transcript, `${JSON.stringify({ group: group.name, text, spoken: summary.spokenText, commands, refused: traces.filter((trace) => trace.startsWith('commandRefused') || trace.startsWith('drawingRefused')) })}\n`);
     wordCounts.push(summary.spokenText.split(/\s+/).filter(Boolean).length);
     replies.push(summary.spokenText);
     exchange.push(`Student: ${text}`, `Tutor: ${summary.spokenText}`);

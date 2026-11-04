@@ -127,7 +127,7 @@ export interface TutorBrainOptions {
 
 type TurnStep = 'over' | 'retry';
 
-type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'wrongWords' | 'refused' | 'toolCall' | 'heldQuestion';
+type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'drawingRefused' | 'wrongWords' | 'refused' | 'toolCall' | 'heldQuestion';
 
 interface TurnWork {
   sceneAside?: 'due' | 'moved';
@@ -150,6 +150,7 @@ interface TurnWork {
   hasAttemptText: boolean;
   hasSaidStillWorking: boolean;
   wrongMath: string | null;
+  drawingRefused: string | null;
   wrongWords: string | null;
   toolCall: ToolCall | null;
   toolCalls: ToolCall[];
@@ -410,6 +411,15 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           turn.refused.push(problem);
           trace('commandRefused', { problem });
         },
+        // A reply that may be about a child's safety must get out, whatever it tried to draw.
+        ...(MAY_BE_ABOUT_SAFETY.test(studentText)
+          ? {}
+          : {
+              onDrawingRefused(problem: string) {
+                turn.drawingRefused = problem;
+                trace('drawingRefused', { problem });
+              },
+            }),
         onWrongMath(problem) {
           turn.wrongMath = problem;
           trace('mathRefused', { problem });
@@ -457,6 +467,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       hasAttemptText: false,
       hasSaidStillWorking: false,
       wrongMath: null,
+      drawingRefused: null,
       wrongWords: null,
       toolCall: null,
       toolCalls: [],
@@ -528,6 +539,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       turn.raw += seam + event.text;
       turn.reader.push(seam + event.text);
       if (turn.wrongMath !== null) return 'wrongMath';
+      if (turn.drawingRefused !== null) return 'drawingRefused';
       if (turn.wrongWords !== null) return 'wrongWords';
       if (turn.toolCall !== null) return 'toolCall';
       if (turn.isQuestionHeld) return 'heldQuestion';
@@ -641,6 +653,20 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return 'retry';
   };
 
+  const handleRefusedDrawing = (turn: TurnWork, canRetry: boolean): TurnStep => {
+    const problem = turn.drawingRefused as string;
+    turn.drawingRefused = null;
+    turn.reader.closeAttempt();
+    if (!canRetry) {
+      turn.raw = getWordsSaid(turn);
+      turn.refused.push(`a drawing is not on the board: ${problem}`);
+      sayLine(turn, 'drawingDropped');
+      return 'over';
+    }
+    noteCorrection(turn, `What you were about to draw is not on the board, because the board refused it: ${problem}. The student did not hear the words about it. Write it again, fixed, with the words that go with it. If it still cannot be drawn, say it in words.`);
+    return 'retry';
+  };
+
   const handleWrongWords = (turn: TurnWork, canRetry: boolean): TurnStep => {
     const problem = turn.wrongWords as string;
     turn.wrongWords = null;
@@ -706,6 +732,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const finishAnswer = (turn: TurnWork, canRetry: boolean): TurnStep => {
     addHelpIfMissing(turn);
     turn.reader.finish();
+    if (turn.drawingRefused !== null) return handleRefusedDrawing(turn, canRetry);
     if (turn.wrongWords !== null) return handleWrongWords(turn, turn.attempts < MAX_ATTEMPTS);
     if (turn.isQuestionHeld) return handleHeldQuestion(turn, canRetry);
     if (turn.latestToolResult && !turn.hasWordsSinceToolResult) return sayToolResult(turn, turn.latestToolResult);
@@ -790,6 +817,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       case 'wrongMath':
         turn.reader.closeAttempt();
         return handleWrongMath(turn, canRetry);
+      case 'drawingRefused':
+        return handleRefusedDrawing(turn, canRetry);
       case 'wrongWords':
         return handleWrongWords(turn, canRetry);
       case 'stalledBeforeText':
