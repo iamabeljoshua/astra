@@ -635,6 +635,13 @@ describe('the prompt names what math it may write', () => {
   });
 });
 
+describe('the tutor prompt', () => {
+  it('tells the model not to open with praise unless the student really asked something good', () => {
+    expect(TUTOR_SYSTEM).toMatch(/Do not open with praise/);
+    expect(TUTOR_SYSTEM).toMatch(/Good question/);
+  });
+});
+
 describe('words a cut reply carries into the next request', () => {
   const getUsers = (request: TutorModelRequest | undefined) => (request?.turns ?? []).flatMap((turn) => (turn.role === 'user' ? [turn.text] : []));
   const ask = async (brain: TutorBrain, text: string, carried?: string) => {
