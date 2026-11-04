@@ -302,6 +302,24 @@ const SCENARIOS: Record<string, (context: RunContext) => Promise<unknown>> = {
     return { saved: 'm3-6-talk.mp4' };
   },
 
+  // Walks the microphone test page as Abel would, with a clip for his voice, so the steps in `docs/tests/voice.md` are known to work.
+  async micPage({ stack, browser }) {
+    const student = await openStudentPage(browser, { email: MAYA, title: 'Before the test page' });
+    await student.page.goto('/lab/voice-test');
+    await student.page.getByRole('button', { name: 'Start with speech cleanup on' }).click();
+    await student.page.getByRole('button', { name: 'Talk', exact: true }).click();
+    await student.page.getByRole('button', { name: 'First line' }).waitFor({ timeout: 30_000 });
+    await delay(5000);
+    await student.page.getByRole('button', { name: 'First line' }).click();
+    await student.say(loadClip(VOICE, 'twice'));
+    await delay(6000);
+    await student.page.getByRole('button', { name: 'Next line' }).click();
+    await student.say(loadClip(VOICE, 'why-down'));
+    await delay(6000);
+    await student.context.close();
+    return { traceFolder: stack.traceFolder };
+  },
+
   // One take of a real drop and its return. The cut happens mid-sentence, with the ball in the air.
   async filmDrop({ stack, out }) {
     const proxy = await startCutProxy();

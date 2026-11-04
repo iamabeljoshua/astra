@@ -22,7 +22,7 @@ export function LiveBoard({ voice, whileEmpty }: { voice: LiveVoice; whileEmpty:
   if (frame.board.elements.size === 0) return whileEmpty;
   return (
     <section aria-label={VOICE_LABELS.board} className="fades-with-theme flex min-h-75 min-w-0 flex-col border border-line bg-panel">
-      <BoardView board={frame.board} atMs={frame.atMs} onElementDrawn={(id) => voice.noteDrawn(id)} />
+      <BoardView board={frame.board} atMs={frame.atMs} />
     </section>
   );
 }

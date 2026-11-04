@@ -102,7 +102,7 @@ Spacing means "4 ac" for "four a c" and "2 x" for "two x". The other Irish error
 
 So a session's first word misses PRD section 6.3's 3 s at p50 from pressing Talk, because the room calls the agent in after the student joins. A worker with an idle process took about 2.3 s to start the job on most joins, and 6.4 s on one. M3.10 owns this number.
 
-**The lag step.** LAG_STEP_RESULT
+**The lag step.** It did not appear on Cloud. M3.2's reviewer saw one step of about 320 ms with no report, on a simulated link with 1% loss, in 1 run of 11. Here 8 runs of 66 s of a test tone over LiveKit Cloud and the real network gave 1880 gaps between words of 280 ms, with none over 322 ms and 0 `audioGap` reports. Single gaps grew by 16 to 42 ms as the browser's jitter buffer moved, which adds up to about 40 ms over a 66 s turn. That is 8.8 minutes on one network on one night, so it says the step is not common here, and no more. The tone's words all sound alike, so `analyse-run.ts` matches them a whole word off, and these runs read the tone's own rhythm instead.
 
 ## What each browser and agent proof showed
 
@@ -136,7 +136,7 @@ This takes about 10 minutes, on the built-in microphone, in a noisy room if you 
 
 1. In one terminal: `cd /Users/abel/startup/astra-worktrees/m3-6 && . ~/.config/astra/keys.env && export LIVEKIT_URL LIVEKIT_API_KEY LIVEKIT_API_SECRET ELEVENLABS_API_KEY META_API_KEY ASTRA_AGENT_NAME=astra-tutor-m3-6 ASTRA_AGENT_PORT=8391 ASTRA_VOICE_TRACE=/tmp/m3-6-mic ASTRA_VOICE_TRACE_WORDS=1 WEB_PORT=6310 API_PORT=3310 DATABASE_URL=postgresql://postgres:postgres@127.0.0.1:54422/astra_m3_6 && pnpm dev`
 2. In a second terminal, with the same exports: `pnpm agent`
-3. Open `http://127.0.0.1:6310/lab/voice-test` and sign in as `maya@astra.test` when asked.
+3. Open `http://127.0.0.1:6310/lab/voice-test`, press **Development sign-in**, and choose `maya@astra.test`.
 4. Press **Start with speech cleanup on**, then **Talk**, and allow the microphone. Wait for the greeting.
 5. Press **First line**, read it aloud, and wait for the tutor. Press **Next line** for each. Line 3 gets a long answer, so talk over it, say "uh-huh" over it, and notice whether the voice dips and whether it stops.
 6. Close the tab, open the page again, and do the same with **Start with speech cleanup off**.

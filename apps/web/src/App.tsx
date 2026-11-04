@@ -26,9 +26,11 @@ function AppRoutes() {
         <Route
           path="/lab/voice-test"
           element={
-            <Suspense>
-              <VoiceTestPage />
-            </Suspense>
+            <AccountGate signInDraft={signInDraft}>
+              <Suspense>
+                <VoiceTestPage />
+              </Suspense>
+            </AccountGate>
           }
         />
       ) : null}

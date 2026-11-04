@@ -66,7 +66,6 @@ export interface LiveVoice {
   setMicOn(isOn: boolean): Promise<void>;
   turnOnSound(): Promise<void>;
   mark(note: object): void;
-  noteDrawn(id: string): void;
   close(): Promise<void>;
   records: LiveVoiceRecords;
   player: ScenePlayer;
@@ -351,7 +350,6 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     mark(note) {
       void room.localParticipant.publishData(encoder.encode(JSON.stringify(note)), { reliable: true, topic: LAB_TOPIC }).catch(() => {});
     },
-    noteDrawn() {},
     async close() {
       isClosed = true;
       clearInterval(ticker);
