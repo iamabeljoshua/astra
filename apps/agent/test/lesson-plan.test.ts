@@ -366,3 +366,38 @@ describe('the tutor with a lesson planner', () => {
     expect(planner.getStepNote()).toMatchObject({ step: '2 of 2' });
   });
 });
+
+describe('a student who asks to skip', () => {
+  const PLAN = { topic: 'Rings', kind: 'teachFirst' as const, steps: [{ teach: 'ice', exercise: 'say why' }, { teach: 'gaps', exercise: 'say where' }] };
+  const makePlanner = async () => {
+    const onLessonChange = vi.fn();
+    const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'new', plan: PLAN }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, onLessonChange, trace: () => {} });
+    planner.noteStudentWords({ words: 'teach me rings', isOpening: true, tutorSaid: '' });
+    await planner.whenSettled();
+    onLessonChange.mockClear();
+    return { planner, onLessonChange };
+  };
+
+  it.each(['skip that', 'can we skip this', 'skip', "let's move on", 'move on please'])('moves on at once for "%s", ahead of any plan', async (words) => {
+    const { planner, onLessonChange } = await makePlanner();
+    planner.noteStudentWords({ words, isOpening: false, tutorSaid: '' });
+    expect(onLessonChange.mock.calls[0]?.[0]).toMatchObject({ active: { stepIndex: 1 } });
+  });
+
+  it.each(['how do you skip count by fives', 'do the rings move on their own', 'the planets move on'])('stays for "%s"', async (words) => {
+    const { planner, onLessonChange } = await makePlanner();
+    planner.noteStudentWords({ words, isOpening: false, tutorSaid: '' });
+    expect(onLessonChange.mock.calls.filter(([state]) => state.active?.stepIndex === 1)).toEqual([]);
+  });
+
+  it('names a picture the queue says can land, and only on a step still to teach', async () => {
+    const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'new', plan: PLAN }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, getReadyPicture: () => 'Why gaps form', trace: () => {} });
+    expect(planner.getStepNote()).toBeNull();
+    planner.noteStudentWords({ words: 'teach me rings', isOpening: true, tutorSaid: '' });
+    await planner.whenSettled();
+    expect(planner.getStepNote()).toMatchObject({ picture_topic: 'Why gaps form' });
+    planner.moveToNextStep();
+    planner.moveToNextStep();
+    expect(planner.getStepNote()).toEqual({ topic: 'Rings', kind: 'teachFirst', is_finished: true });
+  });
+});

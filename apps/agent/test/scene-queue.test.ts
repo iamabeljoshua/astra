@@ -26,7 +26,7 @@ const OPEN_AND_FINISH = (state: LessonState) => getStateAfterEvent(getStateAfter
 
 const ROOMY: AheadFacts = { writesStarted: 0, sceneUsd: 0, sceneLimitUsd: 0.8, leftTodayUsd: 3, isOverLimit: false, loadPerCore: 0.2, lastFirstTextMs: 900 };
 
-const makeScenes = () => ({ prepare: vi.fn((_request: string) => true), ask: vi.fn((_request: string) => {}), dropPrepared: vi.fn(), dropWaiting: vi.fn(), stop: vi.fn() });
+const makeScenes = () => ({ prepare: vi.fn<(request: string) => boolean>(() => true), ask: vi.fn<(request: string) => void>(), dropPrepared: vi.fn(), dropWaiting: vi.fn(), stop: vi.fn() });
 
 function setUp({ library = {}, facts = ROOMY, canPlay = true }: { library?: Record<string, readonly (string | null)[]>; facts?: Partial<AheadFacts>; canPlay?: boolean } = {}) {
   const budget = { ...facts };
@@ -165,11 +165,14 @@ describe('the next scene queue', () => {
     let state = start({ ...RINGS, steps: [...RINGS.steps, { teach: 'gaps come and go', exercise: 'say why' }, { teach: 'rings fade', exercise: 'say when' }] });
     queue.onLesson(state);
     await flush();
-    for (const _step of [1, 2, 3]) {
+    const finishStep = () => {
       queue.noteAhead(prepared(scenes).at(-1) ?? '', 'shown');
       state = OPEN_AND_FINISH(state);
       queue.onLesson(state);
-    }
+    };
+    finishStep();
+    finishStep();
+    finishStep();
     expect(prepared(scenes)).toHaveLength(MOST_WRITES_AHEAD);
   });
 

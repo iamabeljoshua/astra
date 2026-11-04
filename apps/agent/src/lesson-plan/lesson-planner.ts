@@ -38,8 +38,8 @@ export interface LessonPlannerOptions {
   getNowMs?(): number;
 }
 
-/** Skipping a picture or a step is the student's call, and a plan is too slow to hear it before the next pause. "Skip count" is a subject, so the word must stand alone or point at something. */
-const ASKS_TO_SKIP = /\bskip\s+(?:that|this|it|ahead)\b|\bskip[.!?\s]*$|\bmove on\b/i;
+/** Skipping a picture or a step is the student's call, and a plan is too slow to hear it before the next pause. "Skip count" and "planets move on" are not requests, so the words must stand alone or point at something. */
+const ASKS_TO_SKIP = /\bskip\s+(?:that|this|it|ahead)\b|\bskip[.!?\s]*$|(?:^|\b(?:let'?s|can we|could we|please|just)\s+)move on\b/i;
 
 /** Code's own stage words, such as "(picked 3)", are not the student saying anything. */
 const isStageWords = (words: string) => words.startsWith('(');

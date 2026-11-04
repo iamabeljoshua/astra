@@ -196,5 +196,4 @@ const summary = {
 };
 writeFileSync(join(OUT, 'summary.json'), JSON.stringify(summary, null, 1));
 writeFileSync(join(OUT, 'trace.json'), JSON.stringify(trace, null, 1));
-const { captions: _captions, ...short } = summary;
-console.log(JSON.stringify(short, null, 1));
+console.log(JSON.stringify({ ...summary, captions: summary.captions.length }, null, 1));
