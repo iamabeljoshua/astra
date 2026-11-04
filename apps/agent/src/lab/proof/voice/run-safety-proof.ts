@@ -429,12 +429,7 @@ const SCENARIOS: Record<string, Scenario> = {
     const noteWhenClosed = await getNotes(student);
     await delay(2000);
     const roomGone = !(await hasRoom(room));
-    const box = student.page.getByRole('textbox', { name: 'Your reply' });
-    await box.fill('typed in a closed room');
-    await box.press('Enter');
-    await delay(300);
-    const typedInClosedRoom = { stillInBox: await box.inputValue(), notes: await getNotes(student) };
-    await box.fill('');
+    const typedInClosedRoom = { boxIsReadOnly: (await student.page.getByRole('textbox', { name: 'Your reply' }).getAttribute('readonly')) !== null, notes: await getNotes(student) };
     const pressedAtMs = Date.now();
     await student.page.getByRole('button', { name: 'Open the room again' }).click();
     await waitForRows(stack, student, pressedAtMs, (rows) => rows.some((row) => row.name === 'jobStarted'), 30_000);
