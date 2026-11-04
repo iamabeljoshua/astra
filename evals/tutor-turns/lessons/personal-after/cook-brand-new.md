@@ -6,54 +6,54 @@ Student played by a cheap model: You are 13 and you love cooking. You have never
 
 **Student:** how does projectile motion work?
 
-**Tutor** (16 words, longest stretch 16, first text 2295 ms):
-> Think of throwing a ball. Ever noticed it keeps moving forward while it's also curving down?
+**Tutor** (13 words, longest stretch 13, first text 1731 ms):
+> Alright, picture throwing a ball. Ever noticed it curves instead of flying straight?
 
-**Student:** huh, yeah i guess. like when i toss a tomato across the kitchen it goes forward and then drops.
+**Student:** huh, yeah i guess it does curve. like it goes up then comes down.
 
-**Tutor** (13 words, longest stretch 13, first text 1848 ms):
-> Exactly, that's it. Forward motion and falling are two separate things happening together.
+**Tutor** (13 words, longest stretch 13, first text 1756 ms):
+> Right. Here's a throw. What do you think is pulling it back down?
 
-Board: `simulate`, `runSimulation`
+Board: `simulate`
 
-**Student:** wait, so they happen at the same time but they don't mess with each other? that's kinda weird.
+**Student:** hmm, gravity? like the thing that makes stuff fall off the counter.
 
-**Tutor** (19 words, longest stretch 19, first text 1164 ms):
-> It is weird, but it's true. Gravity only pulls down, so nothing ever pushes or slows the sideways part.
+**Tutor** (17 words, longest stretch 17, first text 1950 ms):
+> Yep, that's it. Watch the ball slow its climb, because gravity pulls it down the whole time.
 
-Board: `focus`, `vector gravity`
+Board: `focus`, `runSimulation`, `vector gravity`
 
-**Student:** huh, so the sideways part just keeps going? like it never gets slowed down by the falling?
+**Student:** oh ok. so it slows down going up cause gravity keeps pulling? huh, that's kinda neat.
 
-**Tutor** (27 words, longest stretch 27, first text 1833 ms):
-> Right, in our simple picture. Air does slow it a bit in real life, but we're ignoring that. Gravity only tugs down, so sideways speed stays put.
+**Tutor** (21 words, longest stretch 21, first text 1284 ms):
+> Exactly. At the top it stops climbing for a moment, then falls. Does gravity pull it sideways at all, you think?
 
 Board: `focus`
 
-**Student:** ohh okay. so the tomato keeps its sideways speed the whole way, and only the falling part changes? huh, that's neat.
+**Student:** hmm, no? gravity just pulls down, right? i don't think it pushes it sideways.
 
-**Tutor** (34 words, longest stretch 34, first text 1896 ms):
-> You've got it. Going up, the up part slows, stops at the top, then turns around and speeds up falling. What do you think the tomato's up speed is right at the very top?
+**Tutor** (20 words, longest stretch 20, first text 1321 ms):
+> Right, only down. So the sideways speed never changes, and the ball keeps drifting forward while it rises and falls.
 
 Board: `focus`, `runSimulation`
 
-**Student:** huh, at the very top? i'm not sure... zero?
+**Student:** oh, so it keeps going forward the whole time? like the sideways part just stays the same? huh.
 
-**Tutor** (19 words, longest stretch 19, first text 1856 ms):
-> Yep, zero. It stops going up for an instant, but the sideways speed carries on, so it still moves.
-
-Board: `annotate top`
-
-**Student:** oh cool, so it's not moving up or down right at the top, just sideways. makes sense i think.
-
-**Tutor** (6 words, longest stretch 6, first text 1840 ms):
-> That's right. Want to test it?
+**Tutor** (25 words, longest stretch 25, first text 2296 ms):
+> Yep. Two separate things happening at once: steady sideways, changing up and down. Put them together and you get the curve. Is that making sense?
 
 Board: `focus`
 
-**Student:** yeah, sure. what do i do?
+**Student:** kinda? like the ball moves sideways at the same speed and up and down changes, so together it makes the curve. huh, i think i get it.
 
-**Tutor** (21 words, longest stretch 21, first text 1961 ms):
-> Easy one. If you drop a tomato straight down while tossing another one sideways from the same height, which lands first?
+**Tutor** (23 words, longest stretch 23, first text 1793 ms):
+> That's exactly it. That curve even has a name, a parabola. If you threw it harder sideways, would it land nearer or farther?
 
-Board: `task`
+Board: `focus`
+
+**Student:** farther? cause it keeps going sideways more before it comes down. huh, i think.
+
+**Tutor** (26 words, longest stretch 26, first text 1055 ms):
+> Farther, yes, and your reason's right. It spends the same time falling, but covers more ground sideways in that time. You can trust that "I think".
+
+Board: `focus`

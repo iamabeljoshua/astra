@@ -6,60 +6,54 @@ Student played by a cheap model: You are 16 and you play football every weekend.
 
 **Student:** how does projectile motion work?
 
-**Tutor** (24 words, longest stretch 24, first text 3084 ms):
-> One moment. Picture a free kick. Have you ever noticed the ball keeps moving forward the whole way, even while it rises and falls?
+**Tutor** (18 words, longest stretch 18, first text 1307 ms):
+> Picture a free kick. Once the ball leaves the boot, what's the only thing still pulling on it?
 
-Board: `simulate`
+**Student:** gravity, i think. it's the thing that brings it back down, right?
 
-**Student:** yeah, i think so. it goes up and down but still moves forward, right? i didn't know what the board word meant though.
+**Tutor** (11 words, longest stretch 11, first text 1027 ms):
+> Right, gravity, and nothing sideways. It only ever pulls straight down.
 
-**Tutor** (10 words, longest stretch 10, first text 1308 ms):
-> Yes, exactly. Sorry, which word on the board lost you?
+Board: `simulate`, `vector gravity`
 
-Board: `focus`
+**Student:** so if gravity only pulls down, why does the ball still go forward for ages before it drops?
 
-**Student:** the one you wrote, the first one. i'm not sure what it means, but i can guess it's about pretending the ball's moving?
-
-**Tutor** (19 words, longest stretch 19, first text 1563 ms):
-> Close, you guessed right. A simulation is a pretend ball that follows real physics, so we can watch it.
-
-Board: `focus`, `runSimulation`
-
-**Student:** ah ok, like a video game version. so is the board word "focus" the one you wrote next?
-
-**Tutor** (36 words, longest stretch 29, first text 1573 ms):
-> Yes, video game version is a good way to put it. I didn't write "focus" on the board, though. That's just a command I use for pointing at things.
->
-> The only word was the ball's flight.
+**Tutor** (18 words, longest stretch 18, first text 896 ms):
+> Because nothing pushes it back. Gravity only changes the up and down, so the forward speed just stays.
 
 Board: `focus`
 
-**Student:** oh, sorry, i got confused. so the only word was about the ball flying? i don't really know what "flight" means in this.
+**Student:** ok so the sideways speed just keeps going the whole time, like nothing slows it down? but i thought speed just adds up, so why would they be separate?
 
-**Tutor** (18 words, longest stretch 18, first text 2154 ms):
-> No need to apologise. Flight just means the ball's trip through the air, from the kick to landing.
-
-Board: `focus`
-
-**Student:** ah ok, so flight is the whole trip through the air. so the ball's up and sideways speeds are just both happening during that trip, not separate things?
-
-**Tutor** (21 words, longest stretch 21, first text 1722 ms):
-> Both happen at once, yes, but they don't affect each other. Gravity only pulls down, so the sideways speed never changes.
-
-Board: `focus`, `vector gravity`
-
-**Student:** so the sideways speed stays the same the whole way, and gravity only changes the up and down bit? that's kinda what i thought, but i'm still not sure why they wouldn't mess with each other.
-
-**Tutor** (32 words, longest stretch 26, first text 1668 ms):
-> You've got it. Here's why: a force only changes motion along the direction it pushes. Gravity pushes straight down, so sideways has nothing acting on it.
->
-> What would change the sideways speed?
+**Tutor** (29 words, longest stretch 29, first text 961 ms):
+> Yes, keeps going, ignoring air. Splitting speed into across and up is the fiddly bit. Why is a ball's across speed unaffected by a downward pull, do you reckon?
 
 Board: `focus`
 
-**Student:** um, like if something pushed it sideways? like wind or someone kicking it again? i don't really know if wind counts as a force though.
+**Student:** hmm, i'm not sure. gravity only pulls down so it can't change the across bit? i'm just guessing really.
 
-**Tutor** (21 words, longest stretch 21, first text 2094 ms):
-> Yes to both, and wind counts. Moving air pushes on the ball, so it's a force. We're ignoring that for now.
+**Tutor** (20 words, longest stretch 20, first text 1020 ms):
+> That's not a guess, that's the reason. A pull straight down has no sideways part, so across speed can't change.
+
+Board: `focus`
+
+**Student:** ohh ok, so the down pull only touches the up bit and leaves the across bit alone. that kinda makes sense, but i still don't get why the two don't just add up into one speed.
+
+**Tutor** (28 words, longest stretch 28, first text 899 ms):
+> They do combine, just not by plain adding. Across and up sit at right angles, like the sides of a triangle, so the real speed is the diagonal.
+
+Board: `focus`, `writeMath v = \sqrt{v_x^2 + v_y^2}`
+
+**Student:** ummm, what's a diagonal in this? and what does the little square root thing do? i don't really follow the formula but i get the triangle bit maybe.
+
+**Tutor** (24 words, longest stretch 24, first text 1119 ms):
+> Fair, I jumped ahead. Walk three steps across, then four steps up. You end up five steps from the start, in a straight line.
+
+Board: `focus`
+
+**Student:** ok so going across three and up four, the straight line back to start is five. that's the diagonal? but why isn't it seven, like just adding the steps?
+
+**Tutor** (26 words, longest stretch 26, first text 1018 ms):
+> Yes, that straight line is the diagonal. Seven is the length of the walk you did, but the straight line cuts the corner, so it's shorter.
 
 Board: `focus`

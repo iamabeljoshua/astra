@@ -6,56 +6,56 @@ Student played by a cheap model: You are 13 and you love cooking. You have never
 
 **Student:** how does projectile motion work?
 
-**Tutor** (19 words, longest stretch 19, first text 1743 ms):
-> Think of a ball you've thrown. Once it leaves your hand, what do you think is still pushing it?
+**Tutor** (18 words, longest stretch 18, first text 2218 ms):
+> Think of throwing a ball. When it leaves your hand, what do you think keeps pulling it down?
 
 Board: `simulate`
 
-**Student:** huh, nothing really? i think it just keeps going because i threw it. like how a whisk keeps spinning after i stop turning it, sort of.
+**Student:** huh, um, gravity? i think? like it just pulls things down, i guess.
 
-**Tutor** (19 words, longest stretch 19, first text 1018 ms):
-> Right, nothing pushes it. It just keeps its motion, and only gravity changes it. Which way does gravity pull?
+**Tutor** (15 words, longest stretch 15, first text 1086 ms):
+> Yep, gravity. Watch it rise, slow down, and stop at the top. Why'd it slow?
 
-Board: `focus`, `runSimulation`
+Board: `runSimulation`
 
-**Student:** down, right? like how everything in my kitchen falls down if i drop it.
+**Student:** huh, um, because gravity is pulling it back down? i'm not sure why that makes it slow though.
 
-**Tutor** (24 words, longest stretch 24, first text 898 ms):
-> Yep, straight down. That's the only pull, so sideways, the ball never speeds up or slows down. Why does that matter, do you think?
+**Tutor** (19 words, longest stretch 19, first text 970 ms):
+> That's right, and the slowing is the pull. Going up, the pull works against it, so it loses speed.
 
 Board: `focus`, `vector gravity`
 
-**Student:** huh, not sure. does it mean the ball just falls and goes sideways at the same time?
+**Student:** oh, so gravity fights the way it's going up? like a brake? huh, that makes sense i guess.
 
-**Tutor** (18 words, longest stretch 18, first text 1142 ms):
-> Yes, exactly that. Sideways motion carries on steady, while gravity drags it down. Two separate things, happening together.
-
-Board: `focus`
-
-**Student:** oh, so it's like two things at once. sideways and down. so the path ends up curved? why does it curve instead of just being a straight slope?
-
-**Tutor** (20 words, longest stretch 20, first text 944 ms):
-> Because gravity keeps adding downward speed. Each moment it falls faster, while sideways stays the same, so the path bends.
+**Tutor** (21 words, longest stretch 21, first text 1428 ms):
+> Exactly, a brake. Past the top, that same pull speeds it up going down. What about sideways, is anything slowing that?
 
 Board: `focus`, `runSimulation`
 
-**Student:** huh, so the downward part keeps getting bigger, but the sideways part stays the same? like the ball falls more and more each bit of time?
+**Student:** huh, sideways? i don't know. like if i throw it straight, nothing pushes it back? i think it just keeps going.
 
-**Tutor** (23 words, longest stretch 23, first text 913 ms):
-> Yes, you've got it. Falls more each bit of time. On the way up, that same pull slows the rise until it stops.
-
-Board: `focus`
-
-**Student:** oh, so going up it's gravity slowing it down, like the whisk slowing when i stop? wait, that's not quite the same, is it?
-
-**Tutor** (27 words, longest stretch 27, first text 1060 ms):
-> Good catch, it isn't quite the same. The whisk slows from friction, but gravity is a steady downward pull. What do you think pulls on the whisk?
+**Tutor** (19 words, longest stretch 19, first text 1663 ms):
+> You've got it, it keeps going. Gravity only pulls down, so sideways speed stays the same the whole flight.
 
 Board: `focus`
 
-**Student:** huh, the whisk? i don't really know. i guess my hand, or the bowl? i'm not sure what's pulling it down.
+**Student:** oh, so the sideways part never changes? that's kind of cool. huh, so it's like two separate things happening at once?
 
-**Tutor** (27 words, longest stretch 27, first text 1152 ms):
-> Fair, that was a muddy question. The whisk slows because the batter rubs against it, that's friction. The ball only has gravity, so its slowing is different.
+**Tutor** (22 words, longest stretch 22, first text 1140 ms):
+> Yes, exactly that. Sideways just cruises along while up and down gets braked, then sped up. Together they make the curved path.
+
+Board: `focus`
+
+**Student:** oh, so the path is curved because two things happen at once? huh, that's kind of neat. like when i pour batter it does something similar, i guess.
+
+**Tutor** (28 words, longest stretch 28, first text 977 ms):
+> It does, the batter arcs the same way. It leaves the spoon moving sideways while gravity pulls it down. Where does your batter land if you pour faster?
+
+Board: `focus`
+
+**Student:** huh, farther away? i think if it goes sideways faster it would land further out. not totally sure though.
+
+**Tutor** (21 words, longest stretch 21, first text 1739 ms):
+> Right, you can trust that. It falls for the same time either way, so more sideways speed just carries it farther.
 
 Board: `focus`

@@ -6,40 +6,42 @@ Student played by a cheap model: You study engineering at university. You can al
 
 **Student:** how does projectile motion work?
 
-**Tutor** (21 words, longest stretch 21, first text 1967 ms):
-> Sure. Something thrown just has two motions running independently, sideways and vertical. Which of the two do you think gravity touches?
-
-**Student:** vertical, obviously. gravity pulls down, so the vertical component changes and the horizontal one doesn't, ignoring drag. can we skip to launching from a height though, that's the bit i haven't done.
-
-**Tutor** (20 words, longest stretch 20, first text 1762 ms):
-> Right, skipping ahead. Here it's thrown from two point two metres up. What do you think changes about the landing?
+**Tutor** (16 words, longest stretch 16, first text 2283 ms):
+> Okay, picture throwing a ball at an angle. Which direction does gravity actually pull on it?
 
 Board: `simulate`
 
-**Student:** the range gets longer, right? more time in the air means more horizontal distance. but i'd want to actually work out the time to hit the ground, not just guess.
+**Student:** downward, obviously. straight down, constant acceleration of about 9.8 metres per second squared. can we skip to the part where the components matter?
 
-**Tutor** (21 words, longest stretch 21, first text 1388 ms):
-> Yes, longer range. That's height against time, and it hits the ground when y is zero. What would you set up?
+**Tutor** (16 words, longest stretch 16, first text 1153 ms):
+> Sure. Gravity only acts vertically, so horizontal velocity never changes, and the two directions run independently.
 
-Board: `focus`, `writeMath y = 2.2 + 5.6t - 4.9t^2`
+Board: `vector gravity`
 
-**Student:** so set y to zero: 0 = 2.2 + 5.6t - 4.9t². that's a quadratic, so i'd use the formula and take the positive root.
+**Student:** right, so horizontal stays constant and vertical follows suvat. i already get that part. what i haven't done is a launch from a height, where the landing point isn't level with the start.
 
-**Tutor** (16 words, longest stretch 16, first text 1495 ms):
-> Exactly, and the other root is negative, before the throw. Have a go at the working.
+**Tutor** (22 words, longest stretch 22, first text 1546 ms):
+> Good, then the only change is the vertical equation. Landing means height zero, so solve for t. Which root do you keep?
 
-Board: `focus`, `task`
+Board: `focus`, `writeMath 0 = h + u_y t - \frac{1}{2} g t^2`
 
-**Student:** right, so t = [-5.6 ± √(5.6² + 4×4.9×2.2)] / (2×(-4.9)). hang on, i need to check the signs before i trust that.
+**Student:** i dont know
 
-**Tutor** (17 words, longest stretch 17, first text 1069 ms):
-> Good instinct to check. Which number is c, and what sign does it have inside the root?
+**Tutor** (22 words, longest stretch 22, first text 1661 ms):
+> That's fine. It's a quadratic, so there are two roots. One of them is negative, before the throw, so you drop it.
 
-Board: `focus`
+Board: `transformMath t = \frac{u_y \pm \sqrt{u_y^2 + 2 g h}}{g}`
 
-**Student:** c is two point two, positive. so the discriminant is b squared minus four times a times c, and a is minus four point nine, so minus four times minus four point nine times two point two is plus, which is why i wrote plus. it's a bit of a mess though, i'd rather just redo it cleanly.
+**Student:** ah ok, so the negative one is before launch. so keep the plus sign, t equals u_y plus root of u_y squared plus two g h, all over g. is that right?
 
-**Tutor** (13 words, longest stretch 13, first text 1283 ms):
-> Your signs are right, so the plus is correct. Redo it cleanly, then.
+**Tutor** (18 words, longest stretch 18, first text 1543 ms):
+> Yes, that's it. The plus root is the landing time. Now range is just horizontal speed times that.
+
+Board: `focus`, `highlight +`
+
+**Student:** ok so range is u_x times that t. got it. i can do the rest myself.
+
+**Tutor** (25 words, longest stretch 25, first text 2604 ms):
+> Go for it. Try the board numbers: speed four point two across, five point six up, height two point two. What range do you get?
 
 Board: `focus`, `task`

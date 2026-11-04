@@ -2,27 +2,27 @@
  "prompt": "v3",
  "summary": {
   "turns": 22,
-  "tutorUsdPerTurn": 0.0025148909090909094,
+  "tutorUsdPerTurn": 0.0024078,
   "firstTextMs": {
-   "p50": 1668,
-   "p95": 2295
+   "p50": 1284,
+   "p95": 2296
   },
   "wordsPerReply": {
-   "p50": 19,
-   "p95": 34,
-   "worst": 36
+   "p50": 21,
+   "p95": 29,
+   "worst": 30
   },
   "longestStretch": {
-   "p50": 19,
-   "p95": 29,
-   "worst": 34
+   "p50": 20,
+   "p95": 28,
+   "worst": 29
   },
   "repliesEndingOnAQuestion": 10,
-  "repliesOverTwentyFiveWords": 4,
+  "repliesOverTwentyFiveWords": 5,
   "repliesOverFortyFiveWords": 0
  },
  "spend": {
-  "anthropicUsd": 1.1760021999999997,
+  "anthropicUsd": 1.8918457000000002,
   "voiceCharacters": 0,
   "credits": 0
  }

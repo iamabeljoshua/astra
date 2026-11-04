@@ -6,40 +6,46 @@ Student played by a cheap model: You study engineering at university. You can al
 
 **Student:** how does projectile motion work?
 
-**Tutor** (19 words, longest stretch 19, first text 1216 ms):
-> Projectile motion, okay. You've done range on flat ground before, so how do you split the velocity at launch?
+**Tutor** (22 words, longest stretch 12, first text 2991 ms):
+> Okay, you've done range on flat ground before. So here's the core.
+>
+> Horizontal and vertical motion are independent. Gravity only acts downward.
 
-**Student:** ugh, obviously with cos and sin of the launch angle. vx is v cos theta, vy is v sin theta. can we get to the height-launch part, that's the bit i actually don't have.
+Board: `simulate`, `runSimulation`
 
-**Tutor** (21 words, longest stretch 21, first text 971 ms):
-> Fair, skipping that. Launching from height h, the vertical position is just h plus the usual terms. Want to write it?
+**Student:** ok yeah, i know components. so horizontal velocity stays constant, and vertical is the only thing gravity touches. what i don't get is launching from a height.
 
-Board: `simulate`
+**Tutor** (14 words, longest stretch 14, first text 1595 ms):
+> Right, that's the setup. Where does it trip you up, the time of flight?
 
-**Student:** hm, i'm not sure what the usual terms are for height. is it h plus vy t minus half g t squared? i think that's it but i'm not confident about the sign on the g part.
+Board: `focus`
 
-**Tutor** (11 words, longest stretch 11, first text 1095 ms):
-> That's right, including the sign. Gravity pulls down, so it subtracts.
+**Student:** yeah, time of flight. on flat ground i just use the vertical component and set y back to zero. but if it starts above the ground, do i still just solve for when y hits zero? it feels like the quadratic is where i lose the thread.
+
+**Tutor** (21 words, longest stretch 21, first text 1674 ms):
+> Yes, exactly that, height equals start height plus vertical speed times time, minus half g t squared. Set y to zero.
 
 Board: `focus`, `writeMath y = h + v_y t - \frac{1}{2} g t^2`
 
-**Student:** ok, so y = h + vy t - half g t squared. makes sense. next, how do i find when it hits the ground?
+**Student:** right, so it's just a quadratic in t. but which root do i take? one is negative and the other is positive, and i'm not sure how to pick.
 
-**Tutor** (13 words, longest stretch 13, first text 955 ms):
-> Landing means height is zero. What kind of equation is that in t?
+**Tutor** (25 words, longest stretch 25, first text 1525 ms):
+> Think about what the negative root would mean. Time before launch, and the flight starts at t equals zero, so what happens to that root?
 
-Board: `focus`, `transformMath 0 = h + v_y t - \frac{1}{2} g t^2`
+Board: `focus`
 
-**Student:** a quadratic, right? so i'd use the quadratic formula. i'm not sure which root is the right one though, the plus or the minus.
+**Student:** ah, the negative one is before the launch, so it's not physical. i take the positive root. makes sense, i just wanted to be sure before i plugged numbers in.
 
-**Tutor** (22 words, longest stretch 22, first text 1107 ms):
-> Yes, quadratic. Since h is positive, the root is bigger than vy, so the minus gives a negative time. Take the plus.
+**Tutor** (30 words, longest stretch 20, first text 1132 ms):
+> Yep, that's the one. The negative root is where the parabola would cross the ground if you ran it backwards.
+>
+> Want to try numbers on the ball on the board?
 
-Board: `transformMath t = \frac{v_y \pm \sqrt{v_y^2 + 2 g h}}{g}`
+Board: `focus`
 
-**Student:** ok so the minus root is negative, that's why plus. makes sense. so t = (vy + sqrt(vy² + 2gh))/g. i'll plug that in for the range next.
+**Student:** sure, but be quick about it. what are the numbers?
 
-**Tutor** (16 words, longest stretch 16, first text 1054 ms):
-> Yep, that's the one. Range is horizontal speed times that time. Try plugging it in yourself.
+**Tutor** (19 words, longest stretch 19, first text 1194 ms):
+> Release height two point two metres, upward speed five point six, g nine point eight. Find the landing time.
 
-Board: `focus`, `writeMath R = v_x t`
+Board: `focus`, `writeMath 0 = 2.2 + 5.6t - 4.9t^2`
