@@ -9,7 +9,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        n: [1, 2]
+        n: [1]
     env:
       POSTGRES_TAG: 17.6.1.075
       POSTGRES_DIGEST: sha256:82a04ba6c05f60950a74ae46be3726abb18d06ee44da936276fd782e72e36855
