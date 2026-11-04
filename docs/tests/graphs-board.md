@@ -14,6 +14,7 @@ pnpm --filter @astra/agent proof --stored <a take from store-run.ts> --only grap
 pnpm --filter @astra/agent math-load --first plot --out /tmp/m3-4-load
 pnpm --filter @astra/agent graph-proof --only waves,extremes,keyboard,reuse,marks,labels,slider-name --out /tmp/m3-4-fix
 pnpm --filter @astra/agent graph-proof --only replaced,pair,fine --out /tmp/m3-4-fix-2
+pnpm --filter @astra/agent graph-proof --stored <a take from store-run.ts> --only fine,waves,replaced,extremes --out /tmp/m3-4-fit
 ```
 
 `graph-proof` and `math-proof` exit non-zero when a proof fails, and print `FAILED` with where it failed.
@@ -98,7 +99,7 @@ Once a cue's last word time is known, its last aim is that word: an error of 0 m
 
 **Hostile input.** 15 of 15 bad commands over the real data channel were refused by the parser: code in an expression, a property reach, a call to a global, `x**2`, an expression too long, nesting too deep, a backward domain, a domain past the limit, poisoned names, a pixel position, a rate past its range, and gravity of zero. Then a lesson of allowed but awful input played: markup in a label, 80 wide letters, a domain of two million, five marks on one spot, a curve nested as deep as allowed, `9^9^9^9^x`, a curve with no real values, a constant set past its range, and a side running off its figure. 0 frames had a script or image, `window.pwned` stayed unset, 0 frames had text on text, and the lesson ran to its end.
 
-**Bounds on model input.** An expression has at most 200 characters and 32 levels. A curve at one set of constants takes at most 4,000 evaluations. First placement also fits the y range through every value its constants can reach, at 97 samples for each of up to 82 sets, so a curve with four constants takes up to 7,954 more. Measuring what stands far above the rest takes at most 72 evaluations for each of 6 tops at each end, and 72 more for one near the edge of the domain, so about 13,700 in all at worst. A fixed `yRange` skips that fit, and so does every later constant. The range of a slider or a constant is at least 1e-6 wide, the same as a domain, and its numbers show at most 12 decimals. A label has at most 80 characters, 4 lines, one font size, and no stack of more than 2 combining marks, the same limit as math. A figure draws its newest 64 attachments and 8 curves, and readouts take at most 30% of its height. A figure's SVG has no nesting from model text, so math's tree depth limit has nothing to apply to.
+**Bounds on model input.** An expression has at most 200 characters and 32 levels. A curve at one set of constants takes at most 4,000 evaluations. First placement also fits the y range through every value its constants can reach, at 97 samples for each of up to 82 sets, so a curve with four constants takes up to 7,954 more. It then looks again on scattered samples, 2,001 with no constants and about 4,000 at most in all with them. Each of those two looks measures at most 6 tops at each end, at 78 evaluations for a top and 78 more for one near the edge of the domain, so about 19,700 in all at worst. A fixed `yRange` skips that fit, and so does every later constant. The range of a slider or a constant is at least 1e-6 wide, the same as a domain, and its numbers show at most 12 decimals. A label has at most 80 characters, 4 lines, one font size, and no stack of more than 2 combining marks, the same limit as math. A figure draws its newest 64 attachments and 8 curves, and readouts take at most 30% of its height. A figure's SVG has no nesting from model text, so math's tree depth limit has nothing to apply to.
 
 **Load and size.** Measured on a production build of the real `BoardView`, on top of what Home already loads, served with gzip, cold each time, at a load average near 9.
 
@@ -138,7 +139,7 @@ The review found five blockers and a list of smaller faults. This is the rerun a
 | `sin(x)` on [-50, 50] | 32 pieces, 44% | 1 piece, 100% | 3,297 and 846 |
 | `sin(2*pi*x)` on [-10, 10] | 40 pieces, 33% | 1 piece, 100% | 3,441 and 1,033 |
 | `abs(sin(x))` on [-20, 20] | 26 pieces, 59% | 1 piece, 100% | 3,189 and 623 |
-| `sin(30*x)` on [-10, 10] | 192 pieces, 9% | 1 piece, 100% | 3,703 and 3,841 |
+| `sin(30*x)` on [-10, 10] | 192 pieces, 9% | 1 piece, 100% | 3,703 and 4,000 |
 
 A false line stays out. `1/x` is 2 pieces, `tan(x)` on [-5, 5] is 5, `tan(10*x)` is 65 for its 64 poles, a jump is 2, and `sqrt(x)` starts at zero, all with no line across a break. 3,000 random continuous curves gave 5 with a gap, all finer than a pixel, at more than 300 periods across the axes.
 
@@ -219,12 +220,12 @@ The second review found seven more blockers. This is the rerun after the last fi
 | Curve on [-10, 10] | Before | After |
 | --- | --- | --- |
 | `abs(sin(100*x))/sin(100*x)` | 322 of 637 jumps with a visible line, a filled block | 0 of 637, two lines, 0 false pixels, and the note |
-| The review's 24 square waves across three domains | 7,199 of 19,344 jumps with a visible line, flickering between truth and block as a changed | 0 of 19,344 |
+| The review's 30 square wave curves across three domains | 7,199 of 19,344 jumps with a visible line, flickering between truth and block as a changed | 0 of 19,344 |
 | `x+abs(sin(100*x))/sin(100*x)`, a square wave on a slope | not measured. A height test alone gave 1 piece and 633 lines | 0 of 637, 0 false pixels, and the note |
 | `1/sin(100*x)` on [-8, 8], which has no value between -1 and 1 | 301 lines across that hole | 0, two bands, and the note |
-| `tan(100*x)` | 6,265 false pixels in 255 columns | 997 in 138, a solid core with spikes, and the note |
+| `tan(100*x)` | 6,265 false pixels in 255 columns | 997 in 139, a solid core with spikes, and the note |
 | `tan(300*x)` on [-5, 5] | 9,328 in 327 | 1,470 in 177, and the note |
-| `sin(a*x)`, every whole a from 1 to 150 | 1 piece | 1 piece for all 150, no note |
+| `sin(a*x)` with `a` a constant, every whole a from 1 to 150 | 1 piece | 1 piece for all 150, no note. With each a written as a number it was 149 of 150 at this round, because the fit could leave the axes short, and "After the third review" makes it 150 of 150 |
 | `sin(300*x)` | 1 piece, band short by up to 185 px | 1 piece, band short by up to 85 px, 93% of each column on average, and the note |
 | `sin(1000*x)` | 56% of each column | 74%, and the note |
 
@@ -296,12 +297,58 @@ All 19 of the review's fit curves now show their true peak.
 
 The hardest curve now spends its whole budget and looks at its samples past the budget, which costs about 1 ms here more than the 2.9 and 5 ms above, measured at different loads. The slow row is a long task on a slow phone, as listed under Limits.
 
+## After the third review
+
+The third review found one blocker. With no `yRange`, axes fitted on 97 even samples can miss most of a fast wave, and no note says so. This is the rerun at this head, at a load near 10. "Before" is that review's measure at `8771a3c`. Its scripts count the curves here, unchanged apart from the folder they read.
+
+**The axes show the whole curve.** Each row has no note and reports no `curveTooFine`, at both widths on the real page.
+
+| Curve | Domain | Axes before | Axes now | True range |
+| --- | --- | --- | --- | --- |
+| `x*sin(10*x)` | [-10, 10] | -6 to 10 | -10 to 10 | -9.9 to 9.6 |
+| `x*sin(30*x)` | [-10, 10] | -10 to 0 | -10 to 10 | -10 to 9.9 |
+| `cos(16*x)` | [-6.28, 6.28] | -0.6 to 1 | -1 to 1 | -1 to 1 |
+| `cos(30*x)` | [-10, 10] | -0.2 to 1 | -1 to 1 | -1 to 1 |
+| `exp(-x*x)*sin(30*x)` | [-5, 5] | -0.08 to 0.08 | -1 to 1 | -1 to 1 |
+| `sin(15*x)` | [-10, 10] | -0.8 to 0.8 | -1 to 1 | -1 to 1 |
+| `x*sin(x)` | [-100, 100] | -60 to 100 | -100 to 100 | -99 to 96 |
+| `sqrt(1-x*x)` | [-5, 5] | 0.3 to 1 | 0 to 1 | 0 to 1 |
+| `1/(1+x)` | [0, 100] | 0 to 0.14 | 0 to 1 | top 1 |
+| `sin(10*x)+sin(20*x)/2` | [-10, 10] | -1 to 1 | -1.5 to 1.5 | -1.3 to 1.3 |
+| `3*sin(2*pi*x)` | [0, 48] | -1 to 1 | -3 to 3 | -3 to 3 |
+| `cos(2*pi*x)` | [0, 96] | 0 to 2 | -1 to 2 | -1 to 1 |
+| `sin(30*x)/x` | [-10, 10] | -0.16 to -0.09 | -10 to 35 | -6.5 to 30 |
+
+| Curves, each measured against 12,000 to 60,000 samples | Miss over 5% of their range, before and now | Over 20%, before and now |
+| --- | --- | --- |
+| 3,619 school curves with no pole | 175 and 0 | 88 and 0 |
+| 11,700 waves, 6 shapes on 13 domains with a from 1 to 150 | 768 and 0 | 452 and 0 |
+
+With each a written as a number, `sin(a*x)` on [-10, 10] is 1 piece for all 150, with no note. It was 149 of 150.
+
+**Poles held.** `1/x`, `tan(x)`, and `1/(x*x)` keep their axes in the table above, and `1/(1+100*x*x)` keeps its top of 1. Across 7 families of moving poles at 240 positions each, 19 of 1,680 axes moved, all with a pole between 0.5% and 1% of the width past an edge, and none grew more than 3 times. Of 1,134 school curves named like a pole, 59 moved, such as `sin(a*x)/x` and `ln(abs(x)+1)*sin(a*x)`, and all 59 are finite curves that were cut short. A denser grid alone had moved `1/x` on [-10, 10] to -200 to 1600, and this is why. A climb reaches as far as the sum of its steps, so from a sample more than one spacing from the pole it settles short and reads as finite. It now starts wide enough to cross any gap. A climb can also stop gaining by chance when its last steps overshoot, which put axes near 10^12 on a few of those 1,680, so the rise is measured again at fixed distances.
+
+**A slider's constant stays safe.** `sin(a*x)` with a from 1 to 150 and `exp(-x*x)*sin(a*x)` with a from 1 to 60 fit -1 to 1. `x*sin(a*x)` with a from 1 to 30 fits -10 to 10. `1/(x-a)` with a from -5 to 5 fits -1 to 1, and `tan(a*x)` with a from 1 to 10 fits -6 to 6. A four constant wave `a*sin(b*x+c)+d` fits -6 to 6, with a true -5 to 5. The fit runs once at placement: 1 fit across a real mouse drag of 120 moves, counted on the page.
+
+**Cost.** A real mouse dragged `sin(a*x)` from a = 1 to 10 and back in 120 moves, with the CPU slowed 4 times, at a load of 10 to 18, in 7 runs each way, alternating, with 120 curve writes in every run. Frame gap p50 was 16.7 ms on both sides, and p95 was 16.7 to 16.8 ms on both. Frames over 34 ms were 2 of 2,529 before and 8 of 2,785 now, and long tasks 2 and 5. That is no measurable difference at p95, and 7 runs at this load cannot rule out a small rise in the worst frames. It is not the axes, which are fitted once.
+
+| Placing a curve, the fit alone, with the CPU slowed 4 times, median and range of 7 runs | Before | Now |
+| --- | --- | --- |
+| `x*sin(30*x)`, no constants | 0 ms, at most 0.1 | 2.7 ms, from 2.4 to 3.6 |
+| `sin(a*x)`, one constant | 1.4 ms, from 1.1 to 1.7 | 6 ms, from 5.7 to 9.8 |
+| A 164 character curve with four constants | 67.9 ms, from 59 to 81.8 | 108.9 ms, from 96.1 to 114.9 |
+
+The worst single placement of that last curve in a run went from 62 to 142 ms, to 113 to 286 ms. It is one long task on a slow phone, as listed under Limits.
+
+**Merging PR 87.** Its scene guard now wraps every planned scene, so the two meet in `planned-scenes.ts`. A play to a moment already passed starts over on a stored take too, because time does not run backward, and a moment a scene does not own still holds it where it is. The guard's cache now keeps the last 48 values, because a curve holds every sample it drew and a drag passes thousands of values. The guard refuses a scene with a negative moment, and that found a real fault: a downward speed too small to square gave a landing just below zero, which took the figure down. 10,835 of 1,277,640 flights the parser accepts did this, and now none do.
+
 ## Choices worth keeping
 
 - A gap means a real break. A continuous curve shrinks when a step is halved and a jump or a pole does not, so a line stops only where 8 halvings in a row failed to shrink a step, which reaches a hundredth of a pixel. Detail goes where the line bends or a step is tall, and a step that is merely steep needs no more samples than its shape does.
 - Past the budget a line is drawn only where something proves it, and the figure says "Too fine to draw here". A wave passes through its heights and shrinks when halved, and a jump or a pole does neither. So among the nearest 1,024 samples, a line may not cross a height taller than 1/32 of the view that no sample reached. Where fewer than 1 in 32 of the tallest steps ever shrank, a tall step that never shrank is taken for a jump. No setting of the old halving count could do this, because a jump found on a late pass has had no halvings to count.
 - A figure placed again with any change takes what hangs on it, like `hide`. Marks, shading, arrows, readouts, sliders, ghost paths, and curves drawn over it all go, because each was said about what the figure showed. The tutor places again what still applies. The exact same command by value keeps them, because every word on it still holds.
-- A curve's axes hold its whole finite peak. Only what grows without bound is cut, and a halving climb from the sample tells them apart: a finite top settles as the steps shrink, and a pole or a log goes on gaining. A pole within one sample's spacing past the edge of the domain counts as growing, because `tan(x)` on [-1.57, 1.57] would otherwise flatten into a line with two spikes.
+- A curve's axes hold its whole finite peak. Only what grows without bound is cut, and a halving climb from the sample tells them apart: a finite top settles as the steps shrink, and a pole or a log goes on gaining. A pole within half a percent of the width past the edge of the domain counts as growing, because `tan(x)` on [-1.57, 1.57] would otherwise flatten into a line with two spikes. With four constants that margin is about 4%. Further out the curve really does stop at a finite top, so the top is shown: `1/(1+x)` on [0, 100] reaches 1, and `tan(x)` on [-1.55, 1.55] reaches 48.
+- Axes come from two looks. The first, on 97 even samples, finds what a pole leaves in view. The second, on scattered samples, climbs from the 6 highest at each end and widens the axes for any top that stays finite, because an even grid can meet a fast wave at the same phase every time and read it as small or flat. A climb reaches as far as the sum of its steps, so it has to reach past the widest gap between those samples, or it stops short of a pole and reads it as finite.
 - The first samples of a curve sit on a slightly uneven grid, so a fast wave cannot meet them at the same phase every time and draw as a slow wave or a flat line.
 - A slider's number is no live region. A value moving while the tutor talks must not speak over the voice, so a screen reader gets it from `aria-valuetext` when the student is on the slider.
 - A flight offers one way to say its speed at a time: a speed with an angle, or a sideways speed with an upward one. The speed holds two numbers, so a slider from each way cannot both hold what the student set. The parser refuses such a pair in one beat, and the board keeps the first and reports the second across beats. When the tutor sets a speed the other way, the board keeps the flight as it is and holds its speed the new way, so nothing replays against an older value.
@@ -325,7 +372,7 @@ The hardest curve now spends its whole budget and looks at its samples past the 
 - A hoop is drawn only under a simulation. M3.5 added the other drawings, in `docs/tests/board-library.md`. Its rim sits where the first arc comes down through 3.05 m, so the first shot goes in by construction.
 - A focus on a part draws the dot only on a ball. On a geometry point or a curve it shows nothing.
 - With reduced motion a stop can move the ball back, because the ball shows at the end of its motion and a stop holds where it really was.
-- A curve with features narrower than its sampling grid that never touch a sample cannot be seen by any sampler. A narrow pulse between two samples is missed, and a square wave faster than about 1 period for 2 samples loses some of its pulses. Gaussian pulses 1 px wide are lost in 13 of 253 placements, and pulses 1.74 px wide are always found. A peak too narrow for the 97 samples of the y fit to see can still sit above the axes, and so can a finite peak lower than 6 or more poles, because the fit measures the 6 highest tops.
+- A curve with features narrower than its sampling grid that never touch a sample cannot be seen by any sampler. A narrow pulse between two samples is missed, and a square wave faster than about 1 period for 2 samples loses some of its pulses. Gaussian pulses 1 px wide are lost in 13 of 253 placements, and pulses 1.74 px wide are always found. Axes have the same limit. A curve with no constants is looked at on 2,000 scattered samples, and one with constants on 400 to 48 for each set, climbing from the 6 highest at each end. So a peak or a wave packet narrower than those samples can still sit above the axes, more easily with constants. So can a finite peak lower than 6 or more poles, because only the 6 highest tops are measured. Axes can also stand wider than the curve: `cos(2*pi*x)` on [0, 96] shows -1 to 2, because its even samples all read 1, and a flat line gets room on both sides. And `1/(1+x)` is cut on a domain so wide that its pole is under half a percent past the edge, such as [0, 360].
 - Past the budget of 4,000 evaluations a curve is finer than the pixels that draw it, about 4 samples for each of the 955 periods of `sin(300*x)` on a width of 20. It draws as a solid band with a rough edge. A square wave past the budget draws as its two lines, with a short gap where a run of samples missed one of them. `tan(100*x)` has 636 poles and every column is truly solid to its axis top, and it draws as a solid core with spikes and leaves the rest of the height unproven. The figure says "Too fine to draw here" for each of these, and the board reports `curveTooFine`.
 - The note reports what the sampler could not prove, so it can come and go while a slider moves through the range where a curve stops being resolved, such as `sin(a*x)` near a = 165 to 260, and it can be absent where the picture is exactly true, such as a square wave whose every jump was found. A screen reader hears the figure's name and not the note.
 - A band with a thin hole on a slope, such as `x+1/sin(100*x)`, can have lines across the hole, because the hole moves up with the slope and samples nearby fill its heights. The figure says it is too fine.

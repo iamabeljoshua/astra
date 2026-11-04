@@ -423,6 +423,16 @@ describe('the path on the chart', () => {
     vi.restoreAllMocks();
   });
 
+  it('opens in a browser that refuses canvas reads', () => {
+    stubCanvas(() => {
+      throw new DOMException('Blocked by this browser', 'SecurityError');
+    });
+
+    renderSignInPage();
+
+    screen.getByRole('textbox', { name: SIGN_IN_LABELS.emailLabel });
+  });
+
   it('draws one leg on the email step and one more for each digit, up to the sixth', async () => {
     vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce') }));
     const contexts = stubCanvas();

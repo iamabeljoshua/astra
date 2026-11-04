@@ -37,6 +37,8 @@ A PR that adds or changes a screen updates its feature file and its journey in t
 - [Onboarding](./onboarding.md) covers the questions and the chart after sign-in, and changing answers later.
 - [Terms and Privacy Policy](./legal.md) covers the two public draft pages, and keeping the typed address when a student opens one.
 - [Home](./home.md) covers the page a student opens first, with its greeting, cards, and chat box.
+- [Scene lessons](./scene-lessons.md) covers the spoken lesson that shows a stored scene at a pause.
 - [Sessions](./sessions.md) covers starting a session, the session screen, ending it, and the list and its search.
 - [Menu](./menu.md) covers moving between Home and Sessions, at laptop and phone widths.
+- [Live voice](./voice.md) covers talking and typing with the tutor over a real room, interrupting it, a dropped link, and closing the tab.
 - [Appearance](./appearance.md) covers the light and dark themes, and that the choice survives a reload.

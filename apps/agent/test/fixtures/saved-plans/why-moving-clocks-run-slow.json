@@ -1,0 +1,34 @@
+{
+ "topic": "Why moving clocks run slow",
+ "plan": {
+  "opening": [
+   {
+    "say": "Here's a strange claim: if you watch someone fly past you fast enough, their clock ticks slower than yours.",
+    "note": "moving clocks"
+   },
+   {
+    "say": "Both of us can check it. The trick is that light travels at the same speed for everybody.",
+    "tex": "c = \\text{same for all}"
+   },
+   {
+    "say": "So let's build the simplest clock imaginable, a pulse of light bouncing between two mirrors, and see what motion does to it.",
+    "note": "light clock"
+   }
+  ],
+  "more": [
+   {
+    "say": "Say the mirrors sit one meter apart. Each round trip is one tick, and the light always moves at the same speed."
+   },
+   {
+    "say": "Now picture that clock on a train gliding past you. The light still bounces up and down, but you see something different."
+   },
+   {
+    "say": "Because the whole clock slides sideways while the pulse travels, the light's path in your view isn't straight up and down anymore."
+   }
+  ],
+  "setup": "Watch the light's path from both viewpoints.",
+  "narration": "[[clock-rest]] On the train, light goes straight up and down. [[clock-moving]] From the platform, the clock slides, so the path is a long diagonal. [[longer-path]] Longer path, same speed, so more time per tick. [[slow-tick]] That's why moving clocks run slow, and [[both-agree]] every observer sees the other's clock slow.",
+  "plan": "clock-rest: Two horizontal mirrors, a dot of light bouncing vertically between them, labeled as seen on the train.\nclock-moving: Same clock drifting right across the board, the light dot tracing a zigzag path as it goes.\nlonger-path: One diagonal leg highlighted next to a vertical leg, the diagonal clearly longer, since it is the hypotenuse of a right triangle.\nslow-tick: Two tick counters side by side, the platform one showing fewer ticks than the train one over equal time.\nboth-agree: Two observers, each with a clock, arrows showing each sees the other's clock ticking slower, symmetric.",
+  "close": "If light's speed weren't the same for everyone, would this still work?"
+ }
+}

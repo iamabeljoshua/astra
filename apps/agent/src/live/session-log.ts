@@ -1,9 +1,10 @@
-import { type Beat, type BeatId, type BrowserMessage, parseSessionEvent, type SessionEvent, type TurnId } from '@astra/contracts';
+import { type Beat, type BeatId, type BrowserMessage, parseSessionEvent, type PlayReport, type SessionEvent, type TurnId } from '@astra/contracts';
 
 export interface SessionLogOptions {
   getNowMs(): number;
   getBeat(turnId: TurnId, beatId: BeatId): Beat | undefined;
   onWritten?(event: SessionEvent): void;
+  onRefused?(problem: string): void;
 }
 
 export interface SessionLog {
@@ -11,10 +12,24 @@ export interface SessionLog {
   getEvents(): readonly SessionEvent[];
 }
 
-// Writes what the browser says played, on one clock offset so a slow message cannot move a beat against its neighbours.
-export function createSessionLog({ getNowMs, getBeat, onWritten }: SessionLogOptions): SessionLog {
+/** A beat only ever plays further, so a report of fewer words or cues is an old one arriving again. */
+export function isFurtherReport(next: PlayReport, known: PlayReport): boolean {
+  return next.playedWords > known.playedWords || (next.playedWords === known.playedWords && next.firedCueMs.length > known.firedCueMs.length);
+}
+
+// Writes what the browser says played, on one offset per page clock, so a slow message cannot move a beat against its neighbours, and a report it refuses never ends a lesson. A beat has one row, holding the furthest report.
+export function createSessionLog({ getNowMs, getBeat, onWritten, onRefused }: SessionLogOptions): SessionLog {
   const events: SessionEvent[] = [];
-  let browserToSessionMs: number | null = null;
+  const browserToSessionMs = new Map<string, number>();
+  const beatRows = new Map<string, { row: number; report: PlayReport }>();
+
+  const getOffsetMs = ({ clockId, browserMs }: BrowserMessage): number => {
+    const known = browserToSessionMs.get(clockId);
+    if (known !== undefined) return known;
+    const offsetMs = Math.round(getNowMs()) - browserMs;
+    browserToSessionMs.set(clockId, offsetMs);
+    return offsetMs;
+  };
 
   const getBody = (message: BrowserMessage): object | null => {
     if (message.type === 'played') {
@@ -30,12 +45,20 @@ export function createSessionLog({ getNowMs, getBeat, onWritten }: SessionLogOpt
   return {
     getEvents: () => events,
     write(message) {
-      browserToSessionMs ??= Math.round(getNowMs()) - message.browserMs;
+      const offsetMs = getOffsetMs(message);
       const body = getBody(message);
       if (!body) return null;
-      const parsed = parseSessionEvent({ seq: events.length, atMs: Math.max(0, browserToSessionMs + message.browserMs - message.startedMsAgo), ...body });
-      if (!parsed.ok) throw new Error(`log refused: ${parsed.problem}`);
-      events.push(parsed.value);
+      const beatKey = message.type === 'played' ? `${message.turnId}/${message.beatId}` : null;
+      const known = beatKey === null ? undefined : beatRows.get(beatKey);
+      if (message.type === 'played' && known && !isFurtherReport(message, known.report)) return null;
+      const row = known?.row ?? events.length;
+      const parsed = parseSessionEvent({ seq: row, atMs: Math.max(0, offsetMs + message.browserMs - message.startedMsAgo), ...body });
+      if (!parsed.ok) {
+        onRefused?.(parsed.problem);
+        return null;
+      }
+      events[row] = parsed.value;
+      if (message.type === 'played' && beatKey !== null) beatRows.set(beatKey, { row, report: message });
       onWritten?.(parsed.value);
       return parsed.value;
     },

@@ -1,0 +1,34 @@
+{
+ "topic": "Why the Moon shows us one face",
+ "plan": {
+  "opening": [
+   {
+    "say": "Look at the Moon on any clear night, and you'll notice it always shows the same familiar face.",
+    "note": "same face"
+   },
+   {
+    "say": "So here's a puzzle. Does that mean the Moon never spins, or is something sneakier going on?",
+    "note": "does it spin?"
+   },
+   {
+    "say": "Hold that thought, because the answer depends on comparing two different clocks, one for spinning and one for circling Earth.",
+    "tex": "T_{spin} \\text{ vs } T_{orbit}"
+   }
+  ],
+  "more": [
+   {
+    "say": "Picture yourself walking around a campfire while always facing it. Your friends watching from far away would see every side of you."
+   },
+   {
+    "say": "Now picture walking around that same fire with your back turned to nothing in particular, facing a distant tree the whole time instead."
+   },
+   {
+    "say": "Only one of those walks lets the fire see just your face. Keep that campfire in mind while we look at the Moon."
+   }
+  ],
+  "setup": "Watch the Moon as it circles Earth.",
+  "narration": "[[orbit-starts]]The Moon circles Earth once in about twenty-seven days. [[spin-matches]]And it spins once in that same time. [[face-locked]]So the same side always points at us. [[far-side]]The far side isn't dark, it's just hidden. [[tidal-origin]]Earth's gravity slowed the spin long ago.",
+  "plan": "orbit-starts: Earth sits at center, and the Moon moves along a circular orbit around it, with one hemisphere shaded a different color.\nspin-matches: A small arrow on the Moon rotates as it moves, completing exactly one full turn per full orbit, so the arrow's tip tracks the orbit.\nface-locked: A line from Earth to the shaded hemisphere stays attached the whole way around, so the shaded side always faces Earth.\nfar-side: The unshaded hemisphere is highlighted facing away, lit by the Sun, to show it gets day and night too.\ntidal-origin: Gentle bulges on the Moon point toward Earth while its spin slows until it locks to the orbit.",
+  "close": "If the Moon didn't spin at all, what would we see?"
+ }
+}

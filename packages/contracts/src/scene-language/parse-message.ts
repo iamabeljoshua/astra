@@ -1,8 +1,9 @@
 import { BEAT_LIMITS } from './beat.ts';
-import { readBeatId, readTurnId } from './ids.ts';
-import { type AgentMessage, type BrowserMessage, type BrowserStamp, LIVE_MESSAGE_MAX_BYTES, type TimedWord } from './live-message.ts';
+import { readBeatId, readSceneId, readTurnId } from './ids.ts';
+import { type AgentMessage, type BrowserMessage, type BrowserStamp, LIVE_MESSAGE_MAX_BYTES, STUDENT_WORDS_MAX_CHARACTERS, type TimedWord, TYPED_TEXT_MAX_CHARACTERS } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction } from './parse-event.ts';
+import type { SceneAgentMessage, SceneBrowserMessage } from './scene-message.ts';
 import {
   type CheckedFields,
   checkJsonSize,
@@ -12,6 +13,7 @@ import {
   readBoolean,
   readFields,
   readList,
+  readNumberInRange,
   readString,
   readVariant,
   readWholeNumber,
@@ -86,13 +88,24 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
         ...fields.optional('ms', readAudioGapMs),
       }),
     },
+    studentWords: {
+      keys: ['text', 'isFinal'],
+      read: (fields) => ({ type: 'studentWords', text: readString(fields.at('text'), STUDENT_WORDS_MAX_CHARACTERS), isFinal: readBoolean(fields.at('isFinal')) }),
+    },
+    heard: { keys: [], read: () => ({ type: 'heard' }) },
+    pulse: { keys: [], read: () => ({ type: 'pulse' }) },
+    earsOpen: { keys: [], read: () => ({ type: 'earsOpen' }) },
+    quietWarning: { keys: ['isOn'], read: (fields) => ({ type: 'quietWarning', isOn: readBoolean(fields.at('isOn')) }) },
+    closingForQuiet: { keys: [], read: () => ({ type: 'closingForQuiet' }) },
   },
 };
 
-const STAMP_KEYS = ['browserMs', 'startedMsAgo'];
+const CLOCK_ID_MAX_CHARACTERS = 64;
+
+const STAMP_KEYS = ['clockId', 'browserMs', 'startedMsAgo'];
 
 function readBrowserStamp(fields: CheckedFields): BrowserStamp {
-  return { browserMs: readWholeNumber(fields.at('browserMs')), startedMsAgo: readWholeNumber(fields.at('startedMsAgo')) };
+  return { clockId: readString(fields.at('clockId'), CLOCK_ID_MAX_CHARACTERS), browserMs: readWholeNumber(fields.at('browserMs')), startedMsAgo: readWholeNumber(fields.at('startedMsAgo')) };
 }
 
 const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
@@ -130,6 +143,26 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
         ...readBrowserStamp(fields),
       }),
     },
+    hello: {
+      keys: [...STAMP_KEYS, 'wantsGreeting'],
+      read: (fields) => ({ type: 'hello', ...readBrowserStamp(fields), wantsGreeting: readBoolean(fields.at('wantsGreeting')) }),
+    },
+    typed: {
+      keys: [...STAMP_KEYS, 'text'],
+      read: (fields) => ({ type: 'typed', ...readBrowserStamp(fields), text: readString(fields.at('text'), TYPED_TEXT_MAX_CHARACTERS) }),
+    },
+    pulse: {
+      keys: [...STAMP_KEYS, 'hearsAgent'],
+      read: (fields) => ({ type: 'pulse', ...readBrowserStamp(fields), hearsAgent: readBoolean(fields.at('hearsAgent')) }),
+    },
+    audioState: {
+      keys: [...STAMP_KEYS, 'isRunning'],
+      read: (fields) => ({ type: 'audioState', ...readBrowserStamp(fields), isRunning: readBoolean(fields.at('isRunning')) }),
+    },
+    stillHere: {
+      keys: STAMP_KEYS,
+      read: (fields) => ({ type: 'stillHere', ...readBrowserStamp(fields) }),
+    },
   },
 };
 
@@ -147,4 +180,30 @@ export function parseAgentMessage(value: unknown): ParseResult<AgentMessage> {
 
 export function parseBrowserMessage(value: unknown): ParseResult<BrowserMessage> {
   return parseLiveMessage(value, (place) => readVariant<BrowserMessage>(place, BROWSER_MESSAGES));
+}
+
+const SCENE_AGENT_MESSAGES: VariantTable<SceneAgentMessage, 'type'> = {
+  tag: 'type',
+  variants: {
+    loadScene: { keys: ['sceneId', 'durationSeconds'], read: (fields) => ({ type: 'loadScene', sceneId: readSceneId(fields.at('sceneId')), durationSeconds: readNumberInRange(fields.at('durationSeconds'), { min: 0.1, max: 600 }) }) },
+    noLesson: { keys: [], read: () => ({ type: 'noLesson' }) },
+    voiceAtLimit: { keys: [], read: () => ({ type: 'voiceAtLimit' }) },
+  },
+};
+
+const SCENE_BROWSER_MESSAGES: VariantTable<SceneBrowserMessage, 'type'> = {
+  tag: 'type',
+  variants: {
+    sceneDevice: { keys: ['canPlay'], read: (fields) => ({ type: 'sceneDevice', canPlay: readBoolean(fields.at('canPlay')) }) },
+    sceneLoaded: { keys: ['sceneId'], read: (fields) => ({ type: 'sceneLoaded', sceneId: readSceneId(fields.at('sceneId')) }) },
+    sceneRefused: { keys: ['sceneId'], read: (fields) => ({ type: 'sceneRefused', sceneId: readSceneId(fields.at('sceneId')) }) },
+  },
+};
+
+export function parseSceneAgentMessage(value: unknown): ParseResult<SceneAgentMessage> {
+  return toParseResult(() => readVariant<SceneAgentMessage>({ value, path: 'message' }, SCENE_AGENT_MESSAGES));
+}
+
+export function parseSceneBrowserMessage(value: unknown): ParseResult<SceneBrowserMessage> {
+  return toParseResult(() => readVariant<SceneBrowserMessage>({ value, path: 'message' }, SCENE_BROWSER_MESSAGES));
 }

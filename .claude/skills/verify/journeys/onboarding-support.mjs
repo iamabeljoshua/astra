@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 const PACE_MS = Number(process.env.ONBOARDING_PACE_MS ?? 0);
 const TYPING_DELAY_MS = PACE_MS ? 90 : 0;
 const INTEREST_COUNT = 12;
+const DOTS_SURELY_SETTLED_MS = 2_500;
 
 const pause = () => sleep(PACE_MS);
 
@@ -59,6 +61,19 @@ export async function answerQuestionsToHome(page, capture, { name, level, intere
   await page.getByRole('button', { name: goal }).click();
 
   await page.getByRole('heading', { name: `Welcome, ${name}.` }).waitFor();
+}
+
+export async function reachInterests(page) {
+  await page.getByRole('heading', { name: 'Where are you in your learning?' }).waitFor();
+  await page.getByRole('button', { name: 'High school' }).click();
+  await page.getByRole('heading', { name: 'What are you into?' }).waitFor();
+}
+
+export const waitForChartToSettle = () => sleep(DOTS_SURELY_SETTLED_MS);
+
+export async function readChart(page) {
+  const drawing = await page.locator('canvas').nth(1).evaluate((liveCanvas) => liveCanvas.toDataURL());
+  return createHash('sha256').update(drawing).digest('hex');
 }
 
 export async function assertReasonsClaimOnly(page, interests) {
