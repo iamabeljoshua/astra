@@ -62,7 +62,7 @@ describe('the chart on each step', () => {
   });
 
   it('holds the planet until the dots are drawn in the right font, then forms the name', async () => {
-    let finishDrawing = (_dots: DotPoint[]) => {};
+    let finishDrawing: (dots: DotPoint[]) => void = () => {};
     vi.mocked(textToDots).mockReturnValue(new Promise((resolve) => (finishDrawing = resolve)));
 
     const { result } = renderHook(() => useStepChart({ currentStep: 'interests', answers: { ...NO_ANSWERS, name: 'Maya' } }));

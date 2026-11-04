@@ -40,7 +40,7 @@ function readDrawnText(text: string, fontFamily: string) {
   return context.getImageData(0, 0, PAPER_WIDTH, PAPER_HEIGHT).data;
 }
 
-// A name stops short of the paper's sides, so a solid pixel there means a hardened browser answered the read with noise.
+// Ink at the paper's sides means noise from a hardened browser, or a name too wide to draw, and neither makes a readable shape.
 function getInkPoints(data: Uint8ClampedArray): readonly DotPoint[] {
   const points: DotPoint[] = [];
   for (let y = 0; y < PAPER_HEIGHT; y += SAMPLE_EVERY_PIXELS) {
@@ -54,7 +54,7 @@ function getInkPoints(data: Uint8ClampedArray): readonly DotPoint[] {
   return points;
 }
 
-// Waits for the font, because a canvas draws with whatever it has. Any refusal gives no points, and the chart's title still shows the name.
+// Waits for the font, because a canvas draws with whatever it has.
 export async function textToDots(text: string): Promise<readonly DotPoint[]> {
   if (!text) return NO_POINTS;
   try {
