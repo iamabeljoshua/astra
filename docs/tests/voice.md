@@ -257,7 +257,7 @@ Press once stays the default. Holding Space when focus is not in a text field, o
 
 ### What hold gains and what it costs
 
-**What it gains.** Noise cannot reach the tutor or Muse. Between holds the same bursts gave 0 voice starts, 0 cuts, and 0 bytes, where press once gave 4 voice starts and 4 cuts. That is the point of hold, and the reason to choose it in a noisy room.
+**What it gains.** Between holds, noise cannot reach the tutor or Muse. The same bursts gave 0 voice starts, 0 cuts, and 0 bytes, where press once gave 4 voice starts, and 3 and 4 cuts on two runs. That is the point of hold, and the reason to choose it in a noisy room.
 
 The first word also comes sooner, by about 480 ms in quiet (1612 against 2093 ms) and about 330 to 380 ms in noise, at p50. A hold decides its turn about 40 ms after the final. Press once waits 298 to 760 ms after the final for the SDK's turn decision.
 
@@ -387,7 +387,7 @@ Four rounds of a hold over a speaking tutor. The press-time numbers count from j
 | The agent decides to stop, ms | 576 | 609 | 567 | 539 |
 | The stop lands at the page, ms | 818 | 818 | 776 | 786 |
 
-So the student hears the voice drop within about 60 ms, and it stops about 800 ms after the press. The stop cannot come sooner than the 300 ms tap limit plus the trip. All four replies held the earlier question and the new line, with 0 words lost. Earlier runs put the stop at up to 1529 ms and could not say when the voice dipped, because the record then read the student's first sound. The page now records each change of gain.
+So the student hears the voice drop within about 60 ms, and it stops about 800 ms after the press. The stop cannot come sooner than the 300 ms tap limit plus the trip. All four replies held the earlier question and the new line, with 0 words lost. Before the merge one run put the stop at up to 1529 ms and its first dip at 673 to 894 ms. Nothing here explains that change. These numbers read a new record of each change of gain.
 
 ### Across a drop
 
@@ -395,15 +395,15 @@ All through a real cut of the student's network, on `cut-proxy.ts`, for 3 s.
 
 | Case | Result |
 | --- | --- |
-| Let go during the drop | The microphone was off at once. 0 words lost, 1 reply, closed after. In the trace the link was lost at 2.4 s after the press, `lineEnded` reached the agent at 24.0 s once the page had rejoined, the link came back at 24.3 s, and the flush and the reply came at 24.6 s. So a 3 s cut through this proxy held the answer for about 21 s, and that wait is the rejoin and not the hold |
+| Let go during the drop | The capture ended at once. 0 words lost, 1 reply, closed after. In the trace the link was lost at 2.4 s after the press, `lineEnded` reached the agent at 24.0 s once the page had rejoined, the link came back at 24.3 s, and the flush and the reply came at 24.6 s. So a 3 s cut through this proxy held the answer for about 21 s, and that wait is the rejoin and not the hold |
 | A hold kept through the drop | Still held after, and 0 words lost |
 | A rejoin after a drop | The microphone stayed off |
 
-`lineWhileAway` holds a line whose flush lands while the link is down. This run did not reach it, because `lineEnded` cannot leave a page that cannot hear the agent, and Muse flushes about 350 ms after it, sooner than the 1.5 s it takes to call a link lost. It needs Muse to take over 1.5 s on a line just as a drop starts, so only `live-session.test.ts` proves it. One earlier run, before that code existed, ended a let-go in a drop with the words heard and 0 replies.
+`lineWhileAway` holds a line whose flush lands while the link is down. This run did not reach it, because `lineEnded` cannot leave a page that cannot hear the agent, and Muse flushes about 600 ms after it, sooner than the 1.5 s it takes to call a link lost. It needs Muse to take over 1.5 s on a line just as a drop starts, so only `live-session.test.ts` proves it. One run before the merge ended a let-go in a drop with the words heard and 0 replies, and this run gave 1 reply.
 
 ### Noise
 
-**Between holds nothing reaches anyone.** Three clips at once, four times, over a speaking tutor, with the microphone off: 0 voice starts, 0 stops, 0 bytes. With press once on, the same bursts gave 4 voice starts and 3 cuts.
+**Between holds nothing reaches anyone.** Three clips at once, four times, over a speaking tutor, with the microphone off: 0 voice starts, 0 stops, 0 bytes. With press once on, the same bursts gave 4 voice starts, and 3 and 4 cuts on two runs.
 
 **The first signal, steady noise.** Code hears steady noise when every 50 ms window stays at or over the 0.015 RMS rule for 5 s. `measure-noise-prompt.ts` runs the worklet's own class over 300 s of each sound, with all 84 of the speech clips across three voices.
 
