@@ -33,7 +33,7 @@ describe('a lesson asking for its scene', () => {
     work.desk.ask(work.request);
     await flush();
     await flush();
-    expect(plan).toHaveBeenCalledWith('what a slope measures', expect.anything());
+    expect(plan.mock.calls[0]).toContain('what a slope measures');
     expect(JSON.stringify(briefs[0])).not.toMatch(/Ada|stuck/);
   });
 
@@ -47,6 +47,16 @@ describe('a lesson asking for its scene', () => {
     expect(route).not.toHaveBeenCalled();
     expect(plan).not.toHaveBeenCalled();
     expect(briefs).toEqual([]);
+  });
+
+  it('hands over the first line as soon as the planner has it', async () => {
+    const { work, plan } = setUp();
+    plan.mockImplementation(((_topic: string, _signal: AbortSignal, onFirstLine?: (line: { say: string }) => void) => {
+      onFirstLine?.({ say: 'Streamed first.' });
+      return new Promise(() => {});
+    }) as unknown as typeof plan);
+    work.desk.ask(work.request);
+    expect(await work.firstLine).toEqual({ say: 'Streamed first.' });
   });
 
   it('reuses a scene saved under the same topic for a typed question', async () => {

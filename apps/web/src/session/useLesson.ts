@@ -8,11 +8,19 @@ import { createSceneStage, type SceneStage } from '../scenes/sceneStage';
 import type { Session } from './sessionQueries';
 
 const RESUME_AFTER_MS = 2500;
+/** A proof turns this on to keep the sound it heard, for a recording. */
+const RECORD_KEY = 'astra.lesson.record';
 
 export interface LessonFrame {
   board: BoardState;
   atMs: number;
   caption: string;
+}
+
+/** A proof pins the board to one moment, from the live operations or a rebuild from the log. */
+interface HeldFrame {
+  atMs: number;
+  source: 'live' | 'replay';
 }
 
 export interface Lesson {
@@ -26,6 +34,16 @@ export interface Lesson {
 declare global {
   interface Window {
     sceneLesson?: LabSession;
+    sceneStage?: SceneStage | null;
+    holdLessonFrame?(held: HeldFrame | null): void;
+  }
+}
+
+function getShouldRecord(): boolean {
+  try {
+    return localStorage.getItem(RECORD_KEY) === '1';
+  } catch {
+    return false;
   }
 }
 
@@ -35,11 +53,13 @@ export function useLesson(session: Session): Lesson {
   const [stage, setStage] = useState<SceneStage | null>(null);
   const sessionRef = useRef<LabSession | null>(null);
   const stageRef = useRef<SceneStage | null>(null);
+  const heldRef = useRef<HeldFrame | null>(null);
 
   const onStageContainer = useCallback((container: HTMLElement | null) => {
     stageRef.current?.free();
     stageRef.current = container ? createSceneStage(container) : null;
     setStage(stageRef.current);
+    window.sceneStage = stageRef.current;
   }, []);
 
   const loadScene = useCallback(async (value: unknown) => {
@@ -52,12 +72,20 @@ export function useLesson(session: Session): Lesson {
   }, []);
 
   useEffect(() => {
+    window.holdLessonFrame = (held) => {
+      heldRef.current = held;
+    };
     let isLeaving = false;
     let animationFrame = 0;
     const draw = () => {
       animationFrame = requestAnimationFrame(draw);
       const current = sessionRef.current;
       if (!current) return;
+      const held = heldRef.current;
+      if (held) {
+        setFrame({ board: held.source === 'replay' ? current.getReplayBoard(held.atMs) : current.player.getBoard(held.atMs), atMs: held.atMs, caption: '' });
+        return;
+      }
       const { board, atMs } = current.getBoardNow();
       current.records.frames.push({ atMs, ms: performance.now() });
       setFrame({ board, atMs, caption: current.player.getCaption() });
@@ -69,7 +97,7 @@ export function useLesson(session: Session): Lesson {
         const started = await startLabSession({
           url,
           token,
-          shouldRecordPcm: new URLSearchParams(window.location.search).get('record') === '1',
+          shouldRecordPcm: getShouldRecord(),
           onAgentReady: () => void getCanPlayScenes().then((canPlay) => sessionRef.current?.sendScene({ type: 'sceneDevice', canPlay })),
           onLogChange: () => {},
           onSceneMessage: (value) => void loadScene(value),

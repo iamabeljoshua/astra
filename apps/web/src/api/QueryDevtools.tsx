@@ -1,9 +1,9 @@
 /// <reference types="vite/client" />
 import { lazy, Suspense } from 'react';
 
-// False in production, so the build drops the package, and false under Vitest, so tests skip it.
+// False in production, so the build drops the package, and false under Vitest, so tests skip it. Off in a lesson preview too, because its button sits on the session bar.
 const LazyReactQueryDevtools =
-  import.meta.env.MODE === 'development'
+  import.meta.env.MODE === 'development' && import.meta.env.VITE_SCENE_LESSONS !== '1'
     ? lazy(() =>
         import('@tanstack/react-query-devtools').then(({ ReactQueryDevtools }) => ({ default: ReactQueryDevtools })),
       )

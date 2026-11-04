@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { getPlanFromText } from '../src/scenes/lesson/lesson-plan.ts';
+import { getFirstLineFromPartialText, getPlanFromText } from '../src/scenes/lesson/lesson-plan.ts';
 import { getRouteFromText, getVerdictFromText } from '../src/scenes/model-replies.ts';
 
 const route = (fields: object) => getRouteFromText(JSON.stringify(fields));
@@ -27,6 +27,14 @@ describe('the router reply', () => {
 });
 
 describe('the reviewer reply', () => {
+  it('reads the first whole object when a model adds more after it', () => {
+    expect(getVerdictFromText('{"verdict":"pass","errors":[]}\nI also checked the {labels}.\n{"verdict":"fail"}').isPass).toBe(true);
+  });
+
+  it('is not fooled by braces inside a string', () => {
+    expect(getVerdictFromText('{"verdict":"fail","errors":[{"what":"a label reads {x"}]}').errors).toHaveLength(1);
+  });
+
   it('passes only a clear pass', () => {
     expect(getVerdictFromText('{"verdict":"pass","errors":[]}').isPass).toBe(true);
   });
@@ -65,5 +73,16 @@ describe('the lesson plan', () => {
   it('refuses a plan with no opening or no closing question', () => {
     expect(() => parse({ opening: [] })).toThrow(/no opening/);
     expect(() => parse({ close: '' })).toThrow(/closing question/);
+  });
+});
+
+describe('the first line of a plan still being written', () => {
+  it('waits until the line is whole', () => {
+    expect(getFirstLineFromPartialText('{"opening":[{"say":"A deriv')).toBeNull();
+    expect(getFirstLineFromPartialText('{"openi')).toBeNull();
+  });
+
+  it('reads it as soon as it closes, with math that holds braces', () => {
+    expect(getFirstLineFromPartialText(String.raw`{"opening":[{"say":"Here it is.","tex":"x^{2}"},{"say":"And`)).toEqual({ say: 'Here it is.', tex: 'x^{2}' });
   });
 });

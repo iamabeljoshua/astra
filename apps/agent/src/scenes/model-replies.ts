@@ -1,13 +1,30 @@
 import type { FactError, RouteEngine, SceneRoute, SceneVerdict, SceneUsage } from './scene-types.ts';
 
-const JSON_OBJECT = /\{[\s\S]*\}/;
 const ENGINES: readonly RouteEngine[] = ['manimgx', 'kit', 'none'];
 const MOST_TOPIC_CHARACTERS = 80;
 /** A topic is shared truth, so anything that points at one person means the router leaked the request into it. */
 const POINTS_AT_A_PERSON = /@|\d{5,}|https?:|\b(my|i|me|mine|our|we)\b/i;
 
+export function findFirstObject(text: string): string | null {
+  const start = text.indexOf('{');
+  if (start < 0) return null;
+  let depth = 0;
+  let isInString = false;
+  for (let index = start; index < text.length; index += 1) {
+    const character = text[index];
+    if (isInString) {
+      if (character === '\\') index += 1;
+      else if (character === '"') isInString = false;
+    } else if (character === '"') isInString = true;
+    else if (character === '{') depth += 1;
+    else if (character === '}' && (depth -= 1) === 0) return text.slice(start, index + 1);
+  }
+  return null;
+}
+
+// A model can add words or a second object after its answer, and the first whole object is the answer.
 export function readJsonObject(text: string): Record<string, unknown> {
-  const found = text.match(JSON_OBJECT)?.[0];
+  const found = findFirstObject(text);
   if (!found) throw new Error('the model sent no JSON object');
   return JSON.parse(found) as Record<string, unknown>;
 }

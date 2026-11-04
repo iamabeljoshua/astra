@@ -80,7 +80,8 @@ export interface LessonPlan {
 }
 
 export interface LessonPlanner {
-  plan(topic: string, signal: AbortSignal): Promise<LessonPlan & SceneUsage>;
+  /** `onFirstLine` fires as soon as the first line has been written, so the tutor can start talking before the whole plan is done. */
+  plan(topic: string, signal: AbortSignal, onFirstLine?: (line: OpeningLine) => void): Promise<LessonPlan & SceneUsage>;
 }
 
 export interface DeclaredValue {

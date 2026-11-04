@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { getRouteFromText, getVerdictFromText } from '../scenes/model-replies.ts';
-import { getPlanFromText } from '../scenes/lesson/lesson-plan.ts';
+import { getFirstLineFromPartialText, getPlanFromText } from '../scenes/lesson/lesson-plan.ts';
 import type { LessonPlanner, SceneBrief, SceneRepair, SceneReviewer, SceneRouter, SceneUsage, SceneWriter, UsageListener } from '../scenes/scene-types.ts';
 
 const PROMPTS = join(import.meta.dirname, '../scenes/prompts');
@@ -21,11 +21,16 @@ const CODE_BLOCK = /```(?:python|py)?\s*\n([\s\S]*?)```/;
 const SETTINGS = {
   opusFast: { model: 'claude-opus-5-5', prices: { input: 8, cacheWrite: 10, cacheRead: 0.4, output: 40 }, request: { speed: 'fast', output_config: { effort: 'low' }, fallbacks: 'default' }, betas: [FAST_BETA, FALLBACK_BETA] },
   sonnetFast: { model: 'claude-sonnet-5-5', prices: { input: 2, cacheWrite: 2.5, cacheRead: 0.2, output: 10 }, request: { thinking: { type: 'between_tools' }, output_config: { effort: 'low' }, fallbacks: 'default' }, betas: [FALLBACK_BETA] },
-  sonnetReview: { model: 'claude-sonnet-5-5', prices: { input: 2, cacheWrite: 2.5, cacheRead: 0.2, output: 10 }, request: { output_config: { effort: 'low' }, fallbacks: 'default' }, betas: [FALLBACK_BETA] },
+  reviewQuick: { model: 'claude-sonnet-5-5', prices: { input: 2, cacheWrite: 2.5, cacheRead: 0.2, output: 10 }, request: { output_config: { effort: 'low' }, fallbacks: 'default' }, betas: [FALLBACK_BETA] },
+  reviewCareful: { model: 'claude-sonnet-5-5', prices: { input: 2, cacheWrite: 2.5, cacheRead: 0.2, output: 10 }, request: { output_config: { effort: 'high' }, fallbacks: 'default' }, betas: [FALLBACK_BETA] },
   haiku: { model: 'claude-haiku-5-5', prices: { input: 0.1, cacheWrite: 0.125, cacheRead: 0.01, output: 0.5 }, request: { thinking: { type: 'disabled' }, output_config: { effort: 'low' } }, betas: [] },
 } as const;
 
 type SettingName = keyof typeof SETTINGS;
+export type ReviewPass = 'reviewQuick' | 'reviewCareful';
+
+/** One pass at one effort disagreed with itself on 7 of 8 real scenes, and neither alone stopped every flawed one, so a scene must pass both. docs/tests/scenes.md has the runs. */
+const REVIEW_PASSES: readonly ReviewPass[] = ['reviewQuick', 'reviewCareful'];
 type UserContent = string | Anthropic.Beta.Messages.BetaContentBlockParam[];
 
 interface ModelCall {
@@ -34,6 +39,7 @@ interface ModelCall {
   user: UserContent;
   maxTokens: number;
   signal: AbortSignal;
+  onText?(snapshot: string): void;
 }
 
 function getCostUsd(setting: SettingName, usage: Anthropic.Beta.Messages.BetaUsage): number {
@@ -63,15 +69,17 @@ export interface SceneModels {
 }
 
 // Each role has its own small interface, so Abel can move one to another vendor without touching the others.
-export function makeAnthropicSceneModels({ apiKey, onUsage }: { apiKey: string; onUsage?: UsageListener }): SceneModels {
+export function makeAnthropicSceneModels({ apiKey, onUsage, reviewPasses = REVIEW_PASSES }: { apiKey: string; onUsage?: UsageListener; reviewPasses?: readonly ReviewPass[] }): SceneModels {
   const client = new Anthropic({ apiKey, maxRetries: 1 });
   const writerSystem = `${readPrompt('writer.md')}\n\n${readPrompt('truth-kit.md')}`;
 
-  const call = async ({ setting, system, user, maxTokens, signal }: ModelCall): Promise<{ text: string } & SceneUsage> => {
+  const call = async ({ setting, system, user, maxTokens, signal, onText }: ModelCall): Promise<{ text: string } & SceneUsage> => {
     const { model, request, betas } = SETTINGS[setting];
     const startedAt = performance.now();
     const params = { model, max_tokens: maxTokens, system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }], messages: [{ role: 'user', content: user }], betas, ...request } as unknown as Anthropic.Beta.Messages.MessageCreateParamsStreaming;
-    const message = await client.beta.messages.stream(params, { signal }).finalMessage();
+    const stream = client.beta.messages.stream(params, { signal });
+    if (onText) stream.on('text', (_delta, snapshot) => onText(snapshot));
+    const message = await stream.finalMessage();
     return { text: getReplyText(message), model: message.model, ms: performance.now() - startedAt, costUsd: getCostUsd(setting, message.usage) };
   };
 
@@ -89,11 +97,16 @@ export function makeAnthropicSceneModels({ apiKey, onUsage }: { apiKey: string; 
     fallbackWriter: makeWriter('sonnet-5-5-low', 'sonnetFast'),
     reviewer: {
       async review({ brief, code, sheets }, signal) {
-        const images = sheets.map((sheet): Anthropic.Beta.Messages.BetaContentBlockParam => ({ type: 'image', source: { type: 'base64', media_type: 'image/png', data: sheet.toString('base64') } }));
+        const images = sheets.map((sheet): Anthropic.Beta.Messages.BetaContentBlockParam => ({ type: 'image', source: { type: 'base64', media_type: sheet[0] === 0xff ? 'image/jpeg' : 'image/png', data: sheet.toString('base64') } }));
         const text = `Topic: ${brief.topic}\n\nThe tutor says, with [[moment]] marks:\n${brief.narration}\n\nMoments, in seconds on this take: ${JSON.stringify(brief.moments)}\n\nThe scene's code, so you can read what it really does. Check directions, geometry, and numbers in the code against what the frames and the words claim:\n${code}`;
-        const reply = await call({ setting: 'sonnetReview', system: readPrompt('reviewer.md'), user: [...images, { type: 'text', text }], maxTokens: REVIEWER_TOKENS, signal });
-        onUsage?.({ role: 'reviewer', model: reply.model, ms: reply.ms, costUsd: reply.costUsd });
-        return { ...getVerdictFromText(reply.text), model: reply.model, ms: reply.ms, costUsd: reply.costUsd };
+        const passes = await Promise.all(
+          reviewPasses.map(async (setting) => {
+            const reply = await call({ setting, system: readPrompt('reviewer.md'), user: [...images, { type: 'text', text }], maxTokens: REVIEWER_TOKENS, signal });
+            onUsage?.({ role: 'reviewer', model: reply.model, ms: reply.ms, costUsd: reply.costUsd });
+            return { ...getVerdictFromText(reply.text), ...reply };
+          }),
+        );
+        return { isPass: passes.every(({ isPass }) => isPass), errors: passes.flatMap(({ errors }) => errors), model: passes[0]?.model ?? '', ms: Math.max(...passes.map(({ ms }) => ms)), costUsd: passes.reduce((sum, { costUsd }) => sum + costUsd, 0) };
       },
     },
     router: {
@@ -104,8 +117,15 @@ export function makeAnthropicSceneModels({ apiKey, onUsage }: { apiKey: string; 
       },
     },
     planner: {
-      async plan(topic, signal) {
-        const reply = await call({ setting: 'sonnetFast', system: readPrompt('planner.md'), user: `Topic: ${topic}`, maxTokens: PLANNER_TOKENS, signal });
+      async plan(topic, signal, onFirstLine) {
+        let isFirstLineSent = false;
+        const onText = (snapshot: string) => {
+          const line = isFirstLineSent ? null : getFirstLineFromPartialText(snapshot);
+          if (!line) return;
+          isFirstLineSent = true;
+          onFirstLine?.(line);
+        };
+        const reply = await call({ setting: 'sonnetFast', system: readPrompt('planner.md'), user: `Topic: ${topic}`, maxTokens: PLANNER_TOKENS, signal, onText });
         onUsage?.({ role: 'planner', model: reply.model, ms: reply.ms, costUsd: reply.costUsd });
         return { ...getPlanFromText(reply.text), model: reply.model, ms: reply.ms, costUsd: reply.costUsd };
       },

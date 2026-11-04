@@ -1,5 +1,5 @@
 import { getSpokenWords, getTexProblem } from '@astra/contracts';
-import { readJsonObject } from '../model-replies.ts';
+import { findFirstObject, readJsonObject } from '../model-replies.ts';
 import { readMarks } from '../narration.ts';
 import type { LessonPlan, OpeningLine } from '../scene-types.ts';
 
@@ -30,6 +30,20 @@ function readNarration(value: unknown): string {
   if (new Set(marks.map((mark) => mark.id)).size !== marks.length) throw new Error('the narration repeats a mark');
   if (getSpokenWords(text).length > MOST_NARRATION_WORDS) throw new Error('the narration is too long');
   return narration;
+}
+
+const OPENING_LIST = /"opening"\s*:\s*\[/;
+
+/** Reads the first opening line out of a reply still being written, or null until it is whole. */
+export function getFirstLineFromPartialText(text: string): OpeningLine | null {
+  const found = OPENING_LIST.exec(text);
+  const object = found ? findFirstObject(text.slice(found.index + found[0].length)) : null;
+  if (!object) return null;
+  try {
+    return readLine(JSON.parse(object));
+  } catch {
+    return null;
+  }
 }
 
 export function getPlanFromText(text: string): LessonPlan {

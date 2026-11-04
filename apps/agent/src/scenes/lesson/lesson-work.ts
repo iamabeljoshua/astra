@@ -1,7 +1,7 @@
 import { makeScene, type SceneMaker } from '../make-scene.ts';
 import { createSceneDesk, type SceneDesk, type SceneState } from '../scene-desk.ts';
 import { getSceneId } from '../scene-store.ts';
-import type { LessonPlan, LessonPlanner, SceneRoute, SceneRouter, StoredScene } from '../scene-types.ts';
+import type { LessonPlan, LessonPlanner, OpeningLine, SceneRoute, SceneRouter, StoredScene } from '../scene-types.ts';
 
 const ROUTER_LIMIT_MS = 10_000;
 const PLANNER_LIMIT_MS = 30_000;
@@ -12,6 +12,8 @@ export interface LessonWork {
   desk: SceneDesk;
   /** The stand-in tutor's words. Null when the request needs no lesson. */
   plan: Promise<LessonPlan | null>;
+  /** The first of those lines, as soon as it exists, so the tutor is not silent while the rest is written. */
+  firstLine: Promise<OpeningLine | null>;
   /** Asks for words only, for a browser that cannot show a scene. */
   planWithoutScene(): void;
 }
@@ -31,6 +33,11 @@ export function createLessonWork({ router, planner, request, isCard, getNowMs, o
   const plan = new Promise<LessonPlan | null>((resolve) => {
     settlePlan = resolve;
   });
+  let settleFirstLine: (line: OpeningLine | null) => void = () => {};
+  const firstLine = new Promise<OpeningLine | null>((resolve) => {
+    settleFirstLine = resolve;
+  });
+  void plan.then((settled) => settleFirstLine(settled?.opening[0] ?? null));
   const findSaved = (topic: string): StoredScene | null => maker.store.find(getSceneId(topic));
 
   const getRoute = async (): Promise<SceneRoute> => {
@@ -46,7 +53,7 @@ export function createLessonWork({ router, planner, request, isCard, getNowMs, o
       return { ...route, engine: 'none', topic: '' };
     }
     const savedByTopic = findSaved(topic);
-    settlePlan(savedByTopic?.plan ?? (await planner.plan(topic, AbortSignal.timeout(PLANNER_LIMIT_MS))));
+    settlePlan(savedByTopic?.plan ?? (await planner.plan(topic, AbortSignal.timeout(PLANNER_LIMIT_MS), settleFirstLine)));
     return { ...route, topic };
   };
 
@@ -72,6 +79,7 @@ export function createLessonWork({ router, planner, request, isCard, getNowMs, o
     request,
     desk,
     plan,
+    firstLine,
     planWithoutScene: () => void getRoute().catch(() => settlePlan(null)),
   };
 }

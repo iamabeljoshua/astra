@@ -1,4 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { initializeLogger } from '@livekit/agents';
 import { AccessToken } from 'livekit-server-sdk';
@@ -10,6 +11,7 @@ import { createSpendLedger } from '../proof/spend-ledger.ts';
 import { createContainerWorker } from '../render-worker.ts';
 import { getSceneStoreRoot } from '../scene-settings.ts';
 import { createSceneStore } from '../scene-store.ts';
+import type { LessonPlan } from '../scene-types.ts';
 import { createLessonWork } from './lesson-work.ts';
 import { makeFakeSceneModels } from './fake-models.ts';
 import { runLesson } from './run-lesson.ts';
@@ -27,8 +29,16 @@ const isFake = process.env.LESSON_FAKES === '1';
 const spendPath = process.env.LESSON_SPEND_FILE;
 const ledger = spendPath ? createSpendLedger({ path: spendPath, limitUsd: Number(process.env.LESSON_SPEND_LIMIT ?? 5.5), note: 'lesson' }) : null;
 
+// A proof can fix the tutor's words, so its voice comes from kept takes and spends no credits, while the scene is still written live.
+function withFixedWords(models: SceneModels, planFile: string | undefined): SceneModels {
+  if (!planFile) return models;
+  const plan = JSON.parse(readFileSync(planFile, 'utf8')) as LessonPlan;
+  return { ...models, planner: { plan: async () => ({ ...plan, model: 'fixed', ms: 0, costUsd: 0 }) } };
+}
+
 function makeModels(): SceneModels {
-  return isFake ? makeFakeSceneModels() : makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ledger?.onUsage });
+  const models = isFake ? makeFakeSceneModels() : makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ledger?.onUsage });
+  return withFixedWords(models, process.env.LESSON_PLAN_FILE);
 }
 
 function makeVoice() {

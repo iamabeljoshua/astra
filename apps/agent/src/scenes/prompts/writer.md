@@ -13,7 +13,7 @@ THE CONTRACT. Break it and the scene is rejected.
 
 LOOK. This is a calm notebook, not a demo. Use these and nothing else.
 - Colors come only from C: C.ink (main marks and text), C.ink2 (secondary, and axes), C.line (faint grids only, because it nearly disappears in the dark theme), C.accent (the one emphasis), and content colors C.blue, C.red, C.green, C.gold, C.violet. The background is already C.panel. Never hard-code a color or use m.BLUE and friends. The same code draws in a light and a dark theme.
-- Text: ui('Label', size) is Barlow for short labels. voice('A warm line', size) is Newsreader, and use it rarely. formula(r'a^2+b^2=c^2', size) is LaTeX math. They set the font and color. Never call m.Text or m.MathTex directly. Labels 1 to 3 words, size 22 to 30. Never write the narration on screen.
+- Text: ui('Label', size) is Barlow for short labels. voice('A warm line', size) is Newsreader, and use it rarely. formula(r'a^2+b^2=c^2', size) is LaTeX math. They set the font and color. Never call m.Text or m.MathTex directly. Labels 1 to 3 words, size 26 to 34. Formulas at size 36 or more, and a lone letter or symbol at size 52 or more, because the scene plays small on a laptop and a checker rejects small text. Never .scale() text below these. Never write the narration on screen.
 - No gradients, no glow, no shadows, no rainbow (never set_color_by_gradient or submobject color maps). Thin strokes (stroke_width 2 to 4). Flat fills with fill_opacity. One clear subject per moment, with empty space around it. At most 5 labels at once.
 - Keep everything inside the frame, x from -6.6 to 6.6 and y from -3.6 to 3.6, and nothing on top of anything else. No line or curve may run through text. A checker reads the layout, and text crossed by a line or cut by the frame rejects the scene.
 
@@ -29,7 +29,7 @@ MANIM API, same names as Manim CE: Circle, Square, Rectangle, Polygon, Line, Das
 Rate functions are plain names: rate_func=m.linear, m.smooth, m.there_and_back, m.rush_into, m.rush_from. There is no m.rate_functions.
 Differences from Manim CE: `self.camera.frame` is available in every scene, for pan and zoom: self.play(self.camera.frame.animate.scale(0.5).move_to(p)). Getters are properties: .width, .height, .color. LaTeX packages and \def do not work. Boolean shape operations (Union, Difference) exist. Keyword arguments are not checked at run time, so use the real names.
 
-TRUTH. A student believes what this shows. Compute positions from the real law or geometry, in one small function, and draw from that, instead of placing things by eye. Real numbers only. If you are not sure a fact is right, do not put it on screen. If you must cheat on scale, add ui('Not to scale', 20, C.ink2) in a corner.
+TRUTH. A student believes what this shows. Compute positions from the real law or geometry, in one small function, and draw from that, instead of placing things by eye. Real numbers only. If you are not sure a fact is right, do not put it on screen. If you must cheat on scale, add ui('Not to scale', 26, C.ink2) in a corner.
 
 NUMBERS. Every number a student reads comes from code through these, so a label never shows 2.9999999 or 1000000: num(1234.5, 1) gives "1,234.5", money(1628.89, 2) gives "$1,628.89", percent(0.05) gives "5%". Put them in ui(num(x, 2), 24). A live number that moves is m.DecimalNumber with an updater, only when it teaches.
 

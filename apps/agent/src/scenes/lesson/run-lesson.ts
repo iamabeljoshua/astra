@@ -175,9 +175,9 @@ export async function runLesson({ url, token, work, voice, onEvent }: RunLessonO
   };
 
   const teach = async (plan: LessonPlan) => {
-    for (const [index, opening] of plan.opening.entries()) {
+    for (const [index, opening] of plan.opening.slice(1).entries()) {
       if (isOver) return;
-      await speak([getLineBeat(`line-${index}`, opening)]);
+      await speak([getLineBeat(`line-${index + 1}`, opening)]);
     }
     let isShown = await showSceneIfReady(plan);
     for (const [index, more] of (plan.more ?? []).entries()) {
@@ -194,6 +194,9 @@ export async function runLesson({ url, token, work, voice, onEvent }: RunLessonO
   if (canPlay) work.desk.ask(work.request);
   else work.planWithoutScene();
   await speak([getSpokenBeat('reaction', REACTION)]);
+  const firstLine = await work.firstLine;
+  onEvent?.('firstLine', { hasLine: firstLine !== null });
+  if (firstLine) await speak([getLineBeat('line-0', firstLine)]);
   const plan = await work.plan;
   onEvent?.('planned', { hasPlan: plan !== null });
   await (plan ? teach(plan) : speak([getSpokenBeat('no-lesson', NO_LESSON_LINE)]));
