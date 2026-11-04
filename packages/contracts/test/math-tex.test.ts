@@ -48,8 +48,17 @@ describe('getTexProblem', () => {
     ['a right with no left', raw`x \right)`, /balanced groups/],
     ['an end with no begin', raw`\end{matrix}`, /balanced groups/],
     ['math nested past the limit', `${raw`\sqrt{`.repeat(13)}x${'}'.repeat(13)}`, /nested at most 12/],
+    ['a run of accent marks, which KaTeX nests', `x${'\u0301'.repeat(200)}`, /at most 2 accent marks/],
+    ['a short run of another mark', `x${'\u0308'.repeat(3)}`, /at most 2 accent marks/],
+    ['a run of marks inside text', raw`\text{x` + '\u0301'.repeat(3) + '}', /at most 2 accent marks/],
+    ['a run of marks from outside the usual block', `x${'\u20d7'.repeat(3)}`, /at most 2 accent marks/],
   ])('refuses %s', (_name, tex, problem) => {
     expect(getTexProblem(tex)).toMatch(problem);
+  });
+
+  it('lets through the accents a real word needs', () => {
+    expect(getTexProblem(raw`\text{cafe\u0301}`.replace(String.raw`\u0301`, '\u0301'))).toBeNull();
+    expect(getTexProblem(`\\text{e\u0323\u0302}`)).toBeNull();
   });
 
   it('reaches every command that carries math', () => {
@@ -103,6 +112,11 @@ describe('findMathSpans', () => {
   it('finds a term anywhere, with the leftmost first', () => {
     const tex = raw`3x + \frac{3}{y} = 3`;
     expect(findMathSpans(tex, '3').map(({ start }) => start)).toEqual([0, 11, 19]);
+  });
+
+  it('never matches the letters of an environment name', () => {
+    const tex = raw`\begin{matrix} a \end{matrix}`;
+    expect(findMathSpans(tex, 'a')).toEqual([{ start: tex.indexOf(' a ') + 1, end: tex.indexOf(' a ') + 2 }]);
   });
 
   it('never matches inside a longer number', () => {

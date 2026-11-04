@@ -2,7 +2,7 @@ import { type BoardElement, type BoardState, getMotionValue, getSceneFrame, type
 import { canWriteByHand, preloadMathFonts } from '@astra/board/drawing';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { FIGURE_SIZE, hasOwnPlace } from '../board/boardItems';
-import { createBoardPainting } from '../board/boardPainting';
+import { type BoardProblem, createBoardPainting } from '../board/boardPainting';
 import { useReducedMotion } from '../board/useReducedMotion';
 
 const WORLD = { left: -1, right: 9, top: 6, bottom: -0.5 };
@@ -19,6 +19,7 @@ interface BoardViewProps {
   atMs: number;
   onElementDrawn?(id: string): void;
   onMathRefused?(tex: string): void;
+  onBoardProblem?(problem: BoardProblem): void;
 }
 
 function getBallFrame(board: BoardState, atMs: number): ProjectileFrame | null {
@@ -81,7 +82,7 @@ function ElementContent({ element, board, atMs }: { element: BoardElement; board
   return null;
 }
 
-export function BoardView({ board, atMs, onElementDrawn, onMathRefused }: BoardViewProps) {
+export function BoardView({ board, atMs, onElementDrawn, onMathRefused, onBoardProblem }: BoardViewProps) {
   const seen = useRef(new Set<string>());
   const boardRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
@@ -89,6 +90,7 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused }: BoardV
   const painting = useRef<ReturnType<typeof createBoardPainting> | null>(null);
   const isReducedMotion = useReducedMotion();
   const refusalListener = useRef(onMathRefused);
+  const problemListener = useRef(onBoardProblem);
 
   useEffect(() => {
     void preloadMathFonts();
@@ -96,8 +98,9 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused }: BoardV
 
   useLayoutEffect(() => {
     refusalListener.current = onMathRefused;
+    problemListener.current = onBoardProblem;
     if (!boardRef.current || !overlayRef.current) return;
-    painting.current ??= createBoardPainting({ boardElement: boardRef.current, overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onMathRefused: (tex) => refusalListener.current?.(tex) });
+    painting.current ??= createBoardPainting({ boardElement: boardRef.current, overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onMathRefused: (tex) => refusalListener.current?.(tex), onBoardProblem: (problem) => problemListener.current?.(problem) });
     painting.current.paint({ board, atMs, isReducedMotion });
     for (const id of board.elements.keys()) {
       if (!seen.current.has(id)) {
@@ -123,7 +126,7 @@ export function BoardView({ board, atMs, onElementDrawn, onMathRefused }: BoardV
           <ElementContent element={element} board={board} atMs={atMs} />
         </div>
       ))}
-      <svg ref={overlayRef} className="board-ink board-marks pointer-events-none absolute inset-0 h-full w-full" />
+      <svg ref={overlayRef} aria-hidden="true" className="board-ink board-marks pointer-events-none absolute inset-0 h-full w-full" />
     </div>
   );
 }

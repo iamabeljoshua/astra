@@ -3,7 +3,7 @@ import { findMathSpans } from '@astra/contracts';
 import { writeStyle } from '../style-writer.ts';
 import { getMovedTermIds, type MathLine } from './math-line.ts';
 import { easeInOut, getBoxUnion, getOffsetFromLanding, getFlightTransform, type PaintBox, type PaintInfo, type PaintPlan, planPaints } from './paint-flights.ts';
-import { collectMathPaints, getMissingFonts, getPaintsOfSpans, type MathPaintElement, renderTex, type TexSpan } from './render-math.ts';
+import { collectMathPaints, FONT_HOLD_LIMIT_MS, type FontWait, getFontWait, getMissingFonts, getPaintsOfSpans, isFontHoldOver, type MathPaintElement, renderTex, type TexSpan } from './render-math.ts';
 
 export interface MathSize {
   width: number;
@@ -38,6 +38,8 @@ export interface MathPainter {
   getTermBox(query: TermQuery): TermBoxes;
   /** The source the tutor asked for could not be set, so the board kept what it had. */
   getRefusedTex(): string | null;
+  /** Fonts showing as fallback glyphs right now. The equation is correct and on time, and it lays out again if the font lands. */
+  getFontProblems(): readonly MathFontProblem[];
   remove(): void;
 }
 
@@ -49,6 +51,13 @@ export interface TermBoxes {
   /** How far the term still is from `to` this frame, so a mark on it flies with it. */
   flightOffset: { x: number; y: number };
 }
+
+export interface MathFontProblem {
+  font: string;
+  reason: 'failed' | 'slow';
+}
+
+const getLineKey = ({ tex, terms }: MathLine) => `${tex}|${terms.map((term) => term.id).join()}`;
 
 const PAINT_STYLES = ['visibility', 'clipPath', 'opacity', 'transform', 'display', 'transformOrigin'] as const;
 
@@ -104,12 +113,26 @@ export function createMathPainter(root: HTMLElement): MathPainter {
   let plan: PaintPlan | null = null;
   let renderedWidth = 0;
   let refusedTex: string | null = null;
-  let isWaitingForFonts = false;
+  let fontWaits: readonly FontWait[] = [];
+  let holdTimer: ReturnType<typeof setTimeout> | undefined;
   let lastPaintKey = '';
   let builtKey = '';
   let easedNow = 1;
 
-  const getFontsStillMissing = () => [to, from].flatMap((rendered) => (rendered ? getMissingFonts(rendered.paints) : []));
+  const isHoldingForFonts = () => !fontWaits.every(isFontHoldOver);
+
+  const showTrees = () => {
+    for (const rendered of [to, from]) if (rendered) writeStyle(rendered.host, 'visibility', isHoldingForFonts() ? 'hidden' : '');
+  };
+
+  // The wall clock and never the board's: a font decides when ink may show, and the entrance keeps running on the clock behind it. The timer holds for a board that has stopped drawing frames.
+  const watchFonts = () => {
+    clearTimeout(holdTimer);
+    fontWaits = [to, from].flatMap((rendered) => (rendered ? getMissingFonts(rendered.paints) : [])).map(getFontWait);
+    if (!isHoldingForFonts()) return;
+    holdTimer = setTimeout(showTrees, FONT_HOLD_LIMIT_MS);
+    for (const wait of fontWaits) void wait.settled.then(showTrees);
+  };
 
   const render = (line: MathLine, maxWidth: number): RenderedLine | null => {
     const host = document.createElement('div');
@@ -133,7 +156,7 @@ export function createMathPainter(root: HTMLElement): MathPainter {
 
   const rebuild = (line: MathLine, fromLine: MathLine | null, maxWidth: number) => {
     const previous = [to, from];
-    const reuse = (wanted: MathLine) => (renderedWidth === maxWidth ? previous.find((rendered) => rendered?.line.tex === wanted.tex) : undefined) ?? render(wanted, maxWidth);
+    const reuse = (wanted: MathLine) => (renderedWidth === maxWidth ? previous.find((rendered) => rendered && getLineKey(rendered.line) === getLineKey(wanted)) : undefined) ?? render(wanted, maxWidth);
     const nextTo = reuse(line);
     refusedTex = nextTo ? null : line.tex;
     const newOrLastGood = nextTo ?? (to && reuse(to.line));
@@ -146,24 +169,24 @@ export function createMathPainter(root: HTMLElement): MathPainter {
     plan = from && to ? planPaints({ from: from.infos, to: to.infos, movedTermIds: getMovedTermIds(from.line, to.line) }) : null;
     renderedWidth = maxWidth;
     lastPaintKey = '';
-    const missing = getFontsStillMissing();
-    isWaitingForFonts = missing.length > 0;
-    for (const font of missing) void document.fonts.load(font);
+    watchFonts();
   };
 
   const prepareTrees = ({ line, morphFrom, progress, maxWidth }: MathFrame) => {
     const fromLine = morphFrom !== null && progress < 1 && morphFrom.tex !== line.tex ? morphFrom : null;
-    const key = `${maxWidth}|${fromLine?.tex ?? ''}|${line.tex}`;
+    const key = `${maxWidth}|${fromLine ? getLineKey(fromLine) : ''}|${getLineKey(line)}`;
     if (key === builtKey) return;
     builtKey = key;
     rebuild(line, fromLine, maxWidth);
   };
 
+  // Settled first, because a piece of ink in flight would measure where it is flying and not where it sits.
   const refreshAfterFonts = () => {
-    if (!isWaitingForFonts || getFontsStillMissing().length > 0) return;
-    isWaitingForFonts = false;
+    if (!fontWaits.some((wait) => wait.outcome === 'arrived')) return;
+    fontWaits = fontWaits.filter((wait) => wait.outcome !== 'arrived');
     for (const rendered of [to, from]) {
       if (!rendered) continue;
+      settleTree(rendered);
       Object.assign(rendered, measureLine({ host: rendered.host, paints: rendered.paints, line: rendered.line, root }));
     }
     if (from && to) plan = planPaints({ from: from.infos, to: to.infos, movedTermIds: getMovedTermIds(from.line, to.line) });
@@ -241,7 +264,7 @@ export function createMathPainter(root: HTMLElement): MathPainter {
       return { size: to?.size ?? null, fromSize: from?.size ?? null };
     },
     paint(frame) {
-      for (const rendered of [to, from]) if (rendered) writeStyle(rendered.host, 'visibility', isWaitingForFonts ? 'hidden' : '');
+      showTrees();
       const key = `${frame.progress}|${frame.isReducedMotion}|${to?.line.tex}|${from?.line.tex}`;
       if (key === lastPaintKey || !to) return;
       lastPaintKey = key;
@@ -251,7 +274,9 @@ export function createMathPainter(root: HTMLElement): MathPainter {
     },
     getTermBox: (query) => ({ from: getBoxOfSpan(from, query), to: getBoxOfSpan(to, query), flightOffset: getLiveOffset(query) }),
     getRefusedTex: () => refusedTex,
+    getFontProblems: () => fontWaits.filter((wait) => wait.outcome !== 'arrived' && isFontHoldOver(wait)).map(({ font, outcome }) => ({ font, reason: outcome === 'failed' ? 'failed' : 'slow' })),
     remove() {
+      clearTimeout(holdTimer);
       to?.host.remove();
       from?.host.remove();
     },
