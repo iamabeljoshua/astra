@@ -88,7 +88,7 @@ async function runSession(context: JobContext): Promise<void> {
   const allTakes = loadTakes();
   let ears: Ears | null = null;
   let scenes: TutorScenes | null = null;
-  const { brain, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, getSpentUsd, writeRecord, noteNeedsAPerson } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, onSessionTitle(title) {
+  const { brain, caps, cardTitle, cardScenes, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, getSpentUsd, writeRecord, noteNeedsAPerson } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, onSessionTitle(title) {
       publish({ type: 'sessionTitle', title });
       scenes?.noteTopic(title);
     }, ...(hasTutorScenes() ? { onAskScene: (topic: string) => scenes?.ask(topic), onSafetyReply: () => scenes?.noteSafetyReply(), onCardKnown: (title: string | null) => scenes?.noteCard(title) } : {}) });
@@ -138,6 +138,7 @@ async function runSession(context: JobContext): Promise<void> {
     scenes = makeTutorScenes({
       caps,
       getCardTitle: () => cardTitle?.() ?? null,
+      getCardScenes: () => cardScenes?.() ?? [],
       send: (message: SceneAgentMessage) => void room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic: SCENE_TOPIC }).catch((error: unknown) => trace('sceneNotSent', { problem: String(error) })),
       canSpeak: session.isAtPause,
       speak: session.speakScene,

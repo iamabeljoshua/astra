@@ -1,7 +1,7 @@
 import { type CheckedWork, readLine, wantsSomethingElse } from '@astra/board/shared';
 import type { SceneCommand, StudentWork } from '@astra/contracts';
-import type { PlanAnswer, PlanAsk } from './ask-planner.ts';
-import { getTrustedMove, isSensitive, type PlanMove } from './lesson-plan.ts';
+import type { PlanAnswer, PlanAsk, PlanWants } from './ask-planner.ts';
+import { getTrustedMove, isSensitive, type LessonPlan, type PlanMove } from './lesson-plan.ts';
 import { getShelvedTopics, getStateAfterEvent, getStateAfterMove, getStepNote, type LessonEvent, type LessonState, NO_LESSON, type StepNote } from './plan-progress.ts';
 
 export interface HeardWords {
@@ -17,6 +17,9 @@ export interface LessonPlanner {
   noteCommand(command: SceneCommand): void;
   noteWorkChecked(checked: Pick<CheckedWork, 'closesTask'>, work: StudentWork): void;
   noteReplyEnded(reply: { wasSafety: boolean }): void;
+  /** A card's lesson comes from the server's list, so no planner guesses at it. */
+  noteCardLesson(plan: LessonPlan): void;
+  noteMovedOn(): void;
   /** A page that reloaded lost the title it was told. */
   tellTitleAgain(): void;
   getStepNote(): StepNote | null;
@@ -43,6 +46,12 @@ const IS_ONLY_A_NOD = /^(?:ok(?:ay)?|k|yes|yeah|yep|yup|sure|cool|right|got it|m
 const DECLINES_EXERCISES = /\bdon'?t want to try\b|\b(?:no|without|skip|stop)\s+(?:the\s+|more\s+|any\s+)?(?:exercises?|tasks?|problems?|practice|quiz(?:zes)?)\b|\bjust\s+(?:explain|teach|tell)\b|\bjust\s+(?:want\s+to\s+)?listen\b/i;
 const WANTS_AN_EXERCISE = /\b(?:let\s+me|can\s+i|i(?:'ll|\s+will|\s+want\s+to)|i\s+wanna)\s+try\b|\b(?:give|set)\s+me\s+(?:a|an|one|another)\b(?!\s+lesson)/i;
 
+/** Read beside the reply, so English needs no wait. Any other language reaches the same event through the planner's `wants`, one turn later, and the tutor reads it for itself straight away. */
+const WANTS_TEACHING = /\b(?:go on|keep going|keep teaching|carry on|go ahead|tell me more|teach me more|show me more|explain more|more please|what(?:'?s| is) next\b(?! to)|what else|and then what|then what|move on|next (?:one|idea|bit|part|thing))\b(?! (?:a|an|the|my|with) )|^\s*(?:next|more|continue)[.!]*\s*$/i;
+
+/** They asked to be taught, in the words this list knows. */
+export const asksToBeTaught = (words: string) => WANTS_TEACHING.test(words) || ASKS_TO_BE_TAUGHT.test(words);
+
 const NAMES_A_PROBLEM = /\d\s*[-+*/×÷=^%]|=|->|_{2,}|\bm\/s\b|\b(?:solve|balance|simplify|calculate|work out|factori[sz]e|derivative of|integral of|slope of|which came first)\b/i;
 const ASKS_TO_BE_TAUGHT = /^\s*(?:please\s+)?(?:teach|explain|help me (?:understand|get)|give me a lesson|i(?:'d like| would like| want| wanna)(?: to)? (?:learn|understand))\b/i;
 const IS_A_BARE_TOPIC = /^[\p{L}' -]+$/u;
@@ -59,14 +68,17 @@ const isBareTopic = (words: string) => IS_A_BARE_TOPIC.test(words) && words.spli
 /** The other half of the same steer: a topic is taught before anything is set, and a topic on its own only reads as one when it opens the session. */
 export function getTeachFirstNote(words: string, isFirstTurn: boolean): Record<string, string> | null {
   const trimmed = words.trim();
-  const isTopic = ASKS_TO_BE_TAUGHT.test(trimmed) || (isFirstTurn && isBareTopic(trimmed));
-  return isTopic && !WANTS_AN_EXERCISE.test(trimmed) && !isSensitive(trimmed) ? { teach_first_now: 'They want to be taught. This reply teaches and holds no task command, even if it asks them something.' } : null;
+  const isTopic = asksToBeTaught(trimmed) || (isFirstTurn && isBareTopic(trimmed));
+  return isTopic && !WANTS_AN_EXERCISE.test(trimmed) && !isSensitive(trimmed) ? { teach_first_now: 'They want to be taught. This reply teaches and holds no task command. Never ask what they already know, because their level is in the student note.' } : null;
 }
 
 const getWordsEvent = (words: string): LessonEvent | null => {
   if (WANTS_AN_EXERCISE.test(words)) return 'exerciseWanted';
-  return DECLINES_EXERCISES.test(words) ? 'exerciseDeclined' : null;
+  if (DECLINES_EXERCISES.test(words)) return 'exerciseDeclined';
+  return WANTS_TEACHING.test(words) ? 'teachingWanted' : null;
 };
+
+const WANTS_EVENTS: Readonly<Record<NonNullable<PlanWants>, LessonEvent>> = { teaching: 'teachingWanted', exercise: 'exerciseWanted', no_exercise: 'exerciseDeclined' };
 
 const toEvent = (command: SceneCommand): LessonEvent | null => {
   if (command.kind === 'task') return 'exerciseSet';
@@ -86,8 +98,10 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trac
   let asking: Promise<void> | null = null;
 
   let toldTitle: string | null = null;
+  let isOnACard = false;
 
   const adopt = (move: PlanMove, { words, isOpening, startReply }: { words: string; isOpening: boolean; startReply: number }) => {
+    if (isOnACard && isOpening) return;
     const hadTopic = state.active?.plan.topic ?? null;
     state = getStateAfterMove(state, getTrustedMove(move, words), startReply);
     const topic = state.active?.plan.topic ?? null;
@@ -102,10 +116,12 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trac
     if (!canSpend()) return;
     const startedAtMs = getNowMs();
     try {
-      const { move, costUsd } = await ask({ now: state.active?.plan.topic ?? null, earlier: getShelvedTopics(state), said, tutorSaid });
+      const { move, wants = null, costUsd } = await ask({ now: state.active?.plan.topic ?? null, earlier: getShelvedTopics(state), said, tutorSaid });
       charge(costUsd);
       trace('planAnswered', { move: move?.move ?? null, ms: Math.round(getNowMs() - startedAtMs), costUsd });
       if (move) adopt(move, heard);
+      // Words the list already caught have had their event, and a second one would skip a step.
+      if (wants && getWordsEvent(said) === null) noteEvent(WANTS_EVENTS[wants]);
     } catch (error) {
       trace('planFailed', { problem: String(error), ms: Math.round(getNowMs() - startedAtMs) });
     }
@@ -128,12 +144,18 @@ export function createLessonPlanner({ ask, canSpend, charge, onTitleChange, trac
     noteStudentWords(heard) {
       if (isStageWords(heard.words) || isLineOfWork(heard.words) || IS_ONLY_A_NOD.test(heard.words.trim())) return;
       noteEvent(getWordsEvent(heard.words));
+      if (heard.isOpening && isOnACard) return;
       waiting = { ...heard, startReply: state.repliesEnded };
       asking ??= askWhileWaiting();
     },
     noteCommand: (command) => noteEvent(toEvent(command)),
     noteWorkChecked: (checked, work) => noteEvent(getWorkEvent(checked, work)),
     noteReplyEnded: ({ wasSafety }) => noteEvent(wasSafety ? 'safetyReplyEnded' : 'replyEnded'),
+    noteCardLesson(plan) {
+      isOnACard = true;
+      state = getStateAfterMove(state, { move: 'new', plan });
+    },
+    noteMovedOn: () => noteEvent('movedOn'),
     tellTitleAgain() {
       if (toldTitle !== null) onTitleChange(toldTitle);
     },

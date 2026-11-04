@@ -1,6 +1,7 @@
 import { getBeatText, type InkPoint, type SessionRecap } from '@astra/contracts';
 import { readKey } from '../keys.ts';
 import { askPlanner } from '../lesson-plan/ask-planner.ts';
+import { getCardScenes } from '../lesson-plan/card-lesson.ts';
 import { createLessonPlanner, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
 import { makeAnthropicJsonReader, makeAnthropicPictureReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
 import { getMemoryNote } from '../learner-record/memory-note.ts';
@@ -138,6 +139,8 @@ export interface MadeBrain {
   brain: TutorBrain;
   caps?: SpendCaps;
   cardTitle?(): string | null;
+  /** The saved scenes on the server's list for this session's card, which alone may be shared. */
+  cardScenes?(): readonly string[];
   flushSpend(): Promise<void>;
   readMeaning?(words: string): Promise<WordMeaning | null>;
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
@@ -195,6 +198,7 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
   const loadMemory = link ? async () => getMemoryNote(await link.fetchRecord(), new Date()) : undefined;
   const findSource = name === RECORDED || !isFindSourceOn() ? undefined : makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY'), onFailed: (problem) => trace('sourceFailed', { problem }) });
   let cardTitle: string | null = null;
+  let cardScenes: readonly string[] = [];
   const loadProfile = link
     ? async () => {
         const profile = await link.fetchProfile().catch((error: unknown) => {
@@ -202,13 +206,14 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
           throw error;
         });
         cardTitle = profile?.cardTitle ?? null;
+        cardScenes = profile?.cardMaterial ? getCardScenes(profile.cardMaterial) : [];
         onCardKnown?.(cardTitle);
         return profile;
       }
     : undefined;
   if (!loadProfile) queueMicrotask(() => onCardKnown?.(null));
   const brain = createTutorBrain({ model, prompt: onAskScene ? withScenes(getLivePrompt()) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(lessonPlanner ? { lessonPlanner } : {}), ...(onAskScene ? { onAskScene } : {}), ...(onSafetyReply ? { onSafetyReply } : {}) });
-  if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, flushSpend: caps.flush };
+  if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, cardScenes: () => cardScenes, flushSpend: caps.flush };
   const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const readMeaning = async (words: string) => {
     if (caps.getSpendLimit()) return null;
@@ -249,5 +254,5 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
           trace,
         })
     : undefined;
-  return { brain, caps, cardTitle: () => cardTitle, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords, writeRecap, noteNeedsAPerson: digest.noteNeedsAPerson, ...(writeRecord ? { writeRecord } : {}) };
+  return { brain, caps, cardTitle: () => cardTitle, cardScenes: () => cardScenes, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords, writeRecap, noteNeedsAPerson: digest.noteNeedsAPerson, ...(writeRecord ? { writeRecord } : {}) };
 }

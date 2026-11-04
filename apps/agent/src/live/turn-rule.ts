@@ -31,7 +31,7 @@ const TIMER_MS: Record<TimerName, number> = {
 export type FloorPhase = 'clear' | 'yielding' | 'held' | 'stopped' | 'away';
 export type TutorPhase = 'silent' | 'thinking' | 'speaking';
 export type StopReason = 'real word' | 'no words' | 'typed' | 'link lost';
-export type ReplyVia = 'final' | 'partial' | 'typed' | 'link back';
+export type ReplyVia = 'final' | 'partial' | 'typed' | 'link back' | 'lead';
 
 export interface TurnState {
   phase: FloorPhase;
@@ -85,6 +85,8 @@ export type TurnEvent =
   | { type: 'echoHeard' }
   | { type: 'turnDecided'; text: string }
   | { type: 'typed'; text: string }
+  /** The tutor goes on by itself. It holds no one's words, so it has no reaction, and nothing owes it a carry. */
+  | { type: 'leadDue'; text: string }
   | { type: 'timer'; name: TimerName }
   | { type: 'tutorThinking' }
   | { type: 'tutorStarted'; isReply: boolean }
@@ -227,6 +229,11 @@ function onTyped(state: TurnState, { text }: { text: string }): TurnStep {
   return { state: step.state, actions: [...stopFirst, ...step.actions] };
 }
 
+function onLeadDue(state: TurnState, { text }: { text: string }): TurnStep {
+  if (state.phase !== 'clear' || state.tutor !== 'silent' || state.isVoiceOn || hasWords(state.partial)) return { state, actions: [] };
+  return { state: { ...INITIAL_TURN_STATE, tutor: 'thinking' }, actions: [...CANCEL_ALL, { do: 'setTurnCap', ms: TURN_TIMINGS.turnCapMs }, { do: 'reply', text, carried: '', via: 'lead' }] };
+}
+
 function onTimer(state: TurnState, { name }: { name: TimerName }): TurnStep {
   if (name === 'wordlessStop' && state.phase === 'yielding' && !state.heardReaction) {
     return { state: { ...state, phase: 'held' }, actions: [{ do: 'stop', reason: 'no words', keepsThought: true }] };
@@ -297,6 +304,8 @@ export function getNextTurnState(state: TurnState, event: TurnEvent): TurnStep {
       return onTurnDecided(state, event);
     case 'typed':
       return onTyped(state, event);
+    case 'leadDue':
+      return onLeadDue(state, event);
     case 'timer':
       return onTimer(state, event);
     case 'tutorThinking':

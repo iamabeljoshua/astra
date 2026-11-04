@@ -9,7 +9,8 @@ import type { TutorBeat } from './brain.ts';
 
 /** A take in the browser took 96 ms with the engine fetched, so this only covers a slow line. */
 const PAGE_LOAD_LIMIT_MS = 6000;
-const MOST_ASKS_IN_A_SESSION = 6;
+/** A saved scene costs nothing to ask for, and a card's lesson has up to six and may ask again for one that missed its moment. A fresh one is still held by the spend caps. */
+const MOST_ASKS_IN_A_SESSION = 12;
 const MOST_TOPIC_CHARACTERS = 80;
 const BREATH_MS = 300;
 const RECHECK_PAUSE_MS = 500;
@@ -24,6 +25,8 @@ export interface TutorScenesOptions {
   store: SceneStore;
   /** The library's title when this session came from a card. Only that title may share a scene. */
   getCardTitle(): string | null;
+  /** The saved scenes on the server's list for this card, which may be shared as its title may. */
+  getCardScenes?(): readonly string[];
   getNowMs(): number;
   send(message: SceneAgentMessage): void;
   /** True only when the session took the beats, so a scene never talks over anyone. */
@@ -96,7 +99,7 @@ export function getTutorSceneBeats({ plan, scene, number, endsOnQuestion = true 
   return [opening, ...[...rest, ...(endsOnQuestion ? [close] : [])].map((beat) => ({ ...beat, pauseBeforeMs: BREATH_MS }))];
 }
 
-export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs, send, speak, canSpeak, onShown, isClosed = () => false, canPlayShared = () => true, trace }: TutorScenesOptions): TutorScenes {
+export function createTutorScenes({ router, runs, store, getCardTitle, getCardScenes = () => [], getNowMs, send, speak, canSpeak, onShown, isClosed = () => false, canPlayShared = () => true, trace }: TutorScenesOptions): TutorScenes {
   let device: Device = 'unknown';
   let studentId = '';
   let current: SceneAsk | null = null;
@@ -189,8 +192,8 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   };
 
   const start = (topic: string) => {
-    const cardTitle = getCardTitle();
-    const isCard = cardTitle !== null && sameWords(cardTitle, topic);
+    const cardTitle = [getCardTitle(), ...getCardScenes()].find((title) => title !== null && sameWords(title, topic)) ?? null;
+    const isCard = cardTitle !== null;
     if (isCard && !canPlayShared(studentId)) {
       trace('sharedPlaysUsed');
       if (opening.kind === 'possible') giveOpening(null);

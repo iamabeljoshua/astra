@@ -13,7 +13,7 @@ const DEFAULT_SCENE_LIMIT_USD = 0.8;
 /** About 67 credits a play, so one student's looping stays near a quarter of a 1,500 credit project day. */
 const DEFAULT_SHARED_PLAYS_A_DAY = 5;
 
-type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'send' | 'speak' | 'canSpeak' | 'onShown' | 'trace'>;
+type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'getCardScenes' | 'send' | 'speak' | 'canSpeak' | 'onShown' | 'trace'>;
 
 export function makeTutorScenes({ caps, ...hooks }: SessionHooks & { isTutorClosed?(): boolean } & { caps: Pick<SpendCaps, 'addScene' | 'getSceneUsd' | 'getSpendLimit' | 'getSharedPlaysToday'> }): TutorScenes {
   const limitUsd = Number(process.env.ASTRA_SCENE_SESSION_LIMIT_USD ?? DEFAULT_SCENE_LIMIT_USD);

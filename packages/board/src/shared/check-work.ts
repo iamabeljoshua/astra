@@ -33,7 +33,7 @@ const toPartKey = (part: string) => part.replace(/\s/g, '').replace(/^\+/, '');
 
 const BARE_NUMBER = /^-?\d*\.?\d+$/;
 const PLEASANTRY = String.raw`(?:(?:ok|okay|so|actually|um|please|can we|could we|can you|could you|let'?s|lets|i want to|i'?d rather|i'?d like to|i wanna)[,\s]+)*`;
-const WANTS_SOMETHING_ELSE = new RegExp(String.raw`^\s*${PLEASANTRY}(?:teach me|learn(?: about)?|talk about|switch to|move on to|go back to|do something else|change (?:the )?(?:topic|subject)|new topic|another topic|different topic|something else|forget (?:this|that|it)|stop(?: here| now| this| that| it)|quit(?: this| that| it)?|move on|done with (?:this|that|it))\b(?!\s+(?:this|that|it|how to (?:do|solve) (?:this|that|it))\b)`, 'i');
+const WANTS_SOMETHING_ELSE = new RegExp(String.raw`^\s*${PLEASANTRY}(?:teach me|go on|keep going|carry on|tell me more|what'?s next|what is next|learn(?: about)?|talk about|switch to|move on to|go back to|do something else|change (?:the )?(?:topic|subject)|new topic|another topic|different topic|something else|forget (?:this|that|it)|stop(?: here| now| this| that| it)|quit(?: this| that| it)?|move on|done with (?:this|that|it))\b(?!\s+(?:this|that|it|how to (?:do|solve) (?:this|that|it))\b)`, 'i');
 
 export const wantsSomethingElse = (text: string) => WANTS_SOMETHING_ELSE.test(text);
 

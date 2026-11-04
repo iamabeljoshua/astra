@@ -1,7 +1,10 @@
 import { type Beat, type BeatId, type BoardProblemReport, clipTypedText, type ElementId, getBeatText, getCues, getPlayedCues, getSpokenWords, isStudentLineId, parseBeat, parseWrittenBeat, type SceneCommand, type StudentWork, type TutorClosedReason, TYPED_TEXT_MAX_CHARACTERS } from '@astra/contracts';
 import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getNod, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
-import { getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
+import { toCardPlan, type CardMaterial } from '../lesson-plan/card-lesson.ts';
+import { asksToBeTaught, getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
+import { LEAD_NOTES, OPENING_A_CARD_NOTE } from '../lesson-plan/lesson-rules.ts';
+import type { LeadKind } from '../live/tutor-lead.ts';
 import { createAttemptTracker } from './attempts.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
 import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getClaimProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getPictureProblem, getWordsProblem } from './board-memory.ts';
@@ -47,6 +50,10 @@ export interface TutorBrain {
   noteCameBack?(): void;
   noteWatcher?(note: WatcherNote): void;
   getBoard?(): { state: BoardState; openTask: ElementId | null };
+  /** False after help in a crisis, once the tutor has closed, and when it just failed, so nothing goes on by itself. */
+  canLead?(): boolean;
+  /** The next reply is the tutor going on by itself, and why. */
+  noteLead?(kind: LeadKind): void;
 }
 
 /** Why code decided the tutor should speak up, read by the model on its next turn. */
@@ -63,6 +70,7 @@ export interface StudentProfile {
   interests: readonly string[];
   goal: string;
   cardTitle?: string | null;
+  cardMaterial?: CardMaterial | null;
 }
 
 export const TUTOR_TIMEOUTS = {
@@ -127,10 +135,15 @@ export interface TutorBrainOptions {
 
 type TurnStep = 'over' | 'retry';
 
+/** The tutor could not say anything real, and going on by itself would only say so again. */
+const ENDS_THAT_STOP_A_LEAD: ReadonlySet<string> = new Set(['noWords', 'stalledBeforeText', 'stalledInText', 'failed', 'rejected', 'refused']);
+
 type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'wrongWords' | 'refused' | 'toolCall' | 'heldQuestion';
 
 interface TurnWork {
   sceneAside?: 'due' | 'moved';
+  /** A reply at the end of a run, which must leave the student something to answer. */
+  mustAsk: boolean;
   id: number;
   studentText: string;
   signal: AbortSignal;
@@ -290,6 +303,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   let isComeBackUnanswered = false;
   let studentLevel = profile?.level ?? null;
   let isAfterSafetyReply = false;
+  let isLeadStopped = false;
+  let canLeadAfterLastTurn = false;
+  let leadDue: LeadKind | null = null;
+  let isOnACard = Boolean(profile?.cardTitle);
   let pendingNotes: Record<string, unknown>[] = getStandingNotes();
   let lastBeats: readonly Beat[] = [];
   let lastRefused: readonly string[] = [];
@@ -353,6 +370,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   };
 
   const noteSafetyReply = (turn: TurnWork, board: { kinds: ReadonlyMap<string, string> }) => {
+    isLeadStopped = true;
     onSafetyReply?.();
     if ([...board.kinds.values()].includes('richScene')) turn.sceneAside = 'due';
   };
@@ -361,6 +379,13 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const moves = turn.sceneAside === 'due';
     if (moves) turn.sceneAside = 'moved';
     return moves;
+  };
+
+  // Code asks, so a lesson's pictures do not rest on the model remembering. Asking again costs nothing, and only a picture that missed its moment is asked for twice.
+  const askStepPicture = (studentText: string) => {
+    const step = lessonPlanner?.getStepNote();
+    if (!step || !('picture_topic' in step) || !step.picture_topic || step.exercise_due || memory.openTask || isLeadStopped || MAY_BE_ABOUT_SAFETY.test(studentText)) return;
+    onAskScene?.(step.picture_topic);
   };
 
   const startTurn = (studentText: string, signal: AbortSignal): TurnWork => {
@@ -375,8 +400,13 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const shapeNote = lessonPlanner && !memory.openTask && !MAY_BE_ABOUT_SAFETY.test(studentText) ? (getProblemNote(studentText) ?? getTeachFirstNote(studentText, turnCount === 1)) : null;
     const openingNote = canFitTheStart && turnCount <= TURNS_THAT_SET_THE_START ? (prompt.openingNote ?? null) : null;
     const levelLine = studentLevel === null ? undefined : prompt.levelLines?.[studentLevel];
-    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote].filter((note) => note !== null);
+    const lead = leadDue;
+    leadDue = null;
+    const leadNote = lead ? { lead: LEAD_NOTES[lead] } : null;
+    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote, leadNote, isOnACard && turnCount === 1 ? OPENING_A_CARD_NOTE : null].filter((note) => note !== null);
+    askStepPicture(studentText);
     const turn: TurnWork = {
+      mustAsk: lead === 'mustAsk',
       id: turnCount,
       studentText,
       signal,
@@ -703,8 +733,18 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return 'over';
   };
 
+  // Never left with nothing open, whatever the model wrote.
+  const addQuestionIfDue = (turn: TurnWork) => {
+    if (!turn.mustAsk || turn.reader.isTurnOver || turn.reader.isSafetyReply || getOpenTaskOnBoard(getBoardNow())) return;
+    const question = ` ${pickLine('askAfterARun')}`;
+    trace('questionAdded');
+    turn.raw += question;
+    turn.reader.push(question);
+  };
+
   const finishAnswer = (turn: TurnWork, canRetry: boolean): TurnStep => {
     addHelpIfMissing(turn);
+    addQuestionIfDue(turn);
     turn.reader.finish();
     if (turn.wrongWords !== null) return handleWrongWords(turn, turn.attempts < MAX_ATTEMPTS);
     if (turn.isQuestionHeld) return handleHeldQuestion(turn, canRetry);
@@ -875,9 +915,14 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     lastBeats = turn.beats;
     lastRefused = wasRefused ? [] : turn.refused;
     hidesLastWords = wasRefused;
-    lessonPlanner?.noteReplyEnded({ wasSafety: turn.reader.isSafetyReply });
+    // A lead the student cut before a word of it was not a reply, so it does not bring the exercise closer.
+    if (turn.beats.length > 0) lessonPlanner?.noteReplyEnded({ wasSafety: turn.reader.isSafetyReply });
     const wasSafetyReply = turn.reader.isSafetyReply || (wasRefused && !isPlainRefusal(turn));
     isAfterSafetyReply = wasSafetyReply || (isAfterSafetyReply && !turn.hasModelWords);
+    // After a crisis only the student's own wish to be taught starts it again.
+    if (wasSafetyReply || MAY_BE_ABOUT_SAFETY.test(turn.studentText)) isLeadStopped = true;
+    else if (asksToBeTaught(turn.studentText)) isLeadStopped = false;
+    canLeadAfterLastTurn = !ENDS_THAT_STOP_A_LEAD.has(turn.endedAs);
     onTurnEnd?.({
       studentText: turn.studentText,
       spokenText: getWordsSaid(turn),
@@ -903,6 +948,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       profileNote = toProfileNote(loaded);
       studentLevel = loaded.level;
       pendingNotes.push(profileNote);
+      isOnACard = Boolean(loaded.cardTitle);
+      if (loaded.cardMaterial) lessonPlanner?.noteCardLesson(toCardPlan(loaded.cardMaterial));
     },
     (error: unknown) => trace('profileFailed', { problem: String(error) }),
   );
@@ -1018,7 +1065,13 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       return { checked, hadTask };
     },
     noteWatcher(note) {
+      if (note.why.includes('needsAPerson')) isLeadStopped = true;
       pendingNotes.push({ watcher: note });
+    },
+    canLead: () => canLeadAfterLastTurn && !isLeadStopped && !hasToldClosed && closedReason === null && getSpendLimit() === null,
+    noteLead(kind) {
+      leadDue = kind;
+      if (kind === 'taskLeft') lessonPlanner?.noteMovedOn();
     },
     getBoard() {
       const state = getBoardNow();

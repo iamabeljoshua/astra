@@ -9,6 +9,10 @@ export interface LessonStep {
   teach: string | null;
   /** One short thing to do together on the board. */
   exercise: string;
+  /** A card's own lines on this idea, for the tutor to say in its own words. */
+  material?: readonly string[];
+  /** The title of a saved scene of this idea. */
+  picture?: string;
 }
 
 export interface LessonPlan {
@@ -27,7 +31,7 @@ const MOST_STEPS = 5;
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 /** Trims to one clean line, because what the planner writes reaches the page and the database. Empty means nothing usable. */
-function toCleanLine(value: unknown, mostCharacters: number): string {
+export function toCleanLine(value: unknown, mostCharacters: number): string {
   if (typeof value !== 'string') return '';
   return Array.from(value.replace(/[\p{Cc}\p{Cf}\p{Cs}￼]/gu, ' ').replace(/\s+/g, ' ').trim()).slice(0, mostCharacters).join('').trim();
 }

@@ -6,6 +6,8 @@ interface ActivePlan {
   isExerciseOpen: boolean;
   /** How many replies had ended when this step began. */
   stepStartReply: number;
+  /** An exercise was set on this step, so its idea has been taught even if they left it. */
+  hasHadExercise?: boolean;
 }
 
 /** The lesson now, and the ones the student left, newest first, so they can go back. */
@@ -30,10 +32,14 @@ export type LessonEvent =
   /** Help in a crisis is not teaching, so the step's count starts over. */
   | 'safetyReplyEnded'
   | 'exerciseDeclined'
-  | 'exerciseWanted';
+  | 'exerciseWanted'
+  /** They asked to go on, in whatever words. Their own words beat the count. */
+  | 'teachingWanted'
+  /** The tutor went past this step for a student who did not try its exercise. */
+  | 'movedOn';
 
 /** The only part of a plan the tutor is told on a turn, because everything before it stays cached. */
-export type StepNote = { topic: string; kind: LessonKind; is_finished: true } | { topic: string; kind: LessonKind; step: string; teach_first: string | null; then_exercise: string; next_idea: string | null; exercise_due?: true };
+export type StepNote = { topic: string; kind: LessonKind; is_finished: true } | { topic: string; kind: LessonKind; step: string; teach_first: string | null; then_exercise: string; next_idea: string | null; exercise_due?: true; material?: readonly string[]; picture_topic?: string };
 
 export const NO_LESSON: LessonState = { active: null, shelved: [], repliesEnded: 0, isExerciseDeclined: false };
 
@@ -41,6 +47,12 @@ const MOST_SHELVED = 8;
 
 /** Short turns take a reply or two to teach one idea, and a direct question has none to teach. */
 const REPLIES_BEFORE_THE_EXERCISE: Record<LessonKind, number> = { handsOn: 1, teachFirst: 2 };
+/** A card's lines take longer to say than a planner's few words. */
+const REPLIES_ON_A_CARD_STEP = 3;
+
+const getRepliesBeforeTheExercise = ({ plan, stepIndex }: ActivePlan) => (plan.steps[stepIndex]?.material ? REPLIES_ON_A_CARD_STEP : REPLIES_BEFORE_THE_EXERCISE[plan.kind]);
+
+const hasTaughtThisStep = (active: ActivePlan, repliesEnded: number) => active.hasHadExercise === true || repliesEnded - active.stepStartReply >= getRepliesBeforeTheExercise(active);
 
 const isNotTopic = (topic: string) => (other: ActivePlan) => other.plan.topic.toLowerCase() !== topic.toLowerCase();
 
@@ -62,14 +74,17 @@ export function getStateAfterMove(state: LessonState, move: PlanMove, startReply
 }
 
 function getActiveAfterEvent(active: ActivePlan, event: LessonEvent, repliesEnded: number): ActivePlan {
-  const nextStep = { ...active, stepIndex: active.stepIndex + 1, isExerciseOpen: false, stepStartReply: repliesEnded };
+  const nextStep = { ...active, stepIndex: active.stepIndex + 1, isExerciseOpen: false, stepStartReply: repliesEnded, hasHadExercise: false };
   switch (event) {
     case 'exerciseSet':
-      return { ...active, isExerciseOpen: true };
+      return { ...active, isExerciseOpen: true, hasHadExercise: true };
     case 'exerciseLeft':
       return { ...active, isExerciseOpen: false, stepStartReply: repliesEnded };
     case 'exerciseDone':
+    case 'movedOn':
       return nextStep;
+    case 'teachingWanted':
+      return hasTaughtThisStep(active, repliesEnded) ? nextStep : { ...active, isExerciseOpen: false, stepStartReply: repliesEnded };
     case 'teachingAgain':
       return active.isExerciseOpen ? nextStep : active;
     case 'safetyReplyEnded':
@@ -84,10 +99,13 @@ function getActiveAfterEvent(active: ActivePlan, event: LessonEvent, repliesEnde
 export function getStateAfterEvent(state: LessonState, event: LessonEvent): LessonState {
   const repliesEnded = state.repliesEnded + (event === 'replyEnded' || event === 'safetyReplyEnded' ? 1 : 0);
   const isExerciseDeclined = event === 'exerciseDeclined' ? true : event === 'exerciseWanted' ? false : state.isExerciseDeclined;
-  return { ...state, repliesEnded, isExerciseDeclined, active: state.active && getActiveAfterEvent(state.active, event, repliesEnded) };
+  const active = state.active && getActiveAfterEvent(state.active, event, repliesEnded);
+  // A student who said no exercises would otherwise stay on this step for good, because finishing one is what moves a lesson on.
+  const isPastThisStep = active !== null && isExerciseDeclined && event === 'replyEnded' && hasTaughtThisStep(active, repliesEnded);
+  return { ...state, repliesEnded, isExerciseDeclined, active: isPastThisStep ? getActiveAfterEvent(active, 'movedOn', repliesEnded) : active };
 }
 
-const isExerciseDue = ({ active, repliesEnded, isExerciseDeclined }: LessonState) => active !== null && !isExerciseDeclined && !active.isExerciseOpen && repliesEnded - active.stepStartReply >= REPLIES_BEFORE_THE_EXERCISE[active.plan.kind];
+const isExerciseDue = ({ active, repliesEnded, isExerciseDeclined }: LessonState) => active !== null && !isExerciseDeclined && !active.isExerciseOpen && repliesEnded - active.stepStartReply >= getRepliesBeforeTheExercise(active);
 
 export function getStepNote(state: LessonState): StepNote | null {
   const { active } = state;
@@ -95,7 +113,9 @@ export function getStepNote(state: LessonState): StepNote | null {
   const { plan, stepIndex } = active;
   const step = plan.steps[stepIndex];
   if (!step) return { topic: plan.topic, kind: plan.kind, is_finished: true };
-  return { topic: plan.topic, kind: plan.kind, step: `${stepIndex + 1} of ${plan.steps.length}`, teach_first: step.teach, then_exercise: step.exercise, next_idea: plan.steps[stepIndex + 1]?.teach ?? null, ...(isExerciseDue(state) ? { exercise_due: true as const } : {}) };
+  const isDue = isExerciseDue(state);
+  // The lines are for teaching, and each note costs tokens, so one that only says the exercise is due leaves them out.
+  return { topic: plan.topic, kind: plan.kind, step: `${stepIndex + 1} of ${plan.steps.length}`, teach_first: step.teach, then_exercise: step.exercise, next_idea: plan.steps[stepIndex + 1]?.teach ?? null, ...(isDue ? { exercise_due: true as const } : {}), ...(step.material && !isDue ? { material: step.material } : {}), ...(step.picture ? { picture_topic: step.picture } : {}) };
 }
 
 export const getShelvedTopics = ({ shelved }: LessonState) => shelved.map(({ plan }) => plan.topic);

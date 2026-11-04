@@ -172,17 +172,22 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     return element?.content.kind === 'task' ? { task: element.content, board } : null;
   };
 
+  const leaveOpenTask = () => {
+    const open = getOpenTask();
+    const leaving: StudentWork = open ? { way: 'leave', task: open.task.id } : { way: 'leave' };
+    const left = tutor.noteWork?.(leaving);
+    if (left) {
+      writeHeardLog(leaving, left.checked);
+      send({ type: 'workRead', work: leaving });
+    }
+  };
+
   const onSpoken = async (rawText: string): Promise<boolean> => {
     const open = getOpenTask();
     const text = cleanStudentText(rawText);
     if (!open && !wantsSomethingElse(text)) return true;
     if (wantsSomethingElse(text)) {
-      const leaving: StudentWork = open ? { way: 'leave', task: open.task.id } : { way: 'leave' };
-      const left = tutor.noteWork?.(leaving);
-      if (left) {
-        writeHeardLog(leaving, left.checked);
-        send({ type: 'workRead', work: leaving });
-      }
+      leaveOpenTask();
       return true;
     }
     if (!open) return true;
@@ -231,7 +236,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     if (decision.act === 'speak' && getGate(getSituation(seconds, draft)) === null) speakAtPause(decision, seconds, draft);
   };
 
-  return { onWorked, onPaused, onInkStroke, onInkPeek, onInkDone, noteTyping, waitWhileTyping, onSpoken, hasOpenTask: () => getOpenTask() !== null, canSayStockWord: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered };
+  return { onWorked, onPaused, onInkStroke, onInkPeek, onInkDone, noteTyping, waitWhileTyping, onSpoken, hasOpenTask: () => getOpenTask() !== null, canSayStockWord: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered, leaveOpenTask };
 }
 
 function getSpokenParts(task: Task, board: { elements: ReadonlyMap<ElementId, BoardElement> } | undefined): SpokenPart[] {
