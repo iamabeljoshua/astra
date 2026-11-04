@@ -5,7 +5,7 @@ A student signs in with a 6-digit code from their email and answers one question
 ## Sub-features
 
 - `sign-in-page` is one calm page: a still dot grid that fades around the question, a shape made of dots beside it, and the tutor's line typing out beside the small pulsing dot. It forms a new shape when the step changes, and nothing moves at rest. Reduced motion shows everything at once. A browser with no canvas gets the same page without the dots.
-- `sign-in-email` asks for `Your email` under `Welcome. I'm your tutor, and I'm an AI.` and the tagline, sends a code on `Continue`, and says `Check your email. I sent you a code.`.
+- `sign-in-email` asks for `Your email` under `Welcome, I am Astra, your personal AI tutor.` and the tagline, sends a code on `Continue`, and says `Check your email. I sent you a code.`.
 - `sign-in-code` signs in from that code, in any browser. The field is one input drawn as 6 boxes. It takes a paste and checks the code at the sixth digit. A wrong, replaced, or used code says `That code didn't work.`, and one past 10 minutes on this tab's clock says `That code has expired.`. `Send a new code` counts down 60 seconds in sight. A reload comes back to this step for the code's lifetime, from the tab's session storage.
 - `sign-in-birth-date` asks `When were you born?`, then shows the typed date with `Is this right?`. Nothing reaches the API before `Yes, continue`, and the first confirmed answer stands.
 - `sign-in-closed` shows `We can't set up this account.` with `Sign out`, on every later sign-in.

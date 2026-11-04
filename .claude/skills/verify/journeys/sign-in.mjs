@@ -5,7 +5,7 @@ export const deadlineMs = 90_000;
 export default async function signIn({ page, capture, viewportName, signInWithCode }) {
   await page.goto('/terms');
   await page.goto('/');
-  await page.getByRole('heading', { name: "Welcome. I'm your tutor, and I'm an AI." }).waitFor();
+  await page.getByRole('heading', { name: 'Welcome, I am Astra, your personal AI tutor.' }).waitFor();
   await page.getByText('A learning app, made for you').waitFor();
   await capture('email');
 

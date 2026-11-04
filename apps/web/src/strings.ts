@@ -44,7 +44,7 @@ export const ACCOUNT_LABELS = {
 
 export const SIGN_IN_LABELS = {
   tagline: 'A learning app, made for you',
-  welcomeLine: "Welcome. I'm your tutor, and I'm an AI.",
+  welcomeLine: "Welcome, I am Astra, your personal AI tutor.",
   emailLabel: 'Your email',
   emailPlaceholder: 'you@example.com',
   sendCode: 'Continue',
