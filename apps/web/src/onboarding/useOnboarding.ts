@@ -22,7 +22,7 @@ export function useOnboarding(student: Student | null) {
 
   function finish(goal: StudentGoal) {
     const body = toProfileBody({ ...answers, goal });
-    if (!body || saveProfile.isPending) return;
+    if (!body) return;
     void navigate('/', { replace: true });
     saveProfile.mutate(body);
   }
@@ -33,9 +33,10 @@ export function useOnboarding(student: Student | null) {
     sheet: getSheet(answers),
     showsChangeLaterNote: showsChangeLaterNote(currentStep),
     progress: ONBOARDING_LABELS.progress(steps.indexOf(currentStep) + 1, steps.length),
-    goBack: previousStep ? () => setChosenStep(previousStep) : undefined,
+    goBack: previousStep && !saveProfile.isPending ? () => setChosenStep(previousStep) : undefined,
     goNext,
     changeAnswers: (change: Partial<Answers>) => setAnswers((earlier) => ({ ...earlier, ...change })),
+    isSaving: saveProfile.isPending,
     saveProblem: saveProfile.error && API_ERROR_LABELS[saveProfile.error.kind],
     finish,
   };

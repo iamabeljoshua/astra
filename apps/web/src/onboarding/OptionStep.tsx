@@ -49,6 +49,7 @@ export function GoalStep({ flow }: StepProps) {
         options={STUDENT_GOALS}
         labels={STUDENT_GOAL_LABELS}
         selected={flow.answers.goal}
+        isLocked={flow.isSaving}
         onPick={(goal) => {
           flow.changeAnswers({ goal });
           moveOnAfterPick(() => flow.finish(goal));
