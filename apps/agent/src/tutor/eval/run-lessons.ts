@@ -6,6 +6,7 @@ import { parseArgs } from 'node:util';
 import { getBeatText, getCues, type SceneCommand } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
 import { makeAnthropicAsker, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
+import type { MemoryLine } from '../../learner-record/memory-note.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary, type TutorBeat } from '../brain.ts';
 import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
@@ -13,6 +14,8 @@ import { createSpendLedger } from '../spend-ledger.ts';
 interface LessonScript {
   name: string;
   profile: StudentProfile;
+  /** What the tutor remembers of this student. Left out, it has no memory note at all. */
+  memory?: readonly MemoryLine[];
   opening: string;
   student: string;
   turns: number;
@@ -39,6 +42,7 @@ const STUDENT_RULES = 'You are playing a student in a voice conversation with a 
 const { values: args } = parseArgs({
   options: {
     prompt: { type: 'string', default: CURRENT_PROMPT },
+    file: { type: 'string', default: 'lessons' },
     label: { type: 'string', default: 'run' },
     only: { type: 'string', default: '' },
     limit: { type: 'string', default: '2' },
@@ -94,6 +98,7 @@ async function runLesson(script: LessonScript, prompt: TutorPrompt, ledger: Retu
     model,
     prompt,
     profile: script.profile,
+    ...(script.memory ? { memory: { memory: { count: script.memory.length, notes: [...script.memory] } } } : {}),
     onTurnEnd(summary) {
       latest = summary;
       ledger.charge({ anthropicUsd: summary.costUsd });
@@ -126,7 +131,8 @@ async function runLesson(script: LessonScript, prompt: TutorPrompt, ledger: Retu
 }
 
 function writeTranscript(script: LessonScript, turns: readonly LessonTurn[], folder: string, version: string) {
-  const lines = [`# ${script.name}`, '', `Prompt ${version}. Level ${script.profile.level}, interests ${script.profile.interests.join(', ')}, goal ${script.profile.goal}.`, '', `Student played by a cheap model: ${script.student}`, ''];
+  const remembered = script.memory?.map(({ kind, about, days_ago: daysAgo }) => `${kind} "${about}", ${daysAgo} days ago`).join('; ') ?? 'nothing';
+  const lines = [`# ${script.name}`, '', `Prompt ${version}. Level ${script.profile.level}, interests ${script.profile.interests.join(', ')}, goal ${script.profile.goal}. Remembers ${remembered}.`, '', `Student played by a cheap model: ${script.student}`, ''];
   for (const turn of turns) {
     lines.push(`**Student:** ${turn.student}`, '');
     lines.push(`**Tutor** (${turn.words} words, longest stretch ${turn.longestStretchWords}, first text ${turn.firstTextMs} ms):`);
@@ -162,7 +168,7 @@ async function main() {
   const version = args.prompt as PromptVersion;
   const prompt = PROMPT_VERSIONS[version];
   if (!prompt) throw new Error(`Unknown prompt ${args.prompt}. Choose ${Object.keys(PROMPT_VERSIONS).join(', ')}`);
-  const all = JSON.parse(readFileSync(join(EVAL_FOLDER, 'lessons.json'), 'utf8')) as LessonScript[];
+  const all = JSON.parse(readFileSync(join(EVAL_FOLDER, `${args.file}.json`), 'utf8')) as LessonScript[];
   const chosen = args.only ? all.filter((script) => args.only?.split(',').includes(script.name)) : all;
   if (args['dry-run']) {
     console.log(`Loaded ${chosen.length} lessons on prompt ${version}. Nothing was sent.`);

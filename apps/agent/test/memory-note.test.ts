@@ -52,6 +52,17 @@ describe('the memory note the tutor reads', () => {
     expect(lines.map(({ kind }) => kind)).toEqual(['showed']);
   });
 
+  it('forgets a note the student removed, because the record is read fresh for each session', () => {
+    const removed = makeNote({ kind: 'struggled', topic: 'long division' });
+    const kept = makeNote({ kind: 'cares_about', topic: 'baking bread' });
+    expect(getLines([removed, kept]).map(({ about }) => about)).toEqual(['long division', 'baking bread']);
+    expect(getLines([kept]).map(({ about }) => about)).toEqual(['baking bread']);
+  });
+
+  it('does not let a stale struggle or a stale skill reach the tutor', () => {
+    expect(getMemoryNote({ notes: [makeNote({ kind: 'struggled', topic: 'fractions', daysAgo: 200 }), makeNote({ kind: 'showed', topic: 'algebra', daysAgo: 200 })] }, NOW).memory.count).toBe(0);
+  });
+
   it('stops reading a note too old to trust', () => {
     expect(getLines([makeNote({ topic: 'old', daysAgo: 121 }), makeNote({ topic: 'recent', daysAgo: 120 })]).map(({ about }) => about)).toEqual(['recent']);
   });
