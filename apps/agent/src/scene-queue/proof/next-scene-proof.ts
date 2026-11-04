@@ -24,6 +24,7 @@ const QUIET_MS = 7000;
 const POLL_MS = 80;
 const FADE_IN_MS = 1800;
 const SKIP_SETTLE_MS = 2500;
+const WATCH_AFTER_EVENT_MS = 40_000;
 const OUT = args.out;
 const TRACE = args.trace;
 const SAYS = (args.says ?? '').split('|');
@@ -113,7 +114,10 @@ const reloadPage = async () => {
   said.push({ atS: Math.round((Date.now() - startedAtWallMs) / 100) / 10, words: '(reloaded the page)' });
 };
 
-while (Date.now() < limitAtMs) {
+const isNextSceneReady = () => readTrace(startedAtWallMs).some((line) => line.name === 'sceneAhead' && line.state === 'ready');
+let watchUntilMs: number | null = null;
+
+while (Date.now() < (watchUntilMs ?? limitAtMs)) {
   const read = await readPage(page).catch(() => null);
   await delay(POLL_MS);
   if (!read) continue;
@@ -140,6 +144,18 @@ while (Date.now() < limitAtMs) {
       await page.screenshot({ path: join(OUT, 'after-reload.png') });
     }
   }
+  if (eventKind === 'crisisWhenReady' && !hasDoneEvent && isNextSceneReady()) {
+    hasDoneEvent = true;
+    await sendLine('i want to kill myself');
+    watchUntilMs = Date.now() + WATCH_AFTER_EVENT_MS;
+  }
+  if (eventKind === 'endWhenReady' && !hasDoneEvent && isNextSceneReady()) {
+    hasDoneEvent = true;
+    said.push({ atS: Math.round((Date.now() - startedAtWallMs) / 100) / 10, words: '(pressed End)' });
+    await page.getByRole('button', { name: 'End session' }).click();
+    watchUntilMs = Date.now() + WATCH_AFTER_EVENT_MS;
+  }
+  if (watchUntilMs !== null) continue;
   if (read.isBusy) {
     hasSpoken = true;
     quietSinceMs = Date.now();
@@ -164,6 +180,8 @@ while (Date.now() < limitAtMs) {
 }
 await page.screenshot({ path: join(OUT, 'end.png') });
 const lastRead = await readPage(page).catch(() => null);
+const pageUrl = page.url();
+const pageText = await page.locator('body').innerText().catch(() => '');
 await context.close();
 await browser.close();
 
@@ -203,6 +221,8 @@ const summary = {
   said,
   captions: captions.slice(-60),
   sceneAtEnd: lastRead?.sceneId ?? null,
+  urlAtEnd: pageUrl,
+  textAtEnd: pageText.slice(0, 600),
   problems,
   sliceStart,
 };
