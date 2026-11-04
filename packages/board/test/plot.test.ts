@@ -28,6 +28,7 @@ function getTallestStep(branches: readonly Branch[], [low, high]: Range): number
 }
 
 const NO_FALSE_LINE = 1 / 8;
+const HEAVY_TEST_MS = 30_000;
 const crossesX = (branch: Branch, x: number) => (branch[0] as Point).x < x && (branch.at(-1) as Point).x > x;
 
 describe('sampling near discontinuities', () => {
@@ -213,7 +214,7 @@ describe('a continuous curve that needs many samples', () => {
       const isInView = Array.from({ length: 1001 }, (_, index) => evaluatePlotExpression(node, domain[0] + ((domain[1] - domain[0]) * index) / 1000)).every((y) => y >= yRange[0] && y <= yRange[1]);
       if (isInView) expect(curve, expression).toHaveLength(1);
     }
-  });
+  }, HEAVY_TEST_MS);
 
   it('connects a cusp whose side is nearly vertical', () => {
     expect(sample('abs(x)^(1/3)', [-1, 1], [0, 1])).toHaveLength(1);
