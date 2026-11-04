@@ -102,6 +102,10 @@ Work reaches the log as `worked`, written by the agent with its own reading and 
 
 A typed line is hostile input. The reader builds math only from an allow list of characters, so a backslash can never reach KaTeX, and every word on the page is a text node. A line longer than 200 characters is words. `read-line.test.ts` runs 34 hostile lines and holds each under 150 ms. The worst line it found on the real page took 47 ms to land. A flood is bounded too: 20 held notes of work, 2,000 pieces of work in a session, and a fixed amount of ink drawn into one picture.
 
+## While the tutor connects
+
+The right side shows the dots of a still grid drifting into the Saturn from sign-in, with its rings slowly turning: `ConnectingSaturn`, `ui/dots/gatherDots.ts`, and `ui/dots/gatherPainter.ts`. "Connecting your tutor" shows in the words column. The voice never waits for it. When the tutor is there, the dots go home over 500 ms, one dot shows for 280 ms in the middle of the side and flies to rest above the words, and the canvas stops. Reduced motion paints a still Saturn once. Abel chose this from five options.
+
 ## Parity with the prototype
 
 Abel's rule: everything a student can see or do on the prototype exists on the real board. Walked from `astra-tinker/board/public/app.js`, `plain.js`, `index.html`, and `style.css`. Proofs are tests, or page runs with screenshots in the coordinator's `board-compare` folder.

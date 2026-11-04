@@ -369,6 +369,19 @@ describe('getResumeScript', () => {
 
 describe('the shared board language', () => {
   const OLDER_ROW = { seq: 4, atMs: 900, kind: 'studentActed', action: { action: 'fileShared', fileId: 'file-1', name: 'notes.pdf' } };
+  it('reads every way of doing work, and refuses math the board cannot set', () => {
+    const row = (work: object) => parseSessionEvent({ seq: 1, atMs: 1, kind: 'studentActed', action: { action: 'worked', work, verdict: { status: 'unknown' } } });
+    expect(row({ way: 'leave', task: 'a1' }).ok).toBe(true);
+    expect(row({ way: 'write', id: 's1', text: '2x equals 8', heard: { tex: '2x=8', isUnsure: false } }).ok).toBe(true);
+    expect(row({ way: 'write', id: 's1', text: '(x)/(2)', keyed: { tex: '\\frac{x}{2}', isUnsure: false } }).ok).toBe(true);
+    expect(row({ way: 'write', id: 's1', text: 'x', keyed: { tex: '\\href{http://a}{b}', isUnsure: false } }).ok).toBe(false);
+  });
+
+  it('lets a task open the pen', () => {
+    expect(parseSceneCommand({ kind: 'task', id: 'a1', way: 'write', byHand: true }).ok).toBe(true);
+    expect(parseSceneCommand({ kind: 'task', id: 'a1', way: 'pick', on: 'eq', byHand: true }).ok).toBe(false);
+  });
+
   const LINE_ROW = { seq: 5, atMs: 1000, kind: 'studentActed', action: { action: 'worked', work: { way: 'write', id: 's1', text: '2x = 14', task: 'try' }, reading: { kind: 'math', parts: [{ type: 'math', text: '2x = 14', tex: '2x=14' }], isAsking: false }, verdict: { status: 'wrong', why: '2x=14 does not follow' } } };
 
   it.each([
@@ -408,6 +421,10 @@ describe('the shared board language', () => {
 
   it('carries a student action and a pause from the page', () => {
     expect(parseBrowserMessage({ type: 'worked', clockId: 'c', browserMs: 1, startedMsAgo: 0, work: { way: 'pick', task: 'try', part: '+3' } }).ok).toBe(true);
+    for (const message of [{ type: 'stopTutor' }, { type: 'typing' }, { type: 'inkPeek', strokes: ['s1-0'] }]) {
+      expect(parseBrowserMessage({ clockId: 'c', browserMs: 1, startedMsAgo: 0, ...message }).ok).toBe(true);
+    }
+    expect(parseBrowserMessage({ type: 'typing', clockId: 'c', browserMs: 1, startedMsAgo: 0, text: 'x' }).ok).toBe(false);
     expect(parseBrowserMessage({ type: 'paused', clockId: 'c', browserMs: 1, startedMsAgo: 0, seconds: 3, draft: 'hmm' }).ok).toBe(true);
   });
 });

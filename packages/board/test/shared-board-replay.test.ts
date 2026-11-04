@@ -37,6 +37,15 @@ describe('a replay of the shared board', () => {
     expect(describeBoard(rebuildBoard(log, 9000), 9000).elements.filter((element) => element.kind === 'annotate').map((element) => element.id)).toEqual(['s2-checked', 's3-checked']);
   });
 
+  it('shows a line said aloud, and a task left, as the live board did', () => {
+    const { operations, log } = playAndLog([
+      { atMs: 1000, work: { way: 'write', id: id('s1001'), text: '2x equals 8', task: id('a1'), heard: { tex: '2x=8', isUnsure: false } } },
+      { atMs: 2000, work: { way: 'leave', task: id('a1') } },
+    ]);
+    for (const atMs of [1200, 2200]) expect(describeBoard(rebuildBoard(log, atMs), atMs)).toEqual(describeBoard(getBoardAt(operations, atMs), atMs));
+    expect(rebuildBoard(log, 2200).elements.get(id('a1'))?.progress?.isOpen).toBe(false);
+  });
+
   it('keeps what code said at the time, whatever later code would say', () => {
     const { log } = playAndLog([{ atMs: 1000, work: line('s1', '2x = 14', id('a1')) }]);
     const element = rebuildBoard(log, 2000).elements.get(id('s1'));
