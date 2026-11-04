@@ -32,6 +32,13 @@ interface LevelCompare {
   higher: string;
   plainTerms: readonly string[];
   properTerms: readonly string[];
+  lowerStudent?: CompareStudent;
+  higherStudent?: CompareStudent;
+}
+
+interface CompareStudent {
+  interests?: readonly string[];
+  memory?: readonly MemoryLine[];
 }
 
 interface PromptGroup {
@@ -46,6 +53,8 @@ interface PromptGroup {
   stat?: 'usuallyShort';
   /** The same question at two levels, in two sessions. */
   compare?: LevelCompare;
+  /** Each must pass on at least one reply in the group, for what a lesson should do once and not on every turn. */
+  anyReply?: readonly string[];
 }
 
 interface CheckResult {
@@ -85,7 +94,7 @@ const results: CheckResult[] = [];
 
 function loadGroups(name: string): PromptGroup[] {
   const groups = JSON.parse(readFileSync(join(EVAL_FOLDER, `groups-${name}.json`), 'utf8')) as PromptGroup[];
-  const names = groups.flatMap((group) => [...(group.checks ?? []), ...(group.turns ?? []).flatMap((turn) => turn.check ?? [])]);
+  const names = groups.flatMap((group) => [...(group.checks ?? []), ...(group.anyReply ?? []), ...(group.turns ?? []).flatMap((turn) => turn.check ?? [])]);
   const unknown = names.filter((check) => !REPLY_CHECKS[check]);
   const unknownJudged = groups.flatMap((group) => (group.turns ?? []).flatMap((turn) => turn.judge ?? [])).filter((judge) => !JUDGED_CHECKS[judge]);
   if (unknown.length > 0 || unknownJudged.length > 0) throw new Error(`Unknown checks: ${[...unknown, ...unknownJudged].join(', ')}`);
@@ -179,6 +188,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
   const brain = makeBrain({ prompt, profile: group.profile ?? PROFILE, ...(group.memory ? { memory: group.memory } : {}), traces, onTurn: (summary) => (latest = summary), model });
   const exchange: string[] = [];
   const wordCounts: number[] = [];
+  const replies: string[] = [];
   for (const turn of group.turns ?? []) {
     traces.length = 0;
     const beats = [];
@@ -197,6 +207,7 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
     if (traces.length > 0) console.log(`   traces: ${traces.join(' | ')}`);
     recordCodeChecks({ group, turn, text, summary, commands });
     wordCounts.push(summary.spokenText.split(/\s+/).filter(Boolean).length);
+    replies.push(summary.spokenText);
     exchange.push(`Student: ${text}`, `Tutor: ${summary.spokenText}`);
     if (turn.judge) {
       const verdict = await askJudge(`${exchange.join('\n')}\n\nQuestion about the tutor's last reply: ${JUDGED_CHECKS[turn.judge] as string}\nAnswer YES or NO on the first line, then one short reason.`);
@@ -205,6 +216,11 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
       console.log(`   judged ${turn.judge}: ${verdict.replace(/\s+/g, ' ').slice(0, 160)}`);
     }
   }
+  for (const check of group.anyReply ?? []) {
+    const passed = replies.some((reply) => REPLY_CHECKS[check]?.passes(reply, []));
+    results.push({ group: group.name, check, passed, text: 'on any reply' });
+    if (!passed) console.log(`   FAILED ${check} on every reply`);
+  }
   if (group.stat === 'usuallyShort') {
     const passed = wordCounts.filter((count) => count < USUAL_WORDS).length / wordCounts.length >= USUAL_SHARE;
     results.push({ group: group.name, check: 'stat:usuallyUnder25', passed, text: wordCounts.join(',') });
@@ -212,18 +228,18 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
   }
 }
 
-async function runCompareSide(compare: LevelCompare, level: string, { prompt, model }: RunContext): Promise<string> {
+async function runCompareSide(compare: LevelCompare, { level, student = {} }: { level: string; student?: CompareStudent | undefined }, { prompt, model }: RunContext): Promise<string> {
   const spoken: string[] = [];
-  const brain = makeBrain({ prompt, profile: { level, interests: [], goal: 'curiosity' }, traces: [], onTurn: (summary) => spoken.push(summary.spokenText), model });
+  const brain = makeBrain({ prompt, profile: { level, interests: student.interests ?? [], goal: 'curiosity' }, ...(student.memory ? { memory: student.memory } : {}), traces: [], onTurn: (summary) => spoken.push(summary.spokenText), model });
   for (const text of [compare.text, compare.then]) for await (const beat of brain.reply({ text }, new AbortController().signal)) void beat;
   return spoken.join(' ');
 }
 
 async function runCompare(group: PromptGroup, compare: LevelCompare, context: RunContext): Promise<void> {
-  const [lower, higher] = await Promise.all([runCompareSide(compare, compare.lower, context), runCompareSide(compare, compare.higher, context)]);
+  const [lower, higher] = await Promise.all([runCompareSide(compare, { level: compare.lower, student: compare.lowerStudent }, context), runCompareSide(compare, { level: compare.higher, student: compare.higherStudent }, context)]);
   console.log(`[${group.name}] ${compare.lower}: ${lower}\n[${group.name}] ${compare.higher}: ${higher}`);
   const namesPlain = !compare.plainTerms.some((term) => lower.toLowerCase().includes(term));
-  const namesProper = compare.properTerms.some((term) => higher.toLowerCase().includes(term));
+  const namesProper = compare.properTerms.length === 0 || compare.properTerms.some((term) => higher.toLowerCase().includes(term));
   results.push({ group: group.name, check: 'level:lowerIsPlain', passed: namesPlain, text: compare.text }, { group: group.name, check: 'level:higherIsProper', passed: namesProper, text: compare.text });
   // The order changes at random, so a judge's habit of picking one letter cannot pass.
   const isHigherFirst = Math.random() < 0.5;
