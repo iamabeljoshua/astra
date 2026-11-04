@@ -1,17 +1,29 @@
 import assert from 'node:assert/strict';
-import { answerBirthDate, answerName, answerQuestionsToHome, signInAsNewStudent } from './onboarding-support.mjs';
+import { answerBirthDate, answerName, answerQuestionsToHome, readChart, signInAsNewStudent, waitForChartToSettle } from './onboarding-support.mjs';
 
 export const deadlineMs = 240_000;
 
 const SESSION_STORAGE_KEY = 'astra-session';
 const NARROWEST_WIDE_LAYOUT = 1021;
 const LONG_NAME = 'Oluwaseyifunmilayo'.repeat(3) + 'Ade'.repeat(2);
+const NAME_WITH_OVERHANG = 'Yousuf';
 const ANSWERS = {
   name: LONG_NAME,
   level: 'High school',
   interests: ['Cooking'],
   goal: 'Improve my grades',
 };
+
+async function assertOverhangKeepsDots(page, capture) {
+  await page.getByRole('heading', { name: 'What should I call you?' }).waitFor();
+  const planet = await readChart(page);
+  const field = page.getByRole('textbox', { name: 'Your first name' });
+  await field.fill(NAME_WITH_OVERHANG);
+  await waitForChartToSettle();
+  await capture('name-with-overhang');
+  assert.notEqual(await readChart(page), planet, `${NAME_WITH_OVERHANG} keeps the planet, so a final f that overhangs the paper's side lost the name's dots`);
+  await field.clear();
+}
 
 async function assertNoSidewaysScroll(page, screenName) {
   const widths = await page.evaluate(() => {
@@ -53,6 +65,7 @@ async function startSession(page) {
 export default async function onboardingLongName({ page, capture, viewportName, signInWithCode }) {
   await signInAsNewStudent(page, signInWithCode, `m2-4-long-${viewportName}-${Date.now()}@astra.test`);
 
+  await assertOverhangKeepsDots(page, capture);
   await answerName(page, capture, LONG_NAME);
   await page.getByRole('heading', { name: 'When were you born?' }).waitFor();
   await assertNoSidewaysScroll(page, 'the date of birth question');

@@ -391,6 +391,27 @@ describe('textToDots', () => {
     expect(await textToDots('Maya')).toHaveLength(2);
   });
 
+  it.each([
+    ['last', 951],
+    ['first', 6],
+  ])('keeps a name whose %s letter overhangs into one side of the paper', async (_caseName, overhang) => {
+    stubPaper(() => getPaper((x, y) => ((x === overhang || x === PAPER_WIDTH / 2) && y === PAPER_HEIGHT / 2 ? SOLID : 0)));
+
+    expect(await textToDots('Yousuf')).toHaveLength(2);
+  });
+
+  it('gives no points for a name too wide to draw, which reaches both sides of the paper', async () => {
+    stubPaper(() => getPaper((_x, y) => (y === PAPER_HEIGHT / 2 ? SOLID : 0)));
+
+    expect(await textToDots('W'.repeat(60))).toEqual([]);
+  });
+
+  it.each([0, 1, 2, 3, 4, 5, 6, 7])('gives no points when noise leaves one solid pixel in eight, at place %i of its pattern', async (place) => {
+    stubPaper(() => getPaper((x) => (x % 8 === place ? SOLID : 0)));
+
+    expect(await textToDots('Maya')).toEqual([]);
+  });
+
   it('draws only after the font for this name has come', async () => {
     let finishLoading = () => {};
     const load = vi.spyOn(fakeFonts, 'load').mockReturnValue(new Promise<never[]>((resolve) => (finishLoading = () => resolve([]))));
