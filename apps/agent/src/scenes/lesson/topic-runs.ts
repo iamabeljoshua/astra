@@ -8,6 +8,7 @@ const TRIES = 2;
 const NO_PLAN: MadeScene = { isOk: false, reasons: ['no plan'] };
 const NOTES_NOT_LOADING = "My notes for this lesson aren't loading right now, so open it again in a minute and we'll go further.";
 const DEFAULT_PLAIN_LINE: OpeningLine = { say: 'What do you already know about this one?' };
+const NO_LESSON_FOR: Record<PlanRefused['refusedFor'], NoLesson> = { help: 'unsafe', dangerous: 'declined', person: 'nothing' };
 
 export interface TopicRun {
   /** What this lesson says. A plan refused for its words teaches from its clean lines at once, so this can settle before the retry that the scene waits for. */
@@ -49,7 +50,7 @@ function getCleanLinesPlan(topic: string, plainLine: OpeningLine, { plan }: Refu
 // A typed topic is a student's words shaped by a model, so it gets the same check before it is said, and with no words fit to say there is no lesson.
 function getTopicOnlyPlan(topic: string, plainLine: OpeningLine): LessonPlan | 'nothing' {
   const topicLine = { say: `Let's think about this one: ${topic}.` };
-  return getLineProblems(topic, topicLine).length === 0 ? toPlainPlan([topicLine, plainLine], [], NOTES_NOT_LOADING) : 'nothing';
+  return getLineProblems(topic, topicLine).length === 0 ? { ...toPlainPlan([topicLine, plainLine], [], NOTES_NOT_LOADING), hasNoModel: true } : 'nothing';
 }
 
 const getRefusalNote = (topic: string, problems: readonly string[], names: readonly string[]) => `A check refused it because ${problems.join('; ')}.${names.length > 0 ? ` Do not use these words at all: ${names.join(', ')}.` : ''}${problems.includes(IS_OFF_TOPIC) ? ` Say these words in the first or second line: ${topic}.` : ''}`;
@@ -159,7 +160,7 @@ export function createTopicRuns({ planner, nameReader, ...maker }: SceneMaker & 
           if (cleanLines) settleWords(keepFirstLine(cleanLines));
         } catch (error) {
           if (error instanceof PlanRefused) {
-            settleWords(error.wantsHelp ? 'unsafe' : 'declined');
+            settleWords(NO_LESSON_FOR[error.refusedFor]);
             return null;
           }
           note = getNote(error instanceof Error ? error.message : String(error));
