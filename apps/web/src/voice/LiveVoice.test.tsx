@@ -102,7 +102,9 @@ describe('the Privacy Policy on voice', () => {
   it('names everyone who receives a student voice or words, in plain words', () => {
     expect(privacy).toContain('LiveKit Cloud carries your voice');
     expect(privacy).toContain("Meta's Muse Voice Transcribe receives your voice");
-    expect(privacy).toContain('ElevenLabs receives your words too');
+    expect(privacy).toContain("ElevenLabs receives the tutor's words");
+    expect(privacy).toContain('receives what you say and type in a session, the tutor\'s earlier words, and your level, interests, and goal');
+    expect(privacy).toContain('It does not receive your name, your date of birth, your email address, or an account ID');
   });
 
   it('says raw audio is not stored, and does not claim the microphone is unused', () => {

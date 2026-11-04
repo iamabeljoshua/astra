@@ -14,7 +14,6 @@ export interface BeatReport {
   beatId: BeatId;
   playedWords: number;
   firedCues: number;
-  isFinished: boolean;
 }
 
 /** The tutor's brain, as the live session calls it. Beats arrive as the model writes them. */

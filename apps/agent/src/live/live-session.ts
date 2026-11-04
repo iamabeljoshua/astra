@@ -340,7 +340,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     const speaking = speakingByTurn.get(message.turnId);
     if (!speaking) return;
     speaking.reports.set(message.beatId, message);
-    tutor.notePlayed?.({ beatId: message.beatId, playedWords: message.playedWords, firedCues: message.firedCueMs.length, isFinished: message.ending === 'finished' });
+    tutor.notePlayed?.({ beatId: message.beatId, playedWords: message.playedWords, firedCues: message.firedCueMs.length });
     trace('played', { turnId: message.turnId, beatId: message.beatId, ending: message.ending, playedWords: message.playedWords, firedCues: message.firedCueMs.length });
     const isLiveTurn = speaking === reply || speaking === reaction;
     if (message.ending === 'interrupted' && isLiveTurn && state.phase !== 'away') {

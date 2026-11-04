@@ -198,8 +198,8 @@ describe('when the student interrupts', () => {
     const { brain, model } = setup((_request, attempt) => (attempt === 1 ? reply('Okay, one two three. ', '{"kind":"text","id":"a","text":"first"}', 'Four five six. ', '{"kind":"text","id":"b","text":"second"}', 'Seven eight.') : reply('Got it.')));
     const beats = await collect(brain, 'count');
     const [first, second] = beats as [Beat, Beat, Beat];
-    brain.notePlayed({ beatId: first.id, playedWords: 5, firedCues: 0, isFinished: true });
-    brain.notePlayed({ beatId: second.id, playedWords: 1, firedCues: 1, isFinished: false });
+    brain.notePlayed({ beatId: first.id, playedWords: 5, firedCues: 0 });
+    brain.notePlayed({ beatId: second.id, playedWords: 1, firedCues: 1 });
     brain.noteCut(new Map([[first.id, 5], [second.id, 1]]));
     await collect(brain, 'wait, why?');
     const note = lastSystemNote(model.requests[1]);

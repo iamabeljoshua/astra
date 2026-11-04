@@ -69,7 +69,7 @@ describe('the brain in a live session', () => {
   it('never reads a model that stalls between beats as a failed voice', async () => {
     const { session, notes } = setup(() => ({ pieces: ['Okay, one two. ', 'And then more.'], stall: { beforePiece: 1, ms: 10_000 } }), { ...QUICK, betweenTextMs: 10_000 });
     session.onBrowser(typed('Why does it fall?'));
-    await delay(VOICE_STALL_MS + 400);
+    await delay(VOICE_STALL_MS + 1500);
     expect(notes.map((note) => note.name)).not.toContain('voiceFailed');
     await session.close();
   });
