@@ -22,7 +22,7 @@ const NEEDS_A_KIND: [string, unknown, BoardElementKind[]][] = [
   ['highlight.tex', { kind: 'highlight', id: 'm', target: 'a', tex: 'x' }, ['writeMath']],
   ['slider.constant', { kind: 'slider', id: 'm', target: 'a', constant: 'c', min: 1, max: 2 }, ['plot']],
   ['construct', { kind: 'construct', id: 'm', target: 'a', step: { shape: 'point', name: 'A', x: 0, y: 0 } }, ['geometry']],
-  ['runSimulation', { kind: 'runSimulation', target: 'a', action: 'play' }, ['simulate']],
+  ['runSimulation', { kind: 'runSimulation', target: 'a', action: 'play' }, ['simulate', 'richScene']],
   ['setParameter', { kind: 'setParameter', target: 'a', parameter: 'gravity', value: 1 }, ['simulate']],
   ['trackVector', { kind: 'trackVector', id: 'm', target: 'a', quantity: 'velocity' }, ['simulate']],
   ['slider', { kind: 'slider', id: 'm', target: 'a', parameter: 'gravity', min: 1, max: 2 }, ['simulate']],
@@ -230,5 +230,18 @@ describe('a hostile name on the board', () => {
   it('does not find an inherited name on an empty board', () => {
     const inherited = { kind: 'focus', target: 'constructor' } as unknown as SceneCommand;
     expect(getBoardProblem(inherited, boardOf([]))).toBe('focus names constructor, which is not on the board');
+  });
+});
+
+describe('named moments', () => {
+  const play = (until: string) => commandOrThrow({ kind: 'runSimulation', target: 'a', action: 'play', until });
+
+  it('refuses a moment a simulation does not have', () => {
+    expect(getBoardProblem(play('apex'), new Map([['a', 'simulate']]))).toMatch(/moments release, peak, landing/);
+    expect(getBoardProblem(play('peak'), new Map([['a', 'simulate']]))).toBeNull();
+  });
+
+  it('lets a stored scene name its own moments', () => {
+    expect(getBoardProblem(play('tangent-locks'), new Map([['a', 'richScene']]))).toBeNull();
   });
 });

@@ -1,8 +1,9 @@
 import { BEAT_LIMITS } from './beat.ts';
-import { readBeatId, readTurnId } from './ids.ts';
+import { readBeatId, readSceneId, readTurnId } from './ids.ts';
 import { type AgentMessage, type BrowserMessage, type BrowserStamp, LIVE_MESSAGE_MAX_BYTES, type TimedWord } from './live-message.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction } from './parse-event.ts';
+import type { SceneAgentMessage, SceneBrowserMessage } from './scene-message.ts';
 import {
   type CheckedFields,
   checkJsonSize,
@@ -147,4 +148,28 @@ export function parseAgentMessage(value: unknown): ParseResult<AgentMessage> {
 
 export function parseBrowserMessage(value: unknown): ParseResult<BrowserMessage> {
   return parseLiveMessage(value, (place) => readVariant<BrowserMessage>(place, BROWSER_MESSAGES));
+}
+
+const SCENE_AGENT_MESSAGES: VariantTable<SceneAgentMessage, 'type'> = {
+  tag: 'type',
+  variants: {
+    loadScene: { keys: ['sceneId'], read: (fields) => ({ type: 'loadScene', sceneId: readSceneId(fields.at('sceneId')) }) },
+  },
+};
+
+const SCENE_BROWSER_MESSAGES: VariantTable<SceneBrowserMessage, 'type'> = {
+  tag: 'type',
+  variants: {
+    sceneDevice: { keys: ['canPlay'], read: (fields) => ({ type: 'sceneDevice', canPlay: readBoolean(fields.at('canPlay')) }) },
+    sceneLoaded: { keys: ['sceneId'], read: (fields) => ({ type: 'sceneLoaded', sceneId: readSceneId(fields.at('sceneId')) }) },
+    sceneRefused: { keys: ['sceneId'], read: (fields) => ({ type: 'sceneRefused', sceneId: readSceneId(fields.at('sceneId')) }) },
+  },
+};
+
+export function parseSceneAgentMessage(value: unknown): ParseResult<SceneAgentMessage> {
+  return toParseResult(() => readVariant<SceneAgentMessage>({ value, path: 'message' }, SCENE_AGENT_MESSAGES));
+}
+
+export function parseSceneBrowserMessage(value: unknown): ParseResult<SceneBrowserMessage> {
+  return toParseResult(() => readVariant<SceneBrowserMessage>({ value, path: 'message' }, SCENE_BROWSER_MESSAGES));
 }
