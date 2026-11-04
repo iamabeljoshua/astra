@@ -64,9 +64,9 @@ A layered diagram now changes direction only in the gaps between ranks. Inside a
 
 The board's only motion is drawing and fading, so a normal lesson cannot flash. What can flash is a tutor sending commands faster than speech, so the deck has three strobe scenes, with a picture or a full table placed and cleared 3 to 6 times a second.
 
-`scripts/layout/flash-check.ts` steps each scene 20 times a simulated second, reads the pixels, and counts WCAG's general flash: a pair of opposing changes of 10% luminance over 25% of a 10 degree field. It reads the change in the board's mean, so opposing changes in two places can cancel out. It does not check saturated red.
+`scripts/layout/flash-check.ts` steps each strobe scene 20 times a simulated second and every other scene 10 times, reads the pixels, and counts WCAG's general flash: a pair of opposing changes of 10% luminance, with the darker side under 80%, over 25% of a 10 degree field, which is 21,824 pixels. It counts pixels on the whole board and does not ask that they touch. It does not check saturated red.
 
-A picture now waits unseen for 42% of its entrance, which is 168 ms. A picture cleared and placed again faster than that never shows, and one cleared more slowly cannot pass 3 flashes a second. Nothing else on the board has the area to flash.
+A picture now waits unseen for 42% of its entrance, which is 168 ms. A picture cleared and placed again faster than that never shows, and one cleared more slowly cannot pass 3 flashes a second. Text and ink have too little area to count.
 
 ## Frame rates and tiers
 

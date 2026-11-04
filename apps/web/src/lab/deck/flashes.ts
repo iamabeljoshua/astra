@@ -1,34 +1,19 @@
-export interface LuminanceSample {
+/** Enough of the board moved one way, up or down in luminance, to count as half a flash. */
+export interface LuminanceChange {
   atMs: number;
-  mean: number;
+  direction: 1 | -1;
 }
 
-const FLASH_AREA_PX = 87_296;
-const FLASH_LUMINANCE_CHANGE = 0.1;
+/** WCAG's limit: 25% of a 10 degree field, which is 341 by 256 pixels at 1024 by 768. */
+export const FLASH_AREA_PX = 21_824;
+export const FLASH_LUMINANCE_CHANGE = 0.1;
+/** WCAG counts a change only when its darker side is under this. */
+export const DARKER_SIDE_LIMIT = 0.8;
 const WINDOW_MS = 1000;
 
-/** The change in the board's mean that a flash of WCAG's area and depth causes, which on a board smaller than that area is the full depth. */
-export const getSmallestFlashChange = (boardPx: number) => FLASH_LUMINANCE_CHANGE * Math.min(1, FLASH_AREA_PX / boardPx);
-
-// Each change is a run in one direction at least `smallest` deep, so noise smaller than a flash never counts.
-function getChangeTimes(samples: readonly LuminanceSample[], smallest: number): number[] {
-  const changes: number[] = [];
-  let direction = 0;
-  let turn = samples[0]?.mean ?? 0;
-  for (const { atMs, mean } of samples) {
-    const moved = mean - turn;
-    if (Math.abs(moved) < smallest) continue;
-    const isReversal = Math.sign(moved) !== direction;
-    if (isReversal) changes.push(atMs);
-    direction = Math.sign(moved);
-    turn = mean;
-  }
-  return changes;
-}
-
-/** A flash is a pair of opposing changes in luminance. */
-export function getMostFlashesInASecond(samples: readonly LuminanceSample[], smallest: number): number {
-  const changes = getChangeTimes(samples, smallest);
-  const mostChanges = changes.reduce((most, startMs) => Math.max(most, changes.filter((atMs) => atMs >= startMs && atMs < startMs + WINDOW_MS).length), 0);
-  return Math.floor(mostChanges / 2);
+/** A flash is a pair of opposing changes, so only a change of direction counts. */
+export function getMostFlashesInASecond(changes: readonly LuminanceChange[]): number {
+  const turns = changes.filter(({ direction }, index) => direction !== changes[index - 1]?.direction).map(({ atMs }) => atMs);
+  const mostTurns = turns.reduce((most, startMs) => Math.max(most, turns.filter((atMs) => atMs >= startMs && atMs < startMs + WINDOW_MS).length), 0);
+  return Math.floor(mostTurns / 2);
 }

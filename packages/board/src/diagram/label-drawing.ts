@@ -1,5 +1,5 @@
 import type { Drawing } from '@astra/contracts';
-import { type DiagramRequest, type DiagramStep, type DiagramTextLabel, type DrawnDiagram, type LabelDrawing, setPlainLabel } from '../ink/diagram.ts';
+import { type DiagramRequest, type DiagramStep, type DiagramTextLabel, type DrawnDiagram, FONT_BOX_ROOM_EMS, type LabelDrawing, setPlainLabel } from '../ink/diagram.ts';
 import { getSpread, makeSeededRandom, makeStroke, type InkPosition, type InkStroke } from '../ink/ink-stroke.ts';
 import type { MarkBox } from '../ink/marks.ts';
 import { DRAWING_SHEETS, type DrawingSheet, type SheetPart } from './drawing-sheets.ts';
@@ -14,8 +14,6 @@ const SIDE_GAP = 10;
 const LABEL_GAP = 8;
 const LEADER_GAP = 4;
 const WOBBLE = 0.6;
-/** A font's box starts above its baseline's ascent, so the first label starts a little down. */
-const TOP_ROOM_EMS = 0.2;
 
 export interface LabeledDrawing extends DrawnDiagram {
   partBoxes: ReadonlyMap<string, MarkBox>;
@@ -79,7 +77,7 @@ export function drawLabeledSheet({ name, labels = [] }: Pick<Drawing, 'name' | '
   const bodyWidth = Math.max(0, Math.min(LARGEST_BODY_WIDTH, request.maxWidth - leftRoom - rightRoom));
   const scale = bodyWidth / 100;
   const bodyHeight = sheet.height * scale;
-  const topRoom = request.fontSize * TOP_ROOM_EMS;
+  const topRoom = request.fontSize * FONT_BOX_ROOM_EMS;
   const tallest = Math.max(bodyHeight, stackLabels(left, { scale, bodyHeight, topRoom }), stackLabels(right, { scale, bodyHeight, topRoom }));
   const bodyAt = { x: leftRoom, y: 0 };
   const rightX = leftRoom + bodyWidth + SIDE_GAP;

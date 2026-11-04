@@ -10,7 +10,7 @@ const NODE_GAP_EMS = 1;
 const LARGEST_EDGE_LABEL_EMS = 10;
 const AVERAGE_CHARACTER_EMS = 0.6;
 /** A font's box starts above its baseline's ascent, so a label at the top needs a little room. */
-const FONT_BOX_ROOM_EMS = 0.2;
+export const FONT_BOX_ROOM_EMS = 0.2;
 
 /** A label the strokes cannot write, set as plain text. Each baseline is measured from the top of the label. */
 export interface DiagramTextLabel {
