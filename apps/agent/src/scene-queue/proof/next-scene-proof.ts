@@ -25,6 +25,7 @@ const POLL_MS = 80;
 const FADE_IN_MS = 1800;
 const SKIP_SETTLE_MS = 2500;
 const WATCH_AFTER_EVENT_MS = 40_000;
+const LINES_BEFORE_A_RECAP = 2;
 const OUT = args.out;
 const TRACE = args.trace;
 const SAYS = (args.says ?? '').split('|');
@@ -149,7 +150,7 @@ while (Date.now() < (watchUntilMs ?? limitAtMs)) {
     await sendLine('i want to kill myself');
     watchUntilMs = Date.now() + WATCH_AFTER_EVENT_MS;
   }
-  if (eventKind === 'endWhenReady' && !hasDoneEvent && isNextSceneReady()) {
+  if (eventKind === 'endWhenReady' && !hasDoneEvent && saysIndex >= LINES_BEFORE_A_RECAP && isNextSceneReady()) {
     hasDoneEvent = true;
     said.push({ atS: Math.round((Date.now() - startedAtWallMs) / 100) / 10, words: '(pressed End)' });
     await page.getByRole('button', { name: 'End session' }).click();

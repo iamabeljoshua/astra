@@ -82,11 +82,10 @@ Nothing the queue does sits on a turn's path: it only reads a regular expression
 | "skip that" over a scene | The narration stopped at once and did not resume, the scene went to the corner, and nothing else landed in the 75 s the run went on |
 | A switch to another topic with a write running | The write stopped about 2 s later, and the new lesson read its own library. That run was before the last change to what a switch ends |
 | A reload with a scene on screen and the next one ready | The scene came back and filled the board. The next take was fetched again, 35.9 s before its cue, and it landed |
-
 | A crisis with the next scene ready, after the recap and the plug-in landed | The tutor's crisis words, the queue stopped, and no scene in the 40 s watched after it |
-| End with the next scene ready, at the same head | The recap showed, and no new scene played in the 40 s watched after it. The scene already seen stayed in the corner |
+| End with the next scene ready, after the recap and the plug-in landed | The recap showed, and no new scene played in the 40 s watched after it. The scene already seen stayed in the corner |
 
-| First text at the same head, load 13 to 25 | p50 | Slowest | Turns |
+| First text, before the last merge of main, load 13 to 25 | p50 | Slowest | Turns |
 | --- | --- | --- | --- |
 | Off, `ASTRA_SCENES_AHEAD=0` | 1760 ms | 1970 ms | 5 |
 | On | 2135 ms | 3514 ms | 8 |
