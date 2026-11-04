@@ -351,7 +351,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: 'Who receives your data',
         today: [
-          'Supabase runs our sign-in service and our database, so it holds your email address, your sign-in records, and your date of birth, and it sends the sign-in email.',
+          'Supabase runs our sign-in service and our database, so it holds everything listed under What we store, and it sends the sign-in email.',
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
         ],
         planned: [
