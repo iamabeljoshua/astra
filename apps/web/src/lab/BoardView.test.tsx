@@ -350,8 +350,8 @@ describe('BoardView, a math font that does not arrive', () => {
 describe('BoardView, what a screen reader gets', () => {
   it('hides the overlay of marks, which names nothing', () => {
     const operations = [write('eq', '2x = 8'), { kind: 'command', atMs: 0, overMs: null, command: { kind: 'highlight', id: 'ring', target: 'eq', tex: '8' } } as BoardOperation];
-    render(<BoardView board={getBoardAt(operations, 3000)} atMs={3000} />);
-    expect(screen.queryAllByRole('img')).toEqual([]);
+    const { container } = render(<BoardView board={getBoardAt(operations, 3000)} atMs={3000} />);
+    expect(container.querySelector('.board-marks')?.getAttribute('aria-hidden')).toBe('true');
   });
 
   it('names handwriting, because its strokes hold no text', () => {
