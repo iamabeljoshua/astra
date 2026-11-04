@@ -97,6 +97,16 @@ describe('a real word', () => {
     expect(actions).toEqual(['react', 'reply final: Gravity.', 'stop: real word', HELD, 'reply final: Gravity. It lands twice as far.']);
   });
 
+  it('answers the whole thought when the tutor jumped in on a pause and the student carried on over the reply', () => {
+    const { actions } = play([ON, OFF, words('I think it lands.'), decided('I think it lands.'), THINKING, SPEAKING, ON, words('twice as far', false), OFF, words('twice as far because the speed doubled.'), decided('twice as far because the speed doubled.')]);
+    expect(actions.at(-1)).toBe('reply final: I think it lands. twice as far because the speed doubled.');
+  });
+
+  it('does not carry words the tutor finished answering', () => {
+    const { actions } = play([decided('Why does it fall?'), THINKING, SPEAKING, FINISHED, ON, OFF, words('And the moon?'), decided('And the moon?')]);
+    expect(actions.at(-1)).toBe('reply final: And the moon?');
+  });
+
   it('stops however late the words arrive', () => {
     expect(play([SPEAKING, ON, OFF, timer('transcriptGrace'), words('Wait.')]).actions).toEqual(['yield', WORDLESS, GRACE, 'unyield', 'stop: real word']);
   });

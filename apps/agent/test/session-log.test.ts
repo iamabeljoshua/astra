@@ -21,6 +21,21 @@ describe('createSessionLog', () => {
     expect(starts).toEqual([200, 2200]);
   });
 
+  it('writes one row for a beat, and no false row for a replayed report of fewer words', () => {
+    const log = createSessionLog({ getNowMs: () => 1000, getBeat: () => BEAT });
+    log.write(played(5000, 800));
+    const replayed = { ...played(5100, 0), playedWords: 0, firedCueMs: [], wordStartsMs: [], ending: 'interrupted' } as BrowserMessage;
+    expect(log.write(replayed)).toBeNull();
+    expect(log.getEvents().map((event) => event.kind === 'beatPlayed' && event.playedWords)).toEqual([3]);
+  });
+
+  it('lets a fuller report take the row of a lesser one, on the same sequence number', () => {
+    const log = createSessionLog({ getNowMs: () => 1000, getBeat: () => BEAT });
+    log.write({ ...played(5000, 0), playedWords: 1, firedCueMs: [], ending: 'interrupted' } as BrowserMessage);
+    log.write(played(5100, 800));
+    expect(log.getEvents().map((event) => [event.seq, event.kind === 'beatPlayed' && event.playedWords])).toEqual([[0, 3]]);
+  });
+
   it('numbers events from 0, and tells the listener what it wrote', () => {
     const written: number[] = [];
     const log = createSessionLog({ getNowMs: () => 2000, getBeat: () => BEAT, onWritten: (event) => written.push(event.seq) });

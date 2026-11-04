@@ -187,6 +187,16 @@ describe('barge-in', () => {
   });
 });
 
+describe('a student the tutor jumped in on', () => {
+  it('gets one reply to everything they said, not to the last half', { timeout: 6000 }, async () => {
+    const { say, brainRequests } = start();
+    await say('I think it lands.');
+    await delay(TURN_TIMINGS.reactionFloorMs + 900);
+    await say('twice as far because the speed doubled.');
+    expect(brainRequests).toEqual(['I think it lands.', 'I think it lands. twice as far because the speed doubled.']);
+  });
+});
+
 describe('a failing voice', () => {
   class SilentVoice extends tts.TTS {
     label = 'silent';
@@ -247,6 +257,39 @@ describe('a dropped link', () => {
     expect(resumed?.fields.reported).toBe(true);
     const lastWords = harness.messages.filter((message) => message.type === 'words').at(-1);
     expect(lastWords && lastWords.type === 'words' && lastWords.words[0]?.text).toBe('four');
+  });
+});
+
+describe('a report that reaches the agent twice', () => {
+  const LESSON_BEAT = makeBeat('flight', LONG_LINE);
+  const report = (playedWords: number, firedCues: number): BrowserMessage => ({ type: 'played', ...STAMP, turnId: 'unset' as never, beatId: LESSON_BEAT.id, wordStartsMs: Array.from({ length: playedWords }, (_, word) => word * 100), durationMs: playedWords * 100, playedWords, firedCueMs: Array.from({ length: firedCues }, () => 0), ending: 'interrupted', frozen: [] });
+
+  it('resumes from the true report when a replayed zero report follows it, and fires no cue again', { timeout: 8000 }, async () => {
+    const harness = start();
+    await harness.say('Show me the ball');
+    await delay(TURN_TIMINGS.reactionFloorMs + 900);
+    const replyTurn = harness.getTurnsStarted().at(-1) as TurnId;
+    const beatId = harness.messages.findLast((message) => message.type === 'words')?.beatId as Beat['id'];
+    const onTurn = (message: BrowserMessage) => ({ ...message, turnId: replyTurn, beatId }) as BrowserMessage;
+    harness.browser({ type: 'audioState', ...STAMP, isRunning: true });
+    harness.browser({ type: 'audioState', ...STAMP, isRunning: false });
+    await delay(30);
+    harness.browser(onTurn(report(5, 1)));
+    harness.browser(onTurn(report(0, 0)));
+    harness.browser({ type: 'audioState', ...STAMP, isRunning: true });
+    await delay(600);
+    const resumedBeat = harness.messages.findLast((message) => message.type === 'words');
+    expect(resumedBeat?.type === 'words' && resumedBeat.words[0]?.text).toBe('five');
+    const resumedCues = harness.messages.filter((message) => message.type === 'cue' && message.beatId !== beatId && message.turnId !== replyTurn);
+    expect(resumedCues).toHaveLength(0);
+    expect(harness.session.getLog().filter((event) => event.kind === 'beatPlayed' && event.beat.id === beatId).map((event) => event.kind === 'beatPlayed' && event.playedWords)).toEqual([5]);
+  });
+
+  it('names each turn for this job, so a new job in the same room never reuses a turn a page has seen', async () => {
+    const [first, second] = [start(), start()];
+    await first.say('Why');
+    await second.say('Why');
+    expect(first.getTurnsStarted()[0]).not.toBe(second.getTurnsStarted()[0]);
   });
 });
 

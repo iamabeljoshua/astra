@@ -64,6 +64,23 @@ describe('useLiveVoice', () => {
     expect(start).toHaveBeenCalledTimes(1);
   });
 
+  it('takes a second press while the room opens as off, so a double press never leaves the microphone on', async () => {
+    const voice = makeFakeVoice();
+    let open: (opened: LiveVoice) => void = () => {};
+    const start = vi.fn(() => new Promise<LiveVoice>((resolve) => { open = resolve; }));
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
+    let presses: Promise<void>[] = [];
+    act(() => {
+      presses = [result.current.toggleTalk(), result.current.toggleTalk()];
+    });
+    await act(async () => {
+      open(voice);
+      await Promise.all(presses);
+    });
+    expect(voice.getView().mic).toBe('off');
+    expect(voice.setMicOn).not.toHaveBeenCalledWith(true);
+  });
+
   it('says the tutor is unavailable when the room will not open, and lets the student try again', async () => {
     const voice = makeFakeVoice();
     const start = vi.fn<() => Promise<LiveVoice>>().mockRejectedValueOnce(new Error('503')).mockResolvedValue(voice);
