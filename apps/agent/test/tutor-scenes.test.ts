@@ -417,6 +417,26 @@ describe('a scene started ahead of its moment', () => {
     scenes.notePause();
   });
 
+  it('never shows the same scene twice, when the router words two ideas into one topic', async () => {
+    const onAhead = vi.fn();
+    const { scenes, spoken, sent, store } = setUp({ onAhead, route: { engine: 'manimgx', kind: 'graph', topic: 'the shared topic', ...USAGE } as SceneRoute });
+    const scene = await saveShared(store, 'the shared topic');
+    opened(scenes);
+    scenes.ask('the shared topic');
+    await flush();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    expect(spoken).toHaveLength(1);
+    sent.length = 0;
+    scenes.prepare('another wording of it');
+    await flush();
+    expect(onAhead).toHaveBeenLastCalledWith('another wording of it', 'declined');
+    expect(sent).toEqual([]);
+    scenes.ask('a third wording of it');
+    await flush();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    expect(spoken).toHaveLength(1);
+  });
+
   it('sends its bytes again after a reload, and brings the last scene back', async () => {
     const { scenes, sent, store } = setUp();
     const shownScene = await saveShared(store);

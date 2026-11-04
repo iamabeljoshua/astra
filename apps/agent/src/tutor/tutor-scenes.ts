@@ -84,6 +84,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   let lastShown: StoredScene | null = null;
   const askedTopics = new Set<string>();
   const prepared = new Map<string, SceneAsk>();
+  const shownSceneIds = new Set<string>();
   const works: LessonWork[] = [];
 
   const toKey = (topic: string) => topic.trim().toLowerCase();
@@ -130,10 +131,12 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     }
     const scene = ask.work.desk.takeReady();
     if (!scene) return end(ask, 'tooLate');
+    if (shownSceneIds.has(scene.id)) return end(ask, 'alreadyShown');
     const number = (scenesShown += 1);
     const beats = getTutorSceneBeats({ plan: scene.plan, scene, number });
     if (!speak(beats)) return end(ask, 'lostThePause');
     lastShown = scene;
+    shownSceneIds.add(scene.id);
     onShown({ topic: ask.topic, beats, isShared: scene.ownerId === null });
     end(ask, 'landed');
   };
@@ -152,7 +155,9 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   const onDeskChange = (ask: SceneAsk, state: SceneState) => {
     trace('sceneState', { state: state.kind, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
     if (prepared.get(toKey(ask.topic)) === ask) {
-      if (state.kind === 'ready') send({ type: 'prepareScene', sceneId: state.scene.id });
+      // The router can word two ideas into one topic, and a student should not watch the same scene twice.
+      if (state.kind === 'ready' && shownSceneIds.has(state.scene.id)) forgetPrepared(ask, 'declined');
+      else if (state.kind === 'ready') send({ type: 'prepareScene', sceneId: state.scene.id });
       if (state.kind === 'declined' || state.kind === 'failed') forgetPrepared(ask, state.kind);
       return;
     }
