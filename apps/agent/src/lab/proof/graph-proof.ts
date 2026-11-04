@@ -437,7 +437,7 @@ async function proveExtremes(browser: Browser, run: LessonRun) {
 const KEY_PRESSES = 8;
 
 /** A key press sends its drag in the same millisecond, which is where a live board and the log can disagree. */
-async function proveKeyboard(browser: Browser, run: LessonRun) {
+async function proveKeyPressReplay(browser: Browser, run: LessonRun) {
   const lab = await open(browser, run);
   await lab.command({ type: 'play', lesson: 'shot' });
   await lab.waitForPlayedBeats(beatsOf('shot'), 120_000);
@@ -532,7 +532,7 @@ const PROOFS = {
   marks: async (browser: Browser) => [await proveMarks(browser, { lesson: 'figure-marks', viewport: 'laptop', theme: 'light' })],
   labels: async (browser: Browser) => [await proveLabels(browser, { lesson: 'figure-labels', viewport: 'laptop', theme: 'light' }), await proveLabels(browser, { lesson: 'figure-labels', viewport: 'phone', theme: 'dark' })],
   extremes: async (browser: Browser) => [await proveExtremes(browser, { lesson: 'figure-extremes', viewport: 'laptop', theme: 'light' }), await proveExtremes(browser, { lesson: 'figure-extremes', viewport: 'phone', theme: 'dark' })],
-  keyboard: async (browser: Browser) => [await proveKeyboard(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' }), await proveKeyboard(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark' })],
+  keyboard: async (browser: Browser) => [await proveKeyPressReplay(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' }), await proveKeyPressReplay(browser, { lesson: 'shot', viewport: 'phone', theme: 'dark' })],
   'slider-name': async (browser: Browser) => [await proveSliderName(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' })],
   resize: async (browser: Browser) => [await proveResize(browser, { lesson: 'launch', viewport: 'laptop', theme: 'light' }), await proveResize(browser, { lesson: 'free-body', viewport: 'laptop', theme: 'dark' })],
 } as const;

@@ -58,7 +58,7 @@ function getPlacingOrder(placed: readonly BoardElement[]): BoardElement[] {
 }
 
 // Items close over their command, so new content under an id rebuilds the item, except math, whose painter follows the line it is given.
-function isSameContent(first: BoardElement['content'], second: BoardElement['content']): boolean {
+function canKeepItem(first: BoardElement['content'], second: BoardElement['content']): boolean {
   if (first === second) return true;
   if (first.kind !== second.kind) return false;
   return first.kind === 'writeMath' || JSON.stringify(first) === JSON.stringify(second);
@@ -88,7 +88,7 @@ export function createBoardPainting({ boardElement, overlay, getWrapper, onMathR
       const wrapper = getWrapper(element.id);
       const known = items.get(element.id);
       if (!wrapper) continue;
-      if (known && isSameContent(known.content, element.content)) {
+      if (known && canKeepItem(known.content, element.content)) {
         known.content = element.content;
         continue;
       }

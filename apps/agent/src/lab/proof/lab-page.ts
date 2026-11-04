@@ -91,7 +91,10 @@ export async function openLabPage({ browser, name, lesson, viewport, theme, isRe
 }
 
 export function holdFrame(lab: LabPage, frame: { atMs: number; source: 'live' | 'replay' } | null): Promise<void> {
-  return lab.page.evaluate((held) => window.holdBoardFrame?.(held), frame);
+  return lab.page.evaluate(async (held) => {
+    window.holdBoardFrame?.(held);
+    for (let frames = 0; frames < 2; frames += 1) await new Promise(requestAnimationFrame);
+  }, frame);
 }
 
 export async function shoot(lab: LabPage, name: string): Promise<Buffer> {

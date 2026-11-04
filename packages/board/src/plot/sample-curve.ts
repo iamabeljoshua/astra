@@ -7,10 +7,11 @@ export const CURVE_LIMITS = { baseIntervals: 240, evaluations: 4000, passes: 26 
 const BEND_SHARE_OF_VIEW = 1 / 200;
 /** A step this tall gets looked inside even if it looks straight, because two samples can straddle a pole by chance. */
 const TALL_SHARE_OF_VIEW = 1 / 8;
-const STUCK_SHARE = 0.9;
+const TALLER_HALF_STUCK_SHARE = 0.9;
 const HALVINGS_TO_PROVE_A_BREAK = 8;
 /** The budget always covers this many halvings of every step, so a tall step still stuck after them is hardly a wave seen too coarsely. */
-const HALVINGS_TO_SUSPECT_A_BREAK = 4;
+const HALVINGS_TO_SUSPECT_A_BREAK = Math.floor(Math.log2(CURVE_LIMITS.evaluations / CURVE_LIMITS.baseIntervals));
+const HALVINGS_TO_SUSPECT_A_POLE = 1;
 /** A step stuck this long is probably a break, so a corner beside it is not a reason to spend samples there. */
 const HALVINGS_TO_STOP_SMOOTHING = 2;
 const GOLDEN_RATIO = 0.618033988749895;
@@ -41,7 +42,7 @@ const leavesView = (first: Point, second: Point, yRange: AxisRange) => isAbove(f
 
 // A tall step still stuck when the budget ran out stays a gap, because a line through a pole is worse than a hole in a curve too fine to see.
 function isLeftUnsure(first: Sample, second: Sample, yRange: AxisRange): boolean {
-  return isTall(first, second, yRange) && second.stuckHalvings >= (leavesView(first, second, yRange) ? 1 : HALVINGS_TO_SUSPECT_A_BREAK);
+  return isTall(first, second, yRange) && second.stuckHalvings >= (leavesView(first, second, yRange) ? HALVINGS_TO_SUSPECT_A_POLE : HALVINGS_TO_SUSPECT_A_BREAK);
 }
 
 function isOnTheLine(first: Sample, second: Sample, yRange: AxisRange): boolean {
@@ -58,7 +59,7 @@ function needsLookInside(first: Sample, second: Sample, yRange: AxisRange): bool
   return isOnTheLine(first, second, yRange) && (isTall(first, second, yRange) || second.stuckHalvings > 0);
 }
 
-function getStepsToHalve(samples: readonly Sample[], { yRange }: CurveRequest): Set<number> {
+function getStepEndsToHalve(samples: readonly Sample[], { yRange }: CurveRequest): Set<number> {
   const steps = new Set<number>();
   const bendLimit = getViewHeight(yRange) * BEND_SHARE_OF_VIEW;
   const isSmoothStep = (index: number) => isOnTheLine(samples[index - 1] as Sample, samples[index] as Sample, yRange) && (samples[index] as Sample).stuckHalvings < HALVINGS_TO_STOP_SMOOTHING;
@@ -74,14 +75,14 @@ function getStepsToHalve(samples: readonly Sample[], { yRange }: CurveRequest): 
 }
 
 // Uneven on purpose, because an even grid can meet a fast wave at the same phase every time and draw it slow or flat.
-function getBasePlace(index: number): number {
+function getUnevenBasePlace(index: number): number {
   if (index === 0 || index === CURVE_LIMITS.baseIntervals) return index / CURVE_LIMITS.baseIntervals;
   return (index + ((index * GOLDEN_RATIO) % 1 - 1 / 2) * BASE_UNEVENNESS) / CURVE_LIMITS.baseIntervals;
 }
 
 function getBaseSamples({ evaluate, domain: [low, high] }: CurveRequest): Sample[] {
   return Array.from({ length: CURVE_LIMITS.baseIntervals + 1 }, (_, index) => {
-    const x = low + (high - low) * getBasePlace(index);
+    const x = low + (high - low) * getUnevenBasePlace(index);
     return { x, y: evaluate(x), stuckHalvings: 0 };
   });
 }
@@ -93,7 +94,7 @@ function halve(first: Sample, second: Sample, { evaluate, yRange }: CurveRequest
   const bendLimit = getViewHeight(yRange) * BEND_SHARE_OF_VIEW;
   const before = Math.abs(y - first.y);
   const after = Math.abs(second.y - y);
-  const stuck = whole > bendLimit && Math.max(before, after) >= whole * STUCK_SHARE ? second.stuckHalvings + 1 : 0;
+  const stuck = whole > bendLimit && Math.max(before, after) >= whole * TALLER_HALF_STUCK_SHARE ? second.stuckHalvings + 1 : 0;
   return [{ x, y, stuckHalvings: before >= after ? stuck : 0 }, { ...second, stuckHalvings: after > before ? stuck : 0 }];
 }
 
@@ -109,7 +110,7 @@ function addDetail(samples: readonly Sample[], steps: ReadonlySet<number>, reque
 function getRefinedSamples(request: CurveRequest): Sample[] {
   let samples = getBaseSamples(request);
   for (let pass = 0; pass < CURVE_LIMITS.passes; pass += 1) {
-    const steps = getStepsToHalve(samples, request);
+    const steps = getStepEndsToHalve(samples, request);
     if (steps.size === 0 || samples.length + steps.size > CURVE_LIMITS.evaluations) break;
     samples = addDetail(samples, steps, request);
   }
