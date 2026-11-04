@@ -31,7 +31,6 @@ async function askAndEnd(page) {
   return sessionId;
 }
 
-// The same call the agent makes as a room closes. A real pass needs a model and a voice room, and this proves everything from that call to the screen.
 async function writeNotes(page, sessionId, updateKey, notes) {
   const response = await page.request.post(`/api/agent/sessions/${sessionId}/record`, {
     headers: { authorization: `Bearer ${process.env.ASTRA_AGENT_KEY}` },
@@ -43,7 +42,7 @@ async function writeNotes(page, sessionId, updateKey, notes) {
   await getCardsRegion(page).getByRole('button').first().waitFor();
 }
 
-const said = (text) => [{ source: 'words', text, check: null }];
+const SAID = [{ source: 'words', text: '', check: null }];
 
 export default async function recordPicks({ page, capture, viewportName, signIn }) {
   await signIn('tola@astra.test');
@@ -58,7 +57,7 @@ export default async function recordPicks({ page, capture, viewportName, signIn 
   const sessionId = await askAndEnd(page);
   await writeNotes(page, sessionId, `first-${viewportName}`, [
     { kind: 'struggled', topic: STUCK_ON_OWN_TOPIC, detail: null, evidence: [{ source: 'board', text: '2x + 3 = 7 becomes 2x = 10', check: 'wrong' }] },
-    { kind: 'struggled', topic: STUCK_ON_LIBRARY_TOPIC, detail: null, evidence: said('i do not get which way friction points') },
+    { kind: 'struggled', topic: STUCK_ON_LIBRARY_TOPIC, detail: null, evidence: SAID },
     { kind: 'showed', topic: RIGHT_TOPIC, detail: null, evidence: [{ source: 'board', text: 'x = 2', check: 'right' }] },
   ]);
 

@@ -5,7 +5,7 @@ const REASON = 'You got stuck on free-body diagrams';
 const THURSDAY_NOON = new Date(2026, 10, 5, 12);
 
 function getReasonNotedAt(notedAt: Date, now = THURSDAY_NOON) {
-  return getPickReason({ reason: REASON, reasonDate: notedAt.toISOString() }, now);
+  return getPickReason({ reason: `${REASON} {day}`, reasonDate: notedAt.toISOString() }, now);
 }
 
 describe('the reason on a card', () => {

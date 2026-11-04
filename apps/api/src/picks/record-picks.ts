@@ -1,6 +1,7 @@
 import type { ArtworkName } from '../artwork';
 import { getTopicKey } from '../learner-record/learner-note-options';
 import type { LearnerNoteDto } from '../learner-record/learner-record.dto';
+import { hasDeeperScenes } from './library';
 import type { LibraryTopic } from './library';
 import { createTopicFinder, namesSomethingToTeach } from './note-words';
 import type { TopicFinder } from './note-words';
@@ -72,9 +73,10 @@ function canReturnTo(topic: LibraryTopic, note: LearnerNoteDto, context: RecordC
   return progress?.kind !== 'finished' && !isOnContinueCard && !hasGoneBackTo(note, topic, context);
 }
 
-// The library comes first because its lessons open fast. A topic the note names beats the lesson it came from, and only a topic the library lacks gets its own lesson.
+// Prefers a library topic the note names, then the lesson it came from, then a lesson of its own.
 function getTopicForStruggle(note: LearnerNoteDto, context: RecordContext): RankedTopic['topic'] | null {
-  const [namedTopic] = context.findTopicsNamedBy(note.topic);
+  const namedTopics = context.findTopicsNamedBy(note.topic);
+  const namedTopic = namedTopics.find(hasDeeperScenes) ?? namedTopics[0];
   if (namedTopic) return canReturnTo(namedTopic, note, context) ? namedTopic : null;
   const lessonTopic = findLessonTopic(note, context);
   if (lessonTopic && canReturnTo(lessonTopic, note, context)) return lessonTopic;
@@ -116,7 +118,7 @@ function toRankedTopic(note: LearnerNoteDto, rule: NoteRule, context: RecordCont
   return { topic, reason: rule.getReason(note.topic), reasonDate: note.notedAt, continueSessionId, isPersonal: true };
 }
 
-// Stops once this kind has its cards, so an older note costs nothing. Library lessons go first because they open fast.
+// Takes the newest notes up to this kind's cap, with library lessons first because they open fast.
 function rankNotesByRule(notes: LearnerNoteDto[], rule: NoteRule, context: RecordContext): RankedTopic[] {
   const rankedByTopicId = new Map<string, RankedTopic>();
   for (const note of notes) {
@@ -128,7 +130,6 @@ function rankNotesByRule(notes: LearnerNoteDto[], rule: NoteRule, context: Recor
   return [...rankedByTopicId.values()].sort((first, second) => Number('isNoteLesson' in first.topic) - Number('isNoteLesson' in second.topic));
 }
 
-/** What the record says to offer, in the order it matters: a struggle to revisit, then something to build on, then something they like. */
 export function rankFromRecord({ notes, history, continueCardSessionId, now }: RecordToRank, sources: RankingSources): RankedTopic[] {
   const usableNotes = getUsableNotes(notes, now).filter((note) => note.sessionId !== continueCardSessionId);
   if (usableNotes.length === 0) return [];

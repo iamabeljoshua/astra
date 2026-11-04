@@ -2,7 +2,6 @@ import type { ArtworkName } from '../artwork';
 import type { Library, LibraryTopic } from './library';
 import type { TopicProgress } from './topic-progress';
 
-/** A lesson on something a note names that the library does not hold. It starts like a typed question, so the tutor opens it in its own words. */
 export interface NoteLesson {
   isNoteLesson: true;
   id: string;

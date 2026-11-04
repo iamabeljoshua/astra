@@ -24,10 +24,10 @@ export class PickCardResponseDto {
   /** The first thing the tutor says when a session on this topic starts, or null when the tutor opens in its own words. */
   openingLine!: string | null;
 
-  /** Why the card suits this student. */
+  /** Why the card suits this student. When `reasonDate` is set, `{day}` marks where the page puts the day. */
   reason!: string;
 
-  /** The day the reason happened, for the page to add in the student's own time zone. Null when the reason names no day. */
+  /** The day the reason happened, for the page to word in the student's own time zone. Null when the reason names no day. */
   reasonDate!: Date | null;
 
   /** The name of the picture that the web app shows on this card. */

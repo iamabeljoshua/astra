@@ -17,7 +17,6 @@ export class HomeService {
     private readonly learnerRecordService: LearnerRecordService,
   ) {}
 
-  // A student with no readable record still gets a full Home, from their sessions and the library.
   private async readNotes(studentId: string): Promise<LearnerNoteDto[]> {
     try {
       return (await this.learnerRecordService.getRecord(studentId)).notes;

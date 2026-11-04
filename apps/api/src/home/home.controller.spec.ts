@@ -11,6 +11,7 @@ import {
 } from '../infrastructure/orm/example-data';
 import { SessionEntity } from '../infrastructure/orm/entities/session.entity';
 import { LearnerRecordService } from '../learner-record/learner-record.service';
+import { getStruggleReason } from '../picks/pick-reasons';
 
 const SEEDED_UNFINISHED_TITLE = 'Free-body diagrams';
 
@@ -24,9 +25,9 @@ interface PickCard {
 
 const FREE_BODY_STRUGGLE = {
   kind: 'struggled' as const,
-  topic: 'free-body arrows',
+  topic: 'free-body forces',
   detail: null,
-  evidence: [{ source: 'words' as const, text: 'i do not get which way the arrows go', check: null }],
+  evidence: [{ source: 'words' as const, text: '', check: null }],
 };
 
 describe('GET /home', () => {
@@ -272,7 +273,7 @@ describe('GET /home', () => {
   });
 
   describe('from the learner record', () => {
-    const REASON = 'You got stuck on free-body arrows';
+    const REASON = getStruggleReason(FREE_BODY_STRUGGLE.topic);
 
     function records() {
       return testApp.app.get(LearnerRecordService);
@@ -295,7 +296,7 @@ describe('GET /home', () => {
       const struggleCard = picks.find((pick) => pick.reason === REASON);
 
       expect(picks.indexOf(struggleCard as PickCard)).toBeLessThan(2);
-      expect(struggleCard).toMatchObject({ title: 'Free-body arrows', topicId: null });
+      expect(struggleCard).toMatchObject({ title: 'Free-body forces', topicId: null });
       expect(Date.now() - new Date(struggleCard?.reasonDate ?? 0).getTime()).toBeLessThan(60_000);
     });
 

@@ -142,8 +142,8 @@ function getExampleNotes([freeBody, sky, quadratics, , compoundInterest]: Sessio
       kind: 'struggled',
       topic: 'compound interest',
       topicKey: 'compound interest',
-      detail: 'Added the interest once instead of each year',
-      evidence: [{ source: 'words', text: 'i do not get why the interest grows when the rate stays the same', check: null }],
+      detail: 'Added the interest once instead of each time',
+      evidence: [{ source: 'words', text: '', check: null }],
     },
   ];
 }

@@ -18,7 +18,7 @@ function useChangeRecord<Input>(change: (input: Input) => Promise<unknown>) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: change,
-    // After a failure too, because a note removed in another tab answers 404 here and should leave the list. Home's saved cards go first, so a removed note's reason can never show again.
+    // Also on failure, as another tab may have removed the note, and Home's cards go first so its reason cannot show again.
     onSettled: () => {
       queryClient.removeQueries({ queryKey: HOME_SCREEN_KEY });
       void queryClient.prefetchQuery(HOME_SCREEN_QUERY);

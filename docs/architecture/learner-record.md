@@ -52,7 +52,7 @@ An empty list says the tutor knows nothing, and so does no note at all when the 
 
 | Kind | Card | Most on screen |
 | --- | --- | --- |
-| `struggled` | The library topic that names it, else the library lesson it happened in, else a lesson of its own if the words name something to teach. | 2 |
+| `struggled` | The library topic that names it, one with deeper scenes first, else the library lesson it happened in, else a lesson of its own if the words name something to teach. | 2 |
 | `showed` | The library topic that names it if unstarted, else the next topic in that subject. | 1 |
 | `cares_about` | An unstarted library topic that names it. A liking alone is not a lesson. | 1 |
 | `explored` | None. | 0 |
@@ -61,9 +61,11 @@ The newest note on a topic stands, so a right answer settles an earlier struggle
 
 A library topic can list other names in `alsoCalled` in `library.json`, because a note says "free-body diagrams" and the title says "What holds a block on a slope". A note names a topic only when all its subject words match, because a true reason on the wrong card is still misleading.
 
-`usable-notes.ts` is a second screen after the agent's. It also refuses a health or distress subject on its own, with no "my" or "I'm", in the topic, the detail, the evidence, or the session's title. A lost card costs little, so it leans toward refusing, and it refuses the newest note's whole topic rather than fall back to an older note.
+`usable-notes.ts` keeps the newest note on each topic and drops any past 120 days. It holds no word list of its own: a topic is on the fixed list before it is written, and a card shows only the topic, not the detail, the evidence, or the session's title. Unlike the tutor's brief, Home does not run the list again as it reads.
 
-The API sends the reason and the date apart, because only the browser knows the student's time zone.
+A topic with deeper scenes comes from `deeper-scenes.json`, the server's own list, so Home's load never reads the scene store. A flagged or missing scene does not change the card, because only the store knows about those.
+
+`pick-reasons.ts` holds each reason as one whole sentence, with `{day}` where the page puts the day, because only the browser knows the student's time zone. Rewording a struggle changes one string there.
 
 ## What we chose for minors
 

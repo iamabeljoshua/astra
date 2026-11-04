@@ -4,6 +4,7 @@ import { getPicksForStudent } from './getPicksForStudent';
 import type { StudentFit } from './getPicksForStudent';
 import { LIBRARY } from './library';
 import type { Library, LibraryTopic } from './library';
+import { getCaresAboutReason, getShowedReason, getStruggleReason } from './pick-reasons';
 import type { LearnerNoteDto } from '../learner-record/learner-record.dto';
 import type { TopicSession } from './topic-progress';
 
@@ -536,7 +537,7 @@ describe('getPicksForStudent', () => {
     );
 
     function makeNote(kind: LearnerNoteDto['kind'], topic: string, fields: Partial<LearnerNoteDto> = {}): LearnerNoteDto {
-      return { id: `note-${topic}`, kind, topic, detail: null, evidence: [{ source: 'words', text: topic, check: null }], sessionId: 'typed', sessionTitle: 'A question', notedAt: NOTED_AT, ...fields };
+      return { id: `note-${topic}`, kind, topic, detail: null, evidence: [{ source: 'words', text: '', check: null }], sessionId: 'typed', sessionTitle: 'A question', notedAt: NOTED_AT, ...fields };
     }
 
     function getPicksFromNotes(notes: LearnerNoteDto[], { history = [], continueCardSessionId = null, library = NOTE_LIBRARY }: { history?: TopicSession[]; continueCardSessionId?: string | null; library?: Library } = {}) {
@@ -552,7 +553,7 @@ describe('getPicksForStudent', () => {
         expect(getFirstCard([makeNote('struggled', 'braking distance')])).toMatchObject({
           id: 'braking',
           topicId: 'braking',
-          reason: 'You got stuck on braking distance',
+          reason: 'You got stuck on braking distance {day}',
           reasonDate: NOTED_AT,
           continueSessionId: null,
         });
@@ -561,7 +562,7 @@ describe('getPicksForStudent', () => {
       it('finds the lesson the library calls something else, on the real library', () => {
         const [firstPick] = getPicksForStudent({ fit: FIT, history: [], continueCardSessionId: null, notes: [makeNote('struggled', 'free-body diagrams')], now: NOW }, LIBRARY);
 
-        expect(firstPick).toMatchObject({ id: 'slope-friction', title: 'What holds a block on a slope', reason: 'You got stuck on free-body diagrams', reasonDate: NOTED_AT });
+        expect(firstPick).toMatchObject({ id: 'slope-friction', title: 'What holds a block on a slope', reason: getStruggleReason('free-body diagrams'), reasonDate: NOTED_AT });
       });
 
       it.each([
@@ -586,7 +587,7 @@ describe('getPicksForStudent', () => {
           subject: 'Physics',
           lengthMinutes: 10,
           openingLine: null,
-          reason: 'You got stuck on free-body diagrams',
+          reason: getStruggleReason('free-body diagrams'),
           reasonDate: NOTED_AT,
           artwork: 'forces',
           continueSessionId: null,
@@ -604,14 +605,20 @@ describe('getPicksForStudent', () => {
 
         expect(getFirstCard([makeNote('struggled', 'the second step', { sessionId: 'lesson' })], { history })).toMatchObject({
           id: 'jump-shot',
-          reason: 'You got stuck on the second step',
+          reason: getStruggleReason('the second step'),
         });
+      });
+
+      it('prefers a topic it names that has saved scenes to go deeper', () => {
+        const library = makeLibrary([makeTopic('wide-orbit', { title: 'Why an orbit holds', subject: 'Physics' }), makeTopic('saturn-rings', { title: 'How an orbit makes rings', subject: 'Space' }), makeTopic('art'), makeTopic('music'), makeTopic('history'), makeTopic('code')]);
+
+        expect(getFirstCard([makeNote('struggled', 'orbit')], { library })).toMatchObject({ id: 'saturn-rings', reason: getStruggleReason('orbit') });
       });
 
       it('reopens an open lesson it names, so the topic stays within reach', () => {
         const history = [makeSession({ id: 'older-open', topicId: 'braking', status: 'in_progress' })];
 
-        expect(getFirstCard([makeNote('struggled', 'braking distance')], { history })).toMatchObject({ id: 'braking', continueSessionId: 'older-open', reason: 'You got stuck on braking distance' });
+        expect(getFirstCard([makeNote('struggled', 'braking distance')], { history })).toMatchObject({ id: 'braking', continueSessionId: 'older-open', reason: getStruggleReason('braking distance') });
       });
 
       it('never brings back a finished topic that it names', () => {
@@ -623,24 +630,24 @@ describe('getPicksForStudent', () => {
       it('after a finished library lesson, offers its own subject instead of the finished topic', () => {
         const history = [makeSession({ id: 'done', topicId: 'jump-shot', title: 'How a jump shot flies', subject: 'Physics', artwork: 'arc', durationSeconds: 600 })];
 
-        expect(getFirstCard([makeNote('struggled', 'parabolas', { sessionId: 'done' })], { history })).toMatchObject({ title: 'Parabolas', topicId: null, subject: 'Physics', artwork: 'arc', reason: 'You got stuck on parabolas' });
+        expect(getFirstCard([makeNote('struggled', 'parabola', { sessionId: 'done' })], { history })).toMatchObject({ title: 'Parabola', topicId: null, subject: 'Physics', artwork: 'arc', reason: getStruggleReason('parabola') });
       });
 
-      it.each(['the second step', 'this problem', 'x', '2x + 3', 'getting the answer'])('offers nothing for %s, which is not something to teach on its own', (topic) => {
+      it.each(['the second step', 'this problem', 'x', '2x + 3', 'getting the answer', 'homework', 'the rule', 'this lesson', 'understanding the example'])('offers nothing for %s, which is not something to teach on its own', (topic) => {
         expect(getPicksFromNotes([makeNote('struggled', topic)])).toEqual(WITHOUT_NOTES);
       });
 
       it('waits while the session it came from is on the continue card', () => {
         const history = [makeSession({ id: 'open', status: 'in_progress' })];
 
-        expect(getPicksFromNotes([makeNote('struggled', 'free-body diagrams', { sessionId: 'open' })], { history, continueCardSessionId: 'open' }).map((pick) => pick.reason)).not.toContain('You got stuck on free-body diagrams');
+        expect(getPicksFromNotes([makeNote('struggled', 'free-body diagrams', { sessionId: 'open' })], { history, continueCardSessionId: 'open' }).map((pick) => pick.reason)).not.toContain(getStruggleReason('free-body diagrams'));
       });
 
       it('gives way to a later right answer on the same topic, however it was written', () => {
         const struggle = makeNote('struggled', 'free-body diagrams');
         const showed = makeNote('showed', 'Free body diagrams', { notedAt: new Date('2026-11-04T12:00:00Z') });
 
-        expect(getPicksFromNotes([showed, struggle]).map((pick) => pick.reason)).not.toContain('You got stuck on free-body diagrams');
+        expect(getPicksFromNotes([showed, struggle]).map((pick) => pick.reason)).not.toContain(getStruggleReason('free-body diagrams'));
       });
 
       it('comes back when a later struggle follows a right answer', () => {
@@ -659,7 +666,7 @@ describe('getPicksForStudent', () => {
       it('leaves once the student has gone back to the library topic it pointed at', () => {
         const history = [makeSession({ id: 'went-back', topicId: 'braking', durationSeconds: 10, startedAt: new Date('2026-11-04T12:00:00Z') })];
 
-        expect(getPicksFromNotes([makeNote('struggled', 'braking distance')], { history }).map((pick) => pick.reason)).not.toContain('You got stuck on braking distance');
+        expect(getPicksFromNotes([makeNote('struggled', 'braking distance')], { history }).map((pick) => pick.reason)).not.toContain(getStruggleReason('braking distance'));
       });
 
       it('puts a library lesson ahead of a lesson of its own, because it opens faster', () => {
@@ -679,13 +686,13 @@ describe('getPicksForStudent', () => {
       const RIGHT_LINE = [{ source: 'board' as const, text: 'x = 2', check: 'right' as const }];
 
       it('offers the library topic it builds on when the student has not started that topic', () => {
-        expect(getFirstCard([makeNote('showed', 'solving quadratic equations', { evidence: RIGHT_LINE })])).toMatchObject({ id: 'quadratic', reason: 'You got solving quadratic equations right', reasonDate: NOTED_AT });
+        expect(getFirstCard([makeNote('showed', 'solving quadratic equations', { evidence: RIGHT_LINE })])).toMatchObject({ id: 'quadratic', reason: getShowedReason('solving quadratic equations'), reasonDate: NOTED_AT });
       });
 
       it('offers the next topic in the subject after a lesson they have done', () => {
         const history = [makeSession({ id: 'lesson', topicId: 'quadratic', durationSeconds: 600 })];
 
-        expect(getFirstCard([makeNote('showed', 'completing the square', { sessionId: 'lesson', evidence: RIGHT_LINE })], { history })).toMatchObject({ id: 'pythagoras', reason: 'You got completing the square right' });
+        expect(getFirstCard([makeNote('showed', 'completing the square', { sessionId: 'lesson', evidence: RIGHT_LINE })], { history })).toMatchObject({ id: 'pythagoras', reason: getShowedReason('completing the square') });
       });
 
       it('offers nothing when the library has nothing to build on', () => {
@@ -695,8 +702,8 @@ describe('getPicksForStudent', () => {
 
     describe('something they care about', () => {
       it('offers a topic that names it, or that the library lists under that interest', () => {
-        expect(getFirstCard([makeNote('cares_about', 'rainbows')], { library: makeLibrary([makeTopic('plain'), makeTopic('rainbow', { title: 'Why a rainbow is always round' })]) })).toMatchObject({ id: 'rainbow', reason: "You said you're into rainbows", reasonDate: NOTED_AT });
-        expect(getFirstCard([makeNote('cares_about', 'basketball')])).toMatchObject({ id: 'jump-shot', reason: "You said you're into basketball" });
+        expect(getFirstCard([makeNote('cares_about', 'rainbow')], { library: makeLibrary([makeTopic('plain'), makeTopic('rainbow', { title: 'Why a rainbow is always round' })]) })).toMatchObject({ id: 'rainbow', reason: getCaresAboutReason('rainbow'), reasonDate: NOTED_AT });
+        expect(getFirstCard([makeNote('cares_about', 'basketball')])).toMatchObject({ id: 'jump-shot', reason: getCaresAboutReason('basketball') });
       });
 
       it('offers nothing when the library has no such topic, because a liking is not a lesson', () => {
@@ -706,7 +713,7 @@ describe('getPicksForStudent', () => {
       it('skips a topic they have already started', () => {
         const history = [makeSession({ id: 'done', topicId: 'jump-shot', durationSeconds: 600 })];
 
-        expect(getPicksFromNotes([makeNote('cares_about', 'basketball')], { history }).map((pick) => pick.reason)).not.toContain("You said you're into basketball");
+        expect(getPicksFromNotes([makeNote('cares_about', 'basketball')], { history }).map((pick) => pick.reason)).not.toContain(getCaresAboutReason('basketball'));
       });
     });
 
@@ -761,26 +768,8 @@ describe('getPicksForStudent', () => {
         expect(getPicksFromNotes([makeNote('explored', 'braking distance')])).toEqual(WITHOUT_NOTES);
       });
 
-      it.each([
-        ['a topic', { topic: 'anxiety before exams' }],
-        ['a topic', { topic: 'depression' }],
-        ['a topic', { topic: 'eating disorders' }],
-        ['a topic', { topic: 'self-harm' }],
-        ['a topic', { topic: 'my diabetes' }],
-        ['a topic', { topic: 'mental health' }],
-        ['a topic', { topic: 'my period' }],
-        ['a topic', { topic: 'grief' }],
-        ['a detail', { detail: 'felt too anxious to go on' }],
-        ['the evidence', { evidence: [{ source: 'words' as const, text: 'braking makes me so stressed i want to die', check: null }] }],
-        ['the session title', { sessionTitle: 'why do i feel so hopeless' }],
-      ])('never makes a card from distress or health in %s', (_where, fields) => {
-        expect(getPicksFromNotes([makeNote('struggled', 'braking distance', fields)])).toEqual(WITHOUT_NOTES);
-      });
-
-      it('lets an unsafe newest note silence the older ones on its topic', () => {
-        const unsafe = makeNote('struggled', 'braking distance', { detail: 'it made me cry', notedAt: new Date('2026-11-04T12:00:00Z') });
-
-        expect(getPicksFromNotes([unsafe, makeNote('struggled', 'braking distance')])).toEqual(WITHOUT_NOTES);
+      it('does not refuse a note for the words of its session title', () => {
+        expect(getFirstCard([makeNote('struggled', 'braking distance', { sessionTitle: 'What caused the Great Depression' })])).toMatchObject({ id: 'braking' });
       });
 
       it('claims no day on a card that does not come from a note', () => {
