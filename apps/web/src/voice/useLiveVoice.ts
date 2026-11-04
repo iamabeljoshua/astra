@@ -3,7 +3,7 @@ import { ApiError } from '../api/apiError';
 import { api } from '../api/client';
 import { type LiveVoice, type LiveVoiceView, startLiveVoice } from './liveVoice';
 
-export type LiveVoiceStatus = 'idle' | 'connecting' | 'live' | 'unavailable' | 'tooSoon' | 'finished';
+export type LiveVoiceStatus = 'idle' | 'connecting' | 'live' | 'unavailable' | 'overLimit' | 'tooSoon' | 'finished';
 
 const SESSION_FINISHED_STATUS = 409;
 const TOO_MANY_STATUS = 429;
@@ -33,12 +33,16 @@ export interface LiveVoiceControls {
   isTalkOn: boolean;
   connect(options?: { wantsGreeting: boolean; startsOver?: boolean }): Promise<LiveVoice | null>;
   sendTyped(text: string): Promise<boolean>;
+  /** Starts the tutor talking with words the student did not write. */
+  sendOpening(text: string): Promise<void>;
+  /** Leaves the room for good, so nothing asks for it again once the session finishes. */
+  leave(): Promise<void>;
   toggleTalk(): Promise<void>;
-  /** Leaves a room the tutor has gone from, and opens a new one with a new tutor. */
-  openAgain(): Promise<void>;
+  /** Leaves a room the tutor has gone from, opens a new one with a new tutor, and starts it talking with this line. */
+  openAgain(opening: string): Promise<void>;
 }
 
-// One room for one session screen, opened by the student's own press, because audio needs a user gesture.
+// One room for one session screen, joined as the screen opens so the student is never left waiting. The microphone stays off until they press Talk. With no access from the API it joins no room.
 export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = startLiveVoice }: UseLiveVoiceOptions): LiveVoiceControls {
   const [status, setStatus] = useState<LiveVoiceStatus>('idle');
   const [waitSeconds, setWaitSeconds] = useState<number | null>(null);
@@ -53,13 +57,15 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
 
   const connect = useCallback(({ wantsGreeting, startsOver = false }: { wantsGreeting: boolean; startsOver?: boolean } = { wantsGreeting: true }) => {
     if (startsOver) asksToStartOver.current = true;
+    isGone.current = false;
     opening.current ??= (async () => {
       setStatus('connecting');
       const getAccess = async () => {
         const query = asksToStartOver.current ? { startOver: 'yes' as const } : {};
         try {
-          const access = await api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId }, query } });
+          const { access, unavailableBecause } = await api.post('/sessions/{id}/live-room', { params: { path: { id: sessionId }, query } });
           asksToStartOver.current = false;
+          if (!access) setStatus(unavailableBecause === 'dailyLimit' ? 'overLimit' : 'unavailable');
           return access;
         } catch (problem) {
           if (!(problem instanceof ApiError)) throw problem;
@@ -85,7 +91,7 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
         return opened;
       } catch {
         opening.current = null;
-        setStatus((current) => (current === 'finished' || current === 'tooSoon' ? current : 'unavailable'));
+        setStatus((current) => (current === 'finished' || current === 'overLimit' || current === 'tooSoon' ? current : 'unavailable'));
         return null;
       }
     })();
@@ -100,6 +106,31 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
     };
   }, []);
 
+  const sendTyped = useCallback(
+    async (text: string) => {
+      const opened = await connect({ wantsGreeting: false });
+      if (!opened || opened.getView().closedBecause) return false;
+      opened.sendTyped(text);
+      return true;
+    },
+    [connect],
+  );
+
+  const sendOpening = useCallback(
+    async (text: string) => {
+      const opened = await connect({ wantsGreeting: false });
+      if (opened && !opened.getView().closedBecause) opened.sendOpening(text);
+    },
+    [connect],
+  );
+
+  // The last view stays, so the screen holds still while the page fades away. A room still opening closes itself when it arrives, so finishing does not wait on it.
+  const leave = async () => {
+    isGone.current = true;
+    opening.current = null;
+    await voice?.close().catch(() => {});
+  };
+
   const isTalkOn = view ? view.mic === 'on' || view.mic === 'starting' : isTalkWaiting;
 
   return {
@@ -109,11 +140,9 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
     voice,
     isTalkOn,
     connect,
-    async sendTyped(text) {
-      const opened = await connect({ wantsGreeting: false });
-      opened?.sendTyped(text);
-      return opened !== null;
-    },
+    sendTyped,
+    sendOpening,
+    leave,
     // Every press counts, because a second press while the room opens means off. Only the sum of them reaches the microphone.
     async toggleTalk() {
       if (voice) return voice.toggleMic();
@@ -125,12 +154,11 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
       setIsTalkWaiting(false);
       if (opened && presses % 2 === 1) await opened.toggleMic();
     },
-    async openAgain() {
-      const old = await opening.current;
-      opening.current = null;
+    async openAgain(openingLine) {
       setVoice(null);
-      await old?.close();
-      await connect({ wantsGreeting: false, startsOver: true });
+      await leave();
+      const opened = await connect({ wantsGreeting: false, startsOver: true });
+      opened?.sendOpening(openingLine);
     },
   };
 }

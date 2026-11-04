@@ -24,6 +24,7 @@ import {
 } from './read.ts';
 import {
   ANNOTATION_MARKS,
+  MATH_CLAIMS,
   type Diagram,
   DRAWINGS,
   type Drawing,
@@ -155,6 +156,8 @@ function readLanguage(place: Place): string {
   if (typeof place.value !== 'string' || !CODE_LANGUAGE.test(place.value)) fail(place, 'a code language name');
   return place.value;
 }
+
+const readMathClaim = (place: Place) => readOneOf(place, MATH_CLAIMS);
 
 function readOverWords(place: Place): number {
   return readWholeNumberInRange(place, NUMBER_RANGES.overWords);
@@ -312,12 +315,12 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
   tag: 'kind',
   variants: {
     writeMath: {
-      keys: ['id', 'tex', 'overWords'],
-      read: (fields) => ({ kind: 'writeMath', id: readElementId(fields.at('id')), tex: readTex(fields.at('tex')), ...fields.optional('overWords', readOverWords) }),
+      keys: ['id', 'tex', 'overWords', 'claim'],
+      read: (fields) => ({ kind: 'writeMath', id: readElementId(fields.at('id')), tex: readTex(fields.at('tex')), ...fields.optional('overWords', readOverWords), ...fields.optional('claim', readMathClaim) }),
     },
     transformMath: {
-      keys: ['target', 'tex', 'overWords'],
-      read: (fields) => ({ kind: 'transformMath', target: readElementId(fields.at('target')), tex: readTex(fields.at('tex')), ...fields.optional('overWords', readOverWords) }),
+      keys: ['target', 'tex', 'overWords', 'claim'],
+      read: (fields) => ({ kind: 'transformMath', target: readElementId(fields.at('target')), tex: readTex(fields.at('tex')), ...fields.optional('overWords', readOverWords), ...fields.optional('claim', readMathClaim) }),
     },
     highlight: {
       keys: ['id', 'target', 'tex', 'occurrence'],

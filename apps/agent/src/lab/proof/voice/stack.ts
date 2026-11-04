@@ -76,7 +76,7 @@ export async function startVoiceStack({ out, agentEnv = {} }: { out: string; age
     async startAgent(env = {}) {
       agent = spawnLogged('pnpm', ['--filter', '@astra/agent', 'start'], {
         logPath: join(out, 'agent.log'),
-        env: { ...baseEnv, ...getLiveKeys(), ASTRA_VOICE_TRACE: traceFolder, ASTRA_VOICE_TRACE_WORDS: '1', ASTRA_AGENT_PORT: String(AGENT_PORT), ...agentEnv, ...env },
+        env: { ...baseEnv, ...getLiveKeys(), ASTRA_TUTOR_MODEL: process.env.ASTRA_TUTOR_MODEL ?? 'stand-in', ASTRA_VOICE_TRACE: traceFolder, ASTRA_VOICE_TRACE_WORDS: '1', ASTRA_AGENT_PORT: String(AGENT_PORT), ...agentEnv, ...env },
       });
       await waitFor(`http://127.0.0.1:${AGENT_PORT}/`, 60_000);
     },

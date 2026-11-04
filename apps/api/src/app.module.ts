@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AgentChannelModule } from './agent-channel/agent-channel.module';
 import { AuthModule } from './auth/auth.module';
 import { DatabaseModule } from './infrastructure/orm/database.module';
 import { HealthController } from './health/health.controller';
@@ -10,7 +11,7 @@ import { SessionsModule } from './sessions/sessions.module';
 import { StudentsModule } from './students/students.module';
 
 @Module({
-  imports: [RequestValidationModule, DatabaseModule, AuthModule, StudentsModule, SessionsModule, HomeModule, LiveRoomModule, ScenesModule],
+  imports: [RequestValidationModule, DatabaseModule, AuthModule, StudentsModule, SessionsModule, HomeModule, LiveRoomModule, AgentChannelModule, ScenesModule],
   controllers: [HealthController],
 })
 export class AppModule {}

@@ -19,7 +19,8 @@
     "lab": "pnpm --filter @astra/agent lab",
     "agent": "pnpm --filter @astra/agent start",
     "verify": "node .claude/skills/verify/scripts/verify.mjs",
-    "verify:self": "node .claude/skills/verify/scripts/self-check.mjs"
+    "verify:self": "node .claude/skills/verify/scripts/self-check.mjs",
+    "eval:tutor": "pnpm --filter @astra/agent eval:tutor"
   },
   "devDependencies": {
     "@eslint/css": "^2.0.1",

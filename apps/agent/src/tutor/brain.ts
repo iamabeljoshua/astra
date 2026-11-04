@@ -1,0 +1,722 @@
+import { type Beat, type BeatId, clipTypedText, getBeatText, getCues, getPlayedCues, getSpokenWords, parseBeat, parseWrittenBeat, TYPED_TEXT_MAX_CHARACTERS, type TutorClosedReason } from '@astra/contracts';
+import { type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
+import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
+import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getMemoryAfter } from './board-memory.ts';
+import { TUTOR_SYSTEM } from './prompt.ts';
+import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
+
+export interface TutorRequest {
+  text: string;
+  /** How `text` starts, when it repeats the words of a request whose reply was cut. */
+  carried?: string;
+}
+
+export interface BeatReport {
+  beatId: BeatId;
+  playedWords: number;
+  firedCues: number;
+}
+
+/** A beat with a pause before it starts a new stretch of speech, so the student hears a breath and can jump in. */
+export interface TutorBeat extends Beat {
+  pauseBeforeMs?: number;
+}
+
+export interface TutorBrain {
+  reply(request: TutorRequest, signal: AbortSignal): AsyncIterable<TutorBeat>;
+  notePlayed?(report: BeatReport): void;
+  noteCut?(wordsSent: ReadonlyMap<BeatId, number>): void;
+  /** The browser could not draw this mark, so the student never saw what the tutor pointed at. */
+  noteMarkNotDrawn?(markId: string): void;
+  /** Why the tutor will not answer again in this room, once it has said so. */
+  getClosedReason?(): TutorClosedReason | null;
+}
+
+export type SpendLimit = 'sessionLimit' | 'dailyLimit';
+
+export interface StudentProfile {
+  level: string;
+  interests: readonly string[];
+  goal: string;
+}
+
+export const TUTOR_TIMEOUTS = {
+  /** First text stayed under 1.9 s at p95 in the evaluation, so this fires only on a slow turn. */
+  stillWorkingMs: 3000,
+  /** A quiet retry's first text is under 2 s at p95, so the student hears about a check only on a slow one. */
+  checkingMathMs: 2000,
+  /** Sonnet stalled for 9 to 10 s in the speed test, and a new request's first text is under 2 s at p95. */
+  firstTextMs: 5000,
+  betweenTextMs: 4000,
+  /** A model told to stop at a question usually ends at once. Its next text can come about 350 ms later, and that text may be the help a student in danger needs. */
+  finishGraceMs: 1000,
+  /** A short wait for a cut turn's report, so a lost one cannot hold up the reply. */
+  reportWaitMs: 150,
+  /** Most sessions have the profile long before the first message, and a slow API must not hold up the reply. */
+  profileWaitMs: 1000,
+};
+
+export type TutorTimeouts = typeof TUTOR_TIMEOUTS;
+
+export type TraceNote = (name: string, fields?: Record<string, unknown>) => void;
+
+export interface TurnSummary {
+  studentText: string;
+  spokenText: string;
+  beats: readonly TutorBeat[];
+  refused: readonly string[];
+  attempts: number;
+  endedAs: AttemptEnd;
+  refusalCategory: string | null;
+  firstTextMs: number | null;
+  firstBeatMs: number | null;
+  usage: ModelUsage | null;
+  isUsageEstimated: boolean;
+  promptTokens: number;
+  costUsd: number;
+}
+
+export interface TutorBrainOptions {
+  model: TutorModelAdapter;
+  profile?: StudentProfile | null;
+  loadProfile?(): Promise<StudentProfile | null>;
+  timeouts?: Partial<TutorTimeouts>;
+  trace?: TraceNote;
+  onTurnEnd?(summary: TurnSummary): void;
+  onCompacted?(summary: { costUsd: number; turnsBefore: number; turnsAfter: number }): void;
+  compactAtTokens?: number;
+  getSpendLimit?(): SpendLimit | null;
+  getNowMs?(): number;
+}
+
+type TurnStep = 'over' | 'retry';
+
+type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'refused';
+
+interface TurnWork {
+  id: number;
+  studentText: string;
+  signal: AbortSignal;
+  startedAtMs: number;
+  reader: BeatTextReader;
+  beats: TutorBeat[];
+  ready: TutorBeat[];
+  refused: string[];
+  notes: string[];
+  /** How many of the pending notes this turn took, so a note added while it runs stays for the next turn. */
+  carriedNotes: number;
+  raw: string;
+  hasModelWords: boolean;
+  wasStoppedByLength: boolean;
+  hasAttemptText: boolean;
+  hasSaidStillWorking: boolean;
+  wrongMath: string | null;
+  isCheckingMath: boolean;
+  hasNewWordsThisAttempt: boolean;
+  refusalCategory: string | null;
+  firstTextMs: number | null;
+  firstBeatMs: number | null;
+  attempts: number;
+  usage: ModelUsage | null;
+  attemptUsage: ModelUsage | null;
+  isAttemptUsageFinal: boolean;
+  isUsageEstimated: boolean;
+  costUsd: number;
+  endedAs: AttemptEnd;
+}
+
+const RESUMED_BEAT = /^(.+?)(?:-r\d+(?:-rest)?)+$/;
+const WAIT_STEP_MS = 5;
+const MAX_ATTEMPTS = 2;
+/** Varied, because a pause of one fixed length turns into a tic. The voice adds about 400 ms to each. */
+const BREATHS_MS = [300, 450, 350];
+/** A repeated opening of a few words is dropped only at the start of a retry, where it sounds like starting over, and a longer repeat anywhere. */
+const FEWEST_WORDS_IN_A_REPEAT = 4;
+const COMPACT_AT_TOKENS = 60_000;
+const TURNS_KEPT_AFTER_COMPACTING = 8;
+const CHARACTERS_PER_TOKEN = 3.2;
+const TOO_MANY_MARKS = /(\p{M}{4})\p{M}+/gu;
+const NAMES_HELP = /\b(?:adult|emergency)\b/i;
+const NOT_STUDENT_TEXT = /\p{Cf}|\p{Co}|\p{Cs}|\p{Variation_Selector}|[^\P{Cc}\n\t]/gu;
+
+/** What the model is told after a safety check stops a student's message, built by code, so it holds none of what was refused. */
+const DECLINED_NOTE = {
+  declined: "A safety check stopped an earlier message of the student's, so you cannot see that one. It may have been serious. The message just above this note is newer, you can read it, and it comes first: if it says anyone is hurting them or that they are in danger, follow your safety rules for it. The app has already told them to tell an adult they trust or call their local emergency number. Otherwise, before you teach on, ask once, gently, whether they are safe and have an adult to talk to. Do not guess what the earlier message said, do not ask them to repeat it, and never say you cannot see a message.",
+};
+const SKIPPED_NOTE = { skipped: "An automatic check stopped an earlier message of the student's, and the app told them it could not go into that. It is not about their safety. Teach on, and do not ask them to repeat it." };
+const CLIPPED_NOTE = { clipped: 'The student wrote more than you can see, and this is only the first part. Say so in a few words, and answer what you can.' };
+/** These categories cannot be about the student's own safety. The list of categories is open, so one it does not name counts as possibly serious. */
+const PLAIN_REFUSALS: ReadonlySet<string> = new Set(['cyber', 'frontier_llm', 'reasoning_extraction']);
+const ASKED_HOW_IT_WORKED = 'reasoning_extraction';
+/** A refused message in a plain category can still say this, as "my dad hits me, how do i hack his phone" does, and the model never saw it. */
+const MAY_BE_ABOUT_SAFETY = /\b(?:hit|hits|hitting|hurt|hurts|hurting|beat|beats|beating|abuse|abused|abusing|touch|touches|touched|rape|raped|kill|killing|suicide|die|dying|harm|harming|cut myself|cutting myself|scared|afraid|unsafe|danger|threaten|threatens|threatened)\b/i;
+/** Asking how a tutor worked something out is core teaching, and the check can read it as asking for hidden reasoning. The retry keeps the student's own words, because replacing them could hide a disclosure in the same message. Measured at 0 of 8 refused against 8 of 8 without. */
+const ASKED_HOW_NOTE = { asked_how: 'They are asking you to go through the subject step by step, as teaching. Their words may mention your reasoning. Answer anything else they said first.' };
+
+/** Strips control and invisible characters, which can hide text from a reader. */
+export function cleanStudentText(text: string): string {
+  return clipTypedText(text.normalize('NFC').replace(NOT_STUDENT_TEXT, '').replace(TOO_MANY_MARKS, '$1').trim());
+}
+
+const isPlainRefusal = ({ refusalCategory, studentText }: { refusalCategory: string | null; studentText: string }) => refusalCategory !== null && PLAIN_REFUSALS.has(refusalCategory) && !MAY_BE_ABOUT_SAFETY.test(studentText);
+
+const toSpacedWords = (text: string) => text.split(/\s+/).join(' ');
+
+const toComparableWords = (text: string) => text.toLowerCase().replace(/[^\p{L}\p{N}\s]/gu, '').split(/\s+/).filter(Boolean).join(' ');
+
+function getWrittenBeat(parts: WrittenBeatParts, id: string, refused: string[]): Beat | null {
+  const written = parseWrittenBeat({ id, script: parts.script, expectsReply: parts.expectsReply });
+  if (written.ok) {
+    refused.push(...written.value.droppedCommandProblems);
+    return written.value.beat;
+  }
+  refused.push(written.problem);
+  const speech = parts.script.filter((part) => typeof part === 'string').join('');
+  const speechOnly = parseBeat({ id, script: [speech], expectsReply: parts.expectsReply });
+  return speechOnly.ok ? speechOnly.value : null;
+}
+
+function waitUntil<T>(work: Promise<T>, deadlineMs: number, signal: AbortSignal, getNowMs: () => number): Promise<T | 'deadline' | 'aborted'> {
+  if (signal.aborted) return Promise.resolve('aborted');
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => finish('deadline'), Math.max(0, deadlineMs - getNowMs()));
+    const onAbort = () => finish('aborted');
+    function finish(value: T | 'deadline' | 'aborted') {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      resolve(value);
+    }
+    signal.addEventListener('abort', onAbort, { once: true });
+    work.then(finish, (error: unknown) => {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', onAbort);
+      reject(error as Error);
+    });
+  });
+}
+
+const addUsage = (total: ModelUsage | null, part: ModelUsage): ModelUsage =>
+  total ? { inputTokens: total.inputTokens + part.inputTokens, outputTokens: total.outputTokens + part.outputTokens, cacheReadTokens: total.cacheReadTokens + part.cacheReadTokens, cacheWriteTokens: total.cacheWriteTokens + part.cacheWriteTokens } : part;
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+const toProfileNote = ({ level, interests, goal }: StudentProfile) => ({ student: { level, interests, goal } });
+
+export function createTutorBrain({ model, profile = null, loadProfile, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now() }: TutorBrainOptions): Required<TutorBrain> {
+  const timeouts: TutorTimeouts = { ...TUTOR_TIMEOUTS, ...chosenTimeouts };
+  const pickLine = createLinePicker();
+  let breathsTaken = 0;
+  let profileNote: Record<string, unknown> | null = profile ? toProfileNote(profile) : null;
+  const reports = new Map<BeatId, BeatReport>();
+  let turns: TutorTurn[] = [];
+  let memory: BoardMemory = EMPTY_BOARD;
+  let toldBoard = '{}';
+  let pendingNotes: Record<string, unknown>[] = profileNote ? [profileNote] : [];
+  let lastBeats: readonly Beat[] = [];
+  let lastRefused: readonly string[] = [];
+  /** A refused reply's words must not go back to the model, even when the student cut across them. */
+  let hidesLastWords = false;
+  let closedReason: TutorClosedReason | null = null;
+  let hasToldClosed = false;
+  let rejectionsInARow = 0;
+  const marksDrawn = new Map<string, { target: string; tex?: string }>();
+  let cutWordsSent: ReadonlyMap<BeatId, number> | null = null;
+  let turnCount = 0;
+  let promptTokens = 0;
+  let isCompacting = false;
+  let isTurnRunning = false;
+  let lastAskedText: string | null = null;
+
+  // Board and heard words come from the browser's report, because the model may write past what the student saw.
+  const settleLastTurn = () => {
+    const heard: string[] = [];
+    const missed: string[] = [];
+    for (const beat of lastBeats) {
+      const words = getSpokenWords(getBeatText(beat));
+      const report = reports.get(beat.id);
+      const played = report ? report.playedWords : cutWordsSent ? (cutWordsSent.get(beat.id) ?? 0) : words.length;
+      heard.push(...words.slice(0, played));
+      missed.push(...words.slice(played));
+      const cues = report ? getPlayedCues(beat, report.firedCues) : getCues(beat).filter((cue) => cue.atWord < played);
+      for (const { command } of cues) memory = getMemoryAfter(command, memory);
+    }
+    const note: Record<string, unknown> = {};
+    if (missed.length > 0 && !hidesLastWords) note.cut = { heard: heard.join(' '), not_heard: missed.join(' ') };
+    if (lastRefused.length > 0) note.refused = lastRefused;
+    const board = JSON.stringify(Object.fromEntries([...memory.kinds].map(([id, kind]) => [id, memory.lines.get(id) ?? kind])));
+    if (board !== toldBoard) note.board = JSON.parse(board);
+    toldBoard = board;
+    if (Object.keys(note).length > 0) pendingNotes.push(note);
+    lastBeats = [];
+    lastRefused = [];
+    hidesLastWords = false;
+    cutWordsSent = null;
+    reports.clear();
+  };
+
+  const hasEveryReport = () => cutWordsSent === null || [...cutWordsSent.keys()].every((beatId) => reports.has(beatId));
+
+  const waitForLastTurn = async () => {
+    const deadlineMs = getNowMs() + timeouts.reportWaitMs;
+    while ((isTurnRunning || !hasEveryReport()) && getNowMs() < deadlineMs) await delay(WAIT_STEP_MS);
+  };
+
+  const startTurn = (studentText: string, signal: AbortSignal): TurnWork => {
+    settleLastTurn();
+    turnCount += 1;
+    let readerMemory = memory;
+    const turn: TurnWork = {
+      id: turnCount,
+      studentText,
+      signal,
+      startedAtMs: getNowMs(),
+      reader: new BeatTextReader({
+        board: memory.kinds,
+        checkCommand: (command) => checkAgainstBoard(command, readerMemory),
+        onCommandKept(command) {
+          readerMemory = getMemoryAfter(command, readerMemory);
+          if (command.kind === 'highlight' || command.kind === 'annotate') marksDrawn.set(command.id, { target: command.target, ...('tex' in command && command.tex !== undefined ? { tex: command.tex } : {}) });
+        },
+        onBadCommand(problem) {
+          turn.refused.push(problem);
+          trace('commandRefused', { problem });
+        },
+        onWrongMath(problem) {
+          turn.wrongMath = problem;
+          trace('mathRefused', { problem });
+        },
+        isAlreadySaid(text) {
+          if (turn.attempts < 2) return false;
+          const words = toComparableWords(text);
+          const isRepeat = words !== '' && toComparableWords(getWordsSaid(turn)).includes(words);
+          const isLongRepeat = isRepeat && words.split(' ').length >= FEWEST_WORDS_IN_A_REPEAT;
+          const isOpeningRepeat = isRepeat && !turn.hasNewWordsThisAttempt;
+          if (!isLongRepeat && !isOpeningRepeat) turn.hasNewWordsThisAttempt = true;
+          return isLongRepeat || isOpeningRepeat;
+        },
+        onBeatEnd(parts) {
+          const beat = getWrittenBeat(parts, `t${turnCount}-b${turn.beats.length}`, turn.refused);
+          if (!beat) return;
+          turn.hasModelWords = true;
+          addBeat(turn, parts.startsStretch ? { ...beat, pauseBeforeMs: getNextBreathMs() } : beat);
+        },
+      }),
+      beats: [],
+      ready: [],
+      refused: [],
+      notes: pendingNotes.map((note) => JSON.stringify(note)),
+      carriedNotes: pendingNotes.length,
+      raw: '',
+      hasModelWords: false,
+      wasStoppedByLength: false,
+      hasAttemptText: false,
+      hasSaidStillWorking: false,
+      wrongMath: null,
+      isCheckingMath: false,
+      hasNewWordsThisAttempt: false,
+      refusalCategory: null,
+      firstTextMs: null,
+      firstBeatMs: null,
+      attempts: 0,
+      usage: null,
+      attemptUsage: null,
+      isAttemptUsageFinal: false,
+      isUsageEstimated: false,
+      costUsd: 0,
+      // What is left when the session stops reading this turn at a yield, which is an interruption.
+      endedAs: 'aborted',
+    };
+    return turn;
+  };
+
+  const getNextBreathMs = () => BREATHS_MS[breathsTaken++ % BREATHS_MS.length] as number;
+
+  const addBeat = (turn: TurnWork, beat: TutorBeat) => {
+    turn.firstBeatMs ??= getNowMs() - turn.startedAtMs;
+    turn.beats.push(beat);
+    turn.ready.push(beat);
+  };
+
+  const sayLine = (turn: TurnWork, use: SpokenLineUse) => {
+    const line = pickLine(use);
+    const parsed = parseBeat({ id: `t${turn.id}-line${turn.beats.length}`, script: [line], expectsReply: /\?$/.test(line) });
+    trace('lineSpoken', { use });
+    if (parsed.ok) addBeat(turn, parsed.value);
+  };
+
+  const getRequest = (turn: TurnWork): TutorModelRequest => ({
+    system: TUTOR_SYSTEM,
+    turns: [...turns, { role: 'user', text: turn.studentText }, ...turn.notes.map((text) => ({ role: 'system' as const, text }))],
+  });
+
+  const getDeadlineMs = (turn: TurnWork, attemptStartedAtMs: number, lastEventAtMs: number): number => {
+    if (turn.reader.isTurnOver) return lastEventAtMs + timeouts.finishGraceMs;
+    if (turn.hasAttemptText) return lastEventAtMs + timeouts.betweenTextMs;
+    const hardMs = attemptStartedAtMs + timeouts.firstTextMs;
+    if (turn.hasSaidStillWorking) return hardMs;
+    // A retry starts its own wait, or the time the first attempt took would fire a filler straight after its line.
+    const softStartMs = turn.attempts > 1 ? attemptStartedAtMs : turn.startedAtMs;
+    return Math.min(hardMs, softStartMs + (turn.isCheckingMath ? timeouts.checkingMathMs : timeouts.stillWorkingMs));
+  };
+
+  const readEvent = (turn: TurnWork, event: ModelEvent): AttemptEnd | null => {
+    if (event.type === 'started') {
+      turn.attemptUsage = event.usage;
+      promptTokens = event.usage.inputTokens + event.usage.cacheReadTokens + event.usage.cacheWriteTokens;
+    }
+    if (event.type === 'text') {
+      turn.firstTextMs ??= getNowMs() - turn.startedAtMs;
+      const seam = event.isNewBlock && turn.raw !== '' && !/\s$/.test(turn.raw) ? ' ' : '';
+      turn.hasAttemptText = true;
+      turn.raw += seam + event.text;
+      turn.reader.push(seam + event.text);
+      if (turn.wrongMath !== null) return 'wrongMath';
+    }
+    if (event.type === 'finished') {
+      turn.attemptUsage = event.usage;
+      turn.isAttemptUsageFinal = true;
+      if (event.stopReason === 'refused') {
+        turn.refusalCategory = event.refusalCategory;
+        return 'refused';
+      }
+      turn.wasStoppedByLength = event.stopReason === 'lengthLimit';
+      return 'ended';
+    }
+    return null;
+  };
+
+  async function* runAttempt(turn: TurnWork): AsyncGenerator<Beat, AttemptEnd> {
+    if (turn.signal.aborted) return 'aborted';
+    const attempt = new AbortController();
+    // Left as it is when the session stops reading this generator at a yield, which is an interruption too.
+    let end: AttemptEnd = 'aborted';
+    const endAs = (value: AttemptEnd) => (end = value);
+    turn.attempts += 1;
+    turn.hasAttemptText = false;
+    turn.hasNewWordsThisAttempt = false;
+    turn.attemptUsage = null;
+    turn.isAttemptUsageFinal = false;
+    const attemptStartedAtMs = getNowMs();
+    let lastEventAtMs = attemptStartedAtMs;
+    const events = model.stream(getRequest(turn), attempt.signal)[Symbol.asyncIterator]();
+    let pending = events.next();
+    try {
+      for (;;) {
+        const result = await waitUntil(pending, getDeadlineMs(turn, attemptStartedAtMs, lastEventAtMs), turn.signal, getNowMs);
+        if (result === 'aborted') return endAs('aborted');
+        if (result === 'deadline') {
+          if (turn.reader.isTurnOver) return endAs('ended');
+          if (turn.hasAttemptText) return endAs('stalledInText');
+          if (turn.hasSaidStillWorking || getNowMs() - attemptStartedAtMs >= timeouts.firstTextMs) return endAs('stalledBeforeText');
+          turn.hasSaidStillWorking = true;
+          sayLine(turn, turn.isCheckingMath ? 'checkingMath' : 'stillWorking');
+          yield* takeReady(turn);
+          continue;
+        }
+        if (result.done) return endAs('ended');
+        const eventEnd = readEvent(turn, result.value);
+        yield* takeReady(turn);
+        // Taken after the yield, because the session holds a next idea here until the last one has been spoken, and that wait is not a stalled model.
+        lastEventAtMs = getNowMs();
+        if (eventEnd) return endAs(eventEnd);
+        pending = events.next();
+      }
+    } catch (error) {
+      if (turn.signal.aborted) return endAs('aborted');
+      const problem = error instanceof Error ? error.message : String(error);
+      if (error instanceof ModelRejectedError) {
+        trace('modelRejected', { problem });
+        return endAs('rejected');
+      }
+      trace('modelFailed', { problem });
+      return endAs(turn.hasAttemptText ? 'stalledInText' : 'failed');
+    } finally {
+      attempt.abort();
+      pending.catch(() => {});
+      void events.return?.(undefined).catch(() => {});
+      addAttemptUsage(turn, end);
+    }
+  }
+
+  // The part already cached is what the last request reported, and the rest of what was sent is new.
+  const getEstimatedRequestUsage = (turn: TurnWork): ModelUsage => {
+    const sentTokens = Math.ceil(JSON.stringify(getRequest(turn)).length / CHARACTERS_PER_TOKEN);
+    const cachedTokens = Math.min(promptTokens, sentTokens);
+    return { inputTokens: sentTokens - cachedTokens, outputTokens: 0, cacheReadTokens: cachedTokens, cacheWriteTokens: 0 };
+  };
+
+  // A stream cut short never reports its output, and one cut before its headers reports nothing, so those are estimated. A request the API turned away costs nothing.
+  const addAttemptUsage = (turn: TurnWork, end: AttemptEnd) => {
+    const wasCutBeforeReport = !turn.attemptUsage && (end === 'aborted' || end === 'stalledBeforeText');
+    if (!turn.attemptUsage && !wasCutBeforeReport) return;
+    const reported = turn.attemptUsage ?? getEstimatedRequestUsage(turn);
+    const part = turn.isAttemptUsageFinal ? reported : { ...reported, outputTokens: Math.ceil(turn.raw.length / CHARACTERS_PER_TOKEN) };
+    turn.isUsageEstimated ||= !turn.isAttemptUsageFinal;
+    turn.usage = addUsage(turn.usage, part);
+  };
+
+  function* takeReady(turn: TurnWork): Generator<Beat> {
+    while (turn.ready.length > 0 && !turn.signal.aborted) yield turn.ready.shift() as Beat;
+  }
+
+  const getWordsSaid = (turn: TurnWork) => turn.beats.map((beat) => getBeatText(beat)).join(' ');
+
+  const noteCorrection = (turn: TurnWork, problem: string) => {
+    turn.notes.push(JSON.stringify({ correction: { already_said: getWordsSaid(turn), problem } }));
+    turn.raw = '';
+  };
+
+  const handleWrongMath = (turn: TurnWork, canRetry: boolean): TurnStep => {
+    const problem = turn.wrongMath as string;
+    turn.wrongMath = null;
+    if (!canRetry) {
+      turn.raw = getWordsSaid(turn);
+      turn.refused.push(`a line of math was not drawn, because code found it false: ${problem}`);
+      sayLine(turn, 'mathDropped');
+      return 'over';
+    }
+    // The student never saw the false line or heard its words, so nothing needs correcting aloud, and a quiet retry keeps the exchange from sounding confused.
+    turn.isCheckingMath = true;
+    noteCorrection(turn, `What you were about to put on the board is false: ${problem}. Code stopped it, and the student did not hear the words after it. Write what is true and carry straight on, and never tick a false line. If you did not mean a line as an equal step, write it with the claim that says what it is instead.`);
+    return 'retry';
+  };
+
+  const handleStall = (turn: TurnWork, end: 'stalledBeforeText' | 'stalledInText' | 'failed', canRetry: boolean): TurnStep => {
+    if (!canRetry) {
+      sayLine(turn, 'couldNotReply');
+      return 'over';
+    }
+    if (end === 'stalledInText' && turn.beats.length > 0) {
+      sayLine(turn, 'lostThread');
+      noteCorrection(turn, 'Your reply was cut off by a connection problem. Carry on from where you stopped.');
+    } else if (turn.hasSaidStillWorking) {
+      sayLine(turn, 'stillThere');
+    }
+    turn.raw = '';
+    return 'retry';
+  };
+
+  // The model can stop at "are you thinking of hurting yourself?" with no help named, and the student may not answer, so code names it.
+  const addHelpIfMissing = (turn: TurnWork) => {
+    if (!turn.reader.isSafetyReply || NAMES_HELP.test(`${getWordsSaid(turn)} ${turn.raw}`)) return;
+    const help = ` ${pickLine('safetyHelp')}`;
+    trace('helpAdded');
+    turn.raw += help;
+    turn.reader.push(help);
+  };
+
+  const finishAnswer = (turn: TurnWork): TurnStep => {
+    addHelpIfMissing(turn);
+    turn.reader.finish();
+    if (!turn.hasModelWords) {
+      turn.endedAs = 'noWords';
+      trace('noWords');
+      sayLine(turn, 'couldNotReply');
+    } else if (turn.reader.wasCutShort || turn.wasStoppedByLength) {
+      sayLine(turn, 'cutShort');
+    }
+    return 'over';
+  };
+
+  // Anthropic's page on refusals says to discard partial output, so what was not yet spoken goes unsaid, and none of it stays in history.
+  const handleRefusal = (turn: TurnWork, canRetry: boolean): TurnStep => {
+    const wasAskedHow = turn.refusalCategory === ASKED_HOW_IT_WORKED;
+    turn.reader.dropAttempt();
+    turn.raw = '';
+    if (wasAskedHow && canRetry) {
+      turn.notes.push(JSON.stringify(ASKED_HOW_NOTE));
+      if (turn.hasModelWords) noteCorrection(turn, 'Carry on from where you stopped.');
+      return 'retry';
+    }
+    if (!isPlainRefusal(turn)) sayLine(turn, turn.hasModelWords ? 'refusedAfterWords' : 'refused');
+    else if (wasAskedHow) sayLine(turn, 'askedHowDeclined');
+    else sayLine(turn, turn.hasModelWords ? 'refusedPlainAfterWords' : 'refusedPlain');
+    return 'over';
+  };
+
+  const startFromCleanHistory = (turn: TurnWork) => {
+    turns = [];
+    toldBoard = '{}';
+    if (profileNote && !pendingNotes.includes(profileNote)) pendingNotes = [profileNote, ...pendingNotes];
+    turn.notes = pendingNotes.map((note) => JSON.stringify(note));
+    turn.carriedNotes = pendingNotes.length;
+  };
+
+  // The first rejection may be the student's message, which is dropped. A second, on a clean message, blames the history. A third means nothing will get through.
+  const handleRejection = (turn: TurnWork): TurnStep => {
+    rejectionsInARow += 1;
+    if (rejectionsInARow === 1) {
+      sayLine(turn, 'couldNotReply');
+      return 'over';
+    }
+    if (rejectionsInARow === 2 && turns.length > 0) {
+      startFromCleanHistory(turn);
+      return 'retry';
+    }
+    closedReason = 'broken';
+    hasToldClosed = true;
+    sayLine(turn, 'broken');
+    return 'over';
+  };
+
+  const handleEnd = (turn: TurnWork, end: AttemptEnd): TurnStep => {
+    const canRetry = turn.attempts < MAX_ATTEMPTS;
+    turn.endedAs = end;
+    switch (end) {
+      case 'aborted':
+      case 'noWords':
+        return 'over';
+      case 'ended':
+        return finishAnswer(turn);
+      case 'refused':
+        return handleRefusal(turn, canRetry);
+      case 'rejected':
+        turn.reader.dropAttempt();
+        return handleRejection(turn);
+      case 'wrongMath':
+        turn.reader.closeAttempt();
+        return handleWrongMath(turn, canRetry);
+      case 'stalledBeforeText':
+      case 'stalledInText':
+      case 'failed':
+        turn.reader.closeAttempt();
+        // A question that closed as the stream dropped has ended the turn, and a new request would be thrown away.
+        if (turn.reader.isTurnOver) return finishAnswer(turn);
+        return handleStall(turn, end, canRetry);
+    }
+  };
+
+  const getAcceptedRaw = (turn: TurnWork) => (turn.hasModelWords ? turn.raw.slice(0, turn.raw.length - turn.reader.textAfterTurn.length).trim() : '');
+
+  const startCompactingIfNeeded = () => {
+    if (isCompacting || promptTokens < compactAtTokens || turns.length <= TURNS_KEPT_AFTER_COMPACTING) return;
+    const keptFrom = turns.findIndex((turn, index) => index >= turns.length - TURNS_KEPT_AFTER_COMPACTING && turn.role === 'user');
+    if (keptFrom <= 0) return;
+    isCompacting = true;
+    const compacted = turns.slice(0, keptFrom);
+    const turnsBefore = turns.length;
+    trace('compactionStarted', { promptTokens, turns: compacted.length });
+    void model
+      .compact({ system: TUTOR_SYSTEM, turns: compacted }, new AbortController().signal)
+      .then((result) => {
+        if (!result) return trace('compactionEmpty');
+        turns = [{ role: 'summary', summary: result.summary }, ...turns.slice(keptFrom)];
+        toldBoard = '{}';
+        if (profileNote) pendingNotes.push(profileNote);
+        onCompacted?.({ costUsd: model.getCostUsd(result.usage), turnsBefore, turnsAfter: turns.length });
+      })
+      // A failed summary leaves the history whole, and the next turn tries again.
+      .catch((error: unknown) => trace('compactionFailed', { problem: String(error) }))
+      .finally(() => {
+        isCompacting = false;
+      });
+  };
+
+  const finishTurn = (turn: TurnWork) => {
+    turn.costUsd = turn.usage ? model.getCostUsd(turn.usage) : 0;
+    const wasRefused = turn.endedAs === 'refused';
+    const text = getAcceptedRaw(turn);
+    if (text !== '') {
+      turns.push({ role: 'user', text: turn.studentText }, ...turn.notes.map((note) => ({ role: 'system' as const, text: note })), { role: 'assistant', text });
+      pendingNotes = pendingNotes.slice(turn.carriedNotes);
+    } else if (!wasRefused && turn.endedAs !== 'rejected') {
+      turns.push({ role: 'user', text: turn.studentText });
+    }
+    if (wasRefused) {
+      const note = isPlainRefusal(turn) ? SKIPPED_NOTE : DECLINED_NOTE;
+      if (!pendingNotes.includes(note)) pendingNotes.push(note);
+    }
+    if (turn.endedAs === 'ended') rejectionsInARow = 0;
+    lastBeats = turn.beats;
+    lastRefused = wasRefused ? [] : turn.refused;
+    hidesLastWords = wasRefused;
+    onTurnEnd?.({
+      studentText: turn.studentText,
+      spokenText: getWordsSaid(turn),
+      beats: turn.beats,
+      refused: turn.refused,
+      attempts: turn.attempts,
+      endedAs: turn.endedAs,
+      refusalCategory: turn.refusalCategory,
+      firstTextMs: turn.firstTextMs,
+      firstBeatMs: turn.firstBeatMs,
+      usage: turn.usage,
+      isUsageEstimated: turn.isUsageEstimated,
+      promptTokens,
+      costUsd: turn.costUsd,
+    });
+    startCompactingIfNeeded();
+  };
+
+  const profileLoading = loadProfile?.().then(
+    (loaded) => {
+      if (!loaded) return;
+      profileNote = toProfileNote(loaded);
+      pendingNotes.push(profileNote);
+    },
+    (error: unknown) => trace('profileFailed', { problem: String(error) }),
+  );
+
+  const closeIfSpent = (turn: TurnWork) => {
+    closedReason ??= getSpendLimit();
+    if (closedReason === null || hasToldClosed) return;
+    hasToldClosed = true;
+    trace('tutorClosed', { reason: closedReason });
+    sayLine(turn, closedReason);
+  };
+
+  return {
+    async *reply({ text, carried = '' }, signal) {
+      // The last turn holds the carried words, or a safety check chose to drop them, so only what is new goes in. If that turn never began, nothing holds them, and they all go in. The rule keeps only the newest words it owes, with their spacing evened out.
+      const isCarriedHere = carried !== '' && toSpacedWords(lastAskedText ?? '').endsWith(toSpacedWords(carried));
+      lastAskedText = text;
+      const studentText = cleanStudentText(isCarriedHere ? text.slice(carried.length) : text);
+      if (studentText === '') {
+        const said = parseBeat({ id: `t${turnCount}-unheard`, script: [pickLine('notHeard')], expectsReply: true });
+        if (said.ok) yield said.value;
+        return;
+      }
+      await waitForLastTurn();
+      if (profileLoading) await Promise.race([profileLoading, delay(timeouts.profileWaitMs)]);
+      isTurnRunning = true;
+      const turn = startTurn(studentText, signal);
+      if (Array.from(studentText).length >= TYPED_TEXT_MAX_CHARACTERS) turn.notes.push(JSON.stringify(CLIPPED_NOTE));
+      try {
+        closeIfSpent(turn);
+        if (closedReason !== null) {
+          turn.endedAs = 'ended';
+          yield* takeReady(turn);
+          return;
+        }
+        for (;;) {
+          const end = yield* runAttempt(turn);
+          const step = handleEnd(turn, end);
+          yield* takeReady(turn);
+          if (step === 'over') return;
+        }
+      } finally {
+        finishTurn(turn);
+        isTurnRunning = false;
+      }
+    },
+    notePlayed(report) {
+      const [, resumedFrom] = RESUMED_BEAT.exec(report.beatId) ?? [];
+      const before = resumedFrom ? reports.get(resumedFrom as BeatId) : undefined;
+      // A resume repeats the word it was cut on, so its count overlaps the first report by one.
+      if (before) reports.set(before.beatId, { ...report, beatId: before.beatId, playedWords: Math.max(before.playedWords - 1, 0) + report.playedWords, firedCues: before.firedCues + report.firedCues });
+      else reports.set(report.beatId, report);
+    },
+    noteCut(wordsSent) {
+      cutWordsSent = new Map([...wordsSent].map(([beatId, words]) => [(RESUMED_BEAT.exec(beatId)?.[1] ?? beatId) as BeatId, words]));
+    },
+    // Built from what the model itself wrote, so a forged report can name only a mark that already exists.
+    noteMarkNotDrawn(markId) {
+      const mark = marksDrawn.get(markId);
+      if (!mark) return;
+      marksDrawn.delete(markId);
+      pendingNotes.push({ mark_not_drawn: mark });
+    },
+    getClosedReason: () => (hasToldClosed ? closedReason : null),
+  };
+}
+
