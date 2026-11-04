@@ -8,7 +8,7 @@ THE CONTRACT. Break it and the scene is rejected.
 - `T` is a dict from moment id to seconds, and `DURATION` is the scene's length. Never write a moment's time as a number. Call self.until('moment-id') exactly when each moment begins, in order, and use every moment you are given. The moment's visual starts right after that call.
 - Time the animations between moments so they end before the next moment: run_time=T['b'] - T['a'] - 0.2 at most, in total, for what plays between a and b. A moment reached more than 0.35 s late is rejected.
 - End construct with self.finish().
-- Name the things a student must see with self.part('id', mobject), which returns the mobject. Use plain lower-case ids that say what they are, such as 'curve', 'tangent', 'ball'.
+- Name the things a student must see with self.part('id', mobject), which returns the mobject. Use plain lower-case ids of letters, digits, and hyphens that say what they are, such as 'curve', 'tangent', 'ball'.
 - Stay under about 4,000 points of motion and at most about 60 s of work. Never loop per frame in Python over more than a few thousand objects.
 
 LOOK. This is a calm notebook, not a demo. Use these and nothing else.

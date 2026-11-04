@@ -91,7 +91,7 @@ Measured on 4 November with the rules last in prompt v2, on one run of each word
 
 | Measure | Before this round, on v2 | After |
 | --- | --- | --- |
-| `eval:kinds` failed checks | 10 of 25 groups' checks | 0 on the tutor, in 33 groups, with 1 that the runner could not drag, since fixed |
+| `eval:kinds` failed checks | 10, in 25 groups | 0 or 1 in 33 groups, over the last two runs. The 1 was "how do you say good morning in spanish" with no task by reply 2 |
 | Topics taught first | none set a task early, but first task at reply 3 to 5 or never | 12 of 12, all first task at reply 3 |
 | The reviewer's 12 direct wordings, task in reply 1 | 4 | 5, and 10 by reply 2 |
 | The reviewer's 24 repeats, task in reply 1 | 11 | 11 |

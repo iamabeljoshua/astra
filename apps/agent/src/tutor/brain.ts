@@ -5,6 +5,7 @@ import { getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson
 import { createAttemptTracker } from './attempts.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
 import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getClaimProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getWordsProblem } from './board-memory.ts';
+import type { MemoryNote } from '../learner-record/memory-note.ts';
 import { TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
 import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
 import { runTool, type ToolResult } from './tools/run-tool.ts';
@@ -100,6 +101,9 @@ export interface TutorBrainOptions {
   model: TutorModelAdapter;
   profile?: StudentProfile | null;
   loadProfile?(): Promise<StudentProfile | null>;
+  memory?: MemoryNote | null;
+  loadMemory?(): Promise<MemoryNote>;
+  onWorkNoted?(work: StudentWork, checked: CheckedWork): void;
   timeouts?: Partial<TutorTimeouts>;
   trace?: TraceNote;
   onTurnEnd?(summary: TurnSummary): void;
@@ -252,7 +256,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 const toProfileNote = ({ level, interests, goal }: StudentProfile) => ({ student: { level, interests, goal } });
 
-export function createTutorBrain({ model, profile = null, loadProfile, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), prompt = TUTOR_PROMPT, findSource, lessonPlanner }: TutorBrainOptions): Required<TutorBrain> {
+export function createTutorBrain({ model, profile = null, loadProfile, memory: knownMemory = null, loadMemory, onWorkNoted, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), prompt = TUTOR_PROMPT, findSource, lessonPlanner }: TutorBrainOptions): Required<TutorBrain> {
   const timeouts: TutorTimeouts = { ...TUTOR_TIMEOUTS, ...chosenTimeouts };
   const attempts = createAttemptTracker();
   const pickLine = createLinePicker();
@@ -266,8 +270,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
   const getBoardNow = () => getBoardAt(boardOperations, Number.POSITIVE_INFINITY);
   let toldBoard = '{}';
   let toldStep = 'null';
+  let memoryNote: Record<string, unknown> | null = knownMemory ? { ...knownMemory } : null;
+  const getStandingNotes = () => [profileNote, memoryNote].filter((note) => note !== null);
   let isComeBackUnanswered = false;
-  let pendingNotes: Record<string, unknown>[] = profileNote ? [profileNote] : [];
+  let pendingNotes: Record<string, unknown>[] = getStandingNotes();
   let lastBeats: readonly Beat[] = [];
   let lastRefused: readonly string[] = [];
   /** A refused reply's words must not go back to the model, even when the student cut across them. */
@@ -697,6 +703,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     toldBoard = '{}';
     toldStep = 'null';
     if (profileNote && !pendingNotes.includes(profileNote)) pendingNotes = [profileNote, ...pendingNotes];
+    pendingNotes = [...getStandingNotes().filter((note) => !pendingNotes.includes(note)), ...pendingNotes];
     turn.notes = pendingNotes.map((note) => JSON.stringify(note));
     turn.carriedNotes = pendingNotes.length;
   };
@@ -799,6 +806,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
         toldBoard = '{}';
         toldStep = 'null';
         if (profileNote) pendingNotes.push(profileNote);
+        pendingNotes.push(...getStandingNotes());
         onCompacted?.({ costUsd: model.getCostUsd(result.usage), turnsBefore, turnsAfter: turns.length });
       })
       // A failed summary leaves the history whole, and the next turn tries again.
@@ -857,6 +865,15 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
     (error: unknown) => trace('profileFailed', { problem: String(error) }),
   );
 
+  // Failing to read it leaves no note at all, and the prompt treats that as knowing nothing of earlier sessions.
+  const memoryLoading = loadMemory?.().then(
+    (loaded) => {
+      memoryNote = { ...loaded };
+      pendingNotes.push(memoryNote);
+    },
+    (error: unknown) => trace('memoryFailed', { problem: String(error) }),
+  );
+
   const closeIfSpent = (turn: TurnWork) => {
     closedReason ??= getSpendLimit();
     if (closedReason === null || hasToldClosed) return;
@@ -879,7 +896,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       // Skipped on words this list knows. Vaguer words reach the planner, whose `stay` and `getTrustedMove` hold them.
       if (!MAY_BE_ABOUT_SAFETY.test(studentText)) lessonPlanner?.noteStudentWords({ words: studentText, isOpening: turnCount === 0, tutorSaid: lastBeats.map(getBeatText).join(' ') });
       await waitForLastTurn();
-      if (profileLoading) await Promise.race([profileLoading, delay(timeouts.profileWaitMs)]);
+      if (profileLoading || memoryLoading) await Promise.race([Promise.all([profileLoading, memoryLoading]), delay(timeouts.profileWaitMs)]);
       isTurnRunning = true;
       const turn = startTurn(studentText, signal);
       if (Array.from(studentText).length >= TYPED_TEXT_MAX_CHARACTERS) turn.notes.push(JSON.stringify(CLIPPED_NOTE));
@@ -937,6 +954,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, timeouts:
       const hadTask = context.task !== null || (context.problemTex ?? null) !== null;
       const checked = checkWorkOnBoard(work, board);
       boardOperations.push({ kind: 'worked', atMs: boardOperations.length, action: { action: 'worked', work, ...checked } });
+      onWorkNoted?.(work, checked);
       memory = getMemoryAfterWork(work, checked, memory);
       lessonPlanner?.noteWorkChecked(checked, work);
       workSinceLastTurn.push({ work, checked });
