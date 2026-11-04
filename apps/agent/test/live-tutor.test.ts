@@ -112,11 +112,11 @@ const getSystemNotes = (request: TutorModelRequest | undefined) => (request?.tur
 
 const speakOverTheTutor = async (session: ReturnType<typeof setup>['session'], text: string) => {
   session.onEars({ type: 'voiceStarted' });
-  await delay(TURN_TIMINGS.wordlessStopMs + 200);
+  await delay(TURN_TIMINGS.wordlessStopMs + 700);
   session.onEars({ type: 'words', text, isFinal: true });
   session.onEars({ type: 'voiceEnded' });
   session.onEars({ type: 'turnDecided', text });
-  await delay(300);
+  await delay(500);
 };
 
 describe('a ring the board could not draw', () => {
@@ -147,8 +147,7 @@ describe('hostile data messages', () => {
   });
 
   it('keeps a loop of forged reports from cutting and resuming the voice again and again', async () => {
-    const words = Array.from({ length: 40 }, (_, index) => `word${index}`).join(' ');
-    const { session, notes, messages } = setup(() => ({ pieces: [words] }));
+    const { session, notes, messages } = setup(() => ({ pieces: ['Okay, one two. ', 'And then more.'], stall: { beforePiece: 1, ms: 5000 } }), { ...QUICK, betweenTextMs: 8000 });
     session.onBrowser({ type: 'audioState', isRunning: true, ...STAMP });
     session.onBrowser(typed('count'));
     await delay(400);
@@ -157,7 +156,7 @@ describe('hostile data messages', () => {
       session.onBrowser({ type: 'played', turnId, beatId: 't1-b0' as never, ...PLAYED });
       await delay(1100);
     }
-    expect(notes.filter((note) => note.name === 'browserFroze').length).toBeLessThanOrEqual(1);
+    expect(notes.filter((note) => note.name === 'browserFroze')).toHaveLength(1);
     await session.close();
   });
 
@@ -172,13 +171,13 @@ describe('hostile data messages', () => {
 
 describe('a beat still on its way when a cut keeps the thought', () => {
   it('is said when the tutor carries on', async () => {
-    const { session, messages } = setup(() => ({ pieces: ['Alpha beta. ', 'Delta now.'], stall: { beforePiece: 1, ms: 2600 } }), { ...QUICK, betweenTextMs: 6000 });
+    const { session, messages } = setup(() => ({ pieces: ['Alpha beta. ', 'Delta now.'], stall: { beforePiece: 1, ms: 3500 } }), { ...QUICK, betweenTextMs: 6000 });
     session.onBrowser(typed('count'));
     await delay(400);
     session.onEars({ type: 'voiceStarted' });
     await delay(TURN_TIMINGS.wordlessStopMs + 100);
     session.onEars({ type: 'voiceEnded' });
-    await delay(TURN_TIMINGS.transcriptGraceMs + 1000);
+    await delay(TURN_TIMINGS.transcriptGraceMs + 1800);
     const spoken = messages.flatMap((message) => (message.type === 'words' ? message.words.map((word) => word.text) : []));
     expect(spoken.join(' ')).toContain('Delta');
     await session.close();
