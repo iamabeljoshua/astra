@@ -1,5 +1,5 @@
 import { type Beat, BEAT_LIMITS, getScriptText, getSpokenWords } from './beat.ts';
-import { getOverlappingSlider, getSlidersAfter } from './board-check.ts';
+import { getOverlappingSlider } from './board-check.ts';
 import { readBeatId } from './ids.ts';
 import { readSceneCommand } from './parse-command.ts';
 import { checkStorableText, fail, type CheckedFields, getField, type ParseResult, type Place, readBoolean, readFields, readList, toParseResult } from './read.ts';
@@ -19,6 +19,13 @@ function getCreatedIds(script: Beat['script']): string[] {
 }
 
 const SAME_SPEED_TWO_WAYS = 'no two sliders on one flight that say the same speed two ways';
+
+function getSlidersAfter(command: SceneCommand, sliders: readonly Slider[]): readonly Slider[] {
+  if (command.kind === 'clearBoard') return [];
+  if (command.kind === 'hide') return sliders.filter(({ id, target }) => id !== command.target && target !== command.target);
+  if (command.kind === 'slider') return [...sliders.filter(({ id }) => id !== command.id), command];
+  return 'id' in command ? sliders.filter(({ target }) => target !== command.id) : sliders;
+}
 
 function getSlidersIn(script: Beat['script']): readonly Slider[] {
   return script.reduce<readonly Slider[]>((sliders, part) => (typeof part === 'string' ? sliders : getSlidersAfter(part, sliders)), []);

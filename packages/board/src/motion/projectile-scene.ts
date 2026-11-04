@@ -1,4 +1,4 @@
-import { getSpeedWays, type ProjectileSimulation, SIMULATION_PARAMETER_RULES, type SimulationMoment, type SimulationParameter } from '@astra/contracts';
+import { getSpeedPairs, type ProjectileSimulation, SIMULATION_PARAMETER_RULES, type SimulationMoment, type SimulationParameter } from '@astra/contracts';
 import type { Scene, SceneParameters } from '../player/scene.ts';
 
 export interface ProjectileFrame {
@@ -19,21 +19,19 @@ function getLandingSeconds({ upwardSpeed, releaseHeight, gravity }: ProjectilePa
 
 const isFlightValue = (name: string): name is SimulationParameter => Object.hasOwn(SIMULATION_PARAMETER_RULES, name);
 
-/** Only what a flight has, each inside its rule, so a landing is always a real number. */
+// The landing formula needs these floors. Speeds are left alone, because a speed rewritten into the other pair can truly sit outside that pair's slider range.
+const LOWEST_VALUES: Partial<Record<SimulationParameter, number>> = { gravity: SIMULATION_PARAMETER_RULES.gravity.min, releaseHeight: SIMULATION_PARAMETER_RULES.releaseHeight.min, launchSpeed: SIMULATION_PARAMETER_RULES.launchSpeed.min };
+
 function getAllowedChanges(changes: SceneParameters): Partial<Record<SimulationParameter, number>> {
-  return Object.fromEntries(Object.entries(changes).flatMap(([name, value]) => {
-    if (!isFlightValue(name)) return [];
-    const { min, max } = SIMULATION_PARAMETER_RULES[name];
-    return [[name, Math.min(max, Math.max(min, value))]];
-  }));
+  return Object.fromEntries(Object.entries(changes).flatMap(([name, value]) => (isFlightValue(name) ? [[name, Math.max(LOWEST_VALUES[name] ?? value, value)]] : [])));
 }
 
-/** Changes with any speed said the other way from `parameter` said its way instead, using the values the flight runs on now, so the flight does not change. */
-export function getChangesSaidLike(parameter: string, changes: SceneParameters, values: SceneParameters = {}): SceneParameters {
-  const ways = getSpeedWays(parameter);
-  if (!ways?.other.some((name) => name in changes)) return changes;
-  const kept = Object.entries(changes).filter(([name]) => !ways.other.includes(name));
-  return Object.fromEntries([...kept, ...Object.entries(values).filter(([name]) => ways.own.includes(name))]);
+/** Rewrites speed changes into the pair `parameter` belongs to, from the values the flight runs on now, so the flight does not change. */
+export function getChangesInPairOf(parameter: string, changes: SceneParameters, values: SceneParameters = {}): SceneParameters {
+  const pairs = getSpeedPairs(parameter);
+  if (!pairs?.other.some((name) => name in changes)) return changes;
+  const kept = Object.entries(changes).filter(([name]) => !pairs.other.includes(name));
+  return Object.fromEntries([...kept, ...Object.entries(values).filter(([name]) => pairs.own.includes(name))]);
 }
 
 export function resolveProjectileParameters(base: ProjectileParameters, changes: SceneParameters): ProjectileParameters {
@@ -50,7 +48,7 @@ function getProjectileValues(parameters: ProjectileParameters, changes: ScenePar
   return { ...parameters, launchSpeed: Math.hypot(horizontalSpeed, upwardSpeed), launchAngle: Math.atan2(upwardSpeed, horizontalSpeed) * DEGREES_PER_RADIAN, ...getAllowedChanges(changes) };
 }
 
-/** `changes` are what was set, so a slider shows that exactly, and an angle set while the speed is zero still reads as set. */
+/** `changes` win over derived values, so a slider shows exactly what was set, even an angle at zero speed. */
 export function createProjectileScene(parameters: ProjectileParameters, changes: SceneParameters = {}): Scene<ProjectileFrame> {
   const { horizontalSpeed, upwardSpeed, releaseHeight, gravity } = parameters;
   const landing = getLandingSeconds(parameters);

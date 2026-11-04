@@ -439,7 +439,6 @@ const readFigureWords = (lab: LabPage) => lab.page.evaluate(() => [...document.q
 
 const OLD_WORDS = /minimum|bends up/;
 
-/** The review's lesson: marks on one curve, then a new curve under the same id. */
 async function proveReplaced(browser: Browser, run: LessonRun) {
   const lab = await open(browser, run);
   await lab.command({ type: 'play', lesson: 'figure-replaced', lessonTurn: 0 });
@@ -464,8 +463,7 @@ const OVERLAPPING_SLIDER = { kind: 'slider', id: 'also-angle', target: 'polar', 
 const GRAVITY_THROUGH_A_CONSTANT = { kind: 'slider', id: 'gravity-way', target: 'polar', constant: 'gravity', min: -5, max: 5 };
 const PAIR_STEPS = [['Home'], ['ArrowLeft', 'ArrowLeft', 'ArrowLeft'], ['ArrowRight']];
 
-/** One slider's key presses must leave the other slider's number exactly where the student left it. */
-async function provePair(browser: Browser, run: LessonRun) {
+async function proveSliderPairs(browser: Browser, run: LessonRun) {
   const lab = await open(browser, run);
   await lab.page.evaluate(() => window.pageChecks.startFigureWatch());
   const numbersMoved: string[] = [];
@@ -505,8 +503,7 @@ async function provePair(browser: Browser, run: LessonRun) {
 
 const FINE_CURVES: Readonly<Record<string, boolean>> = { 'square-100': true, 'poles-100': true, 'tan-100': true, 'band-300': true, 'whole-150': false, bump: false, sinc: false };
 
-/** Each curve as a student sees it, and what the board told the tutor. */
-async function proveFine(browser: Browser, run: LessonRun) {
+async function proveCurvesTooFine(browser: Browser, run: LessonRun) {
   const lab = await open(browser, run);
   await lab.page.evaluate(() => window.pageChecks.startFigureWatch());
   await lab.command({ type: 'play', lesson: 'figure-fine' });
@@ -630,8 +627,8 @@ const PROOFS = {
   'slider-name': async (browser: Browser) => [await proveSliderName(browser, { lesson: 'shot', viewport: 'laptop', theme: 'light' })],
   resize: async (browser: Browser) => [await proveResize(browser, { lesson: 'launch', viewport: 'laptop', theme: 'light' }), await proveResize(browser, { lesson: 'free-body', viewport: 'laptop', theme: 'dark' })],
   replaced: async (browser: Browser) => [await proveReplaced(browser, { lesson: 'figure-replaced', viewport: 'laptop', theme: 'light' }), await proveReplaced(browser, { lesson: 'figure-replaced', viewport: 'phone', theme: 'dark' })],
-  pair: async (browser: Browser) => [await provePair(browser, { lesson: 'figure-pair', viewport: 'laptop', theme: 'light' }), await provePair(browser, { lesson: 'figure-pair', viewport: 'phone', theme: 'dark' })],
-  fine: async (browser: Browser) => [await proveFine(browser, { lesson: 'figure-fine', viewport: 'laptop', theme: 'light' }), await proveFine(browser, { lesson: 'figure-fine', viewport: 'phone', theme: 'dark' })],
+  pair: async (browser: Browser) => [await proveSliderPairs(browser, { lesson: 'figure-pair', viewport: 'laptop', theme: 'light' }), await proveSliderPairs(browser, { lesson: 'figure-pair', viewport: 'phone', theme: 'dark' })],
+  fine: async (browser: Browser) => [await proveCurvesTooFine(browser, { lesson: 'figure-fine', viewport: 'laptop', theme: 'light' }), await proveCurvesTooFine(browser, { lesson: 'figure-fine', viewport: 'phone', theme: 'dark' })],
 } as const;
 
 mkdirSync(args.out as string, { recursive: true });

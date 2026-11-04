@@ -3,8 +3,8 @@ import { type AxisRange, LARGEST_FITTED_VALUE } from './axis-ticks.ts';
 const HALVINGS = 36;
 const HALVINGS_COMPARED = 12;
 const MOST_PEAKS_MEASURED = 6;
-/** Below this, a change in the top is the rounding of the number itself. */
-const ROUNDING_SHARE = 1e-9;
+/** A gain below this share of the top counts as evaluation noise, not a climb. */
+const NOISE_SHARE = 1e-9;
 
 interface Top {
   x: number;
@@ -16,7 +16,7 @@ export interface SampledCurve {
   samples: readonly Top[];
 }
 
-/** Climbs from a sample by halving its step. A finite top settles, gaining at worst half as much each time, and a pole or a log goes on gaining, so that returns null. */
+/** Climbs by halving its step, and returns null unless the gain keeps at least halving, because a finite top settles and a pole or a log does not. */
 function climbToTop(evaluate: (x: number) => number, start: Top, { spacing, domain: [low, high] }: { spacing: number; domain: AxisRange }): Top | null {
   let best = start;
   const tops = [start.y];
@@ -32,10 +32,10 @@ function climbToTop(evaluate: (x: number) => number, start: Top, { spacing, doma
   }
   const gainedLast = best.y - (tops[HALVINGS - HALVINGS_COMPARED] as number);
   const gainedBefore = (tops[HALVINGS - HALVINGS_COMPARED] as number) - (tops[HALVINGS - 2 * HALVINGS_COMPARED] as number);
-  return gainedLast > Math.abs(best.y) * ROUNDING_SHARE && gainedLast >= gainedBefore / 2 ? null : best;
+  return gainedLast > Math.abs(best.y) * NOISE_SHARE && gainedLast >= gainedBefore / 2 ? null : best;
 }
 
-// A top at an edge can be a pole just past it, as tan(x) is on [-1.57, 1.57], where the whole height would flatten the curve, so that counts as growing without bound.
+// A top at a domain edge may be a pole just past it, as with tan(x) on [-1.57, 1.57], so it climbs again past the edge.
 function measureTop(evaluate: (x: number) => number, start: Top, { spacing, domain }: { spacing: number; domain: AxisRange }): number | null {
   const top = climbToTop(evaluate, start, { spacing, domain });
   if (!top) return null;
@@ -46,7 +46,6 @@ function measureTop(evaluate: (x: number) => number, start: Top, { spacing, doma
 
 const isLocalTop = (samples: readonly Top[], index: number) => !((samples[index - 1]?.y as number) > (samples[index] as Top).y) && !((samples[index + 1]?.y as number) > (samples[index] as Top).y);
 
-/** The highest top above `above` that stays finite, or null when each one seen grows without bound or there is none. `direction` of -1 finds the lowest valley. */
 export function getFiniteTop(curves: readonly SampledCurve[], { above, direction, spacing, domain }: { above: number; direction: 1 | -1; spacing: number; domain: AxisRange }): number | null {
   const tops = curves.flatMap(({ evaluate, samples }) => {
     const signed = samples.map(({ x, y }) => ({ x, y: y * direction }));

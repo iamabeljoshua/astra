@@ -1,4 +1,4 @@
-import { getSpeedWays, type SceneCommand, type Slider } from './scene-command.ts';
+import { getSpeedPairs, type SceneCommand, type Slider } from './scene-command.ts';
 import type { StudentAction } from './session-event.ts';
 
 export type BoardElementKind = SceneCommand['kind'] | 'ink';
@@ -63,17 +63,9 @@ export function getBoardAfterAction(action: StudentAction, board: BoardKinds): B
   return after;
 }
 
-/** The live slider on the same flight that says this slider's speed the other way, if any. A flight offers a speed with an angle, or a sideways speed with an upward one. */
+/** The live slider on the same flight that sets this slider's speed in the other pair, if any. */
 export function getOverlappingSlider(slider: Slider, live: readonly Slider[]): Slider | null {
   if (!('parameter' in slider)) return null;
-  const other = getSpeedWays(slider.parameter)?.other ?? [];
+  const other = getSpeedPairs(slider.parameter)?.other ?? [];
   return live.find((each) => each.id !== slider.id && each.target === slider.target && 'parameter' in each && other.includes(each.parameter)) ?? null;
-}
-
-/** The sliders live after a command, so a reader can refuse an overlap across beats as the board does. */
-export function getSlidersAfter(command: SceneCommand, sliders: readonly Slider[]): readonly Slider[] {
-  if (command.kind === 'clearBoard') return [];
-  if (command.kind === 'hide') return sliders.filter(({ id, target }) => id !== command.target && target !== command.target);
-  if (command.kind === 'slider') return [...sliders.filter(({ id }) => id !== command.id), command];
-  return 'id' in command ? sliders.filter(({ target }) => target !== command.id) : sliders;
 }

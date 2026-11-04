@@ -236,6 +236,17 @@ describe('sliders on one flight', () => {
     expect(worstJump).toBeLessThan(1e-9);
   });
 
+  it('leaves the flight as it is when a speed is rewritten into the other pair, even outside that pair\'s range', () => {
+    const backward = getValues([shot, tutorSets(10, 'horizontalSpeed', -20), sample(20, 'launchSpeed', Math.hypot(20, 10))]);
+    expect(backward.horizontalSpeed).toBeCloseTo(-20, 9);
+    expect(backward.upwardSpeed).toBeCloseTo(10, 9);
+    const fast = [shot, tutorSets(10, 'launchSpeed', 150), tutorSets(20, 'launchAngle', 80)];
+    const before = getValues(fast);
+    const after = getValues([...fast, sample(30, 'horizontalSpeed', before.horizontalSpeed as number)]);
+    expect(after.upwardSpeed).toBeCloseTo(before.upwardSpeed as number, 9);
+    expect(after.launchSpeed).toBeCloseTo(150, 9);
+  });
+
   it('holds the angle the student set while the speed is zero', () => {
     const values = getValues([shot, sample(10, 'launchSpeed', 0), sample(20, 'launchAngle', 40)]);
     expect(values.launchAngle).toBe(40);

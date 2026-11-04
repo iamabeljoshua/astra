@@ -113,7 +113,7 @@ export interface ReplayPixels {
   describedDifferently: number;
 }
 
-/** A browser's rasterizer moves a line's antialiasing by a level or two between identical paints. Anything larger is a real difference, on any look. */
+/** A browser repaint can shift a line's antialiasing by a level or two, so only a difference this small may settle. */
 const LARGEST_SETTLING_LEVELS = 2;
 
 export async function checkReplayPixels(lab: LabPage): Promise<ReplayPixels> {
@@ -153,7 +153,6 @@ export async function checkReplayPixels(lab: LabPage): Promise<ReplayPixels> {
   return { moments: moments.length, differing, settledOnSecondLook, describedDifferently };
 }
 
-/** What every proof writes about a replay. */
 export const getReplaySummary = ({ moments, differing, settledOnSecondLook, describedDifferently }: ReplayPixels) => ({ moments, differing: differing.length, settledOnSecondLook, described: describedDifferently });
 
 export async function checkStillness(lab: LabPage): Promise<{ writes: number; animations: number; imagesMatch: boolean }> {

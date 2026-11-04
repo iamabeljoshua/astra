@@ -303,7 +303,6 @@ export async function countDifferentPixels([first, second, threshold]: [string, 
   return different;
 }
 
-/** The most that any one channel of any pixel differs, of 255. */
 export async function getLargestChannelDifference([first, second]: [string, string]): Promise<number> {
   const [one, two] = await Promise.all([loadPixels(first), loadPixels(second)]);
   if (one.width !== two.width || one.height !== two.height) return Number.POSITIVE_INFINITY;

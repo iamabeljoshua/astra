@@ -46,7 +46,7 @@ function getCurveDrawing(element: PlotElement, frame: FigureFrame, { xRange, yRa
 
 const getCurvePoints = (element: PlotElement, frame: FigureFrame, view: FigureView) => getCurveDrawing(element, frame, view).branches;
 
-// In the clear margin above the axes, so it reads over a solid band and appearing moves nothing, and first in line so every other label keeps clear of it.
+// Sits in the margin above the axes and is placed first, so a solid band cannot cover it and no later label lands on it.
 function addTooFineNote(draft: FigureDraft, element: PlotElement, { frame, view }: { frame: FigureFrame; view: FigureView }): void {
   frame.onCurveTooFine?.(element);
   if (getAxesShare(frame.element, frame) < 1 || draft.labels.some(({ key }) => key === TOO_FINE_KEY)) return;

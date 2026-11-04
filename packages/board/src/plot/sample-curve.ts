@@ -16,16 +16,16 @@ const HALVINGS_TO_SUSPECT_A_POLE = 1;
 const HALVINGS_TO_STOP_SMOOTHING = 2;
 const GOLDEN_RATIO = 0.618033988749895;
 const BASE_UNEVENNESS = 0.25;
-/** Past the budget a line may not cross a height this tall that no sample nearby reached, because a wave passes through its heights and a jump or a pole does not. */
+/** Past the budget a line may not cross a height this tall that no nearby sample reached, because a wave visits its heights and a jump does not. */
 const UNSEEN_SHARE_OF_VIEW = 1 / 32;
-/** Enough samples that a wave's heights all show, at any speed past the budget, and few enough to stay near the step. */
+/** A window wide enough to show every height of a wave too fast for the budget, and narrow enough to stay local. */
 const SAMPLES_SEEN_TOGETHER = 1024;
-/** The tallest steps near a step, and how many of them must have shrunk when halved for those steps to be a wave. A jump found late never shrank. */
+/** The tallest steps in a window, and the share of them that must have shrunk when halved for the window to count as a wave. */
 const TALLEST_STEPS_SHARE = 1 / 2;
 const WAVE_SHRUNK_SHARE = 1 / 32;
 /** Up and down steps both this tall mean about 6 samples or fewer for each wave, so this is a band and no longer a wave. */
 const ZIGZAG_SHARE_OF_VIEW = 1 / 4;
-/** A few zigzags are a grid meeting a wave at an unlucky phase. This many are the whole curve. */
+/** Zigzags under this share of samples are a grid hitting a wave at an unlucky phase, and more than that make a band. */
 const ZIGZAGS_IN_A_BAND_SHARE = 1 / 64;
 
 export interface CurveRequest {
@@ -34,13 +34,13 @@ export interface CurveRequest {
   yRange: AxisRange;
 }
 
-/** `isTooFine` says the budget ran out with heights left unproven, so `branches` holds only what was proven and the figure must say so. */
+/** `isTooFine` says the budget ran out before the curve could be resolved, either with heights unproven or as a solid band, and the figure must say so. */
 export interface CurveDrawing {
   branches: Branch[];
   isTooFine: boolean;
 }
 
-/** A continuous curve shrinks when halved and a jump or a pole does not, so `stuckHalvings` counts how many halvings in a row left the step ending here as tall as it was, and `stayedTall` says its last halving did not make it shorter, which is all a jump found late can show. */
+/** A continuous step shrinks when halved, so `stuckHalvings` counts halvings in a row that did not and `stayedTall` says the last one did not, which is all a jump found late can show. */
 type Sample = Point & { stuckHalvings: number; stayedTall: boolean };
 
 const isAbove = (point: Point, yRange: AxisRange) => point.y > yRange[1];
@@ -161,7 +161,6 @@ function addDetail(samples: readonly Sample[], steps: ReadonlySet<number>, reque
   return refined;
 }
 
-// What is left of the budget goes evenly across the curve, because a band only gets more honest with more samples anywhere in it.
 function getEvenShare(steps: ReadonlySet<number>, room: number): Set<number> {
   const every = [...steps];
   return new Set(Array.from({ length: room }, (_, index) => every[Math.floor((index * every.length) / room)] as number));
@@ -187,7 +186,7 @@ function clipToView(first: Point, second: Point, [low, high]: AxisRange): [Point
   return [getInside(first, second), getInside(second, first)];
 }
 
-/** A line stops only where halving a step could not shrink it, or where it leaves the view or has no value. Past the budget it also stops where nothing proves it, and the drawing says so. */
+/** A line breaks only where halving could not shrink a step, where it leaves the view or has no value, and past the budget where nothing proves it. */
 export function sampleCurve(request: CurveRequest): CurveDrawing {
   const { yRange } = request;
   const { samples, isUnfinished } = getRefinedSamples(request);

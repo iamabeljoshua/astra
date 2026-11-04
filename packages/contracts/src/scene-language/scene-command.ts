@@ -41,11 +41,11 @@ export const SIMULATION_PARAMETER_RULES = Object.assign({}, ...MODEL_PARAMETERS)
 
 export const SIMULATION_PARAMETERS = Object.keys(SIMULATION_PARAMETER_RULES) as SimulationParameter[];
 
-/** A flight's speed holds two numbers, said here two ways. A control from each way could not both hold what a student set, so a flight takes one way at a time. */
-const SPEED_WAYS = [['horizontalSpeed', 'upwardSpeed'], ['launchSpeed', 'launchAngle']] as const satisfies readonly (readonly SimulationParameter[])[];
+/** A flight takes one of these pairs at a time, because sliders from both could not each hold what a student set. */
+const SPEED_PAIRS = [['horizontalSpeed', 'upwardSpeed'], ['launchSpeed', 'launchAngle']] as const satisfies readonly (readonly SimulationParameter[])[];
 
-export function getSpeedWays(name: string): { own: readonly string[]; other: readonly string[] } | null {
-  const [first, second]: readonly [readonly string[], readonly string[]] = SPEED_WAYS;
+export function getSpeedPairs(name: string): { own: readonly string[]; other: readonly string[] } | null {
+  const [first, second]: readonly [readonly string[], readonly string[]] = SPEED_PAIRS;
   if (first.includes(name)) return { own: first, other: second };
   return second.includes(name) ? { own: second, other: first } : null;
 }

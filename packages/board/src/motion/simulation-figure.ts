@@ -9,7 +9,7 @@ import type { BoardElement } from '../player/board-state.ts';
 import { PLANNED_SCENES } from '../player/planned-scenes.ts';
 import type { Scene, SceneParameters } from '../player/scene.ts';
 import { formatNumber } from '../plot/axis-ticks.ts';
-import { getChangesSaidLike, type ProjectileFrame } from './projectile-scene.ts';
+import { getChangesInPairOf, type ProjectileFrame } from './projectile-scene.ts';
 
 const MARGIN = { left: 38, right: 16, top: 14, bottom: 26 };
 const PATH_STEPS = 72;
@@ -111,10 +111,10 @@ function getHoopBranches(rimX: number, direction: number): Branch[] {
   ];
 }
 
-// Said the slider's way, because a tutor can set a speed the other way and the axes would then shift on the slider's first move.
+// Converts to the sliders' pair first, or a speed the tutor set in the other pair shifts the axes on the first slider move.
 function getChangesNoSliderHolds({ parameterChanges, scene }: NonNullable<BoardElement['placedScene']>, sliders: readonly ParameterSlider[]): SceneParameters {
-  const saidLikeSliders = sliders.reduce((changes, { parameter }) => getChangesSaidLike(parameter, changes, scene.values), parameterChanges);
-  return Object.fromEntries(Object.entries(saidLikeSliders).filter(([name]) => !sliders.some(({ parameter }) => parameter === name)));
+  const inSlidersPair = sliders.reduce((changes, { parameter }) => getChangesInPairOf(parameter, changes, scene.values), parameterChanges);
+  return Object.fromEntries(Object.entries(inSlidersPair).filter(([name]) => !sliders.some(({ parameter }) => parameter === name)));
 }
 
 function getStartingBounds(root: SimulationElement, { attached, baseScene, others, frame }: { attached: readonly BoardElement[]; baseScene: Scene; others: SceneParameters; frame: FigureFrame }): WorldBounds {

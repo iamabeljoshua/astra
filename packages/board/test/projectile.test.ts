@@ -69,9 +69,15 @@ describe('a value a flight cannot run on', () => {
     for (const gravity of [0, -5]) expect(resolveProjectileParameters(BASE, { gravity }).gravity).toBe(0.1);
   });
 
-  it('holds every other value inside its rule', () => {
+  it('holds the height and the speed at zero or above', () => {
     expect(resolveProjectileParameters(BASE, { releaseHeight: -1 }).releaseHeight).toBe(0);
-    expect(resolveProjectileParameters(BASE, { horizontalSpeed: 1e9 }).horizontalSpeed).toBe(100);
+    expect(Math.hypot(...Object.values(resolveProjectileParameters(BASE, { launchSpeed: -5 })).slice(0, 2))).toBe(0);
+  });
+
+  it('leaves a backward angle alone, because a speed rewritten into the other pair can sit outside that pair\'s slider range', () => {
+    const { horizontalSpeed, upwardSpeed } = resolveProjectileParameters(BASE, { launchSpeed: 10, launchAngle: 150 });
+    expect(horizontalSpeed).toBeCloseTo(10 * Math.cos((150 * Math.PI) / 180), 9);
+    expect(upwardSpeed).toBeCloseTo(5, 9);
   });
 
   it('ignores a name a flight does not have', () => {

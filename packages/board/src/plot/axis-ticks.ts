@@ -62,7 +62,7 @@ function getQuantile(sorted: readonly number[], share: number): number {
   return sorted[Math.round(share * (sorted.length - 1))] as number;
 }
 
-/** The furthest finite top past `beyond` on one side, or null when all that lies there grows without bound. */
+/** The furthest finite top past `beyond` on one side, or null when none of the tops measured stays finite. */
 export type MeasureTop = (side: { beyond: number; direction: 1 | -1 }) => number | null;
 
 function getCoreRange(sorted: readonly number[], measureTop: MeasureTop): [number, number] {
@@ -84,7 +84,7 @@ function pullToZero([low, high]: [number, number]): [number, number] {
   return [low, high];
 }
 
-/** Fits the curve's values on round numbers. Only what `measureTop` finds growing without bound is left out, because a finite peak cut short reads as an asymptote. */
+/** Fits values on round numbers, leaving out only outliers `measureTop` cannot bound, because a finite peak cut short reads as an asymptote. */
 export function getAutoYRange(values: readonly number[], measureTop: MeasureTop = () => null): AxisRange {
   const sorted = values.filter((value) => Math.abs(value) <= LARGEST_FITTED_VALUE).sort((first, second) => first - second);
   if (sorted.length === 0) return [-FLAT_ROOM, FLAT_ROOM];

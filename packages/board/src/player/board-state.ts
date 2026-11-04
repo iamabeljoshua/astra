@@ -1,6 +1,6 @@
 import { type ElementId, type ElementRef, type FrozenFrame, getOverlappingSlider, type InkPoint, type SceneCommand, type SimulationPoint, type Slider } from '@astra/contracts';
 import { type MathLine, startMathLine, transformMathLine } from '../math/math-line.ts';
-import { getChangesSaidLike } from '../motion/projectile-scene.ts';
+import { getChangesInPairOf } from '../motion/projectile-scene.ts';
 import type { BoardOperation } from './board-operations.ts';
 import { getMotionEndMs, getMotionValue, holdMotion, isMoving, type Motion, moveOver, retimeMotion } from './motion.ts';
 import { PLANNED_SCENES } from './planned-scenes.ts';
@@ -50,7 +50,7 @@ export interface BoardElement {
 export interface BoardState {
   readonly elements: ReadonlyMap<ElementId, BoardElement>;
   readonly focus: ElementRef | null;
-  /** Sliders the board did not place, because each said a speed another way than a live one on its flight. */
+  /** Sliders refused because they set a speed in the other pair from a live slider on the same flight. */
   readonly refusedSliders: readonly Slider[];
 }
 
@@ -133,8 +133,8 @@ function runScene(element: BoardElement, command: SceneCommand & { kind: 'runSim
 function setSceneParameter(element: BoardElement, { parameter, value, atMs, keepsMoving, catalog }: { parameter: string; value: number; atMs: number; keepsMoving: boolean; catalog: SceneCatalog }): void {
   const placed = element.placedScene;
   if (!placed || element.content.kind === 'ink') return;
-  // A speed is held one way at a time, so no later change can replay against an older one and move a number nobody touched.
-  const parameterChanges = { ...getChangesSaidLike(parameter, placed.parameterChanges, placed.scene.values), [parameter]: value };
+  // Keep speed changes in one pair, so an older change cannot replay against this one and move a number nobody touched.
+  const parameterChanges = { ...getChangesInPairOf(parameter, placed.parameterChanges, placed.scene.values), [parameter]: value };
   const scene = catalog(element.content, parameterChanges) ?? placed.scene;
   const playhead = keepsMoving ? moveOver({ from: 0, to: scene.durationSeconds, atMs, overMs: scene.durationSeconds * MS_PER_SECOND }) : holdMotion(0, atMs);
   element.placedScene = { scene, parameterChanges, playhead, reshapingFrom: null };
@@ -239,7 +239,7 @@ export function getAttachedElementId(element: BoardElement): ElementId | null {
   return getAttachedTarget(element.content) as ElementId | null;
 }
 
-// What hangs on an element was said about what it showed, so it goes when that goes or changes.
+// Attached elements describe what their target showed, so they go when it is removed or replaced by a different command.
 function removeAttached(board: BoardDraft, id: ElementId): void {
   for (const element of [...board.elements.values()]) if (element.id !== id && getAttachedTarget(element.content) === id) removeWithAttached(board, element.id);
 }
