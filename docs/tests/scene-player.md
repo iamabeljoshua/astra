@@ -38,21 +38,21 @@ The design owed an answer to "drift with no stall", where word lag grew with no 
 
 A reviewer measured word lag rising about 2 ms a second with no report, to p95 76 and 103 ms on a clean 62 s turn. The plugin defaults to `pcm_22050`. LiveKit's native source sends `sample_rate / 100 * num_channels` samples on a 10 ms timer, in integer math (`webrtc-sys/src/audio_track.cpp`, read at its source). At 22050 Hz that is 220 samples of a true 220.5, so 22 kHz of samples play out where 22.05 kHz were meant, slow by 2.27 ms a second. The adapter now asks for `pcm_24000`, which frames in whole samples, and `createVoiceLine` refuses any rate that does not, so a stored phrase at the old rate fails loudly and does not drift quietly.
 
-The slope below is word lag fitted against time in a turn, on cues the gate did not decide. It measured 1.3 to 2.2 ms a second at 22.05 kHz, against a predicted 2.27, and 0.06 ms a second or less on a clean link at 24 kHz, so the framing was the cause. On a lossy link the slope also holds the jitter buffer growing, so it means less there.
+The slope below is word lag fitted against time in each run's first turn, on cues the gate did not decide. A positive slope means the words fall behind the clock as the turn goes on. It measured 1.31 and 1.64 ms a second on a reviewer's two runs at 22.05 kHz, against a predicted 2.27. On a clean link at 24 kHz it measured 0.07 ms a second or less on Chris, and at most 0.31 on Casey, so the framing was the cause. On a lossy link the slope also holds the jitter buffer growing, so it means less there.
 
 Drift is absolute, against the audible start, at the ear, in ms. Chris's rows at 24 kHz are the record for the voice Abel chose. The clean rows are real speech. The others play one of those real takes through the same path, with `--stored`, which spends nothing and leaves out the vendor's own timing.
 
 | Run | Runs | The script's cues: count, p95, worst | Every third word: count, p95, worst | Every third word over 100 ms | Lag slope, ms a second |
 | --- | --- | --- | --- | --- | --- |
-| Chris, clean, real speech | 2 | 28, 29, 30 | 54, 27, 30 | 0 | -0.03, 0.01 |
-| Chris, one 64 s turn, stored take | 2 | 78, 31, 31 | 160, 29, 31 | 0 | -0.03, 0.06 |
-| Chris, 40 ms delay, 30 ms jitter, 1% loss, stored take | 3 | 45, 47, 53 | 80, 59, 61 | 0 | -2.48 to -1.27 |
-| Chris, 100 ms delay, 70 ms jitter, 4% loss, stored take | 6 | 89, 51, 71 | 159, 71, 87 | 0 | -5.3 to 0.26 |
-| Casey, clean, first turn, 1 real run and 2 stored | 3 | 29, 31, 31 | 60, 30, 31 | 0 | -0.27 to 0.04 |
-| Casey, one 62 s turn, stored take | 2 | 59, 30, 31 | 120, 29, 31 | 0 | -0.19, 0.03 |
-| Casey, 40 ms delay, 30 ms jitter, 1% loss, stored take, first turn | 6 | 58, 34, 60 | 120, 58, 60 | 0 | -2.4 to 0.5 |
-| Casey, 100 ms delay, 70 ms jitter, 4% loss, stored take, first turn | 6 | 59, 108, 122 | 119, 118, 177 | 13 | -2.42 to 0.96 |
-| Casey at 22.05 kHz, before this fix, one 62 s turn, stored take, a reviewer's run, cues on about every third word | 2 | | 189, 97, 109 | 6 | -1.64, -1.31 |
+| Chris, clean, real speech | 2 | 28, 29, 30 | 54, 27, 30 | 0 | -0.01, -0.01 |
+| Chris, one 64 s turn, stored take | 2 | 78, 31, 31 | 160, 29, 31 | 0 | 0.02, -0.07 |
+| Chris, 40 ms delay, 30 ms jitter, 1% loss, stored take | 3 | 45, 47, 53 | 80, 59, 61 | 0 | 1.24 to 2.45 |
+| Chris, 100 ms delay, 70 ms jitter, 4% loss, stored take | 6 | 89, 51, 71 | 159, 71, 87 | 0 | -0.29 to 5.28 |
+| Casey, clean, first turn, 1 real run and 2 stored | 3 | 29, 31, 31 | 60, 30, 31 | 0 | -0.01 to 0.31 |
+| Casey, one 62 s turn, stored take | 2 | 59, 30, 31 | 120, 29, 31 | 0 | 0.19, -0.03 |
+| Casey, 40 ms delay, 30 ms jitter, 1% loss, stored take, first turn | 6 | 58, 34, 60 | 120, 58, 60 | 0 | -0.47 to 2.43 |
+| Casey, 100 ms delay, 70 ms jitter, 4% loss, stored take, first turn | 6 | 59, 108, 122 | 119, 118, 177 | 13 | -0.88 to 2.46 |
+| Casey at 22.05 kHz, before this fix, one 62 s turn, stored take, a reviewer's run, cues on about every third word | 2 | | 189, 97, 109 | 6 | 1.31, 1.64 |
 
 The second turn's beat `sideways` has 5 commands and 25 words, so the limit of 12 commands spaces its added cues every fourth word.
 
@@ -102,13 +102,15 @@ Frame time stayed at 18 ms at p95 in every run, so one frame sets no limit on B1
 
 ## What real ElevenLabs does
 
-**Word times come with their audio, and that is not a problem once they are read ahead.** Flash delivers about a second of audio first and the rest within 2 s, for a 21 s turn. The agent reads the voice as fast as it comes and paces the audio behind that, so word times reach the browser ahead of the sound. The tightest word on the clean runs led its audio by 63 ms. Across all 24 real runs, 11 words of 1,823 arrived after their sound began, by up to 595 ms, and each cue on them fired when its word time landed. One of the 11 is in the run that holds word times back on purpose, where every cue still fired, at a worst drift of 31 ms.
+Every figure in this section is Casey's, at 22.05 kHz, from the first round, unless its sentence names Chris.
+
+**Word times come with their audio, and that is not a problem once they are read ahead.** On Casey, Flash delivers about a second of audio first and the rest within 2 s, for a 21 s turn. The agent reads the voice as fast as it comes and paces the audio behind that, so word times reach the browser ahead of the sound. The tightest word on Casey's clean runs led its audio by 63 ms. Across Casey's 24 real runs, 11 words of 1,823 arrived after their sound began, by up to 595 ms, and each cue on them fired when its word time landed. One of the 11 is in the run that holds word times back on purpose, where every cue still fired, at a worst drift of 31 ms.
 
 **The plugin moved every word early, and this PR patches it.** `@livekit/agents-plugin-elevenlabs` 1.9.5 removes leading silence by subtracting the first non-zero character time. The first character is at 0, so it subtracted the second character's start instead, 58 to 116 ms on real Casey. Mid-speech cues then fired up to 57 ms early. `patches/@livekit__agents-plugin-elevenlabs@1.9.5.patch` changes one line in `dist/tts.js`, and a test on a fake of the wire fails without it. The agent now subtracts the first audible sample itself, which was 0 to 98 ms on real speech, so word times and gaps both count from the sound. A plugin upgrade must recheck this.
 
-**A word time often falls before its sound.** On words that follow a silence, the sound began a median of 31 ms after the vendor's word time, and 58 ms at p75. The gate that makes a cue wait for sound puts those cues on the sound, so the design's per-block gate matters more than it looked. The tails of this figure, p5 -212 ms and p95 211 ms, on 882 words, are likely the method matching a closure inside a word to the nearest word. That is my reading and not a validated one. The cue table is the real check, and it has no such tail.
+**A word time often falls before its sound.** On Casey's words that follow a silence, the sound began a median of 31 ms after the vendor's word time, and 58 ms at p75. The gate that makes a cue wait for sound puts those cues on the sound, so the design's per-block gate matters more than it looked. The tails of this figure, p5 -212 ms and p95 211 ms, on 882 words, are likely the method matching a closure inside a word to the nearest word. That is my reading and not a validated one. The cue table is the real check, and it has no such tail.
 
-**Numbers stay our words.** On Flash and Turbo, with original or normalized alignment, the voice named 30 of 30 words the same as `getSpokenWords` on lines with "9.8", "2.5", "3/4", "x^2", "100%", "ninety-nine", and "1,000". The 24 real runs recorded 0 mismatches. The adapter still asks for original alignment, and `createWordTimeline` keeps our text and notes any difference.
+**Numbers stay our words.** On Flash and Turbo, with original or normalized alignment, the voice named 30 of 30 words the same as `getSpokenWords` on lines with "9.8", "2.5", "3/4", "x^2", "100%", "ninety-nine", and "1,000". Casey's 24 real runs recorded 0 mismatches. The adapter still asks for original alignment, and `createWordTimeline` keeps our text and notes any difference.
 
 **Opening the socket first is worth it.** First audio from the text, through the plugin, on 34 characters:
 
@@ -118,13 +120,13 @@ Frame time stayed at 18 ms at p95 in every run, so one frame sets no limit on B1
 | Warm socket, first request | 455 ms | 521 ms | 661 ms |
 | Warm socket, later requests, p50 of 9 | 270 ms | 291 ms | 324 ms |
 
-So `prewarm` saves about 380 to 450 ms on the first turn, and the first request on a warm socket still costs about 185 to 340 ms more. On Chris the later requests ran p95 292 ms, and 39 warm requests on the worst line ran p50 274 ms and p95 285 ms. These include this network. Longer lesson turns came in slower, at 263 to 870 ms, and one at 1341 ms under load.
+So `prewarm` saves about 380 to 450 ms on the first turn, and the first request on a warm socket still costs about 185 to 340 ms more. On Chris the later requests ran p95 292 ms, and 39 warm requests on the worst line ran p50 274 ms and p95 285 ms. These include this network. Casey's longer lesson turns came in slower, at 263 to 870 ms, and one at 1341 ms under load.
 
-**`close_context` does not cancel, and nothing reaches the student.** After a stop just past the first audio, the vendor kept sending 14 s of audio in 3 messages, on both tries. The plugin dropped all of it but one frame already read, and `speakTurn` drops that. The next request's first audio took 253 to 259 ms, so the old context slows nothing. On the lesson's interruptions the vendor had usually finished already, because it generates far faster than real time.
+**`close_context` does not cancel, and nothing reaches the student.** On Casey, after a stop just past the first audio, the vendor kept sending 14 s of audio in 3 messages, on both tries. The plugin dropped all of it but one frame already read, and `speakTurn` drops that. The next request's first audio took 253 to 259 ms, so the old context slows nothing. On the lesson's interruptions the vendor had usually finished already, because it generates far faster than real time.
 
-**A real voice stalls, mostly early in a turn.** With no stall injected, 43 turns had 10 gaps, of 71 to 298 ms, and 7 of the 10 came in the first 800 ms of a turn. A student hears these. Most sit where the first message's audio runs out before the second arrives, on this network and under this load, so a server near the vendor may see fewer. The agent's report held the cues through them: drift stayed under 42 ms in those turns. Holding first sound back would close them, and that spends time on `first-sound-target`, so it is Abel's call and not built.
+**A real voice stalls, mostly early in a turn.** With no stall injected, 43 of Casey's turns had 10 gaps, of 71 to 298 ms, and 7 of the 10 came in the first 800 ms of a turn. A student hears these. Most sit where the first message's audio runs out before the second arrives, on this network and under this load, so a server near the vendor may see fewer. The agent's report held the cues through them: drift stayed under 42 ms in those turns. Holding first sound back would close them, and that spends time on `first-sound-target`, so it is Abel's call and not built.
 
-**`audioGap` reads true on injected stalls.** Stalls of 290 and 500 ms, less the 200 ms queue, read as 94, 109, 310, and 321 ms, against 100, 102, 308, and 312 ms in the received audio. Across all 14 reports, 9 agree within 30 ms. The other 5 differ by 31 to 115 ms, and no cue in those turns missed by more than 42 ms, so this looks like a limit of the check near pauses, unproven.
+**`audioGap` reads true on injected stalls.** On Casey, stalls of 290 and 500 ms, less the 200 ms queue, read as 94, 109, 310, and 321 ms, against 100, 102, 308, and 312 ms in the received audio. Across all 14 reports, 9 agree within 30 ms. The other 5 differ by 31 to 115 ms, and no cue in those turns missed by more than 42 ms, so this looks like a limit of the check near pauses, unproven.
 
 **Late turn messages and lost closes are handled.** The clock takes the earliest sound since the last turn ended, not the latest, and a word whose time passed 1 s ago with no sound stops waiting, so `questionHeard` still goes out when a closing report is lost near the last word. Both have tests. Neither ran on a real lost packet.
 

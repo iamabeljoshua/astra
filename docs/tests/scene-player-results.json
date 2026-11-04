@@ -2225,8 +2225,8 @@
   "measuredOn": "this Mac, under load, at 24 kHz. Chris rows are the voice Abel chose. Casey rows and rows named stored play a real take",
   "reviewerRunsAt22kHz": {
    "lagSlopeMsPerSecond": [
-    -1.31,
-    -1.64
+    1.31,
+    1.64
    ],
    "p95": [
     76,
@@ -2362,7 +2362,11 @@
      "best": 56
     },
     "wordMismatches": 0,
-    "refused": 0
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     0.02,
+     -0.07
+    ]
    },
    {
     "scenario": "after-stop-flash",
@@ -2866,7 +2870,15 @@
      "best": 0
     },
     "wordMismatches": 0,
-    "refused": 0
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     1.55,
+     1.63,
+     -0.29,
+     1.84,
+     5.28,
+     3.67
+    ]
    },
    {
     "scenario": "uneven-every-third-flash",
@@ -2992,7 +3004,12 @@
      "best": 0
     },
     "wordMismatches": 0,
-    "refused": 0
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     1.24,
+     2.21,
+     2.45
+    ]
    },
    {
     "scenario": "clean-every-third-flash",
@@ -3118,7 +3135,11 @@
      "best": 35
     },
     "wordMismatches": 0,
-    "refused": 0
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     -0.01,
+     -0.01
+    ]
    },
    {
     "scenario": "interrupt-stock-flash",
@@ -3370,7 +3391,10 @@
      "best": 51
     },
     "wordMismatches": 0,
-    "refused": 0
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     -0.01
+    ]
    },
    {
     "scenario": "long-every-third-flash",
@@ -3496,7 +3520,11 @@
      "best": 51
     },
     "wordMismatches": 0,
-    "refused": 0
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     0.19,
+     -0.03
+    ]
    },
    {
     "scenario": "interrupt-fake",
@@ -3874,7 +3902,11 @@
      "best": 51
     },
     "wordMismatches": 0,
-    "refused": 0
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     0.31,
+     -0.01
+    ]
    },
    {
     "scenario": "poor-every-third-flash",
@@ -4000,7 +4032,15 @@
      "best": 51
     },
     "wordMismatches": 0,
-    "refused": 0
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     1.98,
+     2.46,
+     0.92,
+     0.48,
+     -0.88,
+     1.34
+    ]
    },
    {
     "scenario": "uneven-every-third-flash",
@@ -4126,7 +4166,15 @@
      "best": 51
     },
     "wordMismatches": 0,
-    "refused": 0
+    "refused": 0,
+    "lagSlopeMsPerSecond": [
+     -0.47,
+     0.01,
+     2.43,
+     0.41,
+     1.17,
+     1.28
+    ]
    },
    {
     "scenario": "after-stop-fake",
@@ -4713,6 +4761,7 @@
     "worst": 292,
     "best": 252
    }
-  }
+  },
+  "lagSlopeMeaning": "ms a second, fitted against word time in each run's first turn, on cues the gate did not decide. Positive means the words fall behind the clock as the turn goes on."
  }
 }
