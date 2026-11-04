@@ -2,7 +2,7 @@ import { dropWordsAlreadyAnswered, hasWords, isFiller, isSmallReaction } from '.
 
 /** Starting values from the design and the plan. `docs/tests/voice.md` holds what each was measured against. */
 export const TURN_TIMINGS = {
-  /** Sound with no words cuts the tutor after this, so first sound to silence stays within 1.2 s. */
+  /** Sound with no words cuts the tutor after this. Lower would cut a long "uh-huh", because the detector's voice period runs about 220 ms past the sound. */
   wordlessStopMs: 800,
   /** After a cut with no words, how long the voice stays quiet before the tutor carries on. Muse's p95 final is about 900 ms, so 700 ms would race it. */
   transcriptGraceMs: 1000,

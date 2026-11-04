@@ -1,10 +1,10 @@
-import { type FormEvent, lazy, Suspense, useRef, useState } from 'react';
+import { type FormEvent, lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { LEGAL_PATHS } from '../legal/legalPaths';
 import { LEGAL_PAGES, SIGN_IN_LABELS } from '../strings';
 import { Button } from '../ui/Button';
 import { CodeField } from '../ui/CodeField';
-import { DOT_DRAWINGS } from '../ui/dots/dotDrawings';
+import { PATH_LEG_COUNT } from '../ui/dots/chartStars';
 import { DotStage } from '../ui/dots/DotStage';
 import { TextField } from '../ui/TextField';
 import { TutorQuestion } from '../ui/TutorQuestion';
@@ -12,7 +12,7 @@ import { useAuth } from './AuthProvider';
 import { CODE_LENGTH } from './codeLength';
 import { readCodeRequest, sendEmailCode, type SendCodeResult, signInWithGoogle } from './session';
 import { useCodeEntry } from './useCodeEntry';
-import type { SignInDraft, SignInStep } from './useSignInDraft';
+import type { SignInDraft } from './useSignInDraft';
 
 type SendFailure = Exclude<SendCodeResult, 'sent' | 'alreadySent'>;
 
@@ -20,7 +20,8 @@ const GOOGLE_SIGN_IN_FLAG = 'on';
 const SENT_TO_ID = 'sign-in-sent-to';
 const CODE_PROBLEM_ID = 'sign-in-code-problem';
 const AGREEMENT_LINK = 'underline underline-offset-2 hover:text-accent';
-const STEP_SHAPES = { email: DOT_DRAWINGS.arc, code: DOT_DRAWINGS.atom } satisfies Record<SignInStep, unknown>;
+const FIRST_PATH_LEG = 1;
+const LEGS_PER_DIGIT = (PATH_LEG_COUNT - FIRST_PATH_LEG) / CODE_LENGTH;
 
 declare const __DEV_SIGN_IN__: boolean;
 
@@ -28,7 +29,7 @@ const DevSignIn = __DEV_SIGN_IN__ ? lazy(() => import('./DevSignIn')) : null;
 
 export function SignInPage({ draft }: { draft: SignInDraft }) {
   return (
-    <DotStage shape={STEP_SHAPES[draft.step]}>
+    <DotStage legsDrawn={FIRST_PATH_LEG + draft.code.length * LEGS_PER_DIGIT} chartTitle={SIGN_IN_LABELS.tagline} formsOnArrival>
       {draft.step === 'email' ? <EmailStep draft={draft} /> : <CodeStep draft={draft} />}
       {DevSignIn && (
         <Suspense>
@@ -81,7 +82,6 @@ function EmailStep({ draft }: { draft: SignInDraft }) {
 
   return (
     <>
-      <p className="label pl-tutor-indent text-ink-2">{SIGN_IN_LABELS.tagline}</p>
       <TutorQuestion line={SIGN_IN_LABELS.welcomeLine} fieldToFocus={field}>
         <ReturnProblem />
         <form noValidate onSubmit={(event) => void send(event)} className="flex flex-col gap-4.5">
@@ -110,6 +110,10 @@ function EmailStep({ draft }: { draft: SignInDraft }) {
 function CodeStep({ draft }: { draft: SignInDraft }) {
   const field = useRef<HTMLInputElement>(null);
   const { code, problem, isChecking, hasSentNewCode, resendSecondsLeft, changeCode, check, resend } = useCodeEntry(draft);
+
+  useEffect(() => {
+    if (hasSentNewCode) field.current?.focus();
+  }, [hasSentNewCode]);
 
   return (
     <TutorQuestion line={SIGN_IN_LABELS.codeLine} describedBy={SENT_TO_ID} fieldToFocus={field}>

@@ -1,6 +1,6 @@
-import { act, fireEvent, render, renderHook, screen } from '@testing-library/react';
+import { act, render, renderHook, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
-import { LEGAL_PAGES, VOICE_LABELS } from '../strings';
+import { LEGAL_PAGES } from '../strings';
 import { StudentCaption, TutorCaption } from './Captions';
 import type { LiveVoice, LiveVoiceView } from './liveVoice';
 import { useLiveVoice } from './useLiveVoice';
@@ -26,7 +26,6 @@ function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
     }),
     turnOnSound: vi.fn(),
     mark: vi.fn(),
-    noteDrawn: vi.fn(),
     close: vi.fn(async () => {}),
   };
 }
@@ -112,6 +111,3 @@ describe('the Privacy Policy on voice', () => {
     expect(privacy).not.toContain('does not use your microphone');
   });
 });
-
-void fireEvent;
-void VOICE_LABELS;

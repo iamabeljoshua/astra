@@ -187,6 +187,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
           onSpeechStarted(speaking);
         },
         onWords: ({ atMs, words }) => echo.noteTutorWords(words.map((word) => word.text), atMs),
+        onFailure: (failure) => onVoiceFailed(speaking, String(failure)),
         onGap: (gap) => {
           trace('audioGap', { turnId, ...gap });
           if (!canResume) return;
@@ -198,12 +199,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       }),
     };
     speakingByTurn.set(turnId, speaking);
-    void speaking.spoken.finished
-      .catch((error: unknown) => onVoiceFailed(speaking, String(error)))
-      .then(() => {
-        trace('turnFinished', { turnId, kind });
-        onSpeechFinished(speaking);
-      });
+    void speaking.spoken.finished.then(() => {
+      trace('turnFinished', { turnId, kind });
+      onSpeechFinished(speaking);
+    });
     return speaking;
   };
 

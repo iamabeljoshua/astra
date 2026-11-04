@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ACCOUNT_LABELS, DEV_SIGN_IN_LABELS, LEGAL_PAGES, SIGN_IN_LABELS } from '../strings';
+import { stubCanvas } from '../test/fakeCanvas';
 import { useAuth } from './AuthProvider';
 import { checkEmailCode, sendEmailCode, signInWithGoogle } from './session';
 import { SignInPage } from './SignInPage';
@@ -365,6 +366,31 @@ describe('the resend wait', () => {
     screen.getByRole('button', { name: SIGN_IN_LABELS.resendIn(60) });
   });
 
+  it('returns focus to the code boxes after a new code is sent', async () => {
+    await reachCodeStepOnFakeClock();
+    waitSeconds(60);
+    const resend = screen.getByRole('button', { name: SIGN_IN_LABELS.resend });
+    resend.focus();
+
+    fireEvent.click(resend);
+    await act(async () => undefined);
+
+    expect(document.activeElement).toBe(getCodeField());
+  });
+
+  it('leaves focus on the button when a new code is refused, so the student can press again', async () => {
+    await reachCodeStepOnFakeClock();
+    waitSeconds(60);
+    vi.mocked(sendEmailCode).mockResolvedValue('tooManyRequests');
+    const resend = screen.getByRole('button', { name: SIGN_IN_LABELS.resend });
+    resend.focus();
+
+    fireEvent.click(resend);
+    await act(async () => undefined);
+
+    expect(document.activeElement).toBe(resend);
+  });
+
   it('puts the mark on the first box when a new code empties the boxes', async () => {
     await reachCodeStepOnFakeClock();
     waitSeconds(60);
@@ -389,6 +415,29 @@ describe('the resend wait', () => {
     await act(async () => undefined);
 
     expect(screen.getByRole('alert').textContent).toBe(SIGN_IN_LABELS.tooManyRequests);
+  });
+});
+
+describe('the path on the chart', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('draws one leg on the email step and one more for each digit, up to the sixth', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce') }));
+    const contexts = stubCanvas();
+    await reachCodeStep();
+    const liveContext = contexts[1]!;
+    const countDotsPaintedFor = (digits: string) => {
+      vi.mocked(liveContext.arc).mockClear();
+      fireEvent.change(getCodeField(), { target: { value: digits } });
+      return vi.mocked(liveContext.arc).mock.calls.length;
+    };
+
+    const dotCounts = ['1', '12', '123', '1234', '12345'].map(countDotsPaintedFor);
+
+    expect(dotCounts).toEqual([...dotCounts].sort((first, second) => first - second));
+    expect(new Set(dotCounts).size).toBe(dotCounts.length);
   });
 });
 

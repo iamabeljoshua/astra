@@ -15,8 +15,10 @@ const LONGEST_REJOIN_MS = 120_000;
 const REJOIN_EVERY_MS = 2000;
 /** A room can say connected with a data channel that carries nothing after a drop, and only a new join clears that. */
 const REJOIN_AFTER_QUIET_MS = 3000;
+/** Join and dispatch took 3.8 s at p50 and 7.5 s at worst, so past this the tutor is not coming. */
+const TUTOR_ARRIVES_WITHIN_MS = 25_000;
 
-export type LivePhase = 'connecting' | 'live' | 'reconnecting' | 'ended';
+export type LivePhase = 'connecting' | 'live' | 'reconnecting' | 'noTutor' | 'ended';
 export type MicState = 'off' | 'starting' | 'on' | 'denied';
 
 export interface StudentLine {
@@ -66,7 +68,6 @@ export interface LiveVoice {
   setMicOn(isOn: boolean): Promise<void>;
   turnOnSound(): Promise<void>;
   mark(note: object): void;
-  noteDrawn(id: string): void;
   close(): Promise<void>;
   records: LiveVoiceRecords;
   player: ScenePlayer;
@@ -270,6 +271,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (track.kind !== Track.Kind.Audio) return;
     stopListening();
     stopListening = listenToTutor(track, { audioContext, gain, clock, onProbe });
+    clearTimeout(tutorWait);
+    setView({ phase: 'live' });
     // The agent puts its track up last, so hearing it means the agent can hear this page.
     lastAgentPulseEpochMs = getEpochMs();
     send({ type: 'hello', ...getStamp(), wantsGreeting: wantsGreeting && !hasSaidHello });
@@ -295,8 +298,14 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (!isFinal) void rejoin();
   });
 
-  await connectRoom();
-  setView({ phase: 'live' });
+  const tutorWait = setTimeout(() => setView({ phase: 'noTutor' }), TUTOR_ARRIVES_WITHIN_MS);
+  try {
+    await connectRoom();
+  } catch (problem) {
+    clearTimeout(tutorWait);
+    await audioContext.close();
+    throw problem;
+  }
   const ticker = setInterval(() => {
     player.tick();
     readCaption();
@@ -344,12 +353,12 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     mark(note) {
       void room.localParticipant.publishData(encoder.encode(JSON.stringify(note)), { reliable: true, topic: LAB_TOPIC }).catch(() => {});
     },
-    noteDrawn() {},
     async close() {
       isClosed = true;
       clearInterval(ticker);
       clearInterval(pulses);
       clearTimeout(heardTimer);
+      clearTimeout(tutorWait);
       localYield.close();
       stopWatchingMic();
       micTrack?.stop();

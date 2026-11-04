@@ -1,6 +1,6 @@
 /** Muse spells a hum its own way, "MMMM." or "Mhm", so these match by shape and not by list. */
 const HUM_SHAPE = /^(m+|h+m+|m+h+m*|m+-?h+m+|m+-m+|u+h+|u+h+-?h+u+h+|a+h+|a+h+-?h*a+)$/;
-const REACTION_WORDS = new Set(['uh', 'huh', 'uh-huh', 'uhuh', 'uh-uh', 'mm', 'mmm', 'mhm', 'mhmm', 'mm-hm', 'mm-hmm', 'mmhmm', 'mm-mm', 'hm', 'hmm', 'hmmm', 'aha', 'ah', 'oh', 'ooh', 'yeah', 'yes', 'yep', 'yup', 'ok', 'okay', 'right', 'sure', 'wow', 'um', 'umm', 'uhm']);
+const REACTION_WORDS = new Set(['uh', 'huh', 'uh-huh', 'uhuh', 'uh-uh', 'mm', 'mmm', 'mhm', 'mhmm', 'mm-hm', 'mm-hmm', 'mmhmm', 'mm-mm', 'hm', 'hmm', 'hmmm', 'aha', 'ah', 'oh', 'ooh', 'yeah', 'yes', 'yep', 'yup', 'ok', 'okay', 'right', 'sure', 'wow', 'um', 'umm', 'uhm', 'hum']);
 const REACTION_PHRASES = [['i', 'see'], ['got', 'it']];
 const FILLER_WORDS = new Set(['um', 'umm', 'uhm', 'er', 'erm', 'well', 'so', 'okay', 'ok', 'like']);
 const FILLER_PHRASES = [['let', 'me', 'think'], ['let', 'me', 'see'], ['give', 'me', 'a', 'second'], ['one', 'second'], ['i', 'think']];

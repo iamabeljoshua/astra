@@ -5,6 +5,7 @@ interface SpeechInPage {
   play(pcmBase64: string, sampleRate: number): Promise<{ startedEpochMs: number; endedEpochMs: number }>;
   setNoise(level: number): void;
   /** Records what the student says and what the tutor plays, as one track, for a recording a person can judge. */
+  canRecord(): boolean;
   startRecording(): void;
   stopRecording(): Promise<{ base64: string; startedEpochMs: number } | null>;
 }
@@ -62,6 +63,7 @@ export function installSpeechInPage(): void {
   };
 
   window.speechInPage = {
+    canRecord: () => recordingOut !== null,
     startRecording() {
       if (!recordingOut) throw new Error('nothing plays to the speakers yet');
       const tutorContext = recordingOut.context as AudioContext;

@@ -34,7 +34,7 @@ A PR that adds or changes a screen updates its feature file and its journey in t
 ## Features
 
 - [Sign-in](./sign-in.md) covers the email code, the date of birth question, the closed page, and sign-out.
-- [Onboarding](./onboarding.md) covers the questions and the sheet after sign-in, and changing answers later.
+- [Onboarding](./onboarding.md) covers the questions and the chart after sign-in, and changing answers later.
 - [Terms and Privacy Policy](./legal.md) covers the two public draft pages, and keeping the typed address when a student opens one.
 - [Home](./home.md) covers the page a student opens first, with its greeting, cards, and chat box.
 - [Sessions](./sessions.md) covers starting a session, the session screen, ending it, and the list and its search.

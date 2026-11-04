@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { TUTOR_VOICE_ID } from '../../providers/choose.ts';
 import { AUDIBLE_SAMPLE } from '../../live/first-sound.ts';
 import type { StoredTake, TakeUse } from '../../live/reactions.ts';
-import { readKey } from '../keys.ts';
+import { readKey } from '../../keys.ts';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const FOLDER = join(HERE, '../../../assets/reactions');

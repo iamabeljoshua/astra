@@ -6,7 +6,7 @@ import { AudioFrame } from '@livekit/rtc-node';
 import { WebSocket } from 'ws';
 import { makeTutorTranscriber } from '../../../providers/choose.ts';
 import { isSmallReaction } from '../../../live/turn-words.ts';
-import { readKey } from '../../keys.ts';
+import { readKey } from '../../../keys.ts';
 import { summarise } from './read-trace.ts';
 import { makeSayClip, MATH_AND_SPEECH_LINES, REACTION_LINES, type SpokenLine } from './make-speech.ts';
 

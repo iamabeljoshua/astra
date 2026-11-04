@@ -17,7 +17,7 @@ export interface LabRecords {
   outputLatencyMs: number[];
   fired: (FiredCue & { firedEpochMs: number })[];
   drawn: { id: string; drawnAtMs: number; drawnEpochMs: number; paintedAtMs: number | null }[];
-  agentMessages: { type: AgentMessage['type']; atMs: number; epochMs: number; firstWord?: number; beatId?: string; count?: number; gapAtMs?: number; gapMs?: number }[];
+  agentMessages: { type: AgentMessage['type']; turnId: string; atMs: number; epochMs: number; firstWord?: number; beatId?: string; count?: number; gapAtMs?: number; gapMs?: number }[];
   browserMessages: { type: BrowserMessage['type']; atMs: number }[];
   stops: { turnId: string; receivedAtMs: number; receivedEpochMs: number; audioFrameAtStop: number }[];
   probe: { kind: string; atMs: number; where: 'arriving' | 'output' }[];
@@ -53,10 +53,12 @@ function createRecords(clockKind: LabRecords['clockKind'], audioContext: AudioCo
 }
 
 function noteAgentMessage(records: LabRecords, message: AgentMessage, atMs: number): void {
+  if (!('turnId' in message)) return;
   const epochMs = performance.timeOrigin + performance.now();
-  if (message.type === 'words') records.agentMessages.push({ type: message.type, atMs, epochMs, beatId: message.beatId, firstWord: message.firstWord, count: message.words.length });
-  else if (message.type === 'audioGap') records.agentMessages.push({ type: message.type, atMs, epochMs, gapAtMs: message.atMs, gapMs: message.ms });
-  else records.agentMessages.push({ type: message.type, atMs, epochMs });
+  const { type, turnId } = message;
+  if (message.type === 'words') records.agentMessages.push({ type, turnId, atMs, epochMs, beatId: message.beatId, firstWord: message.firstWord, count: message.words.length });
+  else if (message.type === 'audioGap') records.agentMessages.push({ type, turnId, atMs, epochMs, gapAtMs: message.atMs, gapMs: message.ms });
+  else records.agentMessages.push({ type, turnId, atMs, epochMs });
 }
 
 // Connects a real room to the real player: the tutor's audio goes through a probe that counts samples and a gain that a stop closes at once.

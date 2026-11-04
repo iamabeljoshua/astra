@@ -1,5 +1,5 @@
 import { getBeatText } from '@astra/contracts';
-import { readKey } from '../lab/keys.ts';
+import { readKey } from '../keys.ts';
 import { makeAnthropicTutorModel, type TutorModelName } from '../providers/anthropic.ts';
 import { makeRecordedTutorModel } from '../providers/fake-model.ts';
 import { createStandInTutor } from '../live/stand-in-tutor.ts';

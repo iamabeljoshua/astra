@@ -46,8 +46,13 @@ export const ACCOUNT_LABELS = {
   stillLoading: 'Still opening your account. This can take a moment.',
 };
 
+export const CHART_LABELS = {
+  subjectStars: ['Motion', 'Light', 'Waves', 'Music', 'Cells', 'Code', 'Stars', 'History'],
+  titleFor: (name: string) => `A learning app, made for ${name}`,
+};
+
 export const SIGN_IN_LABELS = {
-  tagline: 'A learning app, made for you',
+  tagline: CHART_LABELS.titleFor('you'),
   welcomeLine: 'Welcome, I am Astra, your personal AI tutor.',
   emailLabel: 'Your email',
   emailPlaceholder: 'you@example.com',
@@ -80,7 +85,7 @@ export const SIGN_IN_LABELS = {
 };
 
 export const BIRTH_DATE_LABELS = {
-  question: 'When were you born?',
+  questionFor: (name: string) => `Welcome, ${name}.\nWhen were you born?`,
   about: 'We ask everyone this before an account opens.',
   day: 'Day',
   dayPlaceholder: 'DD',
@@ -93,29 +98,28 @@ export const BIRTH_DATE_LABELS = {
   confirmQuestion: 'Is this right?',
   confirm: 'Yes, continue',
   change: 'Change it',
+  saving: 'Saving your date of birth.',
 };
 
 export const TUTOR_NOTES_LABELS = {
-  title: "Your tutor's notes",
-  madeFor: 'Made for',
-  you: 'you',
   into: 'Into',
   level: 'Level',
   goal: 'Here for',
-  footer: 'You can change any of this later.',
 };
 
 export const ONBOARDING_LABELS = {
   back: '\u2190 Back',
   next: 'Continue \u2192',
   progress: (stepNumber: number, stepCount: number) => `${stepNumber} of ${stepCount}`,
-  nameQuestion: 'What should your tutor call you?',
-  namePlaceholder: 'Your first name',
-  nameMissing: 'Tell your tutor what to call you.',
+  nameQuestion: "You're in.\nWhat should I call you?",
+  nameLabel: 'Your first name',
+  nameMissing: 'Tell me what to call you.',
   intoQuestion: 'What are you into?',
-  intoAbout: 'Pick as many as you like. Your tutor uses them to choose examples you care about.',
+  intoAbout: 'Pick as many as you like. We use them to suggest topics for you.',
   levelQuestion: 'Where are you in your learning?',
   goalQuestion: 'What brings you here?',
+  changeLater: 'You can change any of this later.',
+  saving: 'Saving your answers.',
 };
 
 export const STUDENT_LEVEL_LABELS = {
@@ -148,9 +152,10 @@ export const STUDENT_INTEREST_LABELS = {
 
 export const PROFILE_LABELS = {
   title: "Your tutor's notes",
-  about: 'Your tutor teaches from these. Change anything here.',
+  about: 'We use these to greet you and suggest topics. Change anything here.',
   name: 'Name',
   save: 'Save changes',
+  saving: 'Saving.',
   saved: 'Saved.',
   missing: 'Your name cannot be blank.',
 };

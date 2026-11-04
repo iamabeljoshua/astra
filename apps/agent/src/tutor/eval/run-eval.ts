@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { getCues, parseBeat } from '@astra/contracts';
-import { readKey } from '../../lab/keys.ts';
+import { readKey } from '../../keys.ts';
 import { makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../../providers/anthropic.ts';
 import { createTutorBrain, type TurnSummary } from '../brain.ts';
 import { TUTOR_SYSTEM } from '../prompt.ts';
