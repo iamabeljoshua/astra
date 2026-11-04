@@ -293,7 +293,7 @@ function ReplyBox({ liveVoice, isConnecting, carryOnLine }: { liveVoice: LiveVoi
   const [hasDraft, setHasDraft] = useState(false);
   const isBackWhileConnecting = useHasWaited(isConnecting, REPLY_BOX_BACK_AFTER_MS);
   const isBoxOpen = (!voice && status !== 'connecting') || isBackWhileConnecting || hasDraft;
-  if (reply && !reply.didFail && view?.hasTutorStarted) setReply(null);
+  if (reply && view?.hasTutorStarted && (!reply.didFail || (!isOver && !view.closedBecause))) setReply(null);
   if (reply && !reply.didFail && !view?.hasTutorStarted && isOver) setReply({ ...reply, didFail: true });
   const voiceNote = getVoiceNote(liveVoice, useIsAnswerDue(view, draftEdits + (view?.typingNoteCount ?? 0)));
 

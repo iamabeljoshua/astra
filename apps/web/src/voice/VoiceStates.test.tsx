@@ -165,14 +165,12 @@ describe('what the student sees of a room', () => {
     const openWithNoTutorYet = async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
       const opened = makeVoice();
-      opened.setView({ hasTutorStarted: false });
       await openVoice(opened);
       return opened;
     };
     const openWithTheRoomHeld = async () => {
       vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'], shouldAdvanceTime: true });
       const opened = makeVoice();
-      opened.setView({ hasTutorStarted: false });
       let openRoom = () => {};
       startLiveVoice.mockReturnValueOnce(new Promise((resolve) => (openRoom = () => resolve(opened.voice))));
       const session = makeSession();
@@ -241,6 +239,22 @@ describe('what the student sees of a room', () => {
       expect(screen.getByText('Is it four?')).toBeTruthy();
       expect(screen.getByText(SESSION_LABELS.replyNotSent)).toBeTruthy();
       expect(screen.queryByText(SESSION_LABELS.replyWaiting)).toBeNull();
+    });
+
+    it('drops that note once a new room has its tutor', async () => {
+      const { voice, setView } = await openWithNoTutorYet();
+      wait(8100);
+      sendFromTheBox('Is it four?');
+      await vi.waitFor(() => expect(voice.sendTyped).toHaveBeenCalled());
+      act(() => setView({ phase: 'noTutor' }));
+      const next = makeVoice();
+      startLiveVoice.mockResolvedValueOnce(next.voice);
+      fireEvent.click(screen.getByRole('button', { name: VOICE_LABELS.tryAgain }));
+      await vi.waitFor(() => expect(next.voice.sendTyped).toHaveBeenCalled());
+      expect(screen.getByText(SESSION_LABELS.replyNotSent)).toBeTruthy();
+      act(() => next.setView({ hasTutorStarted: true }));
+      expect(screen.queryByText(SESSION_LABELS.replyNotSent)).toBeNull();
+      expect(screen.queryByText('Is it four?')).toBeNull();
     });
 
     it('holds a reply and a press of Talk for a room that has not opened, and hands both over when it does', async () => {

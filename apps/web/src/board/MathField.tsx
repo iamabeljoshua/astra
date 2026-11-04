@@ -37,7 +37,7 @@ export function MathField({ onLine, onTyping }: MathFieldProps) {
       const made = makeField();
       field = made;
       made.addEventListener('input', () => callbacks.current.onTyping());
-      // MathLive also says "change" when the field loses focus, and leaving is not sending. Going to another window leaves the field active, so the document's focus says that one.
+      // MathLive also says "change" when focus leaves the field or its window, and leaving is not sending.
       made.addEventListener('change', () => {
         if (document.activeElement !== made || !document.hasFocus()) return;
         const text = made.getValue('ascii-math');
