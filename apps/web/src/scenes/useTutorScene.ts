@@ -89,7 +89,7 @@ export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): Tuto
     let isGone = false;
     void getCanPlayScenes().then((canPlayTakes) => {
       if (isGone) return;
-      const isAble = canPlayTakes || getCanDrawRecipes();
+      const isAble = canPlayTakes || (isFastSceneEnabled() && getCanDrawRecipes());
       canPlayTakesRef.current = canPlayTakes;
       setCanPlay(isAble);
       if (!isAble) voice.sendScene({ type: 'sceneDevice', canPlay: false });
