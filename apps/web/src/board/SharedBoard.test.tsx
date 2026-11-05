@@ -54,6 +54,8 @@ describe('following a new row', () => {
 });
 
 describe('the shared board', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('draws the table a tutor replaces under the same id, and not the old one', () => {
     const first = table('money', '110', 1);
     const { rerender } = render(<SharedBoard board={getBoardAt([first], LONG_AFTER)} atMs={LONG_AFTER} />);
@@ -94,6 +96,30 @@ describe('the shared board', () => {
     const { container } = render(<SharedBoard board={getBoardAt(operations, LONG_AFTER)} atMs={LONG_AFTER} />);
     expect(container.querySelector('[data-element="wave"]')).toBeTruthy();
     expect(container.innerHTML).not.toContain('NaN');
+  });
+
+  it.each([
+    ['a figure built a step at a time', [{ kind: 'geometry', id: 'tri', xRange: [0, 6], yRange: [0, 5] }, { kind: 'construct', id: 'pa', target: 'tri', step: { shape: 'point', name: 'A', x: 1, y: 1 } }, { kind: 'construct', id: 'pb', target: 'tri', step: { shape: 'point', name: 'B', x: 5, y: 1 } }, { kind: 'construct', id: 'pc', target: 'tri', step: { shape: 'point', name: 'C', x: 1, y: 4 } }, { kind: 'construct', id: 'ab', target: 'tri', step: { shape: 'segment', from: 'A', to: 'B' } }, { kind: 'construct', id: 'round', target: 'tri', step: { shape: 'circle', center: 'A', through: 'B' } }, { kind: 'construct', id: 'at-a', target: 'tri', step: { shape: 'angle', at: 'A', from: 'B', to: 'C' } }], ['point-pa', 'segment-ab', 'circle-round', 'angle-at-a']],
+    ['a number line with a dot', [{ kind: 'numberLine', id: 'line', domain: [-5, 5] }, { kind: 'markValue', id: 'here', target: 'line', at: -2, label: 'minus two' }], ['line', 'mark-here']],
+    ['a shaded area under a curve', [{ kind: 'plot', id: 'curve', expression: 'x^2', domain: [0, 3] }, { kind: 'shadeArea', id: 'under', target: 'curve', from: 0, to: 2, label: 'distance' }], ['curve-curve', 'shade-under-curve']],
+    ['a flight with a tracked arrow, a readout, and a ghost path', [{ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 5, releaseHeight: 1, gravity: 9.8 } } }, { kind: 'runSimulation', target: 'shot', action: 'seek', to: 'peak' }, { kind: 'trackVector', id: 'speed', target: 'shot', quantity: 'velocity', label: 'speed' }, { kind: 'readout', id: 'high', target: 'shot', quantity: 'height' }, { kind: 'ghostPath', id: 'first', target: 'shot' }], ['ball', 'tracked-speed', 'ghost-first']],
+  ])('draws %s on the live board', (_, commands, marks) => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(600);
+    const { container } = render(<SharedBoard board={getBoardAt(commands.map((each, index) => command(each, index + 1)), LONG_AFTER)} atMs={LONG_AFTER} />);
+    const drawn = new Set([...container.querySelectorAll('[data-mark]')].map((mark) => mark.getAttribute('data-mark')));
+    expect(marks.filter((mark) => !drawn.has(mark))).toEqual([]);
+    expect(container.innerHTML).not.toContain('NaN');
+  });
+
+  it('builds a diagram a node at a time as reveal goes', () => {
+    const diagram = command({ kind: 'diagram', id: 'cycle', startsEmpty: true, nodes: [{ name: 'sea', label: 'Sea' }, { name: 'cloud', label: 'Cloud' }, { name: 'rain', label: 'Rain' }], edges: [{ from: 'sea', to: 'cloud' }, { from: 'cloud', to: 'rain' }] }, 1);
+    const shownBoxes = (upTo: number) => {
+      const { container, unmount } = render(<SharedBoard board={getBoardAt([diagram, command({ kind: 'reveal', target: 'cycle', upTo }, 2)], LONG_AFTER)} atMs={LONG_AFTER} />);
+      const count = [...container.querySelectorAll<SVGPathElement>('path[data-ink="box"]')].filter((box) => box.style.visibility !== 'hidden').length;
+      unmount();
+      return count;
+    };
+    expect([shownBoxes(0), shownBoxes(2), shownBoxes(3)]).toEqual([0, 2, 3]);
   });
 
   it('tells the tutor once when a curve turns too fast to draw', () => {
