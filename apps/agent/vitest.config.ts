@@ -3,7 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['test/**/*.test.ts'],
-    // These tests mostly wait on real timers, so on CI's 2 threads, where the default is 1 worker, they would wait in turn.
-    maxWorkers: 3,
+    // These tests mostly wait on real timers, so they gain from more workers than threads. The repo is public, so CI's runners have 4 threads, and the job's limit has no room for fewer workers.
+    maxWorkers: 4,
   },
 });

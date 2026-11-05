@@ -1,7 +1,8 @@
 import { type CheckedWork, readLine, wantsSomethingElse } from '@astra/board/shared';
 import type { SceneCommand, StudentWork } from '@astra/contracts';
-import type { MoreAnswer, MoreAsk, PlanAnswer, PlanAsk, PlanWants } from './ask-planner.ts';
+import type { FactsAnswer, FactsAsk, MoreAnswer, MoreAsk, PlanAnswer, PlanAsk, PlanWants } from './ask-planner.ts';
 import { getTrustedMove, isSensitive, type LessonPlan, type PlanMove } from './lesson-plan.ts';
+import { readStudentWish } from './student-wish.ts';
 import { getShelvedTopics, getStateAfterEvent, getStateAfterMove, getStateWithMoreSteps, getStepCount, getStepsTaught, getStepNote, isNearTheEnd, type LessonEvent, type LessonState, NO_LESSON, type StepNote } from './plan-progress.ts';
 
 export interface HeardWords {
@@ -22,6 +23,10 @@ export interface LessonPlanner {
   tellTitleAgain(): void;
   getStepNote(): StepNote | null;
   moveToNextStep(): void;
+  /** The planner read a wish to stop or wait, in any language, a moment after the reply began. True once. */
+  takeAskedToHold(): boolean;
+  /** What this lesson has said so far, when it has changed since the last time this was asked. */
+  takeNewFacts(): readonly string[] | null;
   /** Settles when no plan is on its way, for an evaluation that reads the next step straight after. */
   whenSettled(): Promise<void>;
 }
@@ -29,6 +34,7 @@ export interface LessonPlanner {
 export interface LessonPlannerOptions {
   ask(request: PlanAsk): Promise<PlanAnswer>;
   askMore?(request: MoreAsk): Promise<MoreAnswer>;
+  askFacts?(request: FactsAsk): Promise<FactsAnswer>;
   canSpend(): boolean;
   charge(usd: number): void;
   /** The lesson changed to another topic in the same session. */
@@ -49,18 +55,18 @@ const isStageWords = (words: string) => words.startsWith('(');
 
 const isLineOfWork = (words: string) => readLine(words).kind === 'math';
 
-const IS_ONLY_A_NOD = /^(?:ok(?:ay)?|k|yes|yeah|yep|yup|sure|cool|right|got it|mhm|mm+)[.!]*$/i;
+export const IS_ONLY_A_NOD = /^(?:ok(?:ay)?|k|yes|yeah|yep|yup|sure|cool|right|got it|mhm|mm+)[.!]*$/i;
 const DECLINES_EXERCISES = /\bdon'?t want to try\b|\b(?:no|without|skip|stop)\s+(?:the\s+|more\s+|any\s+)?(?:exercises?|tasks?|problems?|practice|quiz(?:zes)?)\b|\bjust\s+(?:explain|teach|tell)\b|\bjust\s+(?:want\s+to\s+)?listen\b/i;
 const WANTS_AN_EXERCISE = /\b(?:let\s+me|can\s+i|i(?:'ll|\s+will|\s+want\s+to)|i\s+wanna)\s+try\b|\b(?:give|set)\s+me\s+(?:a|an|one|another)\b(?!\s+lesson)/i;
 
-const WANTS_TEACHING = /\b(?:go on|keep going|keep teaching|carry on|go ahead|tell me more|teach me more|show me more|explain more|more please|what(?:'?s| is) next\b(?! to)|what else|and then what|then what|move on|next (?:one|idea|bit|part|thing))\b(?! (?:a|an|the|my|with) )|^\s*(?:next|more|continue)[.!]*\s*$/i;
-
-export const asksToBeTaught = (words: string) => WANTS_TEACHING.test(words) || ASKS_TO_BE_TAUGHT.test(words);
+export const asksToBeTaught = (words: string) => readStudentWish(words) === 'teach' || ASKS_TO_BE_TAUGHT.test(words);
 
 const FEWEST_STEPS_ON_A_CARD = 3;
 const MOST_STEPS_IN_A_LESSON = 16;
 const MOST_CHARACTERS_OF_WHAT_WAS_SAID = 6000;
 const MOST_TIMES_ASKED_FOR_MORE = 6;
+/** About six replies, so a 20 minute lesson asks about 15 times, for under a cent in all. */
+const WORDS_BETWEEN_FACTS = 120;
 
 const NAMES_A_PROBLEM = /\d\s*[-+*/×÷=^%]|=|->|_{2,}|\bm\/s\b|\b(?:solve|balance|simplify|calculate|work out|factori[sz]e|derivative of|integral of|slope of|which came first)\b/i;
 const ASKS_TO_BE_TAUGHT = /^\s*(?:please\s+)?(?:teach|explain|help me (?:understand|get)|give me a lesson|i(?:'d like| would like| want| wanna)(?: to)? (?:learn|understand))\b/i;
@@ -90,10 +96,10 @@ const getMoveEvent = (words: string): LessonEvent | null => {
 const getWordsEvent = (words: string): LessonEvent | null => {
   if (WANTS_AN_EXERCISE.test(words)) return 'exerciseWanted';
   if (DECLINES_EXERCISES.test(words)) return 'exerciseDeclined';
-  return WANTS_TEACHING.test(words) ? 'teachingWanted' : null;
+  return readStudentWish(words) === 'teach' ? 'teachingWanted' : null;
 };
 
-const WANTS_EVENTS: Readonly<Record<NonNullable<PlanWants>, LessonEvent>> = { teaching: 'teachingWanted', exercise: 'exerciseWanted', no_exercise: 'exerciseDeclined' };
+const WANTS_EVENTS: Readonly<Record<Exclude<PlanWants, 'hold' | null>, LessonEvent>> = { teaching: 'teachingWanted', exercise: 'exerciseWanted', no_exercise: 'exerciseDeclined' };
 
 const toEvent = (command: SceneCommand): LessonEvent | null => {
   if (command.kind === 'task') return 'exerciseSet';
@@ -107,13 +113,18 @@ const getWorkEvent = ({ closesTask }: Pick<CheckedWork, 'closesTask'>, work: Stu
 };
 
 // Holds the lesson in code. One plan runs at a time and only the latest words wait, so a flood of lines costs one call at a time.
-export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleChange, onLessonChange, getPictureTopic, trace, getNowMs = () => performance.now() }: LessonPlannerOptions): LessonPlanner {
+export function createLessonPlanner({ ask, askMore, askFacts, canSpend, charge, onTitleChange, onLessonChange, getPictureTopic, trace, getNowMs = () => performance.now() }: LessonPlannerOptions): LessonPlanner {
   let state: LessonState = NO_LESSON;
   let waiting: (HeardWords & { startReply: number }) | null = null;
   let asking: Promise<void> | null = null;
 
   let toldTitle: string | null = null;
   let card: LessonPlan | null = null;
+  let wasAskedToHold = false;
+  let factsSaid: readonly string[] = [];
+  let hasNewFacts = false;
+  let wordsSinceFacts = '';
+  let isAskingFacts = false;
 
   const adopt = (move: PlanMove, { words, isOpening, startReply }: { words: string; isOpening: boolean; startReply: number }) => {
     if (card && isOpening) {
@@ -144,7 +155,8 @@ export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleCha
       charge(costUsd);
       trace('planAnswered', { move: move?.move ?? null, ms: Math.round(getNowMs() - startedAtMs), costUsd });
       if (move) adopt(move, heard);
-      if (wants && !getMoveEvent(said) && !getWordsEvent(said)) noteEvent(WANTS_EVENTS[wants]);
+      if (wants === 'hold' || readStudentWish(said) === 'hold') wasAskedToHold ||= wants === 'hold';
+      else if (wants && !getMoveEvent(said) && !getWordsEvent(said)) noteEvent(WANTS_EVENTS[wants]);
     } catch (error) {
       trace('planFailed', { problem: String(error), ms: Math.round(getNowMs() - startedAtMs) });
     }
@@ -181,6 +193,25 @@ export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleCha
       });
   };
 
+  const askForFactsIfDue = () => {
+    if (!askFacts || isAskingFacts || !state.active || !canSpend() || wordsSinceFacts.split(/\s+/).length < WORDS_BETWEEN_FACTS) return;
+    isAskingFacts = true;
+    const said = wordsSinceFacts;
+    wordsSinceFacts = '';
+    void askFacts({ known: factsSaid, said })
+      .then(({ facts, costUsd }) => {
+        charge(costUsd);
+        trace('factsNoted', { facts: facts.length, costUsd });
+        if (facts.length === 0) return;
+        factsSaid = facts;
+        hasNewFacts = true;
+      })
+      .catch((error: unknown) => trace('factsFailed', { problem: String(error) }))
+      .finally(() => {
+        isAskingFacts = false;
+      });
+  };
+
   const noteEvent = (event: LessonEvent | null) => {
     if (!event) return;
     state = getStateAfterEvent(state, event);
@@ -200,6 +231,8 @@ export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleCha
     noteWorkChecked: (checked, work) => noteEvent(getWorkEvent(checked, work)),
     noteReplyEnded({ wasSafety, wasLead, spoken }) {
       saidSoFar = `${saidSoFar} ${spoken}`.slice(-MOST_CHARACTERS_OF_WHAT_WAS_SAID);
+      wordsSinceFacts = `${wordsSinceFacts} ${spoken}`.trim();
+      askForFactsIfDue();
       noteEvent(wasSafety ? 'safetyReplyEnded' : wasLead ? 'leadEnded' : 'replyEnded');
     },
     noteCardLesson(plan) {
@@ -216,6 +249,16 @@ export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleCha
       return note && picture && 'step' in note ? { ...note, picture_topic: picture } : note;
     },
     moveToNextStep: () => noteEvent('movedOn'),
+    takeAskedToHold() {
+      const was = wasAskedToHold;
+      wasAskedToHold = false;
+      return was;
+    },
+    takeNewFacts() {
+      if (!hasNewFacts) return null;
+      hasNewFacts = false;
+      return factsSaid;
+    },
     whenSettled: () => asking ?? Promise.resolve(),
   };
 }

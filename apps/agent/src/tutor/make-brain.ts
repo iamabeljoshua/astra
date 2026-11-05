@@ -1,6 +1,6 @@
 import { getBeatText, type InkPoint, type SessionRecap } from '@astra/contracts';
 import { readKey } from '../keys.ts';
-import { askMoreSteps, askPlanner } from '../lesson-plan/ask-planner.ts';
+import { askFacts, askMoreSteps, askPlanner } from '../lesson-plan/ask-planner.ts';
 import { createLessonPlanner, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
 import type { LessonEvent, LessonState } from '../lesson-plan/plan-progress.ts';
 import { makeAnthropicJsonReader, makeAnthropicPictureReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
@@ -180,6 +180,7 @@ function makeLessonPlanner({ link, caps, trace, onSessionTitle, sceneHooks }: { 
   return createLessonPlanner({
     ask: (request) => askPlanner(reader, request),
     askMore: (request) => askMoreSteps(reader, request),
+    askFacts: (request) => askFacts(reader, request),
     canSpend: () => caps.getSpendLimit() === null,
     charge: (usd) => caps.addTurn({ usd, voiceCharacters: 0 }),
     onTitleChange(title) {

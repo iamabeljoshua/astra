@@ -2,9 +2,10 @@ import { type Beat, type BeatId, type BoardProblemReport, clipTypedText, type El
 import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getNod, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { toCardPlan, type CardMaterial } from '../lesson-plan/card-lesson.ts';
-import { asksToBeTaught, getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
-import { getLessonWordsProblem, LEAD_NOTES, OPENING_A_CARD_NOTE, withoutNextSignpost, withoutOpeningTic, withoutReplyToNobody } from '../lesson-plan/lesson-rules.ts';
-import type { LeadKind } from '../live/tutor-lead.ts';
+import { asksToBeTaught, getProblemNote, getTeachFirstNote, IS_ONLY_A_NOD, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
+import { getLessonWordsProblem, HOLD_NOTE, LEAD_NOTES, OPENING_A_CARD_NOTE, promisesToWait, SLOW_NOTE, withoutNextSignpost, withoutOpeningTic, withoutReplyToNobody } from '../lesson-plan/lesson-rules.ts';
+import { readStudentWish } from '../lesson-plan/student-wish.ts';
+import { getLeadStopAfter, type LeadKind, type LeadStop, type LeadStopEvent } from '../live/tutor-lead.ts';
 import { asksToMakeAWeapon, namesHelp, readsAsEnglish, saysItCannotRead, saysNobodyCanBeTold, soundsLikeCrisisReply } from '../safety/help-words.ts';
 import { isSafetyKind, type StudentReading } from '../safety/student-reading.ts';
 import type { SafetyWatch } from '../safety/safety-watch.ts';
@@ -25,6 +26,8 @@ export interface TutorRequest {
   text: string;
   /** How `text` starts, when it repeats the words of a request whose reply was cut. */
   carried?: string;
+  /** Code decided the tutor goes on, so `text` is code's own stage words and nobody said them. */
+  lead?: LeadKind;
 }
 
 export interface BeatReport {
@@ -56,9 +59,16 @@ export interface TutorBrain {
   noteWatcher?(note: WatcherNote): void;
   getBoard?(): { state: BoardState; openTask: ElementId | null };
   canLead?(): boolean;
+  /** The student asked for quiet, or a crisis was read, so nothing lands on them by itself. */
+  isHeld?(): boolean;
+  isPaceSlow?(): boolean;
   /** A lesson's plan still has ideas to teach. */
   hasLessonLeft?(): boolean;
   noteLead?(kind: LeadKind): void;
+  /** The stop button, or a stored "Take your time.", which is the same promise. */
+  noteAskedToHold?(): void;
+  /** A read landed late, and the lead already running must stop too. */
+  onLeadStopped?(listener: () => void): void;
 }
 
 /** Why code decided the tutor should speak up, read by the model on its next turn. */
@@ -146,11 +156,28 @@ type TurnStep = 'over' | 'retry';
 
 const ENDS_THAT_STOP_A_LEAD: ReadonlySet<string> = new Set(['noWords', 'stalledBeforeText', 'stalledInText', 'failed', 'rejected', 'refused', 'stoppedForSafety']);
 
+/** Who a turn's words belong to. Only a student's can move a lead's stop, and only theirs go to the safety check. */
+type Speaker = 'student' | 'lead' | 'code';
+
+const CODES_OWN_WORDS = /^\((?:has paused|picked .*|placed .*|moved the point to .*|wants something else|handwriting that could not be read)\)$/;
+
 type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'drawingRefused' | 'wrongWords' | 'refused' | 'toolCall' | 'heldQuestion' | 'stoppedForSafety';
 
 interface TurnWork {
   sceneAside?: 'due' | 'moved';
+  speaker: Speaker;
   isLead: boolean;
+  /** The words the safety check read, which on a watcher's turn are their unsent draft. */
+  wordsRead: string;
+  /** A reply with an exercise due may be sent back at its task command, so what it draws waits until that has passed. */
+  canBeSteered: boolean;
+  isHoldingBeats: boolean;
+  /** How many of `beats` have gone to the voice. */
+  yieldedBeats: number;
+  /** What this try drew, which waits in held beats and so has not reached the student. */
+  commandsToForget: SceneCommand[];
+  /** Undoes what the refused try wrote and the student never saw, and leaves the board as it stood before it. */
+  forgetAttempt(): void;
   id: number;
   studentText: string;
   signal: AbortSignal;
@@ -351,9 +378,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   let isComeBackUnanswered = false;
   let studentLevel = profile?.level ?? null;
   let isAfterSafetyReply = false;
-  let isLeadStopped = false;
-  let canLeadAfterLastTurn = false;
-  let leadDue: LeadKind | null = null;
+  let leadStop: LeadStop = 'none';
+  let hasHadAReply = false;
+  let isPaceSlowNow = false;
+  let draftToRead: string | null = null;
+  const leadStoppedListeners: (() => void)[] = [];
   let workedForLead: { problem: string; comes_to: string } | null = null;
   let wasLastExerciseWords = false;
   let isOnACard = Boolean(profile?.cardTitle);
@@ -421,8 +450,25 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     while ((isTurnRunning || !hasEveryReport()) && getNowMs() < deadlineMs) await delay(WAIT_STEP_MS);
   };
 
+  const noteLeadStopEvent = (event: LeadStopEvent) => {
+    leadStop = getLeadStopAfter(leadStop, event);
+  };
+
+  const getLeadStop = () => {
+    if (lessonPlanner?.takeAskedToHold()) noteLeadStopEvent('askedToStop');
+    return leadStop;
+  };
+
+  const readStudentLine = (words: string): LeadStopEvent | null => {
+    if (MAY_BE_ABOUT_SAFETY.test(words)) return 'crisis';
+    if (readStudentWish(words) === 'hold') return 'askedToStop';
+    // "next" or "more" alone does not end a stop after a crisis, and "ok" says nothing at all.
+    if (asksToBeTaught(words) && words.trim().split(/\s+/).length > 1) return 'askedToBeTaught';
+    return IS_ONLY_A_NOD.test(words.trim()) ? null : 'saidSomething';
+  };
+
   const noteSafetyReply = (turn: TurnWork, board: { kinds: ReadonlyMap<string, string> }) => {
-    isLeadStopped = true;
+    noteLeadStopEvent('crisis');
     onSafetyReply?.();
     if ([...board.kinds.values()].includes('richScene')) turn.sceneAside = 'due';
   };
@@ -433,6 +479,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     isAfterSafetyReply = true;
     lessonPlanner?.noteReplyEnded({ wasSafety: true, wasLead: turn.isLead, spoken: '' });
     noteSafetyReply(turn, memory);
+    leadStoppedListeners.forEach((listener) => listener());
   };
 
   const takesSceneAside = (turn: TurnWork) => {
@@ -468,8 +515,15 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return answer.ok ? { problem, comes_to: answer.about ?? answer.value } : null;
   };
 
-  const startTurn = (studentText: string, signal: AbortSignal): TurnWork => {
-    settleLastTurn(studentText);
+  const startTurn = (studentText: string, lead: LeadKind | null, signal: AbortSignal): TurnWork => {
+    const speaker: Speaker = lead ? 'lead' : CODES_OWN_WORDS.test(studentText) ? 'code' : 'student';
+    const wish = speaker === 'student' ? readStudentWish(studentText) : 'none';
+    const isAskedToHold = wish === 'hold';
+    if (wish === 'slower') isPaceSlowNow = true;
+    if (wish === 'faster') isPaceSlowNow = false;
+    const leadStopEvent = speaker === 'student' ? readStudentLine(studentText) : null;
+    if (leadStopEvent) noteLeadStopEvent(leadStopEvent);
+    settleLastTurn(isAskedToHold ? null : studentText);
     if (getNowMs() - lastBreakNudgeAtMs >= BREAK_EVERY_MS) {
       lastBreakNudgeAtMs = getNowMs();
       pendingNotes.push(BREAK_NOTE);
@@ -481,19 +535,38 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const nodded = hasNoddedSinceLastTurn;
     hasNoddedSinceLastTurn = false;
     let readerMemory = memory;
-    const shapeNote = lessonPlanner && !memory.openTask && !MAY_BE_ABOUT_SAFETY.test(studentText) ? (getProblemNote(studentText) ?? getTeachFirstNote(studentText, turnCount === 1)) : null;
+    const shapeNote = lessonPlanner && speaker === 'student' && !isAskedToHold && !memory.openTask && !MAY_BE_ABOUT_SAFETY.test(studentText) ? (getProblemNote(studentText) ?? getTeachFirstNote(studentText, turnCount === 1)) : null;
     const openingNote = canFitTheStart && turnCount <= TURNS_THAT_SET_THE_START ? (prompt.openingNote ?? null) : null;
     const levelLine = studentLevel === null ? undefined : prompt.levelLines?.[studentLevel];
-    const lead = leadDue;
-    leadDue = null;
     const isExerciseReply = isExerciseDueNow();
     // Words that may be serious come before any exercise, and help for a student in danger must never be sent back.
-    const wantedExercise = MAY_BE_ABOUT_SAFETY.test(studentText) ? null : getWantedExercise();
-    const worked = workedForLead;
-    workedForLead = null;
+    const wantedExercise = MAY_BE_ABOUT_SAFETY.test(studentText) || isAskedToHold ? null : getWantedExercise();
+    const worked = lead ? workedForLead : null;
+    if (lead) workedForLead = null;
     const leadNote = lead ? { lead: LEAD_NOTES[lead === 'next' && isExerciseReply ? 'exercise' : lead], ...(worked ? { code_worked_it: worked } : {}) } : null;
-    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote, leadNote, isOnACard && turnCount === 1 ? OPENING_A_CARD_NOTE : null].filter((note) => note !== null);
+    const facts = lessonPlanner?.takeNewFacts() ?? null;
+    if (facts) pendingNotes.push({ said_so_far: facts });
+    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote, isAskedToHold ? HOLD_NOTE : null, leadNote, lead && isPaceSlowNow ? SLOW_NOTE : null, isOnACard && turnCount === 1 ? OPENING_A_CARD_NOTE : null].filter((note) => note !== null);
+    const memoryAtStart = memory;
+    const wordsRead = speaker === 'code' ? (draftToRead ?? studentText) : studentText;
     const turn: TurnWork = {
+      speaker,
+      wordsRead,
+      canBeSteered: wantedExercise !== null,
+      isHoldingBeats: false,
+      forgetAttempt() {
+        turn.ready = [];
+        turn.beats.splice(turn.yieldedBeats);
+        turn.reader.forgetCommands(memoryAtStart.kinds);
+        for (const command of turn.commandsToForget.splice(0)) {
+          const dropped = boardOperations.findIndex((operation) => operation.kind === 'command' && operation.command === command);
+          if (dropped !== -1) boardOperations.splice(dropped, 1);
+        }
+        readerMemory = memoryAtStart;
+        turn.isHoldingBeats = false;
+      },
+      yieldedBeats: 0,
+      commandsToForget: [],
       isLead: lead !== null,
       id: turnCount,
       studentText,
@@ -519,7 +592,12 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           trace('attemptReported', { report });
         },
         onCommandKept(command) {
-          if (command.kind === 'task') wasLastExerciseWords = isWrittenWordsTask(command, readerMemory, memory);
+          if (command.kind === 'task') {
+            wasLastExerciseWords = isWrittenWordsTask(command, readerMemory, memory);
+            turn.canBeSteered = false;
+            turn.isHoldingBeats = false;
+          }
+          if (SHOWING_KINDS.has(command.kind) || command.kind === 'task') turn.commandsToForget.push(command);
           readerMemory = getMemoryAfter(command, readerMemory);
           boardProblems.noteWritten(command);
           boardOperations.push({ kind: 'command', atMs: boardOperations.length, command, overMs: null });
@@ -631,10 +709,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       isFinished: false,
       startsAfterCut: false,
     };
-    if (safety && !lead) {
+    if (safety && (speaker === 'student' || draftToRead !== null)) {
+      draftToRead = null;
       turn.safetyReading = 'pending';
       turn.safetyAnswered = new Promise((resolve) => {
-        turn.safetyRead = safety.readStudent(studentText, lastSpokenText).then((reading) => {
+        turn.safetyRead = safety.readStudent(wordsRead, lastSpokenText).then((reading) => {
           turn.safetyReading = reading;
           resolve(SAFETY_ANSWERED);
           if (turn.isFinished && isAboutSafety(reading)) noteLateSafetyRead(turn);
@@ -658,6 +737,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     turn.firstBeatMs ??= getNowMs() - turn.startedAtMs;
     turn.beats.push(beat);
     turn.ready.push(beat);
+    if (turn.canBeSteered && turn.attempts < MAX_ATTEMPTS && beat.script.some((part) => typeof part !== 'string' && SHOWING_KINDS.has(part.kind))) turn.isHoldingBeats = true;
   };
 
   const sayWords = (turn: TurnWork, words: string) => {
@@ -722,6 +802,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     let end: AttemptEnd = 'aborted';
     const endAs = (value: AttemptEnd) => (end = value);
     turn.attempts += 1;
+    turn.commandsToForget = [];
     turn.hasAttemptText = false;
     turn.hasNewWordsThisAttempt = false;
     turn.attemptUsage = null;
@@ -793,7 +874,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   };
 
   function* takeReady(turn: TurnWork): Generator<Beat> {
-    while (turn.ready.length > 0 && !turn.signal.aborted) yield turn.ready.shift() as Beat;
+    while (turn.ready.length > 0 && !turn.isHoldingBeats && !turn.signal.aborted) {
+      turn.yieldedBeats += 1;
+      yield turn.ready.shift() as Beat;
+    }
   }
 
   const getWordsSaid = (turn: TurnWork) => turn.beats.map((beat) => getBeatText(beat)).join(' ');
@@ -814,6 +898,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       return 'over';
     }
     if (turn.isExerciseSteered) {
+      turn.forgetAttempt();
       noteCorrection(turn, problem);
       return 'retry';
     }
@@ -846,6 +931,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       sayLine(turn, 'mathDropped');
       return 'over';
     }
+    if (turn.canBeSteered) turn.forgetAttempt();
     noteCorrection(turn, problem);
     return 'retry';
   };
@@ -894,7 +980,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   };
 
   // In English code's line is what the model would say anyway, so the student hears it sooner, and a reply in another language finishes because it usually names help there.
-  const isHelpDueInCode = (turn: TurnWork) => isSafetyKind(turn.safetyReading) && replyLacksHelp(turn) && readsAsEnglish(turn.studentText);
+  const isHelpDueInCode = (turn: TurnWork) => isSafetyKind(turn.safetyReading) && replyLacksHelp(turn) && readsAsEnglish(turn.wordsRead);
 
   const isHelpDueAtDeadline = (turn: TurnWork) => isSafetyKind(turn.safetyReading) && replyLacksHelp(turn) && !turn.isCheckingMath;
 
@@ -902,6 +988,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const sayHelpInCode = (turn: TurnWork): TurnStep => {
     turn.hasStoppedForSafety = true;
     trace('stoppedForSafety');
+    turn.isHoldingBeats = false;
     turn.beats.splice(turn.beats.length - turn.ready.length);
     turn.ready = [];
     endWordsAlreadySaid(turn);
@@ -1117,6 +1204,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     attempts.endTurn({ askedAQuestion: turn.beats.at(-1)?.expectsReply ?? false, wasCut: turn.endedAs === 'aborted' });
     lastBeats = turn.beats;
     lastSpokenText = getWordsSaid(turn);
+    hasHadAReply = true;
     turn.isFinished = true;
     safety?.noteTurnEnd({ spoken: lastSpokenText, safetyRead: turn.safetyRead, getKind: () => (isSafetyKind(turn.safetyReading) ? turn.safetyReading : null) });
     lastRefused = wasRefused ? [] : turn.refused;
@@ -1124,9 +1212,9 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     if (turn.beats.length > 0) lessonPlanner?.noteReplyEnded({ wasSafety: turn.reader.isSafetyReply, wasLead: turn.isLead, spoken: getWordsSaid(turn) });
     const wasSafetyReply = turn.reader.isSafetyReply || (wasRefused && !isPlainRefusal(turn));
     isAfterSafetyReply = wasSafetyReply || (isAfterSafetyReply && !turn.hasModelWords);
-    if (wasSafetyReply || MAY_BE_ABOUT_SAFETY.test(turn.studentText)) isLeadStopped = true;
-    else if (asksToBeTaught(turn.studentText)) isLeadStopped = false;
-    canLeadAfterLastTurn = !ENDS_THAT_STOP_A_LEAD.has(turn.endedAs);
+    if (wasSafetyReply) noteLeadStopEvent('crisis');
+    if (ENDS_THAT_STOP_A_LEAD.has(turn.endedAs)) noteLeadStopEvent('replyFailed');
+    if (!turn.isLead && !memory.openTask && !getOpenTaskOnBoard(getBoardNow()) && promisesToWait(lastSpokenText)) noteLeadStopEvent('askedToStop');
     onTurnEnd?.({
       studentText: turn.studentText,
       spokenText: getWordsSaid(turn),
@@ -1177,7 +1265,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   };
 
   return {
-    async *reply({ text, carried = '' }, signal) {
+    async *reply({ text, carried = '', lead = null }, signal) {
       // The last turn holds the carried words, or a safety check chose to drop them, so only what is new goes in. If that turn never began, nothing holds them, and they all go in. The rule keeps only the newest words it owes, with their spacing evened out.
       const isCarriedHere = carried !== '' && toSpacedWords(lastAskedText ?? '').endsWith(toSpacedWords(carried));
       lastAskedText = text;
@@ -1187,14 +1275,14 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         if (said.ok) yield said.value;
         return;
       }
-      if (leadDue === null) onStudentWords?.(studentText);
+      if (!lead) onStudentWords?.(studentText);
       // Skipped on words this list knows. Vaguer words reach the planner, whose `stay` and `getTrustedMove` hold them.
       // A student who cuts a card's opening scene speaks before the tutor has heard the card's title, so those are their own words.
-      if (!MAY_BE_ABOUT_SAFETY.test(studentText)) lessonPlanner?.noteStudentWords({ words: studentText, isOpening: turnCount === 0 && cutWordsSent === null, tutorSaid: lastBeats.map(getBeatText).join(' ') });
+      if (!lead && !MAY_BE_ABOUT_SAFETY.test(studentText)) lessonPlanner?.noteStudentWords({ words: studentText, isOpening: turnCount === 0 && cutWordsSent === null, tutorSaid: lastBeats.map(getBeatText).join(' ') });
       await waitForLastTurn();
       if (profileLoading || memoryLoading) await Promise.race([Promise.all([profileLoading, memoryLoading]), delay(timeouts.profileWaitMs)]);
       isTurnRunning = true;
-      const turn = startTurn(studentText, signal);
+      const turn = startTurn(studentText, lead, signal);
       if (Array.from(studentText).length >= TYPED_TEXT_MAX_CHARACTERS) turn.notes.push(JSON.stringify(CLIPPED_NOTE));
       try {
         closeIfSpent(turn);
@@ -1208,6 +1296,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           // A reply can end before the check has read the words it answered, and the check decides how this turn ends.
           if (end === 'ended' || end === 'refused') await waitUntil(turn.safetyRead, getNowMs() + timeouts.safetyReadWaitMs, turn.signal, getNowMs);
           const step = handleEnd(turn, end);
+          turn.isHoldingBeats = false;
           yield* takeReady(turn);
           if (step === 'over') return;
           if (turn.toolCall) await answerToolCall(turn, turn.toolCall);
@@ -1264,6 +1353,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       onWorkNoted?.(work, checked);
       memory = getMemoryAfterWork(work, checked, memory);
       lessonPlanner?.noteWorkChecked(checked, work);
+      if (work.way !== 'leave') noteLeadStopEvent('workedOnBoard');
       workSinceLastTurn.push({ work, checked });
       hasNoddedSinceLastTurn ||= getNod(work, checked) !== null;
       const heldNotesOfWork = pendingNotes.filter((note) => 'student_work' in note);
@@ -1272,16 +1362,20 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       return { checked, hadTask };
     },
     noteWatcher(note) {
-      if (note.why.includes('needsAPerson')) isLeadStopped = true;
+      if (note.why.includes('needsAPerson')) noteLeadStopEvent('crisis');
+      draftToRead = note.unsent_draft ?? null;
       pendingNotes.push({ watcher: note });
     },
-    canLead: () => canLeadAfterLastTurn && !isLeadStopped && closedReason === null && !isLessonOver(),
+    canLead: () => hasHadAReply && getLeadStop() === 'none' && closedReason === null && !isLessonOver(),
+    isHeld: () => getLeadStop() === 'asked' || leadStop === 'crisis',
+    isPaceSlow: () => isPaceSlowNow,
+    noteAskedToHold: () => noteLeadStopEvent('askedToStop'),
+    onLeadStopped: (listener) => void leadStoppedListeners.push(listener),
     hasLessonLeft: () => {
       const step = lessonPlanner?.getStepNote();
       return Boolean(step && 'step' in step);
     },
     noteLead(kind) {
-      leadDue = kind;
       workedForLead = kind === 'taskLeft' ? getWorkedOpenProblem() : null;
       if (kind === 'taskLeft' || kind === 'taskTried') lessonPlanner?.moveToNextStep();
     },

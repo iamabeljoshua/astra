@@ -1,3 +1,4 @@
+import { LEAD_WORDS, type LeadKind } from './tutor-lead.ts';
 import { dropWordsAlreadyAnswered, hasWords, isFiller, isSmallReaction } from './turn-words.ts';
 
 /** Starting values from the design and the plan. `docs/tests/voice.md` holds what each was measured against. */
@@ -85,7 +86,7 @@ export type TurnEvent =
   | { type: 'echoHeard' }
   | { type: 'turnDecided'; text: string }
   | { type: 'typed'; text: string }
-  | { type: 'leadDue'; text: string }
+  | { type: 'leadDue'; lead: LeadKind }
   | { type: 'timer'; name: TimerName }
   | { type: 'tutorThinking' }
   | { type: 'tutorStarted'; isReply: boolean }
@@ -106,7 +107,7 @@ export type TurnAction =
   | { do: 'resume' }
   | { do: 'react' }
   /** `carried` is how `text` starts: the words of a reply that was cut before it finished, already asked once. */
-  | { do: 'reply'; text: string; carried: string; via: ReplyVia }
+  | { do: 'reply'; text: string; carried: string; via: ReplyVia; lead?: LeadKind }
   | { do: 'startTimer'; name: TimerName; ms: number }
   | { do: 'cancelTimer'; name: TimerName }
   | { do: 'setTurnCap'; ms: number }
@@ -228,9 +229,9 @@ function onTyped(state: TurnState, { text }: { text: string }): TurnStep {
   return { state: step.state, actions: [...stopFirst, ...step.actions] };
 }
 
-function onLeadDue(state: TurnState, { text }: { text: string }): TurnStep {
+function onLeadDue(state: TurnState, { lead }: { lead: LeadKind }): TurnStep {
   if (state.phase !== 'clear' || state.tutor !== 'silent' || state.isVoiceOn || hasWords(state.partial)) return { state, actions: [] };
-  return { state: { ...INITIAL_TURN_STATE, tutor: 'thinking' }, actions: [...CANCEL_ALL, { do: 'setTurnCap', ms: TURN_TIMINGS.turnCapMs }, { do: 'reply', text, carried: '', via: 'lead' }] };
+  return { state: { ...INITIAL_TURN_STATE, tutor: 'thinking' }, actions: [...CANCEL_ALL, { do: 'setTurnCap', ms: TURN_TIMINGS.turnCapMs }, { do: 'reply', text: LEAD_WORDS[lead], carried: '', via: 'lead', lead }] };
 }
 
 function onTimer(state: TurnState, { name }: { name: TimerName }): TurnStep {

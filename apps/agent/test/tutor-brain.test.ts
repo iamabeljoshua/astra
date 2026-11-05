@@ -316,7 +316,7 @@ describe('when the student interrupts', () => {
     brain.notePlayed({ beatId: only.id, playedWords: 3, firedCues: 0 });
     brain.notePlayed({ beatId: `${only.id}-r2` as Beat['id'], playedWords: 2, firedCues: 0 });
     brain.notePlayed({ beatId: `${only.id}-r2-r4` as Beat['id'], playedWords: 3, firedCues: 0 });
-    await collect(brain, 'wait');
+    await collect(brain, 'why though');
     expect(lastSystemNote(model.requests[1])?.cut).toEqual({ heard: 'One two three four five six', not_heard: 'seven eight.' });
   });
 
@@ -324,7 +324,7 @@ describe('when the student interrupts', () => {
     const { brain, model } = setup((_request, attempt) => (attempt === 1 ? reply('Okay, one two three.') : reply('Got it.')));
     const [only] = (await collect(brain, 'count')) as [Beat];
     brain.noteCut(new Map([[only.id, 2]]));
-    await collect(brain, 'wait');
+    await collect(brain, 'why though');
     expect(lastSystemNote(model.requests[1])?.cut).toEqual({ heard: 'Okay, one', not_heard: 'two three.' });
   });
 

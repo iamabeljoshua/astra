@@ -19,6 +19,7 @@ const LONGEST_RECAP_WRITE_MS = 6000;
 /** A read takes 1.7 s at p95. A later one still raises its flag, and danger still keeps the room's notes out of the record. */
 const LONGEST_SAFETY_WAIT_MS = 2500;
 const MOST_TUTOR_WORDS_READ = 600;
+const PARTS_OF_A_LONG_LESSON = 6;
 const MOST_LINES_READ = 40;
 
 export type RecapModel = Pick<TutorModelAdapter, 'stream' | 'getCostUsd'>;
@@ -28,12 +29,20 @@ export interface WrittenRecap {
   costUsd: number;
 }
 
+/** A 20 minute lesson says about 3,000 words, and its last 600 hold only its last idea, so the words read come from all through it. */
+function getWordsFromAllOfIt(words: readonly string[]): string {
+  if (words.length <= MOST_TUTOR_WORDS_READ) return words.join(' ');
+  const partLength = Math.floor(MOST_TUTOR_WORDS_READ / PARTS_OF_A_LONG_LESSON);
+  const step = (words.length - partLength) / (PARTS_OF_A_LONG_LESSON - 1);
+  return Array.from({ length: PARTS_OF_A_LONG_LESSON }, (_, part) => words.slice(Math.round(part * step), Math.round(part * step) + partLength).join(' ')).join(' ... ');
+}
+
 function getFactsMessage(facts: RecapFacts): string {
   const { opening, tutorWords, studentLines, work } = facts;
   return JSON.stringify({
     opening,
     moved_to: getTaughtTopic(facts),
-    tutor_said: tutorWords.slice(-MOST_TUTOR_WORDS_READ).join(' '),
+    tutor_said: getWordsFromAllOfIt(tutorWords),
     student_said: studentLines.slice(-MOST_LINES_READ),
     right_work: work.filter(({ status }) => status === 'right').slice(-MOST_LINES_READ).map(({ line }) => line),
     other_work: work.filter(({ status }) => status !== 'right').slice(-MOST_LINES_READ).map(({ line }) => line),

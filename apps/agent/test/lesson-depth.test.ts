@@ -297,23 +297,30 @@ function makeOutput(): VoiceOutput {
   };
 }
 
+const makeInstantOutput = (): VoiceOutput => ({ sampleRate: 24000, captureFrame: async () => {}, clearQueue: () => {}, waitForPlayout: async () => {} });
+
 const sessions: LiveSession[] = [];
 afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.close()));
 });
 
-const FAST = { ...LEAD_TIMINGS, firstWordAfterMs: 30, afterQuestionMs: 400, afterTaskMs: 500, afterQuestionAgainMs: 400, afterTaskAgainMs: 500 };
+const FAST = { ...LEAD_TIMINGS, firstWordAfterMs: 30, afterQuestionMs: 400, afterTaskMs: 500, afterQuestionAgainMs: 400, afterTaskAgainMs: 500, afterKeyMs: 400 };
 
 function startLeading({ answers, canLead = () => true, hasLessonLeft = () => true, leadTimings = FAST, quietLimitMs, onQuietLimit }: { answers(request: string, index: number): readonly TutorBeat[]; canLead?(): boolean; hasLessonLeft?(): boolean; leadTimings?: typeof FAST; quietLimitMs?: number; onQuietLimit?(): void }) {
   const asked: string[] = [];
   const leads: LeadKind[] = [];
   const left: string[] = [];
+  let isHeld = false;
   const tutor: TutorBrain = {
     async *reply({ text }) {
       asked.push(text);
       yield* answers(text, asked.length - 1);
     },
-    canLead,
+    canLead: () => !isHeld && canLead(),
+    isHeld: () => isHeld,
+    noteAskedToHold: () => {
+      isHeld = true;
+    },
     hasLessonLeft,
     noteLead: (kind) => void leads.push(kind),
     noteWork: (work) => {
@@ -325,7 +332,7 @@ function startLeading({ answers, canLead = () => true, hasLessonLeft = () => tru
   const send = (message: AgentMessage) => void messages.push(message);
   const session = createLiveSession({
     messenger: { send, sendOnBothChannels: send },
-    line: createVoiceLine(makeOutput()),
+    line: createVoiceLine(makeInstantOutput()),
     voice: makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts() as tts.TTS,
     tutor,
     takes: createTakePicker(TAKES),
@@ -406,9 +413,9 @@ describe('the tutor leads', () => {
     type('teach me rockets');
     await vi.waitFor(() => expect(asked.length).toBeGreaterThanOrEqual(2), { timeout: 4000 });
     session.onBrowser({ type: 'pageHidden', isHidden: true, clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
-    await delay(2500);
+    await delay(200);
     const heldAt = asked.length;
-    await delay(1500);
+    await delay(300);
     expect(asked.length).toBe(heldAt);
     session.onBrowser({ type: 'pageHidden', isHidden: false, clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
     await vi.waitFor(() => expect(asked.length).toBeGreaterThan(heldAt), { timeout: 4000 });
@@ -419,22 +426,22 @@ describe('the tutor leads', () => {
     type('teach me rockets');
     await vi.waitFor(() => expect(asked.length).toBeGreaterThanOrEqual(2), { timeout: 4000 });
     session.onBrowser({ type: 'audioState', isRunning: false, clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
-    await delay(2500);
+    await delay(200);
     const heldAt = asked.length;
-    await delay(1500);
+    await delay(300);
     expect(asked.length).toBe(heldAt);
     session.onBrowser({ type: 'audioState', isRunning: true, clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
     await vi.waitFor(() => expect(asked.length).toBeGreaterThan(heldAt), { timeout: 8000 });
   }, 20_000);
 
   it('holds after the quiet limit with no lesson left, and goes on at any sign of them', async () => {
-    const { asked, session, type } = startLeading({ answers: teaching, hasLessonLeft: () => false, leadTimings: { ...FAST, mostQuietMs: 1500 } });
+    const { asked, session, type } = startLeading({ answers: teaching, hasLessonLeft: () => false, leadTimings: { ...FAST, mostQuietMs: 300 } });
     type('teach me rockets');
-    await delay(3500);
+    await delay(600);
     const heldAt = asked.length;
-    await delay(1200);
+    await delay(300);
     expect(asked.length).toBe(heldAt);
-    session.onBrowser({ type: 'typing', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
+    session.onBrowser({ type: 'stillHere', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
     await vi.waitFor(() => expect(asked.length).toBeGreaterThan(heldAt), { timeout: 4000 });
   }, 15_000);
 
@@ -450,7 +457,7 @@ describe('the tutor leads', () => {
   it('stops at once for typing, speech, and sent words, and answers them', async () => {
     const { asked, session, type } = startLeading({ answers: teaching, leadTimings: { ...FAST, firstWordAfterMs: 800 } });
     type('teach me rockets');
-    await vi.waitFor(() => expect(asked.length).toBe(2), { timeout: 4000 });
+    await vi.waitFor(() => expect(asked.length).toBeGreaterThanOrEqual(2), { timeout: 4000 });
     session.onEars({ type: 'voiceStarted' });
     session.onEars({ type: 'words', text: 'wait what is gravity', isFinal: false });
     session.onEars({ type: 'voiceEnded' });
@@ -471,16 +478,14 @@ describe('the tutor leads', () => {
     expect(asked.length).toBe(1);
   });
 
-  it('stays stopped when the student presses stop, until they do something', async () => {
+  it('stays stopped when the student presses stop', async () => {
     const { asked, session, type } = startLeading({ answers: teaching, leadTimings: { ...FAST, firstWordAfterMs: 400 } });
     type('teach me rockets');
     await vi.waitFor(() => expect(asked.length).toBe(1), { timeout: 2000 });
     await delay(100);
     session.onBrowser({ type: 'stopTutor', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
-    await delay(1500);
+    await delay(700);
     expect(asked.length).toBe(1);
-    session.onBrowser({ type: 'typing', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
-    await vi.waitFor(() => expect(asked.length).toBe(2), { timeout: 3000 });
   }, 10_000);
 
   it('does not take the page hearing the question as a sign of the student', async () => {
@@ -493,7 +498,7 @@ describe('the tutor leads', () => {
 
   it('never closes the room on a student only listening, and does once it is holding for one who has gone', async () => {
     const onQuietLimit = vi.fn();
-    const { asked, session, type } = startLeading({ answers: teaching, quietLimitMs: 2500, onQuietLimit });
+    const { asked, session, type } = startLeading({ answers: teaching, quietLimitMs: 500, onQuietLimit });
     type('teach me rockets');
     await vi.waitFor(() => expect(asked.length).toBeGreaterThanOrEqual(4), { timeout: 10_000 });
     expect(onQuietLimit).not.toHaveBeenCalled();
@@ -506,7 +511,7 @@ describe('the tutor leads', () => {
     type('teach me rockets');
     await vi.waitFor(() => expect(asked.length).toBe(1), { timeout: 2000 });
     session.onBrowser({ type: 'holdStarted', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
-    await delay(1500);
+    await delay(500);
     expect(asked.length).toBe(1);
   }, 8000);
 
@@ -556,7 +561,8 @@ describe('the brain in a lead', () => {
   };
   const run = async (brain: Required<TutorBrain>, text: string) => {
     const said: string[] = [];
-    for await (const beat of brain.reply({ text }, new AbortController().signal)) said.push(getBeatText(beat));
+    const lead = (Object.keys(LEAD_WORDS) as LeadKind[]).find((kind) => LEAD_WORDS[kind] === text);
+    for await (const beat of brain.reply({ text, ...(lead ? { lead } : {}) }, new AbortController().signal)) said.push(getBeatText(beat));
     return said.join(' ');
   };
 

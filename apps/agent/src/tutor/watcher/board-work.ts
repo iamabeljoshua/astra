@@ -4,6 +4,7 @@ import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getLinearAnswer, 
 import type { BoardElement } from '@astra/board';
 import type { SpokenReading } from './read-spoken.ts';
 import { decideSpoken, type SpokenDecision, type SpokenExpected, type SpokenPart } from './spoken-answer.ts';
+import { MAY_BE_ABOUT_SAFETY } from '../safety-words.ts';
 import type { TutorBrain } from '../brain.ts';
 import { decideOnReading, decideOnWork, decideWatch, getGate, getWorkWords, type WatchDecision, type WatchSituation, type WordMeaning, decideOnSpokenWork } from './watch-rule.ts';
 
@@ -12,6 +13,8 @@ export interface BoardWorkOptions {
   writeLog(message: BrowserMessage & { type: 'worked' }, checked: CheckedWork): void;
   speakUp(words: string): void;
   isTutorTalking(): boolean;
+  /** They asked for quiet, or a crisis was read. */
+  isHeld?(): boolean;
   getSecondsSinceQuestion(): number | null;
   readMeaning(words: string): Promise<WordMeaning | null>;
   readStrokes(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
@@ -29,6 +32,9 @@ interface Unanswered {
 
 const MOST_STROKES_HELD = 400;
 const MOST_INK_READS = 300;
+/** A forged page can send a new draft every few milliseconds, and each read spends. */
+const MOST_DRAFT_READS = 60;
+const HOLDS_WORDS = /[a-z]{3,}/i;
 const HOLD_WHILE_TYPING_MS = 1200;
 const HOLD_LOOKS_EVERY_MS = 50;
 const LONGEST_HOLD_MS = 8000;
@@ -38,7 +44,7 @@ const NOT_READ = '(handwriting that could not be read)';
 const getWorkKey = (work: StudentWork) => JSON.stringify(work.way === 'write' ? cleanStudentText(work.text) : work);
 
 // What the student does on the board: code checks it, notes it, logs it, and decides whether the tutor answers.
-export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getSecondsSinceQuestion, readMeaning, readStrokes, readSpokenWords, writeHeardLog, send, getNowMs, trace }: BoardWorkOptions) {
+export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, isHeld = () => false, getSecondsSinceQuestion, readMeaning, readStrokes, readSpokenWords, writeHeardLog, send, getNowMs, trace }: BoardWorkOptions) {
   let spokenLines = 0;
   let inkReads = 0;
   let latestInkRead: { key: string; reading: ReturnType<BoardWorkOptions['readStrokes']> | Promise<null> } | null = null;
@@ -53,9 +59,28 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
   let triedTask: ElementId | null = null;
   const takenKeys = new Set<string>();
 
+  let lastKeyAtMs = Number.NEGATIVE_INFINITY;
+  let hasDraft = false;
+  let draftReads = 0;
+  let latestDraftRead: { text: string; meaning: Promise<WordMeaning | null> } | null = null;
+  let draftSpokenFor: string | null = null;
+
   const noteTyping = () => {
     typedAtMs = getNowMs();
+    lastKeyAtMs = typedAtMs;
   };
+
+  const noteDraft = (draft: string | undefined) => {
+    hasDraft = Boolean(draft);
+  };
+
+  const noteLineSent = () => {
+    typedAtMs = null;
+    lastKeyAtMs = Number.NEGATIVE_INFINITY;
+    hasDraft = false;
+  };
+
+  const isWriting = (afterKeyMs: number) => hasDraft || getNowMs() - lastKeyAtMs < afterKeyMs;
 
   const waitWhileTyping = async () => {
     const startedMs = getNowMs();
@@ -94,7 +119,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
       return;
     }
     if (message.work.way === 'write') takenKeys.add(`${message.work.id} ${key}`);
-    typedAtMs = null;
+    noteLineSent();
     onTaken?.();
     const { checked, hadTask } = noted;
     hasLeanedIn = false;
@@ -226,6 +251,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
       unanswered: unanswered && { verdict: unanswered.checked.verdict, isSameWrongLineTwice: new Set(unanswered.keys).size < unanswered.keys.length },
       hasOpenTask: board?.openTask != null,
       hasLeanedInOnThisSilence: hasLeanedIn,
+      isAskedToStop: isHeld(),
     };
   };
 
@@ -238,15 +264,31 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     speakUp('(has paused)');
   };
 
+  const readDraftOnce = (text: string): Promise<WordMeaning | null> => {
+    if (latestDraftRead?.text === text) return latestDraftRead.meaning;
+    if (draftReads >= MOST_DRAFT_READS) return Promise.resolve(null);
+    draftReads += 1;
+    const meaning = readMeaning(text).then((read) => read ?? (MAY_BE_ABOUT_SAFETY.test(text) ? 'needsAPerson' : null));
+    latestDraftRead = { text, meaning };
+    return meaning;
+  };
+
+  // Danger in unsent words comes before whatever else is happening, so this read has no gate, and the words a student is typing cost one read each time they settle.
   const onPaused = async ({ seconds, draft }: BrowserMessage & { type: 'paused' }) => {
+    const meaning = draft && HOLDS_WORDS.test(draft) ? await readDraftOnce(draft) : null;
+    if (meaning === 'needsAPerson' && draft && draftSpokenFor !== draft) {
+      draftSpokenFor = draft;
+      speakAtPause({ act: 'speak', why: 'their unsent words read as needsAPerson' }, seconds, draft);
+      return;
+    }
     const situation = getSituation(seconds, draft);
     const first = decideWatch(situation);
-    const decision = first.act === 'readWords' ? decideOnReading(first, await readMeaning(situation.draft?.text ?? '')) : first;
+    const decision = first.act === 'readWords' ? decideOnReading(first, meaning) : first;
     trace('watcherDecided', { seconds, ...decision });
     if (decision.act === 'speak' && getGate(getSituation(seconds, draft)) === null) speakAtPause(decision, seconds, draft);
   };
 
-  return { onWorked, onPaused, onInkStroke, onInkPeek, onInkDone, noteTyping, waitWhileTyping, onSpoken, hasOpenTask: () => getOpenTask() !== null, canSayStockWord: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered, leaveOpenTask, hasTriedOpenTask };
+  return { onWorked, onPaused, onInkStroke, onInkPeek, onInkDone, noteTyping, noteDraft, noteLineSent, isWriting, waitWhileTyping, onSpoken, hasOpenTask: () => getOpenTask() !== null, canSayStockWord: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered, leaveOpenTask, hasTriedOpenTask };
 }
 
 function getSpokenParts(task: Task, board: { elements: ReadonlyMap<ElementId, BoardElement> } | undefined): SpokenPart[] {

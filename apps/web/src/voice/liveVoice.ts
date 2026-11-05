@@ -715,7 +715,6 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       localYield.close();
       window.removeEventListener('pagehide', onPageHide);
       document.removeEventListener('visibilitychange', sendPageHidden);
-    document.removeEventListener('visibilitychange', sendPageHidden);
       await mic.close();
       stopListening();
       await room.disconnect();
