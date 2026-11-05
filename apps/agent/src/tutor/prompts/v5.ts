@@ -73,10 +73,10 @@ export const LEAD_NOTES_V5 = {
 } as const;
 
 export const LEVEL_LINES_V5: Readonly<Record<string, string>> = {
-  middle_school: 'Start plain: everyday words and a picture. Where there is maths, say the formula in words, as in "speed is how far you go divided by how long it takes".',
-  high_school: 'Start plain with a picture, then write the real formula on the board, say what each letter means, and work an example with it.',
-  university: 'Start plain in a sentence or two, then the formula and proper terms, and where the formula comes from when that helps.',
-  out_of_school: 'Start plain. A grown up, so never talk down. Show a formula where it helps them use the idea.',
+  middle_school: 'Start plain with a picture. Say a formula in words, never symbols.',
+  high_school: 'Start plain with a picture, then the formula on the board, each letter explained.',
+  university: 'Start plain briefly, then the formula, proper terms, and where it comes from.',
+  out_of_school: 'Start plain. A grown up, so never talk down. Formulas where they help.',
 };
 
 export { OPENING_NOTE_V4 as OPENING_NOTE_V5 };
