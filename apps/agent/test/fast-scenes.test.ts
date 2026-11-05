@@ -64,7 +64,7 @@ function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true }: { r
           writer: { write },
           reviewer: { read: async () => ({ isGood: false, reasons: ['held'], ...USAGE }) },
           nameReader: { clear: async () => new Set() },
-          matchReader: null,
+          matcher: { match: async () => '' },
           store,
           storeRoot: root,
           getParts: getPartCatalogue,
@@ -227,6 +227,30 @@ describe('a new topic in the middle of a lesson', () => {
     context.scenes.notePause();
     expect(context.said).toHaveLength(0);
     expect(context.scenes.ask('how volcanoes erupt')).toBe(false);
+  });
+});
+
+describe('asks while a scene is under way', () => {
+  it('keeps the ask going when the plan and the tutor name one idea in two ways', async () => {
+    const { scenes, say, write } = setUp();
+    say({ type: 'sceneDevice', canPlay: true });
+    scenes.ask('Parts of a rocket');
+    expect(scenes.ask('why rockets have stages')).toBe(true);
+    await flush();
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  it('passes over a side question of its own while a scene has words left', async () => {
+    const { scenes, say, askAndLoad, cuts, write } = setUp();
+    say({ type: 'sceneDevice', canPlay: true });
+    await askAndLoad('why rockets have stages');
+    scenes.noteSentenceBreak();
+    const beats = cuts[0] as Beat[];
+    scenes.noteSceneCut({ reports: new Map(), wordsSent: new Map([[beats[0]?.id as Beat['id'], 3]]) });
+    write.mockClear();
+    expect(scenes.ask('what escape velocity means')).toBe(false);
+    await flush();
+    expect(write).not.toHaveBeenCalled();
   });
 });
 

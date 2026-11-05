@@ -124,7 +124,7 @@ function flatten(kit) {
 function buildScene(kit, recipe, opts) {
   const THREE = kit.THREE;
   const flat = !!(opts && opts.flat);
-  const state = { beads: 0 };
+  const state = { beads: 0, moments: (recipe.says ?? []).map((line) => line.m) };
   // The part was drawn for one stage, so the stage comes from the part, not from the recipe.
   const stageWanted = PARTS[recipe.items[0]?.part]?.stage ?? recipe.stage;
   const stageName = flat && stageWanted !== 'space' ? 'studio' : stageWanted;

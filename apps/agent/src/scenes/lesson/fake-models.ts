@@ -61,6 +61,7 @@ export function makeFakeSceneModels(): SceneModels & RecipeModels {
     reviewer: { review: async () => ({ isPass: true, errors: [], ...FAKE_USAGE }) },
     router: { route: async (request) => ({ engine: 'manimgx', kind: 'graph', topic: request, ...FAKE_USAGE }) },
     nameReader: { clear: async () => new Set() },
+    sceneMatcher: { match: async () => '' },
     recipeWriter: {
       write: async ({ topic }) => {
         await new Promise((resolve) => setTimeout(resolve, WRITE_MS));

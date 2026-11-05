@@ -1,5 +1,5 @@
-import type { Beat, ElementId, SceneCommand } from '@astra/contracts';
-import { getResumeBeats, type ResumeRequest } from '../live/resume-plan.ts';
+import { type Beat, type ElementId, getBeatText, getSpokenWords, type SceneCommand } from '@astra/contracts';
+import type { ResumeRequest } from '../live/resume-plan.ts';
 import { getSceneCommand } from '../scenes/scene-desk.ts';
 import type { StoredScene } from '../scenes/scene-types.ts';
 import type { TutorBeat } from './brain.ts';
@@ -41,16 +41,25 @@ export function noteSceneLanded(screen: Screen, landed: { scene: StoredScene; el
 export const getReplacedSceneCommands = ({ onScreen }: Screen): SceneCommand[] => (onScreen ? [{ kind: 'hide', target: onScreen.elementId }] : []);
 
 function getReachedMoment(beats: readonly Beat[], left: readonly Beat[]): string | null {
-  const firstLeft = left[0]?.id.split('-r')[0];
+  const firstLeft = left[0]?.id.replace(/-r\d+$/, '');
   const played = firstLeft ? beats.slice(0, Math.max(0, beats.findIndex((beat) => beat.id === firstLeft))) : beats;
   const reached = played.flatMap((beat) => beat.script).flatMap((part) => (typeof part !== 'string' && part.kind === 'runSimulation' && part.action === 'play' && typeof part.until === 'string' ? [part.until] : []));
   return reached.at(-1) ?? null;
 }
 
+const isHeardToItsEnd = (beat: TutorBeat, { reports, wordsSent }: Pick<ResumeRequest, 'reports' | 'wordsSent'>) => reports.get(beat.id)?.ending === 'finished' || (wordsSent.get(beat.id) ?? 0) >= getSpokenWords(getBeatText(beat)).length;
+
+// An answer came between, so the words pick up at the line they were cut in, and not partway through it.
+function getLinesLeft(beats: readonly TutorBeat[], heard: Pick<ResumeRequest, 'reports' | 'wordsSent'>, resumeTag: string): TutorBeat[] {
+  const firstLeft = beats.findIndex((beat) => !isHeardToItsEnd(beat, heard));
+  if (firstLeft < 0) return [];
+  return beats.slice(firstLeft).map((beat) => ({ ...beat, id: `${beat.id}-${resumeTag}` as TutorBeat['id'], script: beat.script.filter((part) => typeof part === 'string' || part.kind === 'runSimulation') }));
+}
+
 export function noteSceneWordsCut(screen: Screen, heard: Pick<ResumeRequest, 'reports' | 'wordsSent'>, resumeTag: string): Screen {
   const { onScreen } = screen;
   if (!onScreen) return screen;
-  const left = getResumeBeats({ beats: onScreen.beats, ...heard, resumeTag });
+  const left = getLinesLeft(onScreen.beats, heard, resumeTag);
   return { ...screen, onScreen: { ...onScreen, left, reachedMoment: getReachedMoment(onScreen.beats, left) ?? onScreen.reachedMoment, wasCut: true, studentTurnsAway: 0 } };
 }
 

@@ -53,7 +53,6 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
   const store = createSceneStore(getSceneStoreRoot());
   const runs = createTopicRuns({ planner: models.planner, nameReader: models.nameReader, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(process.env.ASTRA_SCENE_CONTAINERS ? { mostAtOnce: Number(process.env.ASTRA_SCENE_CONTAINERS) } : {}), store, warn: (line) => hooks.trace('sceneWarning', { problem: line }) });
   let queue: SceneQueue | null = null;
-  const matchReader = isFake ? null : makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
   const fast: FastSceneHooks | null = hasFastScenes() && canCutIn && cutIn && isInBreath
     ? {
         canCutIn,
@@ -68,14 +67,13 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
             writer: models.recipeWriter,
             reviewer: models.recipeReviewer,
             nameReader: models.nameReader,
-            matchReader,
+            matcher: models.sceneMatcher,
             store,
             storeRoot: getSceneStoreRoot(),
             getParts: getUsableParts,
             getCore: getCoreSource,
             getLevel: () => getLevel?.() ?? null,
             trace: hooks.trace,
-            onMatchCost: (usd) => caps.addScene(usd),
           }),
       }
     : null;

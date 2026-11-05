@@ -321,13 +321,28 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   };
 
   // The limit stops a session that keeps asking for new writes. A saved scene pays only for its voice, and a student's plays a day cap that.
-  const isPastTheAskLimit = (topic: string) => asksMade >= MOST_ASKS_IN_A_SESSION && !store.find(getSceneKey(topic));
+  const isPastTheAskLimit = (topic: string) => asksMade >= (fast?.mostAsks ?? MOST_ASKS_IN_A_SESSION) && !store.find(getSceneKey(topic));
+
+  // A side question's own picture must not throw away a scene whose words are waiting to carry on.
+  const isOverWordsLeft = (topic: string) => {
+    const scene = screen.onScreen;
+    return Boolean(fast && scene && scene.left.length > 0 && !prepared.has(toKey(topic)) && !isSameTopic(topic, scene.scene.topic));
+  };
 
   const ask = (topic: string) => {
     const key = toKey(topic);
     if (isStopped || device === 'cannotPlay' || isAfterSafetyReply || isClosed() || key === '' || topic.length > MOST_TOPIC_CHARACTERS || askedTopics.has(key) || isPastTheAskLimit(topic)) return false;
     if (isTitleUnheard && lessonTitle !== null && !prepared.has(key) && !isSameTopic(topic, lessonTitle)) {
       trace('sceneOffTopic', { text: topic });
+      return false;
+    }
+    // The plan and the tutor often name one idea in two ways, and starting over would only make it later.
+    if (fast && current && !current.isAhead && isSameTopic(topic, current.topic)) {
+      trace('sceneAskPassed', { text: topic, why: 'sameIdea' });
+      return true;
+    }
+    if (isOverWordsLeft(topic)) {
+      trace('sceneAskPassed', { text: topic, why: 'wordsLeft' });
       return false;
     }
     if (current) end(current, 'replaced');
