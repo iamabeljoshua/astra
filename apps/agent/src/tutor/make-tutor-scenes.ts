@@ -31,9 +31,10 @@ export const hasFastScenes = () => process.env.ASTRA_FAST_SCENES === '1';
 
 const hasLiveSceneWords = () => process.env.ASTRA_LIVE_SCENE_WORDS === '1';
 
-const OPENAI_WORDS_MODEL = 'openai:gpt-5.4-mini';
+const HAIKU_WORDS_MODEL = 'haiku-5-5';
 
-const makeWordsReader = (): JsonReader => (process.env.ASTRA_SCENE_WORDS_MODEL === OPENAI_WORDS_MODEL ? makeOpenAiJsonReader({ apiKey: readKey('OPENAI_API_KEY') }) : makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') }));
+// A missing key costs a failed call and so the saved words, and never the session.
+const makeWordsReader = (): JsonReader => ({ read: (request) => (process.env.ASTRA_SCENE_WORDS_MODEL === HAIKU_WORDS_MODEL ? makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') }) : makeOpenAiJsonReader({ apiKey: readKey('OPENAI_API_KEY') })).read(request) });
 
 type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'send' | 'speak' | 'canSpeak' | 'onShown' | 'trace'>;
 

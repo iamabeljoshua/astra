@@ -67,7 +67,7 @@ const getKnownWords = (scene: StoredScene, interests: readonly string[]) => new 
 function getNameProblems(scene: StoredScene, written: SceneSpeech, interests: readonly string[]): SpeechProblem[] {
   const known = getKnownWords(scene, interests);
   const text = getSpokenText(written);
-  const inside = text.split(/(?<=[.?!])\s+/).flatMap((sentence) => sentence.split(/\s+/).slice(1));
+  const inside = text.split(/(?<=[.?!])\s+/).flatMap((sentence) => sentence.split(/\s+/).slice(1)).flatMap((word) => word.split('-'));
   const names = inside.filter((word) => /^\p{Lu}/u.test(word) && !/^I(?:'|$)/.test(word) && !known.has(toWordKey(word)));
   const lineProblems = getLineProblems(scene.topic, { say: text });
   return [...(names.length > 0 ? [{ kind: 'name' as const, detail: names.join(', ') }] : []), ...lineProblems.map((detail) => ({ kind: 'banned' as const, detail }))];
@@ -105,7 +105,9 @@ const isSceneSpeech = (written: unknown): written is SceneSpeech => {
   return typeof setup === 'string' && typeof narration === 'string' && typeof close === 'string';
 };
 
-const toTrimmed = ({ setup, narration, close }: SceneSpeech): SceneSpeech => ({ setup: setup.trim(), narration: narration.trim(), close: close.trim() });
+const toPlainText = (text: string) => text.replace(/[\u2018\u2019]/g, "'").trim();
+
+const toTrimmed = ({ setup, narration, close }: SceneSpeech): SceneSpeech => ({ setup: toPlainText(setup), narration: toPlainText(narration), close: toPlainText(close) });
 
 /** Code's word on a reply. Only a reply with no problem at all plays, because the saved words are always there. */
 export function checkSceneSpeech({ scene, written, interests }: { scene: StoredScene; written: unknown; interests: readonly string[] }): SpeechCheck {

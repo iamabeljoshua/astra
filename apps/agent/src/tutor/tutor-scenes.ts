@@ -207,10 +207,8 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     return true;
   };
 
-  const noteWordsAtLanding = (ask: SceneAsk, isLive: boolean) => trace('sceneWordsLanded', { words: isLive ? 'live' : 'saved', heldMs: ask.wordsDueAtMs === null ? 0 : Math.round(getNowMs() - ask.wordsDueAtMs) });
-
   const show = (ask: SceneAsk, scene: StoredScene, beats: readonly TutorBeat[], isLive: boolean) => {
-    if (liveWords) noteWordsAtLanding(ask, isLive);
+    if (liveWords) trace('sceneWordsLanded', { words: isLive ? 'live' : 'saved', heldMs: ask.wordsDueAtMs === null ? 0 : Math.round(getNowMs() - ask.wordsDueAtMs) });
     onScreen = scene;
     if (fast) screen = noteSceneLanded(screen, { scene, elementId: `scene-${scenesShown}` as ElementId, lessonTitle, beats });
     shownSceneIds.add(scene.id);
@@ -521,8 +519,10 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
           clearTimeout(limit);
           resolve(beats);
         };
-        if (current) current.wordsDueAtMs ??= getNowMs();
-        if (current) land(current);
+        if (current) {
+          current.wordsDueAtMs ??= getNowMs();
+          land(current);
+        }
       });
     },
     noteStudentTurn() {
