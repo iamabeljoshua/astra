@@ -27,7 +27,7 @@ export const LEAD_NOTES = {
 
 export const OPENING_A_CARD_NOTE = { opening_a_card: 'Open on the idea itself, in a reply that ends with no question. Their level is in the student note, so never ask what they have done or know.' };
 
-const NAMES_THE_PLAN = /\b(?:(?:whole|lesson|my|our|your) plan|plan (?:is |was )?(?:covered|done|finished|stale|out of date)|the student\b|(?:last|final) (?:idea|exercise|problem|one for this idea))\b/i;
+const NAMES_THE_PLAN = /\b(?:(?:whole|lesson|my|our|your) plan|plan(?:'s| is| was)? (?:covered|done|finished|stale|out of date)|the student\b|(?:last|final) (?:idea|exercise|problem|one for this idea))\b/i;
 
 const ANNOUNCES_A_CORRECTION = /\b(?:quick|small|one) correction\b|\bcorrection on my\b|\bcorrect(?:ing)? myself\b|\bI misspoke\b|\bmy last line\b|^\s*slight fix\b|\bi need to correct\b|\bfix to something i said\b|^\s*careful\b[^.]*\bisn'?t quite right\b|\bsomething is off with what i\b|^\s*careful,? that line\b|\bthat line was muddled\b/i;
 

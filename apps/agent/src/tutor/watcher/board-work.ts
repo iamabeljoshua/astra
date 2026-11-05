@@ -108,8 +108,11 @@ export function createBoardWork({ tutor, writeLog, speakUp, speakUpAsCode = spea
     takeWork(message);
   };
 
-  const noteTried = ({ verdict }: CheckedWork) => {
-    triedTask = verdict.status === 'wrong' ? null : (getOpenTask()?.task.id ?? null);
+  // "done" on a problem with numbers is no answer yet, so the exercise keeps its own wait.
+  const noteTried = ({ verdict, reading }: CheckedWork) => {
+    const open = getOpenTask();
+    const isOnlyWordsOnAProblem = reading?.kind === 'words' && open?.task.way === 'write' && open.task.reads !== 'words' && !open.task.accepts;
+    triedTask = verdict.status === 'wrong' || isOnlyWordsOnAProblem ? null : (open?.task.id ?? null);
   };
 
   const hasTriedOpenTask = () => triedTask !== null && getOpenTask()?.task.id === triedTask;

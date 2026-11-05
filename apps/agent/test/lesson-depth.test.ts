@@ -138,7 +138,7 @@ describe('asking to be taught', () => {
 });
 
 describe('what a student never hears or sees', () => {
-  it.each(["That's the whole plan covered.", 'Last idea: an orbit is falling sideways.', 'Last exercise. Try this.', 'That is my plan.', 'The plan is done.'])('does not let "%s" through', (words) => {
+  it.each(["That's the whole plan covered.", "The plan's done, so what do you want next?", 'Last idea: an orbit is falling sideways.', 'Last exercise. Try this.', 'That is my plan.', 'The plan is done.'])('does not let "%s" through', (words) => {
     expect(getLessonWordsProblem(words)).not.toBeNull();
   });
 

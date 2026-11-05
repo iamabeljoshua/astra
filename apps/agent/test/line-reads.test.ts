@@ -561,6 +561,18 @@ describe('a student who says they finished an exercise', () => {
   });
 });
 
+describe('a word on an exercise with numbers', () => {
+  it.each(['done', 'finished', 'i finished'])('%s is no try, so the exercise keeps its own wait', async (line) => {
+    const run = startLesson({ answer: (_words, index) => (index === 0 ? TASK('11.2 / 2.4') : 'Type the number you got, and I will check it.') });
+    run.type('give me one');
+    await vi.waitFor(() => expect(run.brain.getBoard().openTask).not.toBeNull(), { timeout: 2000 });
+    await delay(50);
+    run.typeInBox(line);
+    await delay(STILL_MS);
+    expect(run.asked.map(({ words }) => words)).not.toContain(LEAD_WORDS.taskTried);
+  });
+});
+
 describe('the tutor said it would stop', () => {
   it.each(['Okay, stopping.', 'Okay, stopping. What part do you think is wrong?', 'Okay, stopping there. Just say when.', 'Sure, pausing here.'])('"%s" holds with the reads down', async (reply) => {
     const run = startLesson({ answer: (words, index) => (words === 'anyway' ? reply : `Gravity keeps pulling, beat ${index}.`), swapReaders: { readPromise: async () => 'unread' } });
