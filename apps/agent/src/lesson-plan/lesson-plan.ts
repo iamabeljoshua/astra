@@ -16,16 +16,21 @@ export interface LessonStep {
 export interface LessonPlan {
   topic: string;
   kind: LessonKind;
+  isQuizOnly?: boolean;
   steps: readonly LessonStep[];
 }
 
 /** What one thing the student said does to the lesson. */
 export type PlanMove = { move: 'stay' } | { move: 'new'; plan: LessonPlan } | { move: 'back'; topic: string };
 
+const ASKS_FOR_NUMBERS = 'numbers on the board';
+
 const NAMES_A_QUANTITY = /\d|\b(?:hundred|thousand|million|billion|percent|speed|velocity|kilometers?|meters?|mass|momentum|force|thrust|fuel|equations?|formula|ratio|slope|derivative|angle|distance|squared?|multipl\w+|divid\w+)\b/i;
 
-/** A card's lines say what the idea holds. The planner writes numbers into an exercise where it sees working, and it knows a sonnet's fourteen lines are not working. */
-export const hasWorkingToDo = ({ teach, exercise, material }: LessonStep) => (material ? NAMES_A_QUANTITY.test([teach ?? '', ...material].join(' ')) : /\d/.test(exercise));
+const A_YEAR = /\b(?:1\d{3}|20\d{2})\b/g;
+
+/** A card's lines say what the idea holds, the planner writes digits into an exercise only where it sees working, and a year counts as neither. */
+export const hasWorkingToDo = ({ teach, exercise, material }: LessonStep) => (material || exercise.includes(ASKS_FOR_NUMBERS) ? NAMES_A_QUANTITY.test([teach ?? '', ...(material ?? [])].join(' ').replace(A_YEAR, '')) : /\d/.test(exercise.replace(A_YEAR, '')));
 
 const MOST_TOPIC_CHARACTERS = 80;
 const MOST_STEP_CHARACTERS = 160;

@@ -27,7 +27,7 @@ export const LEAD_NOTES = {
 
 export const OPENING_A_CARD_NOTE = { opening_a_card: 'Open on the idea itself, in a reply that ends with no question. Their level is in the student note, so never ask what they have done or know.' };
 
-const NAMES_THE_PLAN = /\b(?:(?:whole|lesson|my|our|your) plan|plan(?:'s| is| was)? (?:covered|done|finished|stale|out of date)|the student\b|(?:last|final) (?:idea|exercise|problem|one for this idea))\b/i;
+const NAMES_THE_PLAN = /\b(?:(?:memory|showed|struggled) note\b|the note says\b|(?:whole|lesson|my|our|your) plan|plan(?:'s| is| was)? (?:covered|done|finished|stale|out of date)|the student\b|(?:last|final) (?:idea|exercise|problem|one for this idea))\b/i;
 
 const ANNOUNCES_A_CORRECTION = /\b(?:quick|small|one) correction\b|\bcorrection on my\b|\bcorrect(?:ing)? myself\b|\bI misspoke\b|\bmy last line\b|^\s*slight fix\b|\bi need to correct\b|\bfix to something i said\b|^\s*careful\b[^.]*\bisn'?t quite right\b|\bsomething is off with what i\b|^\s*careful,? that line\b|\bthat line was muddled\b/i;
 
@@ -65,20 +65,13 @@ export const EXERCISE_OPEN_NOTE = { exercise_open: 'They only nodded, and the ex
 
 export const SLOW_NOTE = { pace: 'They asked you to slow down. One short sentence, plain words, and one small step at a time.' };
 
-const OPENING_TIC = /^\s*(?:(?:fair enough|all good|no problem|no worries|that'?s (?:ok(?:ay)?|fine|all right))[,.!]|(?:and\s+)?next(?:\s+up)?\s*[,:.]|time (?:for|to) (?:a |an |another |one |try |the next )*(?:short|quick|try|one|problem|exercise|practice)\b[^,.:?!]*[,.:]|(?:(?:fine|ok(?:ay)?|alright|all right|right|sure)[,.]\s+)?(?:let'?s\s+)?skip(?:ping)?\s+(?:it|that|this)(?:\s+one)?[.!,]?)\s*/i;
+const OPENS_ON_LET_ME_START_OVER = /(^\s*|[.!?]\s+)actually,?\s+let me\b[^.!?{]*[.!?]\s*(\S?)/giu;
 
-/** The words a reply opens on and comes back to, which read as a tic across a long lesson. Taken off in code, because a request again would add a wait. */
-export const withoutOpeningTic = (text: string) => text.replace(OPENING_TIC, '');
+const OPENS_ON_HERES = /(^\s*|[.!?]\s+)(?:(?:now|so|okay|ok|and|but),?\s+)?here(?:'|’)?s\b[^.!?:,{]*[.!?:,]\s*(\S?)/giu;
 
-const ANSWERS_NOBODY = /^\s*(?:sure|ok(?:ay)?|alright|all right|right|got it|i'?ll do it|here goes)[,.!]\s*/i;
+const toNextWord = (_whole: string, before: string, next: string) => `${before}${next.toUpperCase()}`;
 
-/** Nobody spoke before a lead, so an opening that sounds like a reply has nothing to reply to. */
-export const withoutReplyToNobody = (text: string) => text.replace(ANSWERS_NOBODY, '');
-
-const NEXT_SIGNPOST = /(^|[.!?]\s+)next(?:\s+up)?[,:]\s+(\p{L})/giu;
-
-/** The tutor is told to go on to the next idea, and says so at the start of a sentence in most worked answers. */
-export const withoutNextSignpost = (text: string) => text.replace(NEXT_SIGNPOST, (_whole, before: string, letter: string) => `${before}${letter.toUpperCase()}`);
+export const withoutFillerOpener = (text: string) => text.replace(OPENS_ON_HERES, toNextWord).replace(OPENS_ON_LET_ME_START_OVER, toNextWord);
 
 /** Goes with the short turn, so a reply can stay short and still set an exercise. */
 export const LESSON_TURN_NOTE = {

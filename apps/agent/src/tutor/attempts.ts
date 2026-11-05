@@ -3,6 +3,7 @@ export type AttemptReport = 'missed' | 'got';
 export interface AttemptTracker {
   /** Counts a student who says they are stuck, whatever the model reports, and returns the note this turn's request carries. */
   startTurn(studentText: string): Record<string, string> | null;
+  getNote(): Record<string, string> | null;
   noteReport(report: AttemptReport): void;
   isAtDeadEnd(): boolean;
   endTurn(summary: { askedAQuestion: boolean; wasCut: boolean }): void;
@@ -42,6 +43,7 @@ export function createAttemptTracker(): AttemptTracker {
       report = null;
       return getAttemptsNote(missesInARow);
     },
+    getNote: () => getAttemptsNote(missesInARow),
     noteReport(value) {
       report = value;
     },

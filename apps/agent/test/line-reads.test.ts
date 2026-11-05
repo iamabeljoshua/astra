@@ -20,7 +20,7 @@ initializeLogger({ pretty: false, level: 'silent' });
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const STAMP = { clockId: 'c', browserMs: 1, startedMsAgo: 0 };
-const FAST = { ...LEAD_TIMINGS, firstWordAfterMs: 20, slowFirstWordAfterMs: 400, afterQuestionMs: 150, afterQuestionAgainMs: 100, afterTaskMs: 200, afterTaskAgainMs: 150, afterTaskTriedMs: 50, afterKeyMs: 250 };
+const FAST = { ...LEAD_TIMINGS, firstWordAfterMs: 20, afterStudentSignMs: 20, slowFirstWordAfterMs: 400, afterQuestionMs: 150, afterQuestionAgainMs: 100, afterTaskMs: 200, afterTaskAgainMs: 150, afterTaskTriedMs: 50, afterKeyMs: 250 };
 const QUICK = { firstTextMs: 300, betweenTextMs: 200, finishGraceMs: 20, reportWaitMs: 5, safetyReadWaitMs: 200, lineReadWaitMs: 150, readLimitMs: 300, safetyReadLimitMs: 300 };
 const USAGE = { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 };
 const STILL_MS = 400;

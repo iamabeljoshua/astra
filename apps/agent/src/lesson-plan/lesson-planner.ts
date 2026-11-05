@@ -18,6 +18,8 @@ export interface LessonPlanner {
   noteCommand(command: SceneCommand): void;
   noteWorkChecked(checked: Pick<CheckedWork, 'closesTask'>, work: StudentWork): void;
   noteReplyEnded(reply: { wasSafety: boolean; wasLead: boolean; spoken: string }): void;
+  noteExampleShown(): void;
+  noteExampleCut(): void;
   noteCardLesson(plan: LessonPlan): void;
   /** A page that reloaded lost the title it was told. */
   tellTitleAgain(): void;
@@ -60,7 +62,7 @@ const WANTS_AN_EXERCISE = /\b(?:let\s+me|can\s+i|i(?:'ll|\s+will|\s+want\s+to)|i
 export const asksToBeTaught = (words: string) => getPlainWish(words) === 'go_on' || ASKS_TO_BE_TAUGHT.test(words);
 
 const FEWEST_STEPS_ON_A_CARD = 3;
-const MOST_STEPS_BY_ITSELF = 12;
+const MOST_STEPS_BY_ITSELF = 10;
 const MORE_STEPS_WHEN_ASKED = 4;
 const MOST_CHARACTERS_OF_WHAT_WAS_SAID = 6000;
 const MOST_TIMES_ASKED_FOR_MORE = 6;
@@ -238,6 +240,8 @@ export function createLessonPlanner({ ask, askMore, askClaims, canSpend, charge,
       askForClaimsIfDue();
       noteEvent(wasSafety ? 'safetyReplyEnded' : wasLead ? 'leadEnded' : 'replyEnded');
     },
+    noteExampleShown: () => noteEvent('exampleShown'),
+    noteExampleCut: () => noteEvent('exampleCut'),
     noteCardLesson(plan) {
       card = plan;
       state = getStateAfterMove(state, { move: 'new', plan });

@@ -279,6 +279,7 @@ const SCENARIOS: Record<string, Scenario> = {
   'uneven-every-third': { drive: playWholeLesson, cueEveryWords: 3, network: NETWORKS.uneven },
   'poor-every-third': { drive: playWholeLesson, cueEveryWords: 3, network: NETWORKS.poor },
   'long-every-third': { drive: playFirstTurn, cueEveryWords: 3, repeats: 4 },
+  'first-turn-every-third': { drive: playFirstTurn, cueEveryWords: 3 },
   'next-on-finished': { drive: playNextTurnOnFinished },
   'next-on-finished-poor': { drive: playNextTurnOnFinished, network: NETWORKS.poor },
   'after-stop': { drive: resumeRightAfterStop },

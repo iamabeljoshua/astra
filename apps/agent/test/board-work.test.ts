@@ -229,11 +229,13 @@ describe('marks and words code will not allow', () => {
     expect(commandsOf(await collect(brain, 'hi'))).toEqual([]);
   });
 
-  it('keeps a task written after its question, and drops the words after it', async () => {
+  it('keeps a task written after its question, and keeps words the tutor answers it with', async () => {
     const { brain } = setup(['Which term first? {"kind":"writeMath","id":"steps","tex":"2x + 3 = 11"}']);
     const beats = await collect(brain, 'hi');
     expect(beats.map(getBeatText).join(' ')).toBe('Which term first?');
-    const late = setup(['Teach. {"kind":"writeMath","id":"steps","tex":"2x + 3 = 11"}Which first? It is the three. {"kind":"task","id":"a1","way":"pick","on":"steps","answer":["3"]}']);
+    const answered = setup(['Teach. Which first? It is the three, because it is in the way.']);
+    expect((await collect(answered.brain, 'hi')).map(getBeatText).join(' ')).toBe('Teach. Which first? It is the three, because it is in the way.');
+    const late = setup(['Teach. {"kind":"writeMath","id":"steps","tex":"2x + 3 = 11"}Which first? {"kind":"task","id":"a1","way":"pick","on":"steps","answer":["3"]}']);
     const lateBeats = await collect(late.brain, 'hi');
     expect(lateBeats.map(getBeatText).join(' ')).toBe('Teach. Which first?');
     expect(commandsOf(lateBeats).map((command) => command.kind)).toEqual(['writeMath', 'task']);
