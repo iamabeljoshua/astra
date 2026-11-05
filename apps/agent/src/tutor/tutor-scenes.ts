@@ -2,6 +2,8 @@ import { type Beat, getBeatText, getSpokenWords, type ElementId, type SceneAgent
 import { getSceneBeats } from '../scenes/lesson/lesson-beats.ts';
 import { createLessonWork } from '../scenes/lesson/lesson-work.ts';
 import type { SceneWork, SceneWorkInput } from '../scenes/recipe/recipe-work.ts';
+import type { SceneSpeech } from '../scenes/live-words/check-speech.ts';
+import type { LiveSceneWords } from '../scenes/live-words/live-scene-words.ts';
 import type { TopicRuns } from '../scenes/lesson/topic-runs.ts';
 import { getSceneCommand, SHOW_WINDOW_MS, type SceneState } from '../scenes/scene-desk.ts';
 import { getSceneKey, type SceneStore } from '../scenes/scene-store.ts';
@@ -21,6 +23,8 @@ const RECHECK_PAUSE_MS = 500;
 export const ASK_LIMIT_MS = 35_000;
 /** The greeting takes about 3 s, so a card's first words wait this long at most for a page that is slow to take the scene, and a reply starts at once when no scene is saved. */
 const OPENING_WAIT_MS = 2500;
+/** The longest a scene that could land waits on its live words. Past this it says its saved words. */
+export const LIVE_WORDS_WAIT_MS = 1500;
 
 export interface FastSceneHooks {
   makeWork(input: SceneWorkInput): SceneWork;
@@ -50,6 +54,7 @@ export interface TutorScenesOptions {
   onPageReady?(): void;
   trace(name: string, fields?: Record<string, unknown>): void;
   fast?: FastSceneHooks;
+  liveWords?: LiveSceneWords;
 }
 
 export interface TutorScenes {
@@ -75,6 +80,8 @@ export interface TutorScenes {
   /** The student pressed End or left, so nothing more is asked or lands. A scene already on screen can still come back to a reloaded page. */
   close(): void;
   noteSentenceBreak(): void;
+  /** The live words for this scene are ready or have failed, so a scene held for them need not wait. */
+  noteWordsSettled(sceneId: string): void;
   noteSceneCut(heard: SceneHeard): void;
   takeOwedCommands(): readonly SceneCommand[];
 }
@@ -95,6 +102,8 @@ interface SceneAsk {
   isAhead: boolean;
   isOpening: boolean;
   canLandOnSentence: boolean;
+  /** When this scene could first have landed, were its live words ready. */
+  wordsDueAtMs: number | null;
 }
 
 type Device = 'unknown' | 'canPlay' | 'cannotPlay';
@@ -109,7 +118,7 @@ const getPrepareMessage = ({ id, engine }: StoredScene): SceneAgentMessage => ({
 const getFirstMomentAfterStart = (moments: StoredScene['moments']) => Object.entries(moments).filter(([, seconds]) => seconds > 0).sort(([, first], [, second]) => first - second)[0]?.[0];
 
 // The picture fades in on the setup's first word, and a take opens on an empty frame, so the setup line plays it on to its first later moment and the box is never blank under those words. A scene that opens a card ends on its narration, because the tutor's own first line follows it and asks.
-export function getTutorSceneBeats({ plan, scene, number, endsOnQuestion = true, firstCommands = [] }: { plan: LessonPlan; scene: StoredScene; number: number; endsOnQuestion?: boolean; firstCommands?: readonly SceneCommand[] }): TutorBeat[] {
+export function getTutorSceneBeats({ plan, scene, number, endsOnQuestion = true, firstCommands = [] }: { plan: SceneSpeech; scene: StoredScene; number: number; endsOnQuestion?: boolean; firstCommands?: readonly SceneCommand[] }): TutorBeat[] {
   const sceneCommand = getSceneCommand(scene, `scene-${number}` as ElementId);
   const beats = getSceneBeats({ setup: plan.setup, narration: plan.narration, scene: sceneCommand }).map((beat) => ({ ...beat, id: `n${number}-${beat.id}` as Beat['id'] }));
   const [first, ...rest] = beats.map((beat) => ({ ...beat, script: beat.script.filter((part) => typeof part === 'string' || part.kind !== 'richScene') }));
@@ -122,7 +131,7 @@ export function getTutorSceneBeats({ plan, scene, number, endsOnQuestion = true,
   return [opening, ...[...rest, ...(endsOnQuestion ? [close] : [])].map((beat) => ({ ...beat, pauseBeforeMs: BREATH_MS }))];
 }
 
-export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs, send, speak, canSpeak, onShown, onAhead, onPageReady, isClosed = () => false, canPlayShared = () => true, trace, fast }: TutorScenesOptions): TutorScenes {
+export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs, send, speak, canSpeak, onShown, onAhead, onPageReady, isClosed = () => false, canPlayShared = () => true, trace, fast, liveWords }: TutorScenesOptions): TutorScenes {
   let device: Device = 'unknown';
   let canPlayTakes = true;
   let screen = EMPTY_SCREEN;
@@ -182,11 +191,30 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     trace('sceneEnded', { how, afterMs: Math.round(getNowMs() - ask.askedAtMs) });
   };
 
-  const show = (ask: SceneAsk, scene: StoredScene, beats: readonly TutorBeat[]) => {
+  const getSpeech = (scene: StoredScene): { speech: SceneSpeech; isLive: boolean } => {
+    const words = liveWords?.read(scene.id);
+    return words?.kind === 'live' ? { speech: words.speech, isLive: true } : { speech: scene.plan, isLive: false };
+  };
+
+  // Mid-reply the student is hearing the tutor, so this is a wait in the words and not a silence, and at a pause it is the only silence this feature can add.
+  const holdForWords = (ask: SceneAsk, scene: StoredScene) => {
+    if (liveWords?.read(scene.id).kind !== 'writing') return false;
+    ask.wordsDueAtMs ??= getNowMs();
+    const leftMs = LIVE_WORDS_WAIT_MS - (getNowMs() - ask.wordsDueAtMs);
+    if (leftMs <= 0) return false;
+    if (ask.recheck) clearTimeout(ask.recheck);
+    ask.recheck = setTimeout(() => land(ask), leftMs);
+    return true;
+  };
+
+  const noteWordsAtLanding = (ask: SceneAsk, isLive: boolean) => trace('sceneWordsLanded', { words: isLive ? 'live' : 'saved', heldMs: ask.wordsDueAtMs === null ? 0 : Math.round(getNowMs() - ask.wordsDueAtMs) });
+
+  const show = (ask: SceneAsk, scene: StoredScene, beats: readonly TutorBeat[], isLive: boolean) => {
+    if (liveWords) noteWordsAtLanding(ask, isLive);
     onScreen = scene;
     if (fast) screen = noteSceneLanded(screen, { scene, elementId: `scene-${scenesShown}` as ElementId, lessonTitle, beats });
     shownSceneIds.add(scene.id);
-    onShown({ topic: ask.topic, beats, isShared: scene.ownerId === null, studentId });
+    onShown({ topic: ask.topic, beats, isShared: scene.ownerId === null && !isLive, studentId });
     end(ask, 'landed');
   };
 
@@ -204,15 +232,16 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     if (store.isFlagged({ id: waiting.id, topic: waiting.topic, ownerId: waiting.ownerId })) return end(ask, 'flagged');
     if (waiting.ownerId === null && !canPlayShared(studentId)) return end(ask, 'sharedPlaysUsed');
     if (ask.isOpening) {
-      if (!settleOpening) return;
+      if (!settleOpening || holdForWords(ask, waiting)) return;
       const scene = ask.work.desk.takeAtOpening();
       if (!scene) return end(ask, 'tooLate');
-      const beats = getTutorSceneBeats({ plan: scene.plan, scene, number: (scenesShown += 1), endsOnQuestion: false });
+      const { speech, isLive } = getSpeech(scene);
+      const beats = getTutorSceneBeats({ plan: speech, scene, number: (scenesShown += 1), endsOnQuestion: false });
       const give = settleOpening;
       ask.isOpening = false;
       settleOpening = null;
       opening = { kind: 'over' };
-      show(ask, scene, beats);
+      show(ask, scene, beats, isLive);
       give(beats);
       return;
     }
@@ -222,13 +251,15 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       return;
     }
     if (ask.page.kind === 'notAsked') return loadInPage(ask, waiting);
+    if (holdForWords(ask, waiting)) return;
     const scene = ask.work.desk.takeReady();
     if (!scene) return end(ask, 'tooLate');
     if (shownSceneIds.has(scene.id)) return end(ask, 'alreadyShown');
     const number = (scenesShown += 1);
-    const beats = getTutorSceneBeats({ plan: scene.plan, scene, number, ...(fast ? { firstCommands: getReplacedSceneCommands(screen) } : {}) });
+    const { speech, isLive } = getSpeech(scene);
+    const beats = getTutorSceneBeats({ plan: speech, scene, number, ...(fast ? { firstCommands: getReplacedSceneCommands(screen) } : {}) });
     if (!(cutIn ? cutIn.cutIn(beats) : speak(beats))) return end(ask, 'lostThePause');
-    show(ask, scene, beats);
+    show(ask, scene, beats, isLive);
   };
 
   // A new page holds no take, whatever the old page said, so nothing lands until this one says it has it.
@@ -257,7 +288,10 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       if (state.kind !== 'routing' && state.kind !== 'making' && lateWrites.delete(ask)) onAhead?.(ask.topic, 'settled');
       return;
     }
-    if (state.kind === 'ready') loadInPage(ask, state.scene);
+    if (state.kind === 'ready') {
+      liveWords?.begin(state.scene);
+      loadInPage(ask, state.scene);
+    }
     if (state.kind === 'declined' || state.kind === 'failed') end(ask, state.kind);
   };
 
@@ -272,7 +306,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     const request = isCard ? cardTitle : topic;
     const onChange = (state: SceneState) => onDeskChange(ask, state);
     const work: SceneWork = fast ? fast.makeWork({ request, isCard, studentId, canPlayTakes, getNowMs, onChange }) : createLessonWork({ router, runs, store, request, isCard, studentId, getNowMs, isOnlyForScene: true, onChange });
-    const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: null, windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isAhead, isOpening: isCard && !isAhead && opening.kind === 'possible', canLandOnSentence: true };
+    const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: null, windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isAhead, isOpening: isCard && !isAhead && opening.kind === 'possible', canLandOnSentence: true, wordsDueAtMs: null };
     works.push(work);
     trace('sceneAsked', { text: topic, isCard, isAhead });
     return ask;
@@ -297,9 +331,11 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     current = ask;
     ask.askedAtMs = getNowMs();
     startClock(ask);
-    const { kind } = ask.work.desk.getState();
-    if (kind === 'ready') land(ask);
-    else if (kind === 'declined' || kind === 'failed') end(ask, kind);
+    const state = ask.work.desk.getState();
+    if (state.kind === 'ready') {
+      liveWords?.begin(state.scene);
+      land(ask);
+    } else if (state.kind === 'declined' || state.kind === 'failed') end(ask, state.kind);
   };
 
   const sendPreparedAgain = () => {
@@ -485,6 +521,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
           clearTimeout(limit);
           resolve(beats);
         };
+        if (current) current.wordsDueAtMs ??= getNowMs();
         if (current) land(current);
       });
     },
@@ -507,6 +544,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     noteSafetyReply() {
       isAfterSafetyReply = true;
       waitingForDevice = null;
+      liveWords?.noteSafetyReply();
       screen = dropAllWordsLeft(screen);
       if (current) end(current, 'safetyReply');
       if (opening.kind !== 'over') giveOpening(null);
@@ -557,6 +595,9 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     },
     noteSentenceBreak() {
       if (current) land(current, 'sentence');
+    },
+    noteWordsSettled(sceneId) {
+      if (current?.wordsDueAtMs != null && getSceneWaiting(current)?.id === sceneId) land(current);
     },
     noteSceneCut(heard) {
       screen = noteSceneWordsCut(screen, heard, `r${(wordCuts += 1)}`);

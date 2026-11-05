@@ -106,6 +106,7 @@ async function runSession(context: JobContext): Promise<void> {
       scenes?.queue?.noteSafetyReply();
     },
     onCardKnown: (title: string | null) => scenes?.noteCard(title),
+    onFirstWords: () => scenes?.noteFirstWords(),
     onTurnWritten(turn: { wasLead: boolean; firstTextMs: number | null; spokenText: string; refusalCategory: string | null }) {
       lastFirstTextMs = turn.firstTextMs;
       scenes?.queue?.noteTutorReply(turn);
@@ -179,6 +180,8 @@ async function runSession(context: JobContext): Promise<void> {
       isInBreath: session.isInBreath,
       cutIn: session.cutInScene,
       getLevel: () => brain.getStudentLevel?.() ?? null,
+      ...(brain.getStudentFacts ? { getStudentFacts: brain.getStudentFacts } : {}),
+      isReplyStarting: () => brain.isReplyStarting?.() ?? false,
       isTutorClosed: () => brain.getClosedReason?.() != null,
       onShown(shown) {
         brain.noteSceneTurn?.(shown);
