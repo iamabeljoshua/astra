@@ -3,7 +3,7 @@ import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoar
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { toCardPlan, type CardMaterial } from '../lesson-plan/card-lesson.ts';
 import { asksToBeTaught, getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
-import { getLeadWordsProblem, getLessonWordsProblem, HOLD_NOTE, LEAD_NOTES, OPENING_A_CARD_NOTE, promisesToWait, SLOW_NOTE, STAY_NOTE, WAITING_NOTE, withoutHeresOpener } from '../lesson-plan/lesson-rules.ts';
+import { getLeadWordsProblem, getLessonWordsProblem, HOLD_NOTE, LEAD_NOTES, OPENING_A_CARD_NOTE, promisesToWait, SLOW_NOTE, STAY_NOTE, WAITING_NOTE, withoutFillerOpener } from '../lesson-plan/lesson-rules.ts';
 import { getPlainWish, isHoldWish } from '../lesson-plan/student-wish.ts';
 import { getLeadStopAfter, LEAD_WORDS, type LeadKind, type LeadStop, type LeadStopEvent } from '../live/tutor-lead.ts';
 import type { LineRead, LineReaders, LineWish, PromiseRead } from './line-read/read-line.ts';
@@ -330,13 +330,29 @@ function getWrittenBeat(parts: WrittenBeatParts, id: string, refused: string[]):
 
 const OPENING_NOD = /^\s*(?:h+m+|mm-?hm+)[.,!…]*\s+/i;
 
-const hasWords = (script: WrittenBeatParts['script']) => script.some((part) => typeof part === 'string' && part.trim() !== '');
+const isWords = (part: WrittenBeatParts['script'][number]): part is string => typeof part === 'string';
+
+// An opener can span a command, because the drawing guard lands on the third word, so what goes is counted across the words, and each command stays before the word it came before.
+function dropOpeningCharacters(script: WrittenBeatParts['script'], count: number, firstLetter: string): WrittenBeatParts['script'] {
+  let left = count;
+  const kept = script.flatMap((part): WrittenBeatParts['script'] => {
+    if (!isWords(part)) return [part];
+    const words = part.slice(left);
+    left = Math.max(0, left - part.length);
+    return words === '' ? [] : [words];
+  });
+  const firstWords = kept.findIndex(isWords);
+  return kept.with(firstWords, `${firstLetter}${(kept[firstWords] as string).slice(1)}`);
+}
 
 /** A beat with nothing left but its opener is dropped, unless it holds a drawing that needs words to land on. */
 function withoutChatbotOpener(parts: WrittenBeatParts): WrittenBeatParts | null {
-  const script = parts.script.map((part) => (typeof part === 'string' ? withoutHeresOpener(part) : part));
-  if (hasWords(script)) return { ...parts, script };
-  return parts.script.every((part) => typeof part === 'string') ? null : parts;
+  const spoken = parts.script.filter(isWords).join('');
+  const clean = withoutFillerOpener(spoken);
+  if (clean === spoken) return parts;
+  if (clean.trim() === '') return parts.script.every(isWords) ? null : parts;
+  const opensOnIt = spoken.slice(spoken.length - clean.length).toLowerCase() === clean.toLowerCase();
+  return { ...parts, script: opensOnIt ? dropOpeningCharacters(parts.script, spoken.length - clean.length, clean.charAt(0)) : parts.script.map((part) => (isWords(part) ? withoutFillerOpener(part) : part)) };
 }
 
 function withoutOpeningNod(parts: WrittenBeatParts): WrittenBeatParts {
@@ -1425,7 +1441,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     memory = getMemoryAfterAnswering(memory);
     turn.costUsd = (turn.usage ? model.getCostUsd(turn.usage) : 0) + turn.toolCostUsd;
     const wasRefused = turn.endedAs === 'refused';
-    const text = turn.reader.isSafetyReply ? getAcceptedRaw(turn) : withoutHeresOpener(getAcceptedRaw(turn));
+    const text = turn.reader.isSafetyReply ? getAcceptedRaw(turn) : withoutFillerOpener(getAcceptedRaw(turn));
     if (text !== '') {
       turns.push({ role: 'user', text: turn.studentText }, ...turn.notes.map((note) => ({ role: 'system' as const, text: note })), { role: 'assistant', text });
       pendingNotes = pendingNotes.slice(turn.carriedNotes);

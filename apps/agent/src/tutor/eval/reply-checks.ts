@@ -119,7 +119,7 @@ export const REPLY_CHECKS: Record<string, { why: string; onlyOnWork?: boolean; i
   namesNothingYet: { why: 'A plain idea comes before its name, so the first reply uses no term they have not met', passes: (spoken, _commands, details = NO_DETAILS) => !details.terms.some((term) => spoken.toLowerCase().includes(term)) },
   checksTheGround: { why: 'It finds out what they have before it explains, in a few words', passes: (spoken) => /\?\s*$/.test(spoken) && countWords(spoken) <= 30 },
   noTestFeel: { why: 'A check must not feel like a test', passes: (spoken) => !TEST_WORDS.test(spoken) },
-  fortyFiveAtMost: { why: 'Abel: never more than 45 words at a stretch, and each breath lets the student in', passes: (_spoken, _commands, details = NO_DETAILS) => details.longestStretchWords <= 45 },
+  oneStretchAtMost: { why: 'Abel chose stretches of 40 to 80 words by ear on 5 November, and past the wrap at 100 a stretch stops being one idea', passes: (_spoken, _commands, details = NO_DETAILS) => details.longestStretchWords <= 100 },
   thirtyFiveAtMost: { why: 'Simpler means shorter too', passes: (spoken) => countWords(spoken) <= 35 },
   noWelcomeBack: { why: 'The app greets them, and "Welcome back." opened 13 of 14 such replies', passes: (spoken) => !GREETING.test(spoken.trim()) },
   numberIsChecked: { why: 'T6: a worked out number is on the board, where code checks it, or came from compute', passes: (_spoken, commands, details = NO_DETAILS) => details.toolCalls.includes('compute') || commands.includes('writeMath') || commands.includes('transformMath') },

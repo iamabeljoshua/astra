@@ -653,6 +653,13 @@ describe('the brain in a lead', () => {
     }
   });
 
+  it('takes the opener off when the drawing guard landed inside it', async () => {
+    const brain = createTutorBrain({ model: reply(['First line. {"kind":"writeMath","id":"p1","tex":"1 + 1 = 2","claim":"new"}One and one.', "Here's how it runs. Gravity pulls."]), timeouts: QUICK });
+    await run(brain, 'show me a sum');
+    brain.noteLead('next');
+    expect(await run(brain, LEAD_WORDS.next)).toBe('Gravity pulls.');
+  });
+
   it('leaves the words of a safety reply alone', async () => {
     const brain = createTutorBrain({ model: reply(["That sounds serious. Here's who can help: an adult you trust, or your local emergency number."]), timeouts: QUICK });
     expect(await run(brain, 'someone is hurting me')).toContain("Here's who can help");
