@@ -899,6 +899,22 @@ describe('lines with no read to make', () => {
     expect(spokenTo(run, line)).toEqual(['Ha, it can feel that way.']);
   });
 
+  it('a joke during a pause gets no safety note when the check lands after the line read', async () => {
+    const line = 'this is killing me lol';
+    const safety = makeWatch(async (text) => {
+      if (text === line) await delay(40);
+      return 'none';
+    });
+    const run = startLesson({ safety, wishes: { [line]: 'worrying' }, answer: (words, index) => (words === line ? 'Ha, it can feel that way.' : BEAT(index)) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.type('wait');
+    await delay(STILL_MS);
+    run.type(line);
+    await delay(STILL_MS);
+    expect(asksFor(run, line)[0]?.notes.join(' ')).not.toContain('may_be_about_them');
+  });
+
   it('an English line read as worrying still names help when the check could not read it', async () => {
     const line = 'i cant go on';
     const run = startLesson({ safety: makeWatch(async (text) => (text === line ? 'unread' : 'none')), wishes: { [line]: 'worrying' }, answer: (words, index) => (words === line ? 'Which part?' : BEAT(index)) });

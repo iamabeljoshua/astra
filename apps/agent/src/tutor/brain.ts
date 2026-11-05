@@ -298,6 +298,7 @@ const isPlainRefusal = ({ refusalCategory, studentText, safetyReading }: { refus
 const isAboutSafety = (reading: TurnWork['safetyReading']) => isSafetyKind(reading) || reading === 'vague';
 
 const CLAUSE_END = /[,;:]\s*$/;
+const ENDS_A_SENTENCE = /[.!?…。！？؟।]["'”’)\]]*\s*$/u;
 
 function withSentenceEnd(beat: TutorBeat): TutorBeat {
   const lastWordsAt = beat.script.findLastIndex((part) => typeof part === 'string');
@@ -390,8 +391,7 @@ const getLineNote = (wish: LineRead | 'pending', { wasPausedAtStart, wasCrisisAt
 
 const isCleanRead = (reading: TurnWork['safetyReading']) => reading === 'none' || reading === 'school';
 
-// A line read says what a line asks of the tutor, and the check is what tells a joke from a crisis, so in English its clean read outranks a read of worrying.
-const getWish = ({ lineWish, studentText, safetyReading }: Pick<TurnWork, 'lineWish' | 'studentText' | 'safetyReading'>) => (lineWish === 'worrying' && readsAsEnglish(studentText) && isCleanRead(safetyReading) ? 'talk' : lineWish);
+const getWishAfterCheck = ({ lineWish, studentText, safetyReading }: Pick<TurnWork, 'lineWish' | 'studentText' | 'safetyReading'>) => (lineWish === 'worrying' && readsAsEnglish(studentText) && isCleanRead(safetyReading) ? 'talk' : lineWish);
 
 const holdsWhereToStart = ({ memory: { notes } }: MemoryNote) => notes.some(({ kind }) => kind === 'showed' || kind === 'struggled');
 
@@ -514,7 +514,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
 
   const settleLine = (turn: TurnWork) => {
     linesBeingRead -= 1;
-    const wish = getWish(turn);
+    const wish = getWishAfterCheck(turn);
     if (wish !== 'pending' && wish !== 'unread' && canWishCount(turn)) {
       noteWish(wish, turn.studentText);
       if (wish === 'go_on') lessonPlanner?.noteTeachingWanted();
@@ -948,7 +948,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         if (result === SAFETY_ANSWERED) {
           turn.safetyAnswered = createNever();
           if (isHelpDueInCode(turn)) return endAs('stoppedForSafety');
-          yield* takeReady(turn, getClausesAtTheEnd(turn));
+          yield* takeReady(turn, countBeatsToHold(turn));
           continue;
         }
         if (result === 'deadline') {
@@ -964,7 +964,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         if (result.done) return endAs('ended');
         const eventEnd = readEvent(turn, result.value);
         if (isHelpDueInCode(turn)) return endAs('stoppedForSafety');
-        yield* takeReady(turn, getClausesAtTheEnd(turn));
+        yield* takeReady(turn, countBeatsToHold(turn));
         // Taken after the yield, because the session holds a next idea here until the last one has been spoken, and that wait is not a stalled model.
         lastEventAtMs = getNowMs();
         if (eventEnd) return endAs(eventEnd);
@@ -1004,10 +1004,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     turn.usage = addUsage(turn.usage, part);
   };
 
-  // While code may yet cut in, beats that stop at a comma wait for the end of their sentence, so its line never follows half of one.
-  const getClausesAtTheEnd = (turn: TurnWork) => {
+  // While code may yet cut in, a beat that ends no sentence waits for one, so its line follows whole sentences.
+  const countBeatsToHold = (turn: TurnWork) => {
     if (turn.safetyReading !== 'pending' && !isAboutSafety(turn.safetyReading)) return 0;
-    return turn.ready.length - 1 - turn.ready.findLastIndex((beat) => !CLAUSE_END.test(getBeatText(beat)));
+    return turn.ready.length - 1 - turn.ready.findLastIndex((beat) => ENDS_A_SENTENCE.test(getBeatText(beat)));
   };
 
   function* takeReady(turn: TurnWork, beatsToKeep = 0): Generator<Beat> {
@@ -1360,7 +1360,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const reading = readTheReply(turn, words);
     if (isAboutSafety(turn.safetyReading) || namesHelp(words)) return;
     await waitUntil(reading, getNowMs() + timeouts.lineReadWaitMs, turn.signal, getNowMs);
-    if (getWish(turn) !== 'worrying' && (turn.replyRead !== 'asks' || needsNoHelp(turn))) return;
+    if (getWishAfterCheck(turn) !== 'worrying' && (turn.replyRead !== 'asks' || needsNoHelp(turn))) return;
     trace('helpAdded');
     sayLine(turn, 'ifWorried');
     yield* takeReady(turn);
@@ -1487,7 +1487,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         closeIfSpent(turn);
         if (closedReason === null && turn.speaker === 'student' && !turn.hasPlainWish && (turn.wasPausedAtStart || turn.wasCrisisAtStart || !readsAsEnglish(studentText))) {
           await waitUntil(turn.lineRead, turn.startedAtMs + timeouts.lineReadWaitMs, signal, getNowMs);
-          const lineNote = getLineNote(getWish(turn), turn);
+          if (turn.lineWish === 'worrying' && readsAsEnglish(studentText)) await waitUntil(turn.safetyRead, turn.startedAtMs + timeouts.lineReadWaitMs, signal, getNowMs);
+          const lineNote = getLineNote(getWishAfterCheck(turn), turn);
           if (lineNote) turn.notes.push(JSON.stringify(lineNote));
         }
         if (closedReason !== null || turn.isNothingToAnswer) {

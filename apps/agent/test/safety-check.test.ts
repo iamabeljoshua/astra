@@ -114,7 +114,7 @@ describe('a signal stops the teaching, shows help, and raises a flag', () => {
   });
 
   it('waits for a slow read when the reply ended first, so help still comes after the words already said', async () => {
-    const { brain } = setup({ readAfterMs: 60, getReply: () => ({ pieces: ['Quicker is better here.'] }) });
+    const { brain } = setup({ readAfterMs: 60, getReply: () => ({ pieces: ['Quicker is better here. ', 'So is a longer burn.'] }) });
     const spoken = await say(brain);
     expect(spoken).toMatch(/^Quicker is better here/);
     expect(spoken).toContain(SPOKEN_LINES.safetyStop[0]);
@@ -270,6 +270,12 @@ describe('a reply that stops partway reads as one person speaking', () => {
     const beats: string[] = [];
     for await (const beat of brain.reply({ text: STUDENT_WORDS }, new AbortController().signal)) beats.push(getBeatText(beat));
     expect(beats.join(' ')).not.toMatch(/, That sounds serious/);
+    expect(summaries.at(-1)?.spokenText).toBe(`You'd coast alongside it. ${SPOKEN_LINES.safetyStop[0]}`);
+  });
+
+  it('never says a line that breaks mid sentence before code cuts in', async () => {
+    const { brain, summaries } = setup({ readAfterMs: 120, getReply: () => ({ pieces: ["You'd coast alongside it. ", 'Then gravity slowly pulls you back\n', 'down and you land far away from where you started.'], msPerPiece: 80 }) });
+    await say(brain);
     expect(summaries.at(-1)?.spokenText).toBe(`You'd coast alongside it. ${SPOKEN_LINES.safetyStop[0]}`);
   });
 
