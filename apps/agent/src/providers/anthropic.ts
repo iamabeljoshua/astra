@@ -161,14 +161,16 @@ export function makeAnthropicJsonReader({ apiKey, model = 'haiku-5-5' }: { apiKe
           model: id,
           max_tokens: mostTokens,
           thinking: request.thinking,
-          system,
+          system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
           output_config: { effort: 'low', format: { type: 'json_schema', schema } },
           messages: [{ role: 'user', content: text }],
         },
         { timeout: timeoutMs },
       );
       const written = message.content.find((block) => block.type === 'text')?.text ?? '{}';
-      return { answer: JSON.parse(written) as unknown, costUsd: (message.usage.input_tokens * prices.input + message.usage.output_tokens * prices.output) / TOKENS_PER_PRICE };
+      const { input_tokens, output_tokens, cache_read_input_tokens, cache_creation_input_tokens } = message.usage;
+      const dollars = input_tokens * prices.input + (cache_read_input_tokens ?? 0) * prices.cacheRead + (cache_creation_input_tokens ?? 0) * prices.cacheWrite + output_tokens * prices.output;
+      return { answer: JSON.parse(written) as unknown, costUsd: dollars / TOKENS_PER_PRICE };
     },
   };
 }

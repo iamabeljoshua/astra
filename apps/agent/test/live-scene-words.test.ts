@@ -23,6 +23,9 @@ const USAGE = { model: 'fake', ms: 1, costUsd: 0 };
 const PLAN: LessonPlan = { opening: [], more: [], setup: 'Watch the line tilt.', narration: '[[a]] The line climbs two steps at a time as it goes. [[b]] It climbs at one steady rate all the way along.', plan: 'A line tilts up.', close: 'What would a flat line mean?' };
 const SCENE = { id: `scene-${'a'.repeat(40)}`, engine: 'manimgx', topic: TOPIC, moments: { a: 0, b: 2 }, parts: [], durationSeconds: 5, plan: PLAN, ownerId: null, declared: { rate: { name: 'rate', default: 7, lo: 0, hi: 9 } }, values: { steps: 12 }, takeBytes: { light: 1, dark: 1 } } as unknown as StoredScene;
 const GOOD: SceneSpeech = { setup: 'So keep your eye on that line now.', narration: '[[a]] It climbs two steps at a time as it moves along. [[b]] Same steady climb, the same curve a ball keeps, all the way.', close: 'So what would a flat line mean?' };
+const SLOWER_B = 'Same steady climb, the same curve a ball keeps, all the way.';
+const REPLY = { setup: GOOD.setup, slower: { moment: 'b', words: SLOWER_B } };
+const LIVE: SceneSpeech = { setup: GOOD.setup, narration: `[[a]] The line climbs two steps at a time as it goes. [[b]] ${SLOWER_B}`, close: PLAN.close };
 const STUDENT: StudentFacts = { level: 'high_school', interests: ['football'], notes: [{ kind: 'struggled', about: 'slope of a line' }, { kind: 'struggled', about: 'long division' }], justSaid: 'Slope is just how steep something is.', studentSaid: 'ok' };
 
 const check = (written: unknown, interests: readonly string[] = ['football']) => checkSceneSpeech({ scene: SCENE, written, interests });
@@ -57,11 +60,25 @@ describe('what code lets a student hear', () => {
     expect(checked).toEqual({ isOk: true, speech: { ...GOOD, setup: 'This is that line again.', narration: '[[a]] This is the climb, two steps at a time as it goes. [[b]] It keeps going. Now this is the same steady rate along.' } });
   });
 
-  it('asks for one field a moment, guided by its saved words, and plays them on their marks', async () => {
-    const read = vi.fn<JsonReader['read']>(async () => ({ answer: { setup: GOOD.setup, moments: { a: 'It climbs two steps at a time as it moves along.', b: 'Same steady climb, the same curve a ball keeps, all the way.' }, close: GOOD.close }, costUsd: 0 }));
+  it('keeps every saved moment and close, and writes only the setup and one slower moment for a student who struggled', async () => {
+    const read = vi.fn<JsonReader['read']>(async () => ({ answer: REPLY, costUsd: 0 }));
     const { answer } = await writeSceneSpeech({ read }, { scene: SCENE, student: STUDENT, askedAbout: 'lines' });
-    expect(read.mock.calls[0]?.[0].schema).toMatchObject({ properties: { moments: { required: ['a', 'b'], properties: { a: { description: 'Saved says: The line climbs two steps at a time as it goes. At most 11 words.' } } } } });
-    expect(check(answer)).toEqual({ isOk: true, speech: GOOD });
+    expect(read.mock.calls[0]?.[0].schema).toMatchObject({ required: ['setup', 'slower'] });
+    expect(check(answer)).toEqual({ isOk: true, speech: LIVE });
+  });
+
+  it('asks a student with no struggle for the setup alone, in the same shape for every scene', async () => {
+    const read = vi.fn<JsonReader['read']>(async () => ({ answer: { setup: GOOD.setup }, costUsd: 0 }));
+    const { answer } = await writeSceneSpeech({ read }, { scene: SCENE, student: { ...STUDENT, notes: [] }, askedAbout: 'lines' });
+    expect(read.mock.calls[0]?.[0].schema).toMatchObject({ required: ['setup'], properties: { setup: { type: 'string' } } });
+    expect(check(answer)).toEqual({ isOk: true, speech: { setup: GOOD.setup, narration: PLAN.narration, close: PLAN.close } });
+  });
+
+  it('keeps the saved words of a moment that stops mid-sentence, and refuses a slower moment the scene does not have', async () => {
+    const scene = { ...SCENE, plan: { ...PLAN, narration: '[[a]] The line climbs two steps at a time, [[b]] and it climbs at one steady rate all the way along.' } } as StoredScene;
+    const write = (slower: unknown) => writeSceneSpeech({ read: async () => ({ answer: { setup: GOOD.setup, slower }, costUsd: 0 }) }, { scene, student: STUDENT, askedAbout: 'lines' });
+    expect((await write({ moment: 'a', words: 'It climbs. Two steps at a time.' })).answer).toMatchObject({ narration: scene.plan.narration });
+    expect(checkSceneSpeech({ scene, written: (await write({ moment: 'c', words: 'Something new.' })).answer, interests: [] }).isOk).toBe(false);
   });
 
   it('allows a number from declared or values', () => {
@@ -83,6 +100,13 @@ describe('what code lets a student hear', () => {
     ['a long dash', withNarration('[[a]] It climbs two steps at a time \u2014 as it moves along. [[b]] Same steady climb, the same curve, all the way along.'), 'shape'],
   ])('refuses %s', (_name, written, kind) => {
     expect(getProblemKinds(written)).toContain(kind);
+  });
+
+  it("clears a name's possessive when the name is known, and still refuses one that is not", () => {
+    const scene = { ...SCENE, plan: { ...PLAN, plan: 'The Sun lights the line.' } } as StoredScene;
+    const withSetup = (setup: string) => checkSceneSpeech({ scene, written: { ...GOOD, setup }, interests: [] });
+    expect(withSetup("So watch the line in the Sun's light now.").isOk).toBe(true);
+    expect(withSetup("So watch the line in Vega's light now.")).toMatchObject({ isOk: false, problems: [{ kind: 'name' }] });
   });
 
   it('refuses a close with no question, and anything that is not the three fields', () => {
@@ -132,7 +156,7 @@ function makeReader(reply: () => Promise<unknown>) {
   return { reader: { read } as JsonReader, read };
 }
 
-function setUp({ reply = async () => GOOD as unknown, student = STUDENT, canSpend = true }: { reply?: () => Promise<unknown>; student?: StudentFacts; canSpend?: boolean } = {}) {
+function setUp({ reply = async () => REPLY as unknown, student = STUDENT, canSpend = true }: { reply?: () => Promise<unknown>; student?: StudentFacts; canSpend?: boolean } = {}) {
   const sent: SceneAgentMessage[] = [];
   const spoken: (readonly Beat[])[] = [];
   const shown: { isShared: boolean }[] = [];
@@ -196,11 +220,10 @@ describe('a saved scene in a lesson', () => {
     const { scenes, read } = setUp();
     scenes.ask(TOPIC);
     await flush();
-    const ask = JSON.parse(read.mock.calls[0]?.[0].text ?? '{}') as { student: { interests: string[]; notes_on_this_idea: unknown[] }; numbers_you_may_say: number[]; moments: string[]; word_counts: unknown };
-    expect(ask.student.interests).toEqual(['football']);
-    expect(ask.student.notes_on_this_idea).toEqual([{ kind: 'struggled' }]);
+    const ask = JSON.parse(read.mock.calls[0]?.[0].text ?? '{}') as { student: Record<string, unknown>; numbers_you_may_say: number[]; saved: { moments: Record<string, string> } };
+    expect(ask.student).toEqual({ level: 'high_school', notes_on_this_idea: [{ kind: 'struggled' }] });
     expect(ask.numbers_you_may_say).toEqual([0, 2, 7, 9, 12]);
-    expect(ask.word_counts).toEqual({ setup: 4, moments: { a: 11, b: 10 }, close: 6 });
+    expect(ask.saved.moments).toEqual({ a: 'The line climbs two steps at a time as it goes.', b: 'It climbs at one steady rate all the way along.' });
   });
 
   it(`waits ${LIVE_WORDS_WAIT_MS} ms at most at a pause, then says the saved words`, async () => {
@@ -226,14 +249,14 @@ describe('a saved scene in a lesson', () => {
     scenes.onPage(LOADED, 'maya');
     await vi.advanceTimersByTimeAsync(400);
     expect(spoken).toEqual([]);
-    answer(GOOD);
+    answer(REPLY);
     await flush();
     expect(getHeard(spoken)).toContain('the same curve a ball keeps');
   });
 
   it('says the saved words at once when a check fails, and pays for only the one call', async () => {
     vi.useFakeTimers();
-    const { scenes, spoken, read } = setUp({ reply: async () => withNarration('[[b]] Wrong order of things here. [[a]] And more words after that.') });
+    const { scenes, spoken, read } = setUp({ reply: async () => ({ setup: GOOD.setup, slower: { moment: 'c', words: 'A moment the picture does not have.' } }) });
     scenes.ask(TOPIC);
     await flush();
     scenes.onPage(LOADED, 'maya');
@@ -299,7 +322,7 @@ describe('a saved scene in a lesson', () => {
       scenes.ask(TOPIC);
       await flush();
       scenes.noteSafetyReply();
-      answer(GOOD);
+      answer(REPLY);
       await flush();
       expect(liveWords.read(SCENE.id)).toEqual({ kind: 'saved' });
       expect(spoken).toEqual([]);

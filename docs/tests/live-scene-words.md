@@ -12,11 +12,13 @@ Every picture that reaches a lesson comes through the same `ready` state, so thi
 
 There is one call for each scene played, started when the scene is matched or when the tutor asks for a scene the queue already holds. If the tutor's reply has written no words yet, the call waits for them, at most 1.5 s, so the new words can carry on from them. A queued scene is not written for ahead of its ask. Its words would no longer follow what was just said, and it may never play. For the same reason, words older than 30 s are not used. A scene asked again after that gets one new call.
 
-The call reads the saved words, what each moment shows, labels, `declared`, `values`, and the only numbers allowed. From the tutor it reads the student's level, interests, notes on this same idea, the last words said, and the student's last line. The voice rules come from the live prompt, so they change with it. The student's id and name are not in it. A note on another idea does not leave the tutor.
+The call reads the saved words, keyed by moment, and what the picture shows. From the tutor it reads the student's level, notes on this same idea, the last words said, and the student's last line. Only a student who struggled gets the numbers allowed, because only that reply can say one. Interests are not sent, since no reply may use a likeness to them. The voice rules come from the live prompt, so they change with it. The student's id and name are not in it. A note on another idea does not leave the tutor.
 
 `ASTRA_SCENE_WORDS_MODEL` picks the model. The default is `gpt-5.4-mini`, and `haiku-5-5` and `sonnet-5-5`, Sonnet 5.5 with thinking off, are the other choices. The tables below are why.
 
-The reply has one field for each moment, and code puts the marks back in the saved order, so a model cannot drop or reorder one. The schema gives each field that moment's saved words and their count as its limit, and gives the setup a limit too, because a model asked to keep a whole text near a count writes long. The words describe the picture as the saved words do. What is theirs goes in the setup, which carries on from what the tutor just said. A likeness to an interest is allowed only when it has the same shape and motion as the picture, and never for a student with no interest.
+Every saved moment and the saved close play as they are, because they are already true to the picture. The reply writes only what is theirs. That is a setup of one sentence that carries on from what the tutor just said, and, for a student who struggled on this idea, one moment said again as two short sentences. Code puts that moment back in its place, so the marks keep their saved order. A moment whose saved words stop mid-sentence keeps them, because the next moment ends that sentence. A slower moment the scene does not have means the saved words play.
+
+The schema has the same shape for every scene, one for a student who struggled and one for anyone else, so a provider compiles it once and keeps the instructions cached. A word limit written into the schema as a pattern is not used. On Haiku it made the model squeeze a long line into run-together words such as "copperFine-wireGillIgers", which no check reads as wrong, so the setup limit stays a check that falls back.
 
 ## What code checks
 
@@ -44,7 +46,7 @@ Nothing here calls the store. The live words live in the beats, which the sessio
 
 ## Cost
 
-Each scene adds about $0.0014 of model spending on `gpt-5.4-mini`, $0.0005 on Haiku, and $0.008 on Sonnet, booked through `caps.addScene`, so it counts in the session's spend. A session never kept its voice, so a scene's words were always spoken fresh there, and live words add no characters beyond their length. What changes is who pays. Saved words on a shared scene count as a shared play. Live words are this student's, so they count on the student's own day and session and do not count toward the shared plays. The lesson service's stored lines are not used here.
+Each scene adds about $0.0004 to $0.0013 of model spending on `gpt-5.4-mini`, the lower figure once OpenAI has cached the instructions, $0.0001 on Haiku with its instructions cached, and $0.008 on Sonnet, booked through `caps.addScene`, so it counts in the session's spend. A session never kept its voice, so a scene's words were always spoken fresh there, and live words add no characters beyond their length. What changes is who pays. Saved words on a shared scene count as a shared play. Live words are this student's, so they count on the student's own day and session and do not count toward the shared plays. The lesson service's stored lines are not used here.
 
 ## Run it
 
@@ -59,6 +61,21 @@ The proof makes one call for each scene, from the 4 it names or from `--topics`,
 ## Measured
 
 On 5 November 2026 on Abel's Mac, with load 7 to 14 on 12 cores, from a West African network, through a capped proxy.
+
+**Haiku against `gpt-5.4-mini`, writing only what is theirs.** 10 saved scenes that no example in the prompt names, for 3 students each: football with a line said before, a struggle on this idea, and nothing known. That is 30 calls a run, and two runs for each model on the same prompt, the models side by side, the night of 5 November with load 5 to 8. The calls stream, so the time to the first token is read too. "At the real wait" crosses each run's 30 times with the 20 rooms below. Cost is at Anthropic's and the repo's list prices.
+
+| Model and run | Failed a check | Ready p50 | Ready p90 | Worst | First token p50 | Falls back at the real wait | Cost a scene |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Haiku 5.5, run 1 | 2 of 30, both numbers | 1531 ms | 2071 ms | 2126 ms | 1197 ms | 6.8% | $0.000093 |
+| Haiku 5.5, run 2 | 3 of 30, 2 numbers and 1 setup too long | 1444 ms | 1801 ms | 1949 ms | 1204 ms | 10.0% | $0.000092 |
+| `gpt-5.4-mini`, run 1 | 2 of 30, both numbers | 1198 ms | 1672 ms | 2057 ms | 953 ms | 6.7% | $0.0013 |
+| `gpt-5.4-mini`, run 2 | 3 of 30, all numbers | 978 ms | 1136 ms | 1226 ms | 772 ms | 10.0% | $0.00043 |
+
+Every fallback came from a check, and almost none from the wait. Most number refusals were a setup that said "ten" from the tutor's line on counting in two digits, which the saved words do not say. Haiku read its cached instructions on all 60 calls, and OpenAI on 28 of the second run's 30. Haiku wrote 34 output tokens at p50 and `gpt-5.4-mini` 24, so most of a call is the wait for the first token, not the writing. Haiku is about 330 to 470 ms slower at p50 than `gpt-5.4-mini`, and nearly all of it is that first token.
+
+Read by eye, Haiku said one false line. For a student who struggled on recursion it said "That call waits, and it waits on two factorial", where four factorial waits on three. Its doubtful lines were "Fewer dots fit, so it carries less" as the cause of less current, "the moon pushes them around" for a moon's pull, and "Particles just inside the moon zoom ahead of it". It also used likenesses the prompt rules out, for students with no interest too: water in a pipe, cars at a fork, fizzy water, a balloon, a spinning top, plates on a stack, and nested boxes. `gpt-5.4-mini` said no false line. Its doubtful lines were "So those instructions split open, just like this zippering helix", "They stay side by side, nice and neat" of the Moon, "Not quite" to a student who had said nothing, and "like two hands landing at once". The zipper is in the saved words, so it is not new. Both models dropped the "An enzyme," that ends a DNA moment mid-sentence, which left the next moment starting mid-sentence. Code now keeps the saved words of such a moment. No reply used the football interest, because the call no longer sends it.
+
+So `gpt-5.4-mini` stays the default. Haiku now costs a fifth to a fourteenth as much per scene and falls back as often, but it is slower at p50 and said a false line.
 
 **Haiku made to pass, and `gpt-5.4-mini` on the same prompt.** 5 scenes for 3 students each, one run of 15 calls per model, on the prompt and shape on this branch, the night of 5 November with load 7 to 14. The fifth scene is "How a raindrop splits white light", because the rainbow scene of the earlier runs is not in that store. "At the real wait" is the same 20 rooms crossed with the 15 times, as below.
 
@@ -112,7 +129,7 @@ A call takes longer than the wait allows. So a scene that could land the moment 
 ## What this does not prove
 
 - That `gpt-5.4-mini` falls back at most 1 in 10 on every scene. It fell back 0 of 15 here, and 6% over 157 calls on earlier prompts. Haiku falls back about 1 in 6 and Sonnet about 1 in 3 at the 1.5 s wait.
-- That the interest is used. On this prompt no football student heard a likeness, so what is theirs is the setup and the struggle's pace.
+- That the interest is used. The call no longer sends it, so what is theirs is the setup and the struggle's pace.
 - That the words are true. Code reads marks, numbers, names, and banned lines, and no claim. Sonnet's false lines are above. On `gpt-5.4-mini`, reading a full run of 20 by eye, on the version before the last two, found 2 false lines: "it's a lot of air to outrun" of a rocket in space, and "throwing a ball up is why this rocket needs a big start". It found 2 smaller faults: "Close, but not quite" to a student who had said no such thing, and "the ball turns sideways" for a ball that spins sideways. Nobody reviews live words before a student hears them, as a person's review and the scene review read only the saved words.
 - That it sounds personal. On that run it connected to what was said far more often than it used what is known. An interest reached the words in 1 of 10 football cases on that run, and that one was empty: "like a football swerving round a gap". A struggling student sounds much like anyone else. None of the words read as creepy, on any run.
 - That the first thing heard is theirs. A lesson opened from Home often has nothing said yet, and on the page the words were close to the saved ones. On the last version, in Node, a football student's first words included "Think of a ball arcing up and back down. This curve is a U shape", and a ball's arc is not a U.
