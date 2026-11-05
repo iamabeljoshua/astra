@@ -73,6 +73,7 @@ const { values: args } = parseArgs({
   options: {
     replies: { type: 'string', default: '13' },
     minutes: { type: 'string', default: '9' },
+    'compact-at': { type: 'string' },
     limit: { type: 'string', default: '1.5' },
     spend: { type: 'string', default: join(tmpdir(), 'astra-whole-lessons-spend.jsonl') },
     out: { type: 'string', default: join(tmpdir(), 'astra-whole-lessons') },
@@ -114,8 +115,8 @@ function makeTake(id: string, use: StoredTake['use'], phrase: string): StoredTak
 
 const TAKES = [makeTake('hm', 'reaction', 'Hm.'), makeTake('okay', 'reaction', 'Okay.'), makeTake('right', 'reaction', 'Right.'), makeTake('hello', 'greeting', 'Hello there.'), makeTake('prompt', 'prompt', 'Take your time.'), makeTake('lost', 'voiceLost', 'Sorry about that.')];
 
-const describeTask = (task: Task, spoken: string): string => {
-  if (task.way === 'write') return task.on !== undefined ? 'problem on the board' : OWN_WORDS.test(spoken) ? 'own words' : 'written words';
+const describeTask = (task: Task, spoken: string, hasMathOnBoard: boolean): string => {
+  if (task.way === 'write') return task.on !== undefined || hasMathOnBoard ? 'problem on the board' : OWN_WORDS.test(spoken) ? 'own words' : 'written words';
   return task.way;
 };
 
@@ -203,6 +204,7 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
     model: makeAnthropicTutorModel({ name: 'sonnet-5-5', apiKey: readerKey }),
     prompt: withScenes(TUTOR_PROMPT),
     lessonPlanner: planner,
+    ...(args['compact-at'] ? { compactAtTokens: Number(args['compact-at']) } : {}),
     loadProfile: async () => {
       setTimeout(() => scenes?.noteCard(script.card ?? null), 0);
       return profile;
@@ -229,7 +231,8 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
       const step = planner.getStepNote();
       const stepName = step && 'step' in step ? `${step.step}: ${step.teach_first ?? step.then_exercise}` : step ? 'finished' : 'no plan';
       stepsSeen.add(stepName);
-      const tasks = summary.beats.flatMap((beat) => getCues(beat).flatMap(({ command }) => (command.kind === 'task' ? [describeTask(command, summary.spokenText)] : [])));
+      const commands = summary.beats.flatMap((beat) => getCues(beat).map(({ command }) => command));
+      const tasks = commands.flatMap((command) => (command.kind === 'task' ? [describeTask(command, summary.spokenText, commands.some(({ kind }) => kind === 'writeMath'))] : []));
       const board = summary.beats.flatMap((beat) => getCues(beat).map(({ command }) => `${command.kind}${'tex' in command && command.tex ? ` ${command.tex}` : ''}${'text' in command && command.text ? ` "${command.text}"` : ''}`));
       replies.push({ atSeconds: seconds(), student: summary.studentText, spoken: summary.spokenText, words: countWords(summary.spokenText), board, tasks, firstTextMs: summary.firstTextMs && Math.round(summary.firstTextMs), costUsd: summary.costUsd, step: stepName });
       timeline.push(`${seconds()} s [${stepName}] student said ${JSON.stringify(summary.studentText)}\n  TUTOR: ${summary.spokenText}${board.length > 0 ? `\n  board: ${board.join(' | ')}` : ''}${summary.refused.length > 0 ? `\n  refused: ${summary.refused.join('; ')}` : ''}`);

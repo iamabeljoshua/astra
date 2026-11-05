@@ -16,7 +16,7 @@ export interface LessonPlanner {
   noteStudentWords(heard: HeardWords): void;
   noteCommand(command: SceneCommand): void;
   noteWorkChecked(checked: Pick<CheckedWork, 'closesTask'>, work: StudentWork): void;
-  noteReplyEnded(reply: { wasSafety: boolean; wasLead?: boolean }): void;
+  noteReplyEnded(reply: { wasSafety: boolean; wasLead?: boolean; spoken?: string }): void;
   noteCardLesson(plan: LessonPlan): void;
   /** A page that reloaded lost the title it was told. */
   tellTitleAgain(): void;
@@ -58,7 +58,8 @@ const WANTS_TEACHING = /\b(?:go on|keep going|keep teaching|carry on|go ahead|te
 export const asksToBeTaught = (words: string) => WANTS_TEACHING.test(words) || ASKS_TO_BE_TAUGHT.test(words);
 
 const FEWEST_STEPS_ON_A_CARD = 3;
-const MOST_STEPS_IN_A_LESSON = 12;
+const MOST_STEPS_IN_A_LESSON = 14;
+const MOST_CHARACTERS_OF_WHAT_WAS_SAID = 6000;
 
 const NAMES_A_PROBLEM = /\d\s*[-+*/×÷=^%]|=|->|_{2,}|\bm\/s\b|\b(?:solve|balance|simplify|calculate|work out|factori[sz]e|derivative of|integral of|slope of|which came first)\b/i;
 const ASKS_TO_BE_TAUGHT = /^\s*(?:please\s+)?(?:teach|explain|help me (?:understand|get)|give me a lesson|i(?:'d like| would like| want| wanna)(?: to)? (?:learn|understand))\b/i;
@@ -158,12 +159,13 @@ export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleCha
   };
 
   let isAskingMore = false;
+  let saidSoFar = '';
 
   const askForMoreIfNear = () => {
     const topic = state.active?.plan.topic;
     if (!askMore || !topic || isAskingMore || !isNearTheEnd(state) || getStepCount(state) >= MOST_STEPS_IN_A_LESSON || !canSpend()) return;
     isAskingMore = true;
-    void askMore({ topic, taught: getStepsTaught(state), most: MOST_STEPS_IN_A_LESSON - getStepCount(state) })
+    void askMore({ topic, taught: getStepsTaught(state), said: saidSoFar, most: MOST_STEPS_IN_A_LESSON - getStepCount(state) })
       .then(({ steps, costUsd }) => {
         charge(costUsd);
         trace('planExtended', { steps: steps.length, costUsd });
@@ -193,7 +195,10 @@ export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleCha
     },
     noteCommand: (command) => noteEvent(toEvent(command)),
     noteWorkChecked: (checked, work) => noteEvent(getWorkEvent(checked, work)),
-    noteReplyEnded: ({ wasSafety, wasLead = false }) => noteEvent(wasSafety ? 'safetyReplyEnded' : wasLead ? 'leadEnded' : 'replyEnded'),
+    noteReplyEnded({ wasSafety, wasLead = false, spoken = '' }) {
+      saidSoFar = `${saidSoFar} ${spoken}`.slice(-MOST_CHARACTERS_OF_WHAT_WAS_SAID);
+      noteEvent(wasSafety ? 'safetyReplyEnded' : wasLead ? 'leadEnded' : 'replyEnded');
+    },
     noteCardLesson(plan) {
       card = plan;
       state = getStateAfterMove(state, { move: 'new', plan });

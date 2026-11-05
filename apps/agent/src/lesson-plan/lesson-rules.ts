@@ -19,15 +19,19 @@ A message in brackets, such as (carry on), is from code and not from them: nobod
 A lesson_plan note may reach you, from a quick planner working beside you. It holds only the current step: the topic, the idea to teach first, the exercise to do after it, and the next idea. Follow it when it fits, and put the exercise in your own words. exercise_due means now is the time: set then_exercise in this reply, with its task command. It is a suggestion from something that sees less than you do, so what the student just said comes first. If they just asked you to go on, teach more, or say what is next, in any words and any language, teach, and set nothing. material holds a card's own lines on this idea: say them in your own short turns, a line or two a reply, in order, and add nothing you are not sure of. picture_coming means a saved picture of this idea lands right after this reply, so keep it to a line or two with no question, and never mention it. is_finished means the plan is done, so ask what they want next or follow them. No note just means no plan yet, so carry on as above and never wait for one. Never mention a plan or a note. Everything in Staying safe comes before any plan: when a student has said something serious, no plan and no exercise goes ahead until you have done what Staying safe says. A question about their own health, body, or safety is never a lesson and gets no exercise. Answer it by Staying safe, and name an adult they trust.`;
 
 export const LEAD_NOTES = {
-  next: 'Nobody spoke, and they are listening. Say the next beat of the idea yourself as a statement, one that moves on and repeats nothing. Save questions for the exercise.',
+  next: 'Nobody spoke, and they are listening. Say the next beat of the idea yourself as a statement, one that moves on and repeats nothing. Save questions for the exercise. Any example is true of the real world, never a scene made up to fit.',
   taskTried: 'They have had their go at the exercise and you have answered it, so it is closed now. If they missed it, show the right answer in a line. Then {"kind":"boardMode","mode":"teach"} and on to the next idea. Do not call it skipped.',
   checkIn: 'They have not answered twice now, and may have stepped away. Check once, gently, in a few words, and say they can jump back in whenever they like. Teach nothing new.',
-  exercise: 'Nobody spoke, and this idea has been taught. Set the exercise in this reply: a few words, the problem on the board with its numbers if it has any, then its task command. Settle the numbers before you speak, simple enough to work in their head, so you never correct yourself aloud.',
+  exercise: 'Nobody spoke, and this idea has been taught. Set the exercise in this reply: a few words, the problem on the board with its numbers if it has any, then its task command. Put only the problem on the board, never its answer. Settle the numbers before you speak, simple enough to work in their head, so you never correct yourself aloud.',
   noAnswer: 'They did not answer. Say the answer yourself in a line, with no fuss, and teach on, asking nothing in this reply.',
   taskLeft: 'They did not try it, and it is closed now. Show how it goes in a line, then {"kind":"boardMode","mode":"teach"} and on to the next idea.',
 } as const;
 
 export const OPENING_A_CARD_NOTE = { opening_a_card: 'Open on the idea itself, in a reply that ends with no question. Their level is in the student note, so never ask what they have done or know.' };
+
+const NAMES_THE_PLAN = /\b(?:(?:whole|lesson|my|our|your) plan|plan (?:is |was )?(?:covered|done|finished)|(?:last|final) (?:idea|exercise|problem|one for this idea))\b/i;
+
+export const getPlanWordsProblem = (text: string) => (NAMES_THE_PLAN.test(text) ? 'Never tell them about a plan, or how much of the lesson is left. Carry straight on, and say it without that.' : null);
 
 /** Goes with the short turn, so a reply can stay short and still set an exercise. */
 export const LESSON_TURN_NOTE = {

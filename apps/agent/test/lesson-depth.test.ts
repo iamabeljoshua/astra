@@ -7,11 +7,13 @@ import { getStateAfterEvent, getStateAfterMove, getStepNote, NO_LESSON } from '.
 import { createLiveSession, type LiveSession } from '../src/live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../src/live/reactions.ts';
 import { getLead, LEAD_TIMINGS, LEAD_WORDS, type LeadKind } from '../src/live/tutor-lead.ts';
+import { getPlanWordsProblem } from '../src/lesson-plan/lesson-rules.ts';
+import { showsItsAnswer } from '../src/tutor/board-memory.ts';
 import { createVoiceLine, type VoiceOutput } from '../src/live/voice-line.ts';
 import { makeFakeTutorModel } from '../src/providers/fake-model.ts';
 import { renderTone } from '../src/providers/fakes.ts';
 import { makeRenderedVoice } from '../src/providers/rendered-voice.ts';
-import { createTutorBrain, type TutorBeat, type TutorBrain } from '../src/tutor/brain.ts';
+import { createTutorBrain, type TurnSummary, type TutorBeat, type TutorBrain } from '../src/tutor/brain.ts';
 
 initializeLogger({ pretty: false, level: 'silent' });
 
@@ -134,16 +136,71 @@ describe('asking to be taught', () => {
   });
 });
 
+describe('what a student never hears or sees', () => {
+  it.each(["That's the whole plan covered.", 'Last idea: an orbit is falling sideways.', 'Last exercise. Try this.', 'That is my plan.', 'The plan is done.'])('does not let "%s" through', (words) => {
+    expect(getPlanWordsProblem(words)).not.toBeNull();
+  });
+
+  it.each(['The plan was to land on the Moon.', 'The last stage drops off.', 'Engineers plan for this.', 'A flight plan matters.'])('leaves "%s" alone', (words) => {
+    expect(getPlanWordsProblem(words)).toBeNull();
+  });
+
+  it.each(['100 - 30 = 70', '8 - 0.5 = 7.5', '\\frac{100}{10} = 10', '11.2 \\div 2.4 \\approx 4.7', '8 \\times 60 = 480'])('reads %s as showing its answer', (tex) => {
+    expect(showsItsAnswer(tex)).toBe(true);
+  });
+
+  it.each(['2x + 3 = 11', 'F = ma', '100 - 30', '\\frac{11.2}{2.4}', '5 = 5', 'v = 11 \\text{ km/s}', '8 \\times 60'])('reads %s as still to work out', (tex) => {
+    expect(showsItsAnswer(tex)).toBe(false);
+  });
+
+  const reply = (texts: string[]) => {
+    let attempt = 0;
+    return { getCostUsd: () => 0, compact: async () => null, warm: async () => {}, stream: async function* () { yield { type: 'text', text: texts[Math.min(attempt++, texts.length - 1)] as string, isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; } } as never;
+  };
+
+  const QUICK_TIMES = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 };
+  const getMath = (summary: TurnSummary) => summary.beats.flatMap((beat) => beat.script.flatMap((part) => (typeof part !== 'string' && part.kind === 'writeMath' ? [part.tex] : [])));
+  const getTasks = (summary: TurnSummary) => summary.beats.flatMap((beat) => beat.script.flatMap((part) => (typeof part !== 'string' && part.kind === 'task' ? [part.id] : [])));
+  const GIVES_IT_AWAY = 'Your turn. {"kind":"writeMath","id":"p1","tex":"100 - 30 = 70","claim":"new"}How many tonnes? {"kind":"task","id":"a1","way":"write","on":"p1"}';
+  const ONLY_THE_PROBLEM = 'Your turn. {"kind":"writeMath","id":"p2","tex":"100 - 30","claim":"new"}How many tonnes? {"kind":"task","id":"a2","way":"write","on":"p2"}';
+
+  it('never shows the answer when this reply sets the exercise', async () => {
+    const summaries: TurnSummary[] = [];
+    const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
+    planner.noteCardLesson(PLAN);
+    for (let replies = 0; replies < 3; replies += 1) planner.noteReplyEnded({ wasSafety: false });
+    const brain = createTutorBrain({ model: reply([GIVES_IT_AWAY, ONLY_THE_PROBLEM]), timeouts: QUICK_TIMES, lessonPlanner: planner, onTurnEnd: (summary) => summaries.push(summary) });
+    for await (const beat of brain.reply({ text: 'i see' }, new AbortController().signal)) void beat;
+    expect(getMath(summaries[0] as TurnSummary)).toEqual(['100 - 30']);
+    expect(getTasks(summaries[0] as TurnSummary)).toEqual(['a2']);
+  });
+
+  it('leaves a worked example alone, and stops only a task that it gives away', async () => {
+    const summaries: TurnSummary[] = [];
+    const brain = createTutorBrain({ model: reply([GIVES_IT_AWAY, ONLY_THE_PROBLEM]), timeouts: QUICK_TIMES, onTurnEnd: (summary) => summaries.push(summary) });
+    for await (const beat of brain.reply({ text: 'i see' }, new AbortController().signal)) void beat;
+    expect(getTasks(summaries[0] as TurnSummary)).not.toContain('a1');
+  });
+
+  it('asks again quietly when a reply names the plan', async () => {
+    const said: string[] = [];
+    const brain = createTutorBrain({ model: reply(["That's the whole plan covered.", 'Now, thrust.']), timeouts: { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 } });
+    for await (const beat of brain.reply({ text: 'ok' }, new AbortController().signal)) said.push(getBeatText(beat));
+    expect(said.join(' ')).toBe('Now, thrust.');
+  });
+});
+
 describe('a lesson that runs on', () => {
   it('asks for the next ideas as it nears the end, and teaches them', async () => {
     const askMore = vi.fn<(request: unknown) => Promise<{ steps: { teach: string; exercise: string }[]; costUsd: number }>>(async () => ({ steps: [{ teach: 'Gravity assists', exercise: 'Pick one' }], costUsd: 0 }));
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), askMore, canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
     planner.noteCardLesson(PLAN);
+    planner.noteReplyEnded({ wasSafety: false, spoken: 'Empty tanks are dead weight.' });
     expect(askMore).not.toHaveBeenCalled();
     planner.noteCommand({ kind: 'task', id: 'a1', way: 'write', reads: 'words' } as never);
     planner.noteCommand({ kind: 'boardMode', mode: 'teach' } as never);
     await vi.waitFor(() => expect(askMore).toHaveBeenCalledOnce());
-    expect(askMore.mock.calls[0]?.[0]).toMatchObject({ topic: PLAN.topic, taught: PLAN.steps.map(({ teach }) => teach) });
+    expect(askMore.mock.calls[0]?.[0]).toMatchObject({ topic: PLAN.topic, taught: PLAN.steps.map(({ teach }) => teach), said: expect.stringContaining('Empty tanks are dead weight.') });
     await vi.waitFor(() => expect(planner.getStepNote()).toMatchObject({ step: '2 of 4' }));
     planner.noteCommand({ kind: 'task', id: 'a2', way: 'write', reads: 'words' } as never);
     planner.noteCommand({ kind: 'boardMode', mode: 'teach' } as never);

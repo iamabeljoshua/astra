@@ -92,6 +92,25 @@ const getLineBefore = (command: SceneCommand & { kind: 'writeMath' | 'transformM
 
 const CAME_BACK_WHOLE = "nothing needs clearing, hiding, or writing again, because the student's page came back with every line and mark still on it";
 
+const MATH_WORDS = /\\text\{[^}]*\}|\\(?:times|div|cdot|frac|left|right|,|;|!)/g;
+
+/** "100 - 30 = 70" has nothing left to work out, and "2x + 3 = 11" and "100 - 30" do. */
+export function showsItsAnswer(tex: string): boolean {
+  const sides = tex.replace(MATH_WORDS, ' ').split(/=|\\approx/);
+  const [left = '', right = ''] = sides;
+  return sides.length === 2 && !/[a-zA-Z\\]/.test(left + right) && /\d\D+\d/.test(left.trim()) && /^\s*-?[\d.,]+\s*$/.test(right);
+}
+
+export const getAnswerShownProblem = (line: string) => `${line} shows the answer to the exercise. Put only the problem on the board, with no answer, and set the task on that.`;
+
+/** A task on an old worked example is fine when it brings its own problem, so a line only counts here if it names it or this reply just wrote it. */
+export function getGivenAwayProblem(command: SceneCommand, { lines, lastAssertedLine }: BoardMemory, atTurnStart: BoardMemory): string | null {
+  if (command.kind !== 'task' || command.way !== 'write') return null;
+  const lineId = command.on ?? (lastAssertedLine !== null && !atTurnStart.lines.has(lastAssertedLine) ? lastAssertedLine : null);
+  const line = lineId === null ? undefined : lines.get(lineId);
+  return line !== undefined && showsItsAnswer(line) ? getAnswerShownProblem(line) : null;
+}
+
 export function checkAgainstBoard(command: SceneCommand, memory: BoardMemory): CommandVerdict {
   const { lines } = memory;
   // The words after a clear lean on it, as "fresh start" does, so a refused one stops them too.

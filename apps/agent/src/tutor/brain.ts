@@ -3,12 +3,12 @@ import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoar
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { toCardPlan, type CardMaterial } from '../lesson-plan/card-lesson.ts';
 import { asksToBeTaught, getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
-import { LEAD_NOTES, OPENING_A_CARD_NOTE } from '../lesson-plan/lesson-rules.ts';
+import { getPlanWordsProblem, LEAD_NOTES, OPENING_A_CARD_NOTE } from '../lesson-plan/lesson-rules.ts';
 import type { LeadKind } from '../live/tutor-lead.ts';
 import { createAttemptTracker } from './attempts.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
 import { MAY_BE_ABOUT_SAFETY, PLAIN_REFUSALS } from './safety-words.ts';
-import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getClaimProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getPictureProblem, getWordsProblem } from './board-memory.ts';
+import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getAnswerShownProblem, getClaimProblem, getGivenAwayProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getPictureProblem, getWordsProblem, showsItsAnswer } from './board-memory.ts';
 import type { MemoryNote } from '../learner-record/memory-note.ts';
 import { TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
 import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
@@ -394,7 +394,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const levelLine = studentLevel === null ? undefined : prompt.levelLines?.[studentLevel];
     const lead = leadDue;
     leadDue = null;
-    const leadNote = lead ? { lead: LEAD_NOTES[lead === 'next' && isExerciseDueNow() ? 'exercise' : lead] } : null;
+    const isExerciseReply = isExerciseDueNow();
+    const leadNote = lead ? { lead: LEAD_NOTES[lead === 'next' && isExerciseReply ? 'exercise' : lead] } : null;
     const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote, leadNote, isOnACard && turnCount === 1 ? OPENING_A_CARD_NOTE : null].filter((note) => note !== null);
     const turn: TurnWork = {
       isLead: lead !== null,
@@ -406,7 +407,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         board: memory.kinds,
         ...(onAskScene ? { onAskScene } : {}),
         onSafetyReply: () => noteSafetyReply(turn, readerMemory),
-        checkCommand: (command) => checkAgainstBoard(command, readerMemory),
+        checkCommand(command) {
+          // In a reply that sets the exercise this stops the line before the student sees it. Elsewhere the line may be a worked example, so only the task it gives away is stopped.
+          const givenAway = isExerciseReply && command.kind === 'writeMath' && showsItsAnswer(command.tex) ? getAnswerShownProblem(command.tex) : getGivenAwayProblem(command, readerMemory, memory);
+          return givenAway ? { ok: false, problem: givenAway, isWrongMath: true } : checkAgainstBoard(command, readerMemory);
+        },
         onToolCall(call) {
           turn.toolCall = call;
         },
@@ -436,7 +441,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           trace('mathRefused', { problem });
         },
         // Only a first attempt, because help for a student in crisis must get out, even in imperfect words.
-        checkWords: (text) => (onAskScene ? getPictureProblem(text, readerMemory) : null) ?? getWordsProblem(text, readerMemory, turn.beats.length === 0) ?? (turn.attempts < MAX_ATTEMPTS ? getClaimProblem(text) : null),
+        checkWords: (text) => (onAskScene ? getPictureProblem(text, readerMemory) : null) ?? getWordsProblem(text, readerMemory, turn.beats.length === 0) ?? (turn.attempts < MAX_ATTEMPTS ? (getClaimProblem(text) ?? getPlanWordsProblem(text)) : null),
         onWrongWords(problem) {
           turn.wrongWords = problem;
           trace('wordsRefused', { problem });
@@ -896,7 +901,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     lastBeats = turn.beats;
     lastRefused = wasRefused ? [] : turn.refused;
     hidesLastWords = wasRefused;
-    if (turn.beats.length > 0) lessonPlanner?.noteReplyEnded({ wasSafety: turn.reader.isSafetyReply, wasLead: turn.isLead });
+    if (turn.beats.length > 0) lessonPlanner?.noteReplyEnded({ wasSafety: turn.reader.isSafetyReply, wasLead: turn.isLead, spoken: getWordsSaid(turn) });
     const wasSafetyReply = turn.reader.isSafetyReply || (wasRefused && !isPlainRefusal(turn));
     isAfterSafetyReply = wasSafetyReply || (isAfterSafetyReply && !turn.hasModelWords);
     if (wasSafetyReply || MAY_BE_ABOUT_SAFETY.test(turn.studentText)) isLeadStopped = true;
