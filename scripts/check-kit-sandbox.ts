@@ -13,7 +13,8 @@ const KIT_BUNDLE = readFileSync(SCENE_BUNDLES.kit.out, 'utf8');
 const CANVAS_BUNDLE = readFileSync(SCENE_BUNDLES.canvas.out, 'utf8');
 const TIMING = { moments: { start: 0 }, duration: 10 };
 
-const LOAD_LIMIT_MS = 15_000;
+// A frame stops a spinning build after 32 missed beats, 8 s when its timers run on time, and a loaded runner can stretch those beats past 15 s.
+const LOAD_LIMIT_MS = 30_000;
 const SETTLE_MS = 1200;
 const STOP_LIMIT_MS = 5000;
 const RAW_NETWORK_NAMES = 9;
