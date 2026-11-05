@@ -58,9 +58,7 @@ export interface TutorBrain {
   /** A scene landed and its words are being said, so the next turn knows what is on screen and what was heard. */
   noteSceneTurn?(turn: { topic: string; beats: readonly Beat[] }): void;
   getStudentLevel?(): string | null;
-  /** What the words over a scene may draw on, read when the scene is about to play. */
   getStudentFacts?(): Promise<StudentFacts>;
-  /** A reply has started and has written nothing yet. */
   isReplyStarting?(): boolean;
   /** Checks the student's work against the board as the tutor knows it, and notes it for the next turn. Null if the work cannot stand, such as a line id already used. */
   noteWork?(work: StudentWork): { checked: CheckedWork; hadTask: boolean } | null;

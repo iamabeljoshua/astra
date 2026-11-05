@@ -14,13 +14,18 @@ export interface StudentNote {
   detail?: string;
 }
 
-/** What the tutor already holds that these words may draw on. It has no name or id, and none of it is ever saved with a scene. */
 export interface StudentFacts {
   level: string | null;
   interests: readonly string[];
   notes: readonly StudentNote[];
   justSaid: string;
   studentSaid: string;
+}
+
+export interface SceneWordsAsk {
+  scene: StoredScene;
+  student: StudentFacts;
+  askedAbout: string;
 }
 
 const MOST_TOKENS = 700;
@@ -36,10 +41,9 @@ const getLastWords = (text: string, most: number) => text.split(/\s+/).filter(Bo
 
 const getAllowedNumberList = ({ plan, declared, values }: StoredScene) => [...new Set([...getNumbersSaid(`${plan.setup} ${readMarks(plan.narration).text} ${plan.close}`), ...Object.values(declared).flatMap(({ default: start, lo, hi }) => [start, lo, hi]), ...Object.values(values)])].sort((first, second) => first - second);
 
-// A note on another idea has no place in these words, so only this idea's notes leave the tutor.
 const getThisIdeaNotes = (notes: readonly StudentNote[], topic: string) => notes.filter(({ kind, about }) => WORK_KINDS.has(kind) && isSameTopic(about, topic)).map(({ kind, detail }) => ({ kind, ...(detail ? { detail } : {}) }));
 
-function getAskText(scene: StoredScene, student: StudentFacts): string {
+function getAskText({ scene, student, askedAbout }: SceneWordsAsk): string {
   const { setup, narration, close, plan } = scene.plan;
   const ask = {
     topic: scene.topic,
@@ -50,9 +54,9 @@ function getAskText(scene: StoredScene, student: StudentFacts): string {
     student: { level: student.level, interests: student.interests, notes_on_this_idea: getThisIdeaNotes(student.notes, scene.topic) },
     just_said: getLastWords(student.justSaid, MOST_WORDS_JUST_SAID),
     student_said: student.studentSaid.slice(0, MOST_STUDENT_CHARACTERS),
+    asked_about: askedAbout.slice(0, MOST_STUDENT_CHARACTERS),
   };
   return JSON.stringify(ask);
 }
 
-/** The one model call for one scene played. What it returns is not trusted until `checkSceneSpeech` has read it. */
-export const writeSceneSpeech = (reader: JsonReader, scene: StoredScene, student: StudentFacts) => reader.read({ system: getSystem(), text: getAskText(scene, student), schema: SPEECH_SCHEMA, timeoutMs: WRITE_LIMIT_MS, mostTokens: MOST_TOKENS });
+export const writeSceneSpeech = (reader: JsonReader, ask: SceneWordsAsk) => reader.read({ system: getSystem(), text: getAskText(ask), schema: SPEECH_SCHEMA, timeoutMs: WRITE_LIMIT_MS, mostTokens: MOST_TOKENS });

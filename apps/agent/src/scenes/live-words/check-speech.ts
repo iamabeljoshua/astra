@@ -8,7 +8,6 @@ import type { ElementId } from '@astra/contracts';
 import type { LessonPlan, StoredScene } from '../scene-types.ts';
 import { getNumbersSaid } from './number-words.ts';
 
-/** What a scene says. The picture, its moments, and its take stay the saved ones. */
 export type SceneSpeech = Pick<LessonPlan, 'setup' | 'narration' | 'close'>;
 
 export type SpeechProblemKind = 'shape' | 'marks' | 'number' | 'name' | 'banned' | 'length' | 'beats';
@@ -63,7 +62,7 @@ function getNumberProblems(scene: StoredScene, written: SceneSpeech): SpeechProb
 
 const getKnownWords = (scene: StoredScene, interests: readonly string[]) => new Set([getSpokenText(scene.plan), scene.plan.plan, scene.topic, ...interests].join(' ').split(/\s+/).map(toWordKey));
 
-// A capital inside a sentence that the saved words never used is a name no check has cleared, and clearing one would be a second model call.
+// A capital inside a sentence that the scene and the student's interests never used is a name no check has cleared.
 function getNameProblems(scene: StoredScene, written: SceneSpeech, interests: readonly string[]): SpeechProblem[] {
   const known = getKnownWords(scene, interests);
   const text = getSpokenText(written);
@@ -109,7 +108,6 @@ const toPlainText = (text: string) => text.replace(/[\u2018\u2019]/g, "'").trim(
 
 const toTrimmed = ({ setup, narration, close }: SceneSpeech): SceneSpeech => ({ setup: toPlainText(setup), narration: toPlainText(narration), close: toPlainText(close) });
 
-/** Code's word on a reply. Only a reply with no problem at all plays, because the saved words are always there. */
 export function checkSceneSpeech({ scene, written, interests }: { scene: StoredScene; written: unknown; interests: readonly string[] }): SpeechCheck {
   if (!isSceneSpeech(written)) return { isOk: false, problems: [{ kind: 'shape', detail: 'not the three fields' }] };
   const speech = toTrimmed(written);

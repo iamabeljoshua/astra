@@ -2,6 +2,7 @@ const SMALL_NUMBERS: Readonly<Record<string, number>> = { zero: 0, one: 1, two: 
 const SCALES: Readonly<Record<string, number>> = { hundred: 100, thousand: 1000, million: 1_000_000, billion: 1_000_000_000, trillion: 1_000_000_000_000 };
 const AMOUNT_WORDS: Readonly<Record<string, number>> = { half: 0.5, halves: 0.5, quarter: 0.25, quarters: 0.25, twice: 2, double: 2, doubles: 2, triple: 3, triples: 3, thrice: 3, dozen: 12, third: 3, thirds: 3, fourth: 4, fifth: 5, sixth: 6, seventh: 7, eighth: 8, ninth: 9, tenth: 10 };
 const MEASURE_WORDS: ReadonlySet<string> = new Set(['second', 'seconds', 'minute', 'minutes', 'hour', 'hours', 'day', 'days', 'week', 'weeks', 'month', 'months', 'year', 'years', 'meter', 'meters', 'metre', 'metres', 'kilometer', 'kilometers', 'kilometre', 'kilometres', 'mile', 'miles', 'foot', 'feet', 'inch', 'inches', 'yard', 'yards', 'gram', 'grams', 'kilo', 'kilos', 'kilogram', 'kilograms', 'percent', 'degree', 'degrees', 'dollar', 'dollars', 'pound', 'pounds', 'point']);
+const SAYS_ONE_IS_A_NUMBER: ReadonlySet<string> = new Set(['minus', 'negative', 'plus', 'times', 'equals']);
 const TOKEN = /\d+(?:\.\d+)?|\p{L}+/gu;
 const DIGIT_GROUP_COMMA = /(?<=\d),(?=\d{3}\b)/g;
 
@@ -45,9 +46,9 @@ function readNumberRun(tokens: readonly string[], from: number): { value: number
 }
 
 // "One" is mostly a pronoun in speech, as in "this one", so alone it counts only in front of a measure.
-const isBareOne = (tokens: readonly string[], start: number, next: number) => next === start + 1 && tokens[start] === 'one' && !MEASURE_WORDS.has(tokens[next] ?? '');
+const isBareOne = (tokens: readonly string[], start: number, next: number) => next === start + 1 && tokens[start] === 'one' && !MEASURE_WORDS.has(tokens[next] ?? '') && !SAYS_ONE_IS_A_NUMBER.has(tokens[start - 1] ?? '');
 
-/** Every amount a line says, in digits or in words. A sign is not read, so "negative one" and "minus one" are both 1. */
+/** Every amount a line says, in digits or in words, without its sign. */
 export function getNumbersSaid(text: string): number[] {
   const tokens = (text.toLowerCase().replace(DIGIT_GROUP_COMMA, '').match(TOKEN) ?? []) as string[];
   const numbers: number[] = [];

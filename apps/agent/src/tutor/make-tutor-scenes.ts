@@ -107,7 +107,6 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
           }),
       }
     : null;
-  let landWhenSettled: (sceneId: string) => void = () => {};
   const liveWords: LiveSceneWords | null = hasLiveSceneWords() && !isFake && getStudentFacts
     ? createLiveSceneWords({
         reader: makeWordsReader(),
@@ -115,7 +114,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
         isReplyStarting: () => isReplyStarting?.() ?? false,
         canSpend: () => !isClosed() && caps.getSceneUsd() < limitUsd,
         onCost: (usd) => caps.addScene(usd),
-        onSettled: (sceneId) => landWhenSettled(sceneId),
+        onSettled: (sceneId) => scenes.noteWordsSettled(sceneId),
         getNowMs: () => performance.now(),
         trace: hooks.trace,
       })
@@ -160,7 +159,6 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
       asksAlwaysGo: fast !== null,
     });
   }
-  landWhenSettled = scenes.noteWordsSettled;
   return {
     ...scenes,
     queue,

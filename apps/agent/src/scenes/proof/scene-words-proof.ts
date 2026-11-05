@@ -9,7 +9,7 @@ import type { StudentFacts } from '../live-words/write-speech.ts';
 import { getSceneKey, createSceneStore } from '../scene-store.ts';
 import type { StoredScene } from '../scene-types.ts';
 
-// node scene-words-proof.ts --model haiku|openai --store <dir> --out <file.jsonl> [--topics 'a|b'] [--scene <scene.json>] [--limit <n>]. One call for each scene and student, no voice, and nothing saved to the store.
+// node scene-words-proof.ts --model haiku|openai --store <dir> --out <file.jsonl> [--topics 'a|b'] [--scene <scene.json>] [--limit <n>]
 const SAVED_TOPICS = ['What a quadratic is really asking', 'How a rocket escapes Earth', 'Why a free kick curves', 'What really causes the seasons'];
 const NOTE_WORD: Readonly<Record<string, string>> = { 'What a quadratic is really asking': 'quadratic equations', 'How a rocket escapes Earth': 'rocket speed', 'Why a free kick curves': 'free kick spin', 'What really causes the seasons': 'seasons and tilt' };
 
@@ -22,6 +22,7 @@ const getStudents = (scene: StoredScene, justSaid: string): Record<string, Stude
   football: { level: 'high_school', interests: ['football'], notes: [], justSaid, studentSaid: 'ok go on' },
   struggled: { level: 'high_school', interests: [], notes: [{ kind: 'struggled', about: NOTE_WORD[scene.topic] ?? scene.topic }], justSaid, studentSaid: "i don't really get it" },
   nothingKnown: { level: null, interests: [], notes: [], justSaid, studentSaid: '' },
+  footballFirstThing: { level: 'high_school', interests: ['football'], notes: [], justSaid: '', studentSaid: '' },
 });
 
 const getJustSaid = (scene: StoredScene) => scene.plan.opening.map(({ say }) => say).slice(0, 2).join(' ') || `So let's see ${scene.topic.toLowerCase()}.`;
@@ -36,7 +37,7 @@ async function runOne(scene: StoredScene, student: StudentFacts, reader: JsonRea
   let settle = () => {};
   const settled = new Promise<void>((resolve) => (settle = resolve));
   const words = createLiveSceneWords({ reader, getStudent: async () => student, isReplyStarting: () => false, canSpend: () => true, onCost: (usd) => (fields.costUsd = usd), onSettled: () => settle(), getNowMs: () => performance.now(), trace: (_name, traced = {}) => Object.assign(fields, traced) });
-  words.begin(scene);
+  words.startOnce(scene, scene.topic.toLowerCase());
   await settled;
   const read = words.read(scene.id);
   const beats = getTutorSceneBeats({ plan: read.kind === 'live' ? read.speech : scene.plan, scene, number: 1 });

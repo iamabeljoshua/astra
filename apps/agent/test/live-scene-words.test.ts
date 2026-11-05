@@ -38,6 +38,7 @@ describe('reading the numbers a line says', () => {
     ['x squared minus two x minus three', [2, 3]],
     ['the one on the left, and this one', []],
     ['one second later', [1]],
+    ['it crosses at negative one and at minus one', [1, 1]],
   ])('%s', (text, numbers) => {
     expect(getNumbersSaid(text)).toEqual(numbers);
   });
@@ -279,7 +280,7 @@ describe('a saved scene in a lesson', () => {
       expect(liveWords.read(SCENE.id)).toEqual({ kind: 'saved' });
       expect(spoken).toEqual([]);
       scenes.noteStudentTurn();
-      liveWords.begin({ ...SCENE, id: `scene-${'b'.repeat(40)}` });
+      liveWords.startOnce({ ...SCENE, id: `scene-${'b'.repeat(40)}` }, TOPIC);
       await flush();
       expect(read).toHaveBeenCalledTimes(1);
     });

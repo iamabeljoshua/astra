@@ -7,7 +7,7 @@ import type { LiveSceneWords } from '../scenes/live-words/live-scene-words.ts';
 import type { TopicRuns } from '../scenes/lesson/topic-runs.ts';
 import { getSceneCommand, KIT_ASK_LIMIT_MS, SHOW_WINDOW_MS, type SceneState } from '../scenes/scene-desk.ts';
 import { getSceneKey, type SceneStore } from '../scenes/scene-store.ts';
-import type { LessonPlan, SceneFitReader, SceneRouter, StoredScene } from '../scenes/scene-types.ts';
+import type { SceneFitReader, SceneRouter, StoredScene } from '../scenes/scene-types.ts';
 import type { AheadNews } from '../scene-queue/scene-queue.ts';
 import type { SceneHeard } from '../live/live-session.ts';
 import type { TutorBeat } from './brain.ts';
@@ -26,7 +26,6 @@ const RECHECK_PAUSE_MS = 500;
 export const ASK_LIMIT_MS = 35_000;
 /** The greeting takes about 3 s, so a card's first words wait this long at most for a page that is slow to take the scene, and a reply starts at once when no scene is saved. */
 const OPENING_WAIT_MS = 2500;
-/** The longest a scene that could land waits on its live words. Past this it says its saved words. */
 export const LIVE_WORDS_WAIT_MS = 1500;
 const EARLY_PICTURE_HOLD_MS = 2500;
 
@@ -90,7 +89,6 @@ export interface TutorScenes {
   /** The student pressed End or left, so nothing more is asked or lands. A scene already on screen can still come back to a reloaded page. */
   close(): void;
   noteSentenceBreak(): void;
-  /** The live words for this scene are ready or have failed, so a scene held for them need not wait. */
   noteWordsSettled(sceneId: string): void;
   /** The greeting has ended, and a reply's first word can be on its way, so a picture that is ready goes now. */
   noteReactionOver(): void;
@@ -115,8 +113,7 @@ interface SceneAsk {
   isAhead: boolean;
   isOpening: boolean;
   canLandOnSentence: boolean;
-  /** When this scene could first have landed, were its live words ready. */
-  wordsDueAtMs: number | null;
+  heldForWordsSinceMs: number | null;
   /** Asked from the student's own question before the page joined, so the opening line that follows is not a new turn. */
   isEarly: boolean;
   /** Written live in 3D, which takes longer than a student stays quiet, so a student's turn does not end it. */
@@ -218,11 +215,10 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
     return words?.kind === 'live' ? { speech: words.speech, isLive: true } : { speech: scene.plan, isLive: false };
   };
 
-  // Mid-reply the student is hearing the tutor, so this is a wait in the words and not a silence, and at a pause it is the only silence this feature can add.
   const holdForWords = (ask: SceneAsk, scene: StoredScene) => {
     if (liveWords?.read(scene.id).kind !== 'writing') return false;
-    ask.wordsDueAtMs ??= getNowMs();
-    const leftMs = LIVE_WORDS_WAIT_MS - (getNowMs() - ask.wordsDueAtMs);
+    ask.heldForWordsSinceMs ??= getNowMs();
+    const leftMs = LIVE_WORDS_WAIT_MS - (getNowMs() - ask.heldForWordsSinceMs);
     if (leftMs <= 0) return false;
     if (ask.recheck) clearTimeout(ask.recheck);
     ask.recheck = setTimeout(() => land(ask), leftMs);
@@ -230,7 +226,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
   };
 
   const show = (ask: SceneAsk, scene: StoredScene, beats: readonly TutorBeat[], isLive: boolean) => {
-    if (liveWords) trace('sceneWordsLanded', { words: isLive ? 'live' : 'saved', heldMs: ask.wordsDueAtMs === null ? 0 : Math.round(getNowMs() - ask.wordsDueAtMs) });
+    if (liveWords) trace('sceneWordsLanded', { words: isLive ? 'live' : 'saved', heldMs: ask.heldForWordsSinceMs === null ? 0 : Math.round(getNowMs() - ask.heldForWordsSinceMs) });
     onScreen = scene;
     if (fast) screen = noteSceneLanded(screen, { scene, elementId: `scene-${scenesShown}` as ElementId, lessonTitle, beats });
     shownSceneIds.add(scene.id);
@@ -318,7 +314,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
       return;
     }
     if (!fast && ((state.kind === 'making' && state.route.engine === 'kit') || (state.kind === 'ready' && state.scene.engine === 'kit' && !ask.isKit))) keepAskForKit(ask);
-    if (state.kind === 'ready') liveWords?.begin(state.scene);
+    if (state.kind === 'ready') liveWords?.startOnce(state.scene, ask.topic);
     if (state.kind === 'ready' && device !== 'unknown') loadInPage(ask, state.scene);
     if (state.kind === 'declined' || state.kind === 'failed') end(ask, state.kind);
   };
@@ -337,7 +333,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
     const work: SceneWork = fast
       ? fast.makeWork({ request, isCard, studentId, canPlayTakes, canDrawRecipes, canWriteLive: !isAhead, onLiveWrite: () => keepAskForKit(ask), getNowMs, onChange })
       : createLessonWork({ router, runs, ...(kitRuns && !isAhead ? { kitRuns } : {}), ...(fitReader && !isAhead ? { fitReader } : {}), store, request, isCard, studentId, getNowMs, isOnlyForScene: true, onChange });
-    const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: null, windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isAhead, isOpening: isCard && !isAhead && opening.kind === 'possible', canLandOnSentence: true, wordsDueAtMs: null, isEarly: false, isKit: false };
+    const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: null, windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isAhead, isOpening: isCard && !isAhead && opening.kind === 'possible', canLandOnSentence: true, heldForWordsSinceMs: null, isEarly: false, isKit: false };
     works.push(work);
     trace('sceneAsked', { text: topic, isCard, isAhead });
     return ask;
@@ -364,7 +360,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
     startClock(ask);
     const state = ask.work.desk.getState();
     if (state.kind === 'ready') {
-      liveWords?.begin(state.scene);
+      liveWords?.startOnce(state.scene, ask.topic);
       land(ask);
     } else if (state.kind === 'declined' || state.kind === 'failed') end(ask, state.kind);
   };
@@ -565,7 +561,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
           resolve(beats);
         };
         if (current) {
-          current.wordsDueAtMs ??= getNowMs();
+          current.heldForWordsSinceMs ??= getNowMs();
           land(current);
         }
       });
@@ -643,7 +639,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
       if (current) land(current, 'sentence');
     },
     noteWordsSettled(sceneId) {
-      if (current?.wordsDueAtMs != null && getSceneWaiting(current)?.id === sceneId) land(current);
+      if (current?.heldForWordsSinceMs != null && getSceneWaiting(current)?.id === sceneId) land(current);
     },
     noteReactionOver() {
       if (current?.isEarly) land(current);

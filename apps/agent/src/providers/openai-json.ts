@@ -1,10 +1,10 @@
 import type { JsonReader } from './anthropic.ts';
+import { OPENAI_PRICES } from './openai.ts';
 
 const OPENAI_URL = 'https://api.openai.com/v1';
 const TOKENS_PER_MILLION = 1_000_000;
-/** Dollars per million tokens, from OpenAI's model page, read 5 November 2026. */
-const PRICES = { input: 0.75, cacheRead: 0.075, output: 4.5 };
 const MODEL = 'gpt-5.4-mini';
+const PRICES = OPENAI_PRICES[MODEL];
 
 interface JsonReply {
   choices: readonly { message: { content: string | null } }[];
