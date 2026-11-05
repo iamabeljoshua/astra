@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { AutoSubscribe, cli, defineAgent, inference, initializeLogger, type JobContext, type JobProcess, ServerOptions } from '@livekit/agents';
 import { randomUUID } from 'node:crypto';
-import { AudioSource, DisconnectReason, LocalAudioTrack, type RemoteParticipant, RoomEvent, TrackPublishOptions, TrackSource } from '@livekit/rtc-node';
+import { AudioSource, DataPacketKind, DisconnectReason, LocalAudioTrack, type RemoteParticipant, RoomEvent, TrackPublishOptions, TrackSource } from '@livekit/rtc-node';
 import { type AgentMessage, parseBrowserMessage, parseSceneBrowserMessage, PULSE_EVERY_MS, SCENE_TOPIC, type SceneAgentMessage } from '@astra/contracts';
 import { readKey } from '../keys.ts';
 import { renderNothing, renderTone } from '../providers/fakes.ts';
@@ -11,6 +11,7 @@ import { makeTutorTranscriber, makeTutorVoice } from '../providers/choose.ts';
 import { makeRenderedVoice, RENDERED_SAMPLE_RATE } from '../providers/rendered-voice.ts';
 import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
 import { createClosingWait } from './closing-wait.ts';
+import { createEarlyMessages } from './early-messages.ts';
 import { createLiveSession, type SceneHeard } from './live-session.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
@@ -199,13 +200,12 @@ async function runSession(context: JobContext): Promise<void> {
     if (read.ok) trace('mark', { mark: read.value });
   };
 
-  room.on(RoomEvent.DataReceived, (payload, participant, _kind, topic) => {
-    if (!participant?.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
+  const readFromStudent = (payload: Uint8Array, identity: string, topic: string | undefined) => {
     if (topic === LAB_TOPIC) return noteMark(payload);
     if (topic === SCENE_TOPIC) {
       const message = readDataMessage(payload);
       const scene = message.ok ? parseSceneBrowserMessage(message.value) : message;
-      if (scene.ok) scenes?.onPage(scene.value, participant.identity.slice(STUDENT_IDENTITY_PREFIX.length));
+      if (scene.ok) scenes?.onPage(scene.value, identity.slice(STUDENT_IDENTITY_PREFIX.length));
       return;
     }
     if (topic !== LIVE_TOPIC) return;
@@ -214,11 +214,23 @@ async function runSession(context: JobContext): Promise<void> {
     if (!parsed.ok) return trace('messageRefused', { problem: parsed.problem });
     closing.cancel();
     session.onBrowser(parsed.value);
+  };
+  const earlyMessages = createEarlyMessages();
+
+  room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+    if (!participant) {
+      if (kind === DataPacketKind.KIND_RELIABLE) earlyMessages.hold({ payload, topic });
+      return;
+    }
+    if (participant.identity.startsWith(STUDENT_IDENTITY_PREFIX)) readFromStudent(payload, participant.identity, topic);
   });
   room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
     if (!participant.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
     trace('studentJoined');
     closing.cancel();
+    const early = earlyMessages.take();
+    if (early.length > 0) trace('earlyMessagesRead', { count: early.length });
+    for (const { payload, topic } of early) readFromStudent(payload, participant.identity, topic);
   });
   room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
     if (!participant.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
