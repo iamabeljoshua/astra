@@ -547,6 +547,7 @@ describe('small things a long lesson says', () => {
   it('sends back a reply that announces a fix, and takes "Next up:" off a sentence', async () => {
     expect(getLessonWordsProblem('One small fix to something I said earlier.')).not.toBeNull();
     expect(getLessonWordsProblem('Slight fix: drag points down on the way up.')).not.toBeNull();
+    expect(getLessonWordsProblem('I need to correct something: the Moon is smaller.')).not.toBeNull();
     expect(getLessonWordsProblem('Careful, "slowest" isn\'t quite right. It is still moving fast.')).not.toBeNull();
     expect(getLessonWordsProblem('That isn\'t quite right, so look at the sign.')).toBeNull();
     expect(getLessonWordsProblem('A slight fix to the orbit needs little fuel.')).toBeNull();
@@ -579,10 +580,18 @@ describe('small things a long lesson says', () => {
     expect(compactions).toBeLessThanOrEqual(2);
   });
 
+  it('tells the planner which exercises the lesson has already set', async () => {
+    const asked: string[] = [];
+    const planner = makePlanner({ askMore: async ({ exercises }: { exercises: readonly string[] }) => (asked.push(...exercises), { steps: [], costUsd: 0 }) });
+    planner.noteCardLesson({ topic: 'Rockets', kind: 'teachFirst', steps: [{ teach: 'climb', exercise: 'Put the flight in order' }, { teach: 'turn', exercise: 'work out 8 minus 1' }] });
+    planner.noteStudentWords({ words: 'teach me more', isOpening: false, tutorSaid: '' });
+    await vi.waitFor(() => expect(asked).toContain('Put the flight in order'), { timeout: 300 });
+  });
+
   it('asks the planner for digits on steps it adds to a measured topic', async () => {
     let system = '';
     const reader = { read: async (ask: { system: string }) => ((system = ask.system), { answer: { steps: [] }, costUsd: 0 }) };
-    await askMoreSteps(reader as never, { topic: 'Rockets', taught: [], said: '', most: 2 });
+    await askMoreSteps(reader as never, { topic: 'Rockets', taught: [], exercises: [], said: '', most: 2 });
     expect(system).toMatch(/digits/);
   });
 

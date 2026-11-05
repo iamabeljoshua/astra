@@ -138,6 +138,8 @@ export function getStateWithMoreSteps(state: LessonState, topic: string, steps: 
 
 export const getStepsTaught = ({ active }: LessonState) => active?.plan.steps.flatMap(({ teach }) => teach ?? []) ?? [];
 
+export const getExercisesSet = ({ active }: LessonState) => active?.plan.steps.map(({ exercise }) => exercise) ?? [];
+
 export const isNearTheEnd = ({ active }: LessonState) => active !== null && active.plan.kind === 'teachFirst' && active.stepIndex >= active.plan.steps.length - 2;
 
 export const getStepCount = ({ active }: LessonState) => active?.plan.steps.length ?? 0;

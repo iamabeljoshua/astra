@@ -28,7 +28,7 @@ export const OPENING_A_CARD_NOTE = { opening_a_card: 'Open on the idea itself, i
 
 const NAMES_THE_PLAN = /\b(?:(?:whole|lesson|my|our|your) plan|plan (?:is |was )?(?:covered|done|finished|stale|out of date)|the student\b|(?:last|final) (?:idea|exercise|problem|one for this idea))\b/i;
 
-const ANNOUNCES_A_CORRECTION = /\b(?:quick|small|one) correction\b|\bcorrection on my\b|\bcorrect(?:ing)? myself\b|\bI misspoke\b|\bmy last line\b|^\s*slight fix\b|\bfix to something i said\b|^\s*careful\b[^.]*\bisn'?t quite right\b/i;
+const ANNOUNCES_A_CORRECTION = /\b(?:quick|small|one) correction\b|\bcorrection on my\b|\bcorrect(?:ing)? myself\b|\bI misspoke\b|\bmy last line\b|^\s*slight fix\b|\bi need to correct\b|\bfix to something i said\b|^\s*careful\b[^.]*\bisn'?t quite right\b/i;
 
 export function getLessonWordsProblem(text: string): string | null {
   if (NAMES_THE_PLAN.test(text)) return 'Never tell them about a plan, or how much of the lesson is left. Carry straight on, and say it without that.';

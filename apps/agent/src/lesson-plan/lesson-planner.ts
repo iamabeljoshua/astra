@@ -3,7 +3,7 @@ import type { SceneCommand, StudentWork } from '@astra/contracts';
 import type { ClaimsAnswer, ClaimsAsk, MoreAnswer, MoreAsk, PlanAnswer, PlanAsk, PlanWants } from './ask-planner.ts';
 import { getTrustedMove, isSensitive, type LessonPlan, type PlanMove } from './lesson-plan.ts';
 import { readStudentWish } from './student-wish.ts';
-import { getShelvedTopics, getStateAfterEvent, getStateAfterMove, getStateWithMoreSteps, getStepCount, getStepsTaught, getStepNote, isNearTheEnd, type LessonEvent, type LessonState, NO_LESSON, type StepNote } from './plan-progress.ts';
+import { getShelvedTopics, getStateAfterEvent, getStateAfterMove, getStateWithMoreSteps, getExercisesSet, getStepCount, getStepsTaught, getStepNote, isNearTheEnd, type LessonEvent, type LessonState, NO_LESSON, type StepNote } from './plan-progress.ts';
 
 export interface HeardWords {
   words: string;
@@ -177,7 +177,7 @@ export function createLessonPlanner({ ask, askMore, askClaims, canSpend, charge,
     if (!askMore || !topic || isAskingMore || !isNearTheEnd(state) || getStepCount(state) >= MOST_STEPS_IN_A_LESSON || timesAskedForMore >= MOST_TIMES_ASKED_FOR_MORE || !canSpend()) return;
     isAskingMore = true;
     timesAskedForMore += 1;
-    void askMore({ topic, taught: getStepsTaught(state), said: saidSoFar, most: MOST_STEPS_IN_A_LESSON - getStepCount(state) })
+    void askMore({ topic, taught: getStepsTaught(state), exercises: getExercisesSet(state), said: saidSoFar, most: MOST_STEPS_IN_A_LESSON - getStepCount(state) })
       .then(({ steps, costUsd }) => {
         charge(costUsd);
         trace('planExtended', { steps: steps.length, costUsd });
