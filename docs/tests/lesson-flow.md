@@ -115,7 +115,7 @@ One lesson on the rocket card, real Sonnet and Haiku, the fake voice in real tim
 | Run | Ideas | Scenes | Exercises | Taught for | Longest quiet, nothing open | First text p50, early and late | Cost | Voice |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 12 ideas at most | 12 | 6 | 8 number problems, 3 place, 1 pick | 16.8 min | 3.1 s | 2174, 2037 ms | $0.027 a minute | 620 characters a minute |
-| 14 ideas at most, compaction forced at 30,000 tokens | 14 | 6 | 1 number problem, 9 written, 1 own words, 3 place | 17.9 min | 3.5 s while teaching | 2317, 1474 ms | $0.021 a minute | 610 characters a minute |
+| 14 ideas at most, compaction forced at 30,000 tokens | 14 | 6 | 1 number problem, 9 written, 1 own words, 3 place | 17.9 min | 3.8 s while teaching, then 75 s held after its one check | 2317, 1474 ms | $0.021 a minute | 610 characters a minute |
 
 The 16 ideas now allowed should reach about 20 minutes, an estimate from about 75 s an idea, and no run has measured it. 610 characters a minute is about 136 credits a minute, about 2,700 credits for 20 minutes, on the fake voice's pace. The first run's prompt reached 59,041 tokens, about 450 a reply, so the real trigger of 60,000 fires at about 20 minutes. The second run compacted twice, at 577 s and 935 s, and the lesson carried on with nothing said word for word again.
 

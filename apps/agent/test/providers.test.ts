@@ -1,6 +1,6 @@
 import { initializeLogger, type stt } from '@livekit/agents';
 import { AudioFrame } from '@livekit/rtc-node';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { makeTutorVoice, TUTOR_VOICE_ID } from '../src/providers/choose.ts';
 import { makeElevenLabsVoice } from '../src/providers/elevenlabs.ts';
 import { makeMuseTranscriber, MUSE_MODEL, MUSE_TIMINGS, type MuseTimings } from '../src/providers/meta.ts';
@@ -211,6 +211,80 @@ describe('the Muse adapter', () => {
     expect(muse?.getConnectionCount()).toBe(2);
     stream.close();
     await transcriber.close();
+  });
+
+  describe('ending a line', () => {
+    async function openLine(timings: Partial<MuseTimings> = {}) {
+      const notes: string[] = [];
+      muse = await startFakeMuseWire({ handshakeMs: 0 });
+      const transcriber = makeMuseTranscriber({ apiKey: 'fake', webSocketFactory: (url, options) => (muse as FakeMuseWire).makeSocket(url, options), timings: { padAfterMs: 20, lineTailMs: 40, ...timings }, onNote: (note) => notes.push(note.kind) }).makeStt();
+      const stream = transcriber.stream();
+      await consume(stream);
+      stream.pushFrame(makeFrame());
+      await delay(30);
+      stream.pushFrame(makeFrame());
+      await delay(30);
+      return { transcriber, stream, notes };
+    }
+
+    it('tells Muse the line ended and opens the next session at once, so the next line does not wait for a handshake', async () => {
+      const { transcriber, stream, notes } = await openLine();
+      transcriber.endLine();
+      await vi.waitFor(() => expect(notes).toContain('lineFlushed'), { timeout: 3000 });
+      expect(muse?.getEndStreamCount()).toBe(1);
+      expect(muse?.getConnectionCount()).toBe(2);
+      expect(muse?.getOpenCount()).toBe(1);
+      stream.close();
+      await transcriber.close();
+    });
+
+    it('waits for the sound still on its way, so the last word reaches Muse before the end does', async () => {
+      const { transcriber, stream } = await openLine({ lineTailMs: 150 });
+      transcriber.endLine();
+      await delay(80);
+      expect(muse?.getEndStreamCount()).toBe(0);
+      await vi.waitFor(() => expect(muse?.getEndStreamCount()).toBe(1), { timeout: 2000 });
+      stream.close();
+      await transcriber.close();
+    });
+
+    it('says hearing again for the next line on the warm session', async () => {
+      const { transcriber, stream, notes } = await openLine();
+      const hearingBefore = notes.filter((kind) => kind === 'hearing').length;
+      transcriber.endLine();
+      await vi.waitFor(() => expect(notes).toContain('lineFlushed'), { timeout: 3000 });
+      stream.pushFrame(makeFrame());
+      await delay(20);
+      expect(notes.filter((kind) => kind === 'hearing').length).toBe(hearingBefore + 1);
+      stream.close();
+      await transcriber.close();
+    });
+
+    it('stays open longer after a line than a microphone left off does, so a student holding again does not pay a handshake', async () => {
+      const { transcriber, stream } = await openLine({ closeAfterQuietMs: 100, closeAfterLineMs: 600 });
+      transcriber.endLine();
+      await delay(300);
+      expect(muse?.getOpenCount()).toBe(1);
+      await delay(600);
+      expect(muse?.getOpenCount()).toBe(0);
+      stream.close();
+      await transcriber.close();
+    });
+
+    it('has a warm window of a minute, against 10 s for a microphone left off', () => {
+      expect(MUSE_TIMINGS.closeAfterLineMs).toBe(60_000);
+    });
+
+    it('reports a line with no session as flushed, so nobody waits on it', async () => {
+      const notes: string[] = [];
+      muse = await startFakeMuseWire({ handshakeMs: 0 });
+      const transcriber = makeMuseTranscriber({ apiKey: 'fake', webSocketFactory: (url, options) => (muse as FakeMuseWire).makeSocket(url, options), onNote: (note) => notes.push(note.kind) }).makeStt();
+      const stream = transcriber.stream();
+      transcriber.endLine();
+      await vi.waitFor(() => expect(notes).toContain('lineFlushed'), { timeout: 1000 });
+      stream.close();
+      await transcriber.close();
+    });
   });
 
   it('pads silence when frames stop, because no frames means no final and Muse closes at 16 s', async () => {

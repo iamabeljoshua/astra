@@ -84,6 +84,7 @@ async function runSession(context: JobContext): Promise<void> {
         hearingSinceMs ??= Date.now();
         publish({ type: 'earsOpen' });
       }
+      if (note.kind === 'lineFlushed') session.onEars({ type: 'lineFlushed' });
     },
   }).makeStt();
   const allTakes = loadTakes();
@@ -125,6 +126,7 @@ async function runSession(context: JobContext): Promise<void> {
     takes: createTakePicker(allTakes),
     allTakes,
     setTurnCap: (ms) => ears?.setTurnCap(ms),
+    endLine: () => transcriber.endLine(),
     onQuietLimit: () => void setTimeout(() => context.shutdown('the room stayed quiet'), SAY_WHY_BEFORE_CLOSING_MS),
     ...(process.env.ASTRA_QUIET_LIMIT_MS ? { quietLimitMs: Number(process.env.ASTRA_QUIET_LIMIT_MS) } : {}),
     trace,

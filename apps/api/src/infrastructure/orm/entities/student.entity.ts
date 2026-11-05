@@ -20,6 +20,9 @@ export class StudentEntity {
   @Column('date', { name: 'birth_date' })
   birthDate!: string;
 
+  @Column('timestamptz', { name: 'talk_invited_at', nullable: true })
+  talkInvitedAt!: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt!: Date;
 

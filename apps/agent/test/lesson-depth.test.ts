@@ -455,6 +455,15 @@ describe('the tutor leads', () => {
     expect(asked.at(-1)).toBe(LEAD_WORDS.checkIn);
   }, 25_000);
 
+  it('goes on by itself no sooner than the student lets go of hold to talk', async () => {
+    const { asked, session, type } = startLeading({ answers: (request, index) => (index === 0 ? [makeBeat('q', 'Which way?', true)] : teaching(request, index)), leadTimings: { ...FAST, afterQuestionMs: 200 } });
+    type('teach me rockets');
+    await vi.waitFor(() => expect(asked.length).toBe(1), { timeout: 2000 });
+    session.onBrowser({ type: 'holdStarted', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
+    await delay(1500);
+    expect(asked.length).toBe(1);
+  }, 8000);
+
   it('after a crisis nothing continues by itself', async () => {
     const { asked, type, leads } = startLeading({ answers: teaching, canLead: () => false });
     type('i want to hurt myself');

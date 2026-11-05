@@ -37,6 +37,10 @@ const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|(?:[a-z]\.
 const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
 /** A sentence can end inside a beat, when the words after a comma were too few to stand alone. */
 const HOLDS_SENTENCE_END = /[a-z][.!]["')]*\s+\S/i;
+export const NAMES_HELP = /\b(?:adult|emergency)\b/i;
+
+/** A false match costs only a line of chat, so this leans toward counting a lesson that says "adult". */
+export const isAboutSafety = (words: string) => SAFETY_REPLY.test(words) || NAMES_HELP.test(words);
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
 const PRIVATE_TAGS: ReadonlySet<string> = new Set(['thinking', 'think', 'reasoning', 'scratchpad', 'analysis', 'reflection', 'function_calls', 'invoke', 'parameter', 'system', 'system-reminder']);

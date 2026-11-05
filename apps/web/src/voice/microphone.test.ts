@@ -5,6 +5,7 @@ interface FakeLine {
   id: number;
   stopped: boolean;
   stop(): void;
+  finish(): Promise<void>;
 }
 
 function makeFake({ captureFails, publishFails }: { captureFails?: string; publishFails?: boolean } = {}) {
@@ -13,11 +14,13 @@ function makeFake({ captureFails, publishFails }: { captureFails?: string; publi
   const states: MicState[] = [];
   const waits: (() => void)[] = [];
   const letCaptureFinish = () => waits.splice(0).forEach((finish) => finish());
+  const drains: { line: FakeLine; drain: () => void }[] = [];
+  const letLineDrain = () => drains.shift()?.drain();
   const microphone = createMicrophone<FakeLine>({
     capture: async () => {
       await new Promise<void>((resolve) => waits.push(resolve));
       if (captureFails) throw new DOMException('no', captureFails);
-      const line: FakeLine = { id: lines.length, stopped: false, stop: vi.fn(function stop(this: FakeLine) { line.stopped = true; }) };
+      const line: FakeLine = { id: lines.length, stopped: false, stop: vi.fn(function stop(this: FakeLine) { line.stopped = true; drains.find((waiting) => waiting.line === line)?.drain(); }), finish: () => new Promise<void>((drain) => drains.push({ line, drain })) };
       lines.push(line);
       return line;
     },
@@ -28,7 +31,7 @@ function makeFake({ captureFails, publishFails }: { captureFails?: string; publi
     unpublish: async (line) => void published.delete(line),
     onState: (state) => states.push(state),
   });
-  return { microphone, lines, published, states, letCaptureFinish };
+  return { microphone, lines, published, states, letCaptureFinish, letLineDrain };
 }
 
 const flush = async () => {
@@ -152,8 +155,8 @@ describe('the microphone', () => {
     let finishPublishing = () => {};
     const stopped: boolean[] = [];
     const states: MicState[] = [];
-    const microphone = createMicrophone<{ stop(): void }>({
-      capture: async () => ({ stop: () => stopped.push(true) }),
+    const microphone = createMicrophone<{ stop(): void; finish(): Promise<void> }>({
+      capture: async () => ({ stop: () => stopped.push(true), finish: async () => {} }),
       publish: () => new Promise<void>((resolve) => { finishPublishing = resolve; }),
       unpublish: async () => {},
       onState: (state) => states.push(state),
@@ -171,10 +174,10 @@ describe('the microphone', () => {
 
   it('opens a new line for off and on while the room still takes the old track, and never two at once', async () => {
     let finishPublishing = () => {};
-    const lines: { stopped: boolean; stop(): void }[] = [];
-    const microphone = createMicrophone<{ stopped: boolean; stop(): void }>({
+    const lines: { stopped: boolean; stop(): void; finish(): Promise<void> }[] = [];
+    const microphone = createMicrophone<{ stopped: boolean; stop(): void; finish(): Promise<void> }>({
       capture: async () => {
-        const open = { stopped: false, stop() { open.stopped = true; } };
+        const open = { stopped: false, stop() { open.stopped = true; }, finish: async () => {} };
         lines.push(open);
         return open;
       },
@@ -210,3 +213,126 @@ describe('the microphone', () => {
     expect(published.size).toBe(0);
   });
 });
+
+describe('finishing a held line', () => {
+  async function openLine() {
+    const fake = makeFake();
+    void fake.microphone.setOn(true);
+    await flush();
+    fake.letCaptureFinish();
+    await flush();
+    return fake;
+  }
+
+  it('says off at once, and keeps the line in the room until what it holds has gone', async () => {
+    const { microphone, lines, published, states, letLineDrain } = await openLine();
+    void microphone.finishLine();
+    expect(states.at(-1)).toBe('off');
+    expect(microphone.getState()).toBe('off');
+    await flush();
+    expect(published.has(lines[0] as FakeLine)).toBe(true);
+    expect(lines[0]?.stopped).toBe(false);
+    letLineDrain();
+    await flush();
+    expect(lines[0]?.stopped).toBe(true);
+    expect(published.size).toBe(0);
+  });
+
+  it('still answers to the agent while it leaves, so its held sound can go', async () => {
+    const { microphone, lines } = await openLine();
+    void microphone.finishLine();
+    expect(microphone.getLine()).toBe(lines[0]);
+  });
+
+  it('is dropped by any off press while it leaves', async () => {
+    const { microphone, lines, published } = await openLine();
+    void microphone.finishLine();
+    void microphone.setOn(false);
+    await flush();
+    expect(lines[0]?.stopped).toBe(true);
+    expect(published.size).toBe(0);
+    expect(microphone.getLine()).toBe(null);
+  });
+
+  it('is dropped when the microphone closes, and closing waits for it to leave', async () => {
+    const { microphone, lines, published } = await openLine();
+    void microphone.finishLine();
+    await microphone.close();
+    expect(lines[0]?.stopped).toBe(true);
+    expect(published.size).toBe(0);
+  });
+
+  it('captures a new press at once, and publishes it only once the old line has left', async () => {
+    const { microphone, lines, published, letCaptureFinish, letLineDrain } = await openLine();
+    void microphone.finishLine();
+    void microphone.setOn(true);
+    await flush();
+    letCaptureFinish();
+    await flush();
+    expect(lines).toHaveLength(2);
+    expect(published.has(lines[1] as FakeLine)).toBe(false);
+    letLineDrain();
+    await flush();
+    expect(published.has(lines[0] as FakeLine)).toBe(false);
+    expect(published.has(lines[1] as FakeLine)).toBe(true);
+    expect(microphone.getState()).toBe('on');
+  });
+
+  it('sends a line finished while another still leaves, in order, and loses no line', async () => {
+    const { microphone, lines, published, letCaptureFinish, letLineDrain } = await openLine();
+    void microphone.finishLine();
+    void microphone.setOn(true);
+    await flush();
+    letCaptureFinish();
+    await flush();
+    void microphone.finishLine();
+    await flush();
+    expect(published.has(lines[1] as FakeLine)).toBe(false);
+    expect(microphone.getLine()).toBe(lines[0]);
+    letLineDrain();
+    await flush();
+    expect(published.has(lines[0] as FakeLine)).toBe(false);
+    expect(published.has(lines[1] as FakeLine)).toBe(true);
+    expect(microphone.getLine()).toBe(lines[1]);
+    letLineDrain();
+    await flush();
+    expect(published.size).toBe(0);
+    expect(microphone.getLine()).toBe(null);
+  });
+
+  it('takes a third press while two lines wait, without waiting on them to capture', async () => {
+    const { microphone, lines, letCaptureFinish } = await openLine();
+    void microphone.finishLine();
+    void microphone.setOn(true);
+    await flush();
+    letCaptureFinish();
+    await flush();
+    void microphone.finishLine();
+    void microphone.setOn(true);
+    await flush();
+    letCaptureFinish();
+    await flush();
+    expect(lines).toHaveLength(3);
+    expect(microphone.getState()).toBe('on');
+  });
+
+  it('ends a capture still opening, with nothing left on', async () => {
+    const { microphone, lines, published, letCaptureFinish } = makeFake();
+    void microphone.setOn(true);
+    await flush();
+    void microphone.finishLine();
+    letCaptureFinish();
+    await flush();
+    expect(lines[0]?.stopped).toBe(true);
+    expect(published.size).toBe(0);
+    expect(microphone.getState()).toBe('off');
+    expect(microphone.getLine()).toBe(null);
+  });
+
+  it('does nothing with no line', async () => {
+    const { microphone, states } = makeFake();
+    await microphone.finishLine();
+    expect(states).toEqual([]);
+  });
+});
+

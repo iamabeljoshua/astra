@@ -6,7 +6,7 @@ import { asksToBeTaught, getProblemNote, getTeachFirstNote, type LessonPlanner }
 import { getPlanWordsProblem, LEAD_NOTES, OPENING_A_CARD_NOTE } from '../lesson-plan/lesson-rules.ts';
 import type { LeadKind } from '../live/tutor-lead.ts';
 import { createAttemptTracker } from './attempts.ts';
-import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
+import { BeatTextReader, NAMES_HELP, type WrittenBeatParts } from './beat-text-reader.ts';
 import { MAY_BE_ABOUT_SAFETY, PLAIN_REFUSALS } from './safety-words.ts';
 import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getAnswerShownProblem, getClaimProblem, getGivenAwayProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getPictureProblem, getWordsProblem, showsItsAnswer } from './board-memory.ts';
 import type { MemoryNote } from '../learner-record/memory-note.ts';
@@ -203,7 +203,6 @@ const COMPACT_AT_TOKENS = 60_000;
 const TURNS_THAT_SET_THE_START = 2;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
-const NAMES_HELP = /\b(?:adult|emergency)\b/i;
 const PERSONAL_NOTE = /^\{"(?:student|memory|fit)":/;
 
 /** What the model is told after a safety check stops a student's message, built by code, so it holds none of what was refused. */
