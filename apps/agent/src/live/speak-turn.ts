@@ -1,6 +1,6 @@
 import { tts } from '@livekit/agents';
 import type { AudioFrame } from '@livekit/rtc-node';
-import { type AgentMessage, type Beat, type BeatId, getBeatText, getCues, getSpokenWords, type TimedWord, type TurnId } from '@astra/contracts';
+import { type AgentMessage, type Beat, type BeatId, getBeatText, getCues, getSpokenWords, type TimedWord, type TurnId, VOICE_TAGS, type VoiceTag } from '@astra/contracts';
 import { createPlayoutTracker, type PlayoutTracker } from '@astra/board';
 import { createFirstSound, type FirstSound, getFrameMs } from './first-sound.ts';
 import { createFrameQueue, type FrameQueue } from './frame-queue.ts';
@@ -138,6 +138,9 @@ function createHeldMessenger(messenger: TurnMessenger) {
   };
 }
 
+// The voice times a tag as a word, and word cues count only ours.
+const isVoiceTag = (word: string) => VOICE_TAGS.includes(word.trim() as VoiceTag);
+
 async function writeBeat({ options: { messenger, turnId, textPace }, stream, feed, isStopped }: TurnWork, beat: Beat): Promise<void> {
   const words = getSpokenWords(getBeatText(beat));
   const cues = getCues(beat);
@@ -146,6 +149,7 @@ async function writeBeat({ options: { messenger, turnId, textPace }, stream, fee
     const cuesHere = cues.filter((cue) => cue.atWord === wordIndex);
     if (textPace?.flushBeforeCues && cuesHere.length > 0) feed.flush();
     for (const cue of cuesHere) messenger.send({ type: 'cue', turnId, beatId: beat.id, atWord: cue.atWord, command: cue.command });
+    for (const { tag } of beat.voiceTags?.filter(({ beforeWord }) => beforeWord === wordIndex) ?? []) stream.pushText(`${tag} `);
     stream.pushText(`${word} `);
     if (textPace) await delay(textPace.msPerWord);
   }
@@ -192,7 +196,7 @@ async function readVoice(work: TurnWork): Promise<void> {
     hasReadAudio = true;
     work.firstSound.noteFrame(chunk.frame);
     work.noteAudioRead(getFrameMs(chunk.frame));
-    sendWords((chunk.timedTranscripts ?? []).map((word) => ({ text: word.text, atVoiceMs: (word.startTime ?? 0) * MS_PER_SECOND })));
+    sendWords((chunk.timedTranscripts ?? []).filter((word) => !isVoiceTag(word.text)).map((word) => ({ text: word.text, atVoiceMs: (word.startTime ?? 0) * MS_PER_SECOND })));
     work.frames.push(chunk.frame);
   }
   if (!work.isStopped()) {

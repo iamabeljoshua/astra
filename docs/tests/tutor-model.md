@@ -182,6 +182,46 @@ The tutor can call `compute` and `plotValues`, and `findSource` when `ASTRA_FIND
 - The `findSource` line itself seems to set off the repeating. With the old brain and the note unchanged, taking that one line out of the prompt passed the same four cases 12 of 12, against 5 of 12 with it. Twelve turns each on one afternoon is thin, so it is a lead and not a result, and the cause is a guess. Keep it in mind when reading the switched-on prompt.
 - A tool cannot draw. The model writes what it wants on the board, and code checks that as it checks any line.
 
+## Plain teaching
+
+Abel on the real lesson at `v4`: "it needs to teach like i am 5 by default so I udnerstand things, nice language, simplified language please... it shouldn't be rambling, it should teach with relatable examples". Maya's level is `university`, and `v4` gave her "Quantitatively, thrust equals the mass flow rate of air times the velocity you give it", "airfoil", "Newton's third law", and about 60 words a reply. `CURRENT_PROMPT` is now `v5`, in `prompts/v5.ts`, which builds on `v4` by swapping lines. `Staying safe` is the same text, and `plain-teaching.test.ts` holds it.
+
+- **Everyone starts plain.** `level` no longer sets the first words. A student goes deeper by asking, as in "more technical" or "give me the formula", or by what they say, and at `university` they may get there sooner. Each `LEVEL_LINES_V5` line starts plain and keeps what the older line protected at its level: no formula at middle school, the name after the idea at high school, no talking down to a grown up. The planner writes its steps in plain words too, because its "Newton's third law" reached the student.
+- **About 30 words.** `TURN_WORDS_TO_WRAP` is 45 and `TURN_WORDS_TO_CUT` is 90. A reply that writes math keeps 100 and 140, because a worked example ends on its answer. Stretches, leads, and the removed breaths at 25 and 35 words stay as `v4` left them.
+- **Humor and pauses.** A small joke or a laugh about one reply in three, never about the student, and never on anything in Staying safe. One line break where a person would stop for a beat, because the voice takes a breath there. While a picture is on screen, the words talk about what it shows.
+- **Voice tags.** The model may write `[laughs]`, `[chuckles]`, or `[warmly]`. `BeatTextReader` takes them out of the words whole, so captions, logs, word counts, and cues never hold one, and `Beat.voiceTags` carries them to the voice. `canUseVoiceTags` in `brain.ts` passes a tag only on a turn the check has read clean, so a first beat that leaves while the read is out has no laugh, and a safety reply never has one.
+- **Fast scene words** read the same rules from the live prompt through `getTutorVoiceRules`, and `recipe.md` asks for 25 to 45 words.
+
+The level evals changed with the rule. `level:higherIsProper` and `judged:differentByLevel` measured the old promise, "visibly different by level", which Abel's rule replaces, so a `compare` with `higherAsksToGoDeeper` now checks `level:lowerIsPlain`, `level:higherStartsPlain`, `level:deeperWhenAsked`, and `judged:startsPlain`. The `two-students-*` cases differ by what their notes hold, so they keep the old checks, with no proper terms asked of `two-students-projectile`.
+
+| At `v5`, real Sonnet, 5 November | Result |
+| --- | --- |
+| `level-ice` and `level-derivative`, before the humor lines | 8 of 8 checks. The other 4 cases and `eval:groups --file teaching` did not run, because this round's proofs were limited to one lesson on the page |
+| "how helicopters fly" at `university`, 3 minutes in Node with a fake voice, before the humor lines | 13 replies, words p50 42, worst 57. No formula, no newtons, no "airfoil", no "Newton's third law". "tail rotor" and "blade disc" came up. Examples: a hand out of a car window, a ceiling fan, a basketball on the floor, a rolling office chair, a maple seed. The target is about 30, so this is over it |
+
+The student's own "more technical please, use the proper terms" at `university` got "It comes down to density, which is mass per unit volume." on ice and "The derivative of a function at a point is the instantaneous rate of change there." on derivatives.
+
+## The ChatGPT writer
+
+`ASTRA_TUTOR_MODEL=openai:gpt-5.4-mini` writes the tutor's words through `providers/openai.ts`, the same `TutorModelAdapter` as Claude. The default stays Claude. The safety read, the line read, and the promise read stay on Haiku, and the fast scene words stay on Claude. It streams Chat Completions, with no new dependency, and `OPENAI_BASE_URL` can point it elsewhere. The price is from OpenAI's model page, read on 5 November: $0.75 a million input tokens, $0.075 cached, and $4.50 output. A model with no price in `OPENAI_PRICES` is refused at the start, so no cost goes unlogged. OpenAI reports usage only at the end of a reply, so a cut reply is estimated as a reply cut before Anthropic's first event is. `warm` does nothing, because OpenAI caches a long prompt by itself, and `compact` answers null, so the history stays whole.
+
+One lesson on a real page in Chrome, "how helicopters fly" as Maya at `university`, 3 minutes with the fake voice, on 5 November, read by an agent and no person:
+
+| Measure | Result |
+| --- | --- |
+| First text on a request that was not prepared ahead, two sessions | 13 requests, p50 1475 ms, worst 2843 ms. Sonnet's own 3 minute Node lesson that day read 2287 to 2386 ms on its 3 fresh student turns, at another hour |
+| Words a reply | 14 to 35, about 29 at p50, with no wrap |
+| Plain | No jargon or formula. "Have you ever held your hand out of a car window? Put it flat and tilt it a little. Helicopter blades do that fast, and the air pushes them up." |
+| Humor | "That down push is what gives it lift, not a magic hover button." "Helicopter math is just 'more blades, more push' wearing a noisy hat." One missed: "A whirling top has drama, but the helicopter is doing it on purpose." |
+| False | "Three blades, each pushing three cups" was answered "Six. Three plus three makes six." "The fan on a table blows air sideways, not up or down. Helicopter blades do that too." This mini model on `reasoning_effort: none` is the first suspect, which is a guess |
+| Asking to go deeper | "more technical please, give me the formula" got "If you want, I can write the real lift formula next", so the ask was not met |
+| Exercises | It often sets one with no task command. Code refused that 4 times in the lesson, and twice the student heard a stitched line: "If a fan blows air down onto the floor, Let's work this next bit out together." |
+| Cost | $0.0375 in the agent's ledger for the writer, about $0.012 a minute |
+
+So this writer is quick and short, and it is not as right as Sonnet on this one lesson. It stays behind the switch.
+
+Turning this on for a real student also needs the privacy page's "Who receives your data" and the sub-processors on the lawyer's card, because student words would go to OpenAI.
+
 ## The warm voice
 
 Abel chose this by ear on 5 November, column B of the voice lab, and `CURRENT_PROMPT` is `v4`. `prompts/v4.ts` builds on `v3` by swapping the lines that banned it: "Let's dive in", under 25 words and never over 45, no rhetorical question, and the 15 word turn note. Everything after this heading in the older sections describes the short turns it replaced, and `docs/tests/lesson-flow.md` holds what the voice measured. A teaching reply is one flowing stretch of 40 to 70 words. A bare fact gets its answer, and a problem goes hands-on, as before. `Staying safe` is the same text.

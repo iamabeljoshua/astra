@@ -22,7 +22,7 @@ afterEach(async () => {
 
 async function makeWireVoice(leadingSilenceMs = 0) {
   wire = await startFakeElevenLabsWire({ leadingSilenceMs });
-  return makeElevenLabsVoice({ name: 'wire', apiKey: 'fake', voiceId: 'fake-voice', baseURL: wire.baseURL });
+  return makeElevenLabsVoice({ name: 'wire', apiKey: 'fake', voiceId: 'fake-voice', baseURL: wire.baseURL, model: 'eleven_flash_v2_5' });
 }
 
 describe('the voice suite', () => {
@@ -36,11 +36,11 @@ describe('the voice suite', () => {
 });
 
 describe('the tutor voice', () => {
-  it('is Chris, on Flash until Abel says otherwise', async () => {
+  it('is Chris, on v4 turbo, which Abel chose by ear', async () => {
     wire = await startFakeElevenLabsWire();
     const voice = makeTutorVoice({ apiKey: 'fake' }).makeTts();
     expect(TUTOR_VOICE_ID).toBe('iP95p4xoKVk53GoZ742B');
-    expect(voice.model).toBe('eleven_flash_v2_5');
+    expect(voice.model).toBe('eleven_v4_turbo');
     await voice.close();
   });
 });
@@ -56,6 +56,21 @@ describe('the ElevenLabs adapter', () => {
     await voice.close();
     expect(wire?.getOutputFormats()).toEqual(['pcm_24000']);
     expect(voice.sampleRate % 100).toBe(0);
+  });
+
+  it('adds up word times on v4 turbo, whose times restart with each message, so a cue stays on its word', async () => {
+    wire = await startFakeElevenLabsWire();
+    const voice = makeElevenLabsVoice({ name: 'wire', apiKey: 'fake', voiceId: 'fake-voice', baseURL: wire.baseURL, model: 'eleven_v4_turbo' }).makeTts();
+    const stream = voice.stream();
+    const heard = hearVoice(stream);
+    stream.pushText('One two three four five six seven eight nine ten ');
+    stream.endInput();
+    const { words } = await heard;
+    await voice.close();
+    const times = words.map(({ startSeconds }) => startSeconds);
+    expect(times.length).toBeGreaterThan(5);
+    expect(times).toEqual([...times].sort((a, b) => a - b));
+    expect(times.at(-1)).toBeGreaterThan(times[1] ?? 0);
   });
 
   it('keeps word times from the first character, not the second, so no word lands early', async () => {

@@ -1,11 +1,11 @@
 import { type BoardKinds, getCues, getSpokenWords, parseWrittenBeat } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
-import { BeatTextReader, TURN_WORDS_TO_WRAP, type WrittenBeatParts } from '../src/tutor/beat-text-reader.ts';
+import { BeatTextReader, TURN_WORDS_TO_WRAP, WORKED_EXAMPLE_WORDS_TO_WRAP, type WrittenBeatParts } from '../src/tutor/beat-text-reader.ts';
 
 const HIDE = '{"kind":"hide","target":"a"}';
 const CLEAR = '{"kind":"clearBoard"}';
 const MANY_WORDS = Array.from({ length: 180 }, (_, index) => `word${index}`).join(' ');
-const WORDS_UP_TO_THE_CUT = Array.from({ length: 140 }, (_, index) => `word${index}`).join(' ');
+const WORDS_UP_TO_THE_CUT = Array.from({ length: 90 }, (_, index) => `word${index}`).join(' ');
 const ONE_LONG_WORD = 'a'.repeat(1300);
 const MANY_COMMANDS = `Watch ${CLEAR.repeat(14)}this.`;
 const BAD_SIMULATE = '{"kind":"simulate","id":"s","simulation":{"model":"bogus"}}';
@@ -140,6 +140,14 @@ describe('reading a model stream into beats', () => {
     expect(getSpokenWords(seen.spoken).length).toBeGreaterThanOrEqual(TURN_WORDS_TO_WRAP);
     expect(getSpokenWords(seen.spoken).length).toBeLessThan(TURN_WORDS_TO_WRAP + 13);
     expect(seen.textAfter).not.toBe('');
+  });
+
+  it('keeps a worked example whole past the wrap, because it ends on its answer', () => {
+    const sentence = 'The ball keeps climbing a little slower every single second until it stops.';
+    const seen = read(`{"kind":"writeMath","id":"w","tex":"x + 3 = 11","claim":"new"}${Array.from({ length: 6 }, () => sentence).join(' ')} So x is eight.`, 5);
+    expect(getSpokenWords(seen.spoken).length).toBeGreaterThan(TURN_WORDS_TO_WRAP + 30);
+    expect(getSpokenWords(seen.spoken).length).toBeLessThan(WORKED_EXAMPLE_WORDS_TO_WRAP);
+    expect(seen.textAfter).toBe('');
   });
 
   it('keeps a long teaching stretch in one breath when the model writes no line break', () => {

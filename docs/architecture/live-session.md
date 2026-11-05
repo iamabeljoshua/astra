@@ -13,7 +13,7 @@ Status: approved by Abel on 3 November 2026, who asked for a modular design so p
 **Decided since this merged.** You made these calls after this document merged, and the rest of it now reads them as settled.
 
 - Muse stays for transcription, after your real microphone test, with a guard for held finals in M3.6.
-- Chris is the voice, ElevenLabs voice id `iP95p4xoKVk53GoZ742B`. You chose him on 4 November in place of Casey, by ear. He stays on Flash unless you say otherwise.
+- Chris is the voice, ElevenLabs voice id `iP95p4xoKVk53GoZ742B`. You chose him on 4 November in place of Casey, by ear. You moved him from Flash to `eleven_v4_turbo` on 5 November, by ear, and `docs/tests/voice.md` holds what that changed.
 - Sonnet 5.5 is the tutor, with code reacting first and a timeout for stalls. There is no talking router for now.
 - Two perf numbers replace V1's rule. A first reaction under 200 ms from code, and a first real word as fast as the vendors allow.
 - The shared board is M3.12, between M3.7 and M3.10, and it also took the pen. Uploads moved past the MVP on 4 November, so M3.11 only says they are coming soon.

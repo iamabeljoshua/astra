@@ -15,7 +15,7 @@ overrides:
 
 patchedDependencies:
   '@livekit/agents-plugin-elevenlabs@1.9.5':
-    hash: d867ea42dfddea36204b91e3aa160d179d50884f6373029f7f0492361862bfce
+    hash: 3c43d7303b856d188aa4aa1bc7befb06910feaa41fd20e76eb4d93c2d4b18cd2
     path: patches/@livekit__agents-plugin-elevenlabs@1.9.5.patch
 
 importers:
@@ -63,7 +63,7 @@ importers:
         version: 1.9.5(@livekit/rtc-node@1.2.1)(@types/node@22.20.5)(typescript@5.9.3)(zod@4.6.7)
       '@livekit/agents-plugin-elevenlabs':
         specifier: 1.9.5
-        version: 1.9.5(patch_hash=d867ea42dfddea36204b91e3aa160d179d50884f6373029f7f0492361862bfce)(@livekit/agents@1.9.5(@livekit/rtc-node@1.2.1)(@types/node@22.20.5)(typescript@5.9.3)(zod@4.6.7))(@livekit/rtc-node@1.2.1)
+        version: 1.9.5(patch_hash=3c43d7303b856d188aa4aa1bc7befb06910feaa41fd20e76eb4d93c2d4b18cd2)(@livekit/agents@1.9.5(@livekit/rtc-node@1.2.1)(@types/node@22.20.5)(typescript@5.9.3)(zod@4.6.7))(@livekit/rtc-node@1.2.1)
       '@livekit/agents-plugin-meta':
         specifier: 1.9.5
         version: 1.9.5(@livekit/agents@1.9.5(@livekit/rtc-node@1.2.1)(@types/node@22.20.5)(typescript@5.9.3)(zod@4.6.7))(@livekit/rtc-node@1.2.1)
@@ -6155,7 +6155,7 @@ snapshots:
       '@solid-primitives/utils': 6.4.1(solid-js@1.9.18)
       solid-js: 1.9.18
 
-  '@livekit/agents-plugin-elevenlabs@1.9.5(patch_hash=d867ea42dfddea36204b91e3aa160d179d50884f6373029f7f0492361862bfce)(@livekit/agents@1.9.5(@livekit/rtc-node@1.2.1)(@types/node@22.20.5)(typescript@5.9.3)(zod@4.6.7))(@livekit/rtc-node@1.2.1)':
+  '@livekit/agents-plugin-elevenlabs@1.9.5(patch_hash=3c43d7303b856d188aa4aa1bc7befb06910feaa41fd20e76eb4d93c2d4b18cd2)(@livekit/agents@1.9.5(@livekit/rtc-node@1.2.1)(@types/node@22.20.5)(typescript@5.9.3)(zod@4.6.7))(@livekit/rtc-node@1.2.1)':
     dependencies:
       '@livekit/agents': 1.9.5(@livekit/rtc-node@1.2.1)(@types/node@22.20.5)(typescript@5.9.3)(zod@4.6.7)
       '@livekit/mutex': 1.1.1

@@ -245,7 +245,7 @@ pnpm agent
 | `ELEVENLABS_API_KEY` | Agent | The tutor's voice. |
 | `ASTRA_VOICE=fake` | Agent | A tone instead of the real voice, to spend no credits. |
 | `ANTHROPIC_API_KEY` | Agent | The tutor's model, Sonnet 5.5. |
-| `ASTRA_TUTOR_MODEL` | Agent | A model by name from `providers/anthropic.ts`, `recorded` for canned replies that spend nothing and that a proof can stall or break by typing `stall`, `invalid`, `wrong math`, `tag`, `refuse`, or `silent`, or `stand-in` for the simple lines M3.6's proofs use. |
+| `ASTRA_TUTOR_MODEL` | Agent | A model by name from `providers/anthropic.ts`, `openai:gpt-5.4-mini` for the ChatGPT writer on `OPENAI_API_KEY`, `recorded` for canned replies that spend nothing and that a proof can stall or break by typing `stall`, `invalid`, `wrong math`, `tag`, `refuse`, or `silent`, or `stand-in` for the simple lines M3.6's proofs use. |
 | `ASTRA_SPEND_FILE`, `ASTRA_SPEND_LIMIT_USD` | Agent | Adds each turn's real cost to a file, and past the limit, $8 by default, the tutor says it cannot reply. |
 | `ASTRA_TUTOR_SCENES=1` | Agent | Lets the tutor ask for ManimGX scenes in a session. Needs `SCENE_STORE_DIR`, the same on the API, the scene worker's image, and `VITE_TUTOR_SCENES=1` on the web build. Off, a session never mentions a picture and fetches no engine. See `docs/tests/scenes.md`. |
 | `VITE_KIT_SCENES=1` | Web build | Plays a topic's stored 3D scene beside its 2D take. See `docs/tests/scenes.md`. Off, the 2D take plays. |
