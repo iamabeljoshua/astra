@@ -33,7 +33,8 @@ const hasFreshDraw = () => process.env.ASTRA_FRESH_DRAW === '1';
 
 /** Words like these ask about something, so the drawing need not wait for the tutor to ask. The router still reads them first, and anything else waits for the tutor. */
 const ASKS_TO_BE_TAUGHT = /^(how|why|what|when|where|which|who|whose|explain|show|teach|tell me|can you|could you|do|does|did|is|are|i want to|i'd like to|what's|how's)\b|\?\s*$/i;
-const isAskingToBeTaught = (words: string) => ASKS_TO_BE_TAUGHT.test(words.trim());
+const FEWEST_WORDS_IN_AN_ASK = 3;
+export const isAskingToBeTaught = (words: string) => words.trim().split(/\s+/).length >= FEWEST_WORDS_IN_AN_ASK && ASKS_TO_BE_TAUGHT.test(words.trim());
 
 type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'send' | 'speak' | 'canSpeak' | 'onShown' | 'trace'>;
 

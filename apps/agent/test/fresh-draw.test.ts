@@ -7,6 +7,7 @@ import { readFreshDrawing, toFreshScene } from '../src/scenes/recipe/fresh-drawi
 import { createRecipeWork, type FreshTools, type RecipeWriter } from '../src/scenes/recipe/recipe-work.ts';
 import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
 import type { SceneRoute } from '../src/scenes/scene-types.ts';
+import { isAskingToBeTaught } from '../src/tutor/make-tutor-scenes.ts';
 import { getTutorSceneBeats } from '../src/tutor/tutor-scenes.ts';
 
 const USAGE = { model: 'fake', ms: 1, costUsd: 0 };
@@ -198,6 +199,16 @@ describe('a copy saved under other words', () => {
     expect(work.desk.getState().kind).toBe('ready');
     expect(writeDrawing.mock.calls[0]?.[1].aborted).toBe(true);
     expect(noteDrawn).not.toHaveBeenCalled();
+  });
+});
+
+describe('a line that starts a drawing', () => {
+  it.each(['how helicopters fly', 'why is the sky blue', 'Can you explain gravity', 'a rainbow has how many colours?'])('takes "%s"', (line) => {
+    expect(isAskingToBeTaught(line)).toBe(true);
+  });
+
+  it.each(['why?', 'ok', 'yes that makes sense', 'i think it is four', 'is it?'])('leaves "%s" to the tutor', (line) => {
+    expect(isAskingToBeTaught(line)).toBe(false);
   });
 });
 
