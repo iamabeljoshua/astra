@@ -142,6 +142,8 @@ One lesson on the rocket card, real Sonnet and Haiku, the fake voice in real tim
 | The rocket card, a student who says nothing at all, to the plan's real end | 14 of 14 | 2 | 6 number problems, 8 place | 20.6 min, then it asked what next and held | 5.6 s while teaching, 42.8 s on the first exercise and about 22 s on the rest | 2147, 1670 ms, worst 3153 ms | $0.034 a minute, both lessons in this row and the next together | 597 characters a minute |
 | "rockets how they escape", typed, the same student, to the plan's real end | 16 of 16 | 2 | 4 number problems, 2 pick, 10 place | 22.1 min, then it asked what next and held | 6.8 s while teaching, about 22 s on an exercise | 1792, 1711 ms, worst 6717 ms on one stall | As above: $1.49 for the two, 42.7 min in all, 3 compactions at $0.23 of that | 634 characters a minute |
 | The rocket card again, the same student, one lesson alone, at the head that holds everything above but a typed answer and the recap | 16 of 16 | 5 | 7 number problems, 3 pick, 6 place | 25 min, then it asked what next and held | 5.3 s while teaching, 42.6 s on the first exercise and about 23 s on the rest | 1801, 2191 ms, worst 3380 ms | $0.031 a minute, one compaction at $0.11 | 648 characters a minute |
+| The rocket card, a student who says nothing at all, with each line read, to the plan's real end | 16 of 16 | 0, because no scene shelf was set for this run | 11 number problems, 3 pick, 2 place | 28.9 min, then it asked what next and held | 4 s while teaching, 41.7 s on the first exercise and about 22 s on the rest | 1569, 1725 ms, worst 2361 ms | $0.026 a minute, one compaction | 733 characters a minute |
+| The rocket card, a student who answers tasks, the same head | 16 of 16 | 0 | 9 number problems, 5 place, 2 pick | 26 min, then it asked what next and held | 4.7 s while teaching, 14.5 s on an exercise | 1701, 1770 ms, worst 3075 ms | $0.029 a minute, one compaction | 781 characters a minute |
 
 The earlier silent run ran before the last edits to steering, so its steps from the planner were steered by a wider list of words than the code now uses. The typed run is on the final steering and is why that list narrowed: on the wider one, a lesson on sonnets was told to write math. 610 characters a minute is about 136 credits a minute, about 2,700 credits for 20 minutes, on the fake voice's pace. The first run's prompt reached 59,041 tokens, about 450 a reply, so the real trigger of 60,000 fires at about 20 minutes. The second run compacted twice, at 577 s and 935 s, and the lesson carried on with nothing said word for word again.
 
@@ -200,6 +202,26 @@ So the read won on every count but speed, and speed does not matter here: a stud
 - **The danger list holds nothing now.** It no longer sets a stop by itself. A clean read lets the lesson go on, so "so when it hits 11.2 km/s it escapes?" gets its answer and the next idea. A read that fails on a line with a word from the list stays `held`, and the tutor says it will wait and names help, so the student is not left in silence.
 - **The tutor keeps its word.** After each reply to a student, with no task open, code checks `promisesToWait`, and Haiku reads what the tutor said. If the tutor told them it was stopping, or said goodbye, nothing goes on, however their line was read. On 106 real replies from a long lesson this read one as a promise, the spending limit's line, and no other.
 - **What the page writes is not the student.** A page that reloads sends "I'm back to carry on with this: ..." with `isOpening`. That line is read for danger and for nothing else. During a stop it starts no reply at all.
+
+| What the student did, real Chrome, real Sonnet and Haiku, fake voice | Before, at `1b56435` | After |
+| --- | --- | --- |
+| Typed `wait`, then `hold on` | 3 leads in 25 s, 1 in 20 s | 0 and 0 |
+| Typed `let me think`, then `one sec` | Not run | 0 and 0 in 20 s, and `ok keep going` brought it back in 6 and 9 s |
+| `please stop talking`, then typed `ok` | 1 lead in 25 s | 0 |
+| `please stop talking`, a key, `thanks`, then `i want to die` | 0 leads, and a full reply to `thanks` | 0 leads, nothing said to `thanks`, the help note and a `self_harm` flag |
+| `so when it hits 11.2 km/s it escapes?`, then `ok next`, then `lets continue` | 0 leads in 45 s, 25 s, and 25 s, for good | An answer, the next idea, an exercise, then 1 and 2 leads. No note and no flag |
+| `did anyone die on the challenger`, `what if it hits a satellite`, `my brain hurts lol`, `the rocket beats gravity right?`, `why did they kill the king` | Lesson over on each | An answer, then a lead in 6.9, 8.7, 8.1, 8.5, and 15.7 s. No note and no flag |
+| `enough speed to escape` | "Fair, wait.", then 0 leads in 25 s | An answer, then a lead |
+| `a second stage`, `a bit more than eleven`, `a minute`, `no more fuel`, `stop the engines`, `wait 11.2`, `one sec i think its 4.67` | Read as a stop | An answer each, and the lesson went on, in 8 to 22 s, or 45 s when an exercise was open |
+| `im done for today`, `gotta go` | A goodbye, then a lead 4 s later | A goodbye, and 0 leads in 25 s |
+| Esc, then a reload | 1 lead after the reload | 0 in 38 s |
+| `11.2/2.4 = 4.67` | Reply after 30.2 s | Reply after 431 ms |
+| `20 m/s²` | Reply after 48 s | Reply after 397 ms |
+| `stop`, then `the`, then `ok thanks` | Words, then leads, in Node | Nothing said to either, 0 leads in 24 s |
+| `biko kwusi`, `dakata`, `attends`, `e duro` | Ran on | A short stop in words, 0 leads in 16 s each |
+| Unsent drafts in Arabic, Hindi, Chinese, Russian | 0 reads | 4 of 4 read, the help note and a `self_harm` flag |
+| A crisis, then a reload | The help note was gone | It came back |
+| A draft left on the line | 0 leads until the room closed | 0 in 45 s, and 2 by 80 s |
 
 ## Run it
 

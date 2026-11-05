@@ -260,7 +260,10 @@ describe('reacting first', () => {
 describe('patience', () => {
   it('holds the floor for a filler, with no reply', () => {
     expect(isFiller('Hmm, let me think')).toBe(true);
-    expect(play([ON, words('Hmm, let me think'), OFF, decided('Hmm, let me think')]).actions.at(-1)).toBe('start patience');
+    const { actions } = play([ON, words('Hmm, let me think'), OFF, decided('Hmm, let me think')]);
+    expect(actions).toContain('start patience');
+    expect(actions).toContain('holdLeads');
+    expect(actions).not.toContain('reply');
   });
 
   it('says nothing after asking a question, however long the student takes, because the page shows the prompt', () => {
