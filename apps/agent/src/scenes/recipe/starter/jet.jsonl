@@ -1,0 +1,16 @@
+{"t":"fit","in":true,"topic":"How a jet engine works","stage":"studio"}
+{"t":"say","m":"jet-engine-shown","text":"This is a jet engine, cut open so we can see inside it."}
+{"t":"part","id":"jet","part":"jetEngine","in":"jet-engine-shown"}
+{"t":"cam","on":"jet-engine-shown","look":"jet","view":"front","zoom":1}
+{"t":"say","m":"air-enters","text":"Air is pulled in at the front by a big spinning fan."}
+{"t":"move","item":"jet","motion":"run","on":"air-enters"}
+{"t":"label","text":"Fan","at":"jet.fan","show":"air-enters"}
+{"t":"say","m":"air-squeezed","text":"Compressor blades squeeze the air, packing it tighter and hotter."}
+{"t":"label","text":"Compressor","at":"jet.compressor","show":"air-squeezed"}
+{"t":"say","m":"fuel-burns","text":"Fuel burns in the combustor, making hot gas that expands fast."}
+{"t":"label","text":"Combustor","at":"jet.combustor","show":"fuel-burns"}
+{"t":"say","m":"turbine-spins","text":"That hot gas spins the turbine, which turns the fan and compressor on the same shaft."}
+{"t":"label","text":"Turbine","at":"jet.turbine","show":"turbine-spins"}
+{"t":"say","m":"thrust-made","text":"The gas leaves out the back, and the engine is pushed forward. That push is thrust."}
+{"t":"move","item":"jet","motion":"thrust","on":"thrust-made"}
+{"t":"label","text":"Thrust","at":"jet.thrust","show":"thrust-made"}

@@ -1,0 +1,13 @@
+{"t":"fit","in":true,"topic":"How volcanoes erupt","stage":"studio"}
+{"t":"say","m":"volcano-whole","text":"This is a volcano cut open, so we can see inside it."}
+{"t":"part","id":"v","part":"volcano","in":"volcano-whole"}
+{"t":"cam","on":"volcano-whole","look":"v.vent","view":"front","zoom":1}
+{"t":"say","m":"magma-rises","text":"Deep under the ground sits hot, melted rock called magma."}
+{"t":"move","item":"v","motion":"rise","on":"magma-rises"}
+{"t":"label","text":"Magma chamber","at":"v.chamber","show":"magma-rises"}
+{"t":"say","m":"up-the-vent","text":"Magma is lighter than the rock around it, so it pushes upward."}
+{"t":"cam","on":"up-the-vent","look":"v.vent","view":"close","zoom":1.4}
+{"t":"label","text":"Vent","at":"v.vent","show":"up-the-vent"}
+{"t":"say","m":"erupt","text":"When it reaches the surface, the pressure bursts out as lava and ash."}
+{"t":"move","item":"v","motion":"erupt","on":"erupt"}
+{"t":"label","text":"Lava","at":"v.lava","show":"erupt"}

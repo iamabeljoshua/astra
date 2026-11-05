@@ -3,6 +3,8 @@ import type { MadeScene } from './make-scene.ts';
 import type { RouteEngine, SceneRoute, StoredScene } from './scene-types.ts';
 
 export const SHOW_WINDOW_MS = 20_000;
+/** A kit scene took 30 to 72 s on a loaded Mac, and a later one costs nothing, because the tutor never waits and a new topic ends the ask. */
+export const KIT_ASK_LIMIT_MS = 90_000;
 
 export type SceneState =
   | { kind: 'idle' }
@@ -18,7 +20,7 @@ export interface SceneDeskOptions {
   make(route: SceneRoute): Promise<MadeScene>;
   getNowMs(): number;
   onChange?(state: SceneState, atMs: number): void;
-  drawsEngine?: RouteEngine;
+  engines?: readonly RouteEngine[];
 }
 
 export interface SceneDesk {
@@ -34,9 +36,10 @@ export interface SceneDesk {
 
 const WAITING_KINDS: readonly SceneState['kind'][] = ['routing', 'making'];
 
-export function createSceneDesk({ route, make, getNowMs, onChange, drawsEngine = 'manimgx' }: SceneDeskOptions): SceneDesk {
+export function createSceneDesk({ route, make, getNowMs, onChange, engines = ['manimgx'] }: SceneDeskOptions): SceneDesk {
   let state: SceneState = { kind: 'idle' };
   let firstPauseAtMs: number | null = null;
+  let windowMs = SHOW_WINDOW_MS;
   const waiters = new Set<() => void>();
 
   const setState = (next: SceneState) => {
@@ -45,15 +48,16 @@ export function createSceneDesk({ route, make, getNowMs, onChange, drawsEngine =
     if (!WAITING_KINDS.includes(next.kind)) for (const wake of waiters) wake();
   };
 
-  const isPastWindow = () => firstPauseAtMs !== null && getNowMs() - firstPauseAtMs > SHOW_WINDOW_MS;
+  const isPastWindow = () => firstPauseAtMs !== null && getNowMs() - firstPauseAtMs > windowMs;
 
   const run = async (request: string) => {
     setState({ kind: 'routing' });
     const chosen = await route(request);
-    if (chosen.engine !== drawsEngine) {
+    if (!engines.includes(chosen.engine)) {
       setState({ kind: 'declined', engine: chosen.engine });
       return;
     }
+    if (chosen.engine === 'kit') windowMs = KIT_ASK_LIMIT_MS;
     setState({ kind: 'making', route: chosen });
     const made = await make(chosen);
     setState(made.isOk ? { kind: 'ready', scene: made.scene } : { kind: 'failed', reasons: made.reasons });
@@ -80,7 +84,7 @@ export function createSceneDesk({ route, make, getNowMs, onChange, drawsEngine =
     untilLastChance() {
       firstPauseAtMs ??= getNowMs();
       if (!WAITING_KINDS.includes(state.kind) || isPastWindow()) return Promise.resolve();
-      const leftMs = firstPauseAtMs + SHOW_WINDOW_MS - getNowMs();
+      const leftMs = firstPauseAtMs + windowMs - getNowMs();
       return new Promise((resolve) => {
         const wake = () => {
           clearTimeout(limit);

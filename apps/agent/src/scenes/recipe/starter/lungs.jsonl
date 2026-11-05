@@ -1,0 +1,15 @@
+{"t":"fit","in":true,"topic":"how lungs take in oxygen","stage":"studio"}
+{"t":"say","m":"breathing-in","text":"Here are the lungs, and we'll follow one breath of air in."}
+{"t":"part","id":"lungs","part":"lungs","at":[0,0,0],"size":1,"in":"breathing-in"}
+{"t":"cam","on":"breathing-in","look":"lungs","view":"front","zoom":1}
+{"t":"move","item":"lungs","motion":"breathe","on":"breathing-in"}
+{"t":"move","item":"lungs","motion":"airIn","on":"breathing-in"}
+{"t":"say","m":"air-enters","text":"Air comes in through the windpipe, then splits into branches."}
+{"t":"label","text":"Windpipe","at":"lungs.windpipe","show":"air-enters"}
+{"t":"label","text":"Bronchus","at":"lungs.bronchus","show":"air-enters"}
+{"t":"say","m":"oxygen-passes","text":"Oxygen passes from tiny air sacs into the blood, and carbon dioxide leaves the other way."}
+{"t":"part","id":"sacs","part":"alveoli","at":[0,-2,0],"size":0.6,"in":"oxygen-passes"}
+{"t":"move","item":"sacs","motion":"flow","on":"oxygen-passes"}
+{"t":"label","text":"Air sac","at":"sacs.sac","show":"oxygen-passes"}
+{"t":"cam","on":"oxygen-passes","look":"sacs.sac","view":"front","zoom":1.4}
+{"t":"say","m":"blood-carries","text":"The oxygen-rich blood then carries it to the heart and round the whole body."}

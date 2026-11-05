@@ -1,0 +1,13 @@
+{"t":"fit","in":true,"topic":"How rain returns to the sky","stage":"studio"}
+{"t":"say","m":"sea-and-sun","text":"Here is a block of land beside the sea, with the Sun above it."}
+{"t":"part","id":"loop","part":"waterCycle","in":"sea-and-sun"}
+{"t":"cam","on":"sea-and-sun","look":"loop","view":"front","zoom":1}
+{"t":"say","m":"vapour-rises","text":"Heat from the Sun turns water at the sea into vapour, which rises."}
+{"t":"label","text":"Vapour","at":"loop.vapour","show":"vapour-rises"}
+{"t":"move","item":"loop","motion":"cycle","on":"vapour-rises"}
+{"t":"say","m":"cloud-forms","text":"As the vapour rises it cools and gathers into a cloud."}
+{"t":"label","text":"Cloud","at":"loop.cloud","show":"cloud-forms","hide":"rain-falls"}
+{"t":"say","m":"rain-falls","text":"When the droplets grow heavy, they fall as rain on the mountain."}
+{"t":"label","text":"Rain","at":"loop.rain","show":"rain-falls"}
+{"t":"say","m":"river-returns","text":"The rain runs downhill in rivers back to the sea, and the cycle begins again."}
+{"t":"label","text":"River to sea","at":"loop.river","show":"river-returns"}

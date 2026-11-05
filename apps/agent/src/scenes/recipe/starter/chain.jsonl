@@ -1,0 +1,12 @@
+{"t":"fit","in":true,"topic":"How a bicycle chain drives the wheel","stage":"studio"}
+{"t":"say","m":"bicycle-overview","text":"Pedalling spins the cranks, and the chain carries that turn to the back wheel."}
+{"t":"part","id":"bike","part":"bicycle","args":{"ring":42,"sprocket":16},"in":"bicycle-overview"}
+{"t":"cam","on":"bicycle-overview","look":"bike.chain","view":"side","zoom":1.2}
+{"t":"move","item":"bike","motion":"pedal","on":"bicycle-overview"}
+{"t":"say","m":"chain-parts","text":"The chainring at the pedals is big, and the sprocket on the back wheel is small."}
+{"t":"label","text":"Chainring","sub":"42 teeth","at":"bike.chainring","show":"chain-parts"}
+{"t":"label","text":"Sprocket","sub":"16 teeth","at":"bike.sprocket","show":"chain-parts"}
+{"t":"say","m":"ratio-turn","text":"Each pedal turn drags the chain round, so the small sprocket spins many times."}
+{"t":"label","text":"Rear wheel","sub":"about 2.6 turns","at":"bike.rearWheel","show":"ratio-turn"}
+{"t":"say","m":"chain-pull","text":"The top run of chain is taut, pulling forward and turning the back wheel."}
+{"t":"label","text":"Taut chain","at":"bike.chain","show":"chain-pull"}

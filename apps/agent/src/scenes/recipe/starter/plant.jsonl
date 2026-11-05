@@ -1,0 +1,12 @@
+{"t":"fit","in":true,"topic":"How plants make food from sunlight","stage":"studio"}
+{"t":"say","m":"leaf-in-sunlight","text":"Here is a leaf, lit by sunlight, with its roots in soil below."}
+{"t":"part","id":"plant","part":"plantLeaf","in":"leaf-in-sunlight"}
+{"t":"cam","on":"leaf-in-sunlight","look":"plant.leaf","view":"front","zoom":1}
+{"t":"label","text":"Leaf","at":"plant.leaf","show":"leaf-in-sunlight"}
+{"t":"say","m":"gases-enter","text":"The leaf takes in carbon dioxide from the air through tiny openings."}
+{"t":"move","item":"plant","motion":"photosynthesis","on":"gases-enter"}
+{"t":"label","text":"Carbon dioxide","at":"plant.carbonDioxide","show":"gases-enter"}
+{"t":"say","m":"water-rises","text":"Water climbs up the stem from the roots, reaching the leaf."}
+{"t":"label","text":"Water","at":"plant.water","show":"water-rises"}
+{"t":"say","m":"food-made","text":"Sunlight powers the leaf to join water and carbon dioxide into sugar."}
+{"t":"label","text":"Sugar","at":"plant.leaf","show":"food-made"}

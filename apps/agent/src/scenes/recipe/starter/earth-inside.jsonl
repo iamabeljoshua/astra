@@ -1,0 +1,13 @@
+{"t":"fit","in":true,"topic":"What is inside the Earth","stage":"space"}
+{"t":"say","m":"earth-layers-intro","text":"Here is Earth cut open, so we can see inside it."}
+{"t":"part","id":"earth","part":"earthLayers","in":"earth-layers-intro"}
+{"t":"cam","on":"earth-layers-intro","look":"earth","view":"front","zoom":1}
+{"t":"say","m":"crust-thin","text":"The outside is the crust, a thin skin of rock we stand on."}
+{"t":"label","text":"Crust","sub":"thin rock layer","at":"earth.crust","show":"crust-thin"}
+{"t":"say","m":"mantle-thick","text":"Under the crust lies the mantle, hot rock that slowly flows."}
+{"t":"label","text":"Mantle","sub":"hot, slow-flowing rock","at":"earth.mantle","show":"mantle-thick","hide":"core-solid"}
+{"t":"say","m":"core-liquid","text":"Deeper down, the outer core is liquid iron and nickel."}
+{"t":"label","text":"Outer core","sub":"liquid iron and nickel","at":"earth.outerCore","show":"core-liquid","hide":"mantle-thick"}
+{"t":"say","m":"core-solid","text":"At the very centre, the inner core is solid, squeezed by great pressure."}
+{"t":"label","text":"Inner core","sub":"solid iron and nickel","at":"earth.innerCore","show":"core-solid","hide":"core-liquid"}
+{"t":"move","item":"earth","motion":"spin","on":"core-solid"}

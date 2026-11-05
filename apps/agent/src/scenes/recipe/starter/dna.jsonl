@@ -1,0 +1,11 @@
+{"t":"fit","in":true,"topic":"How DNA copies itself","stage":"studio"}
+{"t":"say","m":"dna-helix-open","text":"This is a DNA double helix, two strands twisted round each other."}
+{"t":"part","id":"dna","part":"dnaHelix","in":"dna-helix-open"}
+{"t":"cam","on":"dna-helix-open","look":"dna","view":"front","zoom":1}
+{"t":"say","m":"dna-unzip","text":"To copy itself, the two strands first split apart, like a zipper opening."}
+{"t":"move","item":"dna","motion":"unzip","on":"dna-unzip"}
+{"t":"label","text":"Fork","at":"dna.fork","show":"dna-unzip","hide":"dna-pairs"}
+{"t":"say","m":"dna-new-strands","text":"Each old strand then guides a new partner strand, base by base."}
+{"t":"label","text":"New strand","at":"dna.newStrand","show":"dna-new-strands"}
+{"t":"say","m":"dna-pairs","text":"A always pairs with T, and C always pairs with G, so the copy is exact."}
+{"t":"label","text":"A pairs with T","at":"dna.basePair","show":"dna-pairs"}

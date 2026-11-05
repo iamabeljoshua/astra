@@ -61,6 +61,13 @@ export class SetTitleBodyDto {
   title!: string;
 }
 
+export interface JobOpening {
+  /** The one student this room's tokens go to, so the worker can read their first messages before LiveKit names them. */
+  studentId: string;
+  /** The student's own words on a new session they opened by typing, and null otherwise. */
+  question: string | null;
+}
+
 export interface TutorBrief {
   level: StudentLevel | null;
   interests: StudentInterest[];

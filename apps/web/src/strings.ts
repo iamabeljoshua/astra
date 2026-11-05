@@ -241,6 +241,7 @@ export const VOICE_LABELS = {
   you: 'You',
   board: 'Board',
   connecting: 'Connecting your tutor',
+  slowToConnect: 'Still connecting. A slow line can hold this up.',
   unavailable: `Your tutor could not connect just now. ${IF_WORRIED}`,
   reconnecting: 'Your connection dropped. Reconnecting.',
   ended: 'Your connection to the tutor ended.',

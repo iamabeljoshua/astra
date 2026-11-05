@@ -1,0 +1,14 @@
+{"t":"fit","in":true,"topic":"How tectonic plates cause earthquakes","stage":"studio"}
+{"t":"say","m":"plates-drift-together","text":"Earth's outer shell is cracked into huge slabs called tectonic plates."}
+{"t":"part","id":"blk","part":"tectonicPlates","args":{"mode":"slide"},"in":"plates-drift-together"}
+{"t":"move","item":"blk","motion":"drift","on":"plates-drift-together"}
+{"t":"cam","on":"plates-drift-together","look":"blk.boundary","view":"above","zoom":1.2}
+{"t":"label","text":"Tectonic plates","at":"blk.plateA","show":"plates-drift-together"}
+{"t":"say","m":"plates-grind","text":"The plates slide past each other, but they do not slide smoothly."}
+{"t":"label","text":"Fault","at":"blk.boundary","show":"plates-grind"}
+{"t":"say","m":"rock-locks","text":"Rock along the fault sticks, and strain builds up over many years."}
+{"t":"say","m":"rock-snaps","text":"When the stored strain is too great, the rock suddenly slips."}
+{"t":"move","item":"blk","motion":"quake","on":"rock-snaps"}
+{"t":"label","text":"Focus","sub":"where the slip starts","at":"blk.focus","show":"rock-snaps"}
+{"t":"say","m":"waves-spread","text":"That sudden slip sends shaking waves outward from the focus, which we feel as an earthquake."}
+{"t":"cam","on":"waves-spread","look":"blk.focus","view":"front","zoom":1.3}

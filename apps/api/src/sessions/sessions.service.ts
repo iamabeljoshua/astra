@@ -79,6 +79,12 @@ export class SessionsService {
     return findLibraryTopic(await this.sessions.findTopicIdOfSession(sessionId))?.title ?? null;
   }
 
+  // A session opened by typing has no card and no picture of its own, and until its first length is saved its title is the student's own question.
+  async getOpeningQuestion(studentId: string, sessionId: string): Promise<string | null> {
+    const { title, topicId, artwork, durationSeconds } = requireSession(await this.sessions.findForStudent(studentId, sessionId));
+    return topicId || artwork || durationSeconds > 0 ? null : title;
+  }
+
   async getLessonRequest(studentId: string, sessionId: string): Promise<{ title: string; status: string; isCard: boolean; cardLine?: string }> {
     const { title, status, topicId } = requireSession(await this.sessions.findForStudent(studentId, sessionId));
     const topic = findLibraryTopic(topicId);

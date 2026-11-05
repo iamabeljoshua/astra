@@ -4,9 +4,13 @@ import { join } from 'node:path';
 import { type Beat, parseSceneBrowserMessage, type SceneAgentMessage } from '@astra/contracts';
 import { describe, expect, it, vi } from 'vitest';
 import { getCoreSource, getPartCatalogue } from '../src/scenes/recipe/catalogue.ts';
+import { compileRecipe } from '../src/scenes/recipe/recipe.ts';
+import { toRecipeScene } from '../src/scenes/recipe/recipe-scene.ts';
 import { createRecipeWork, type RecipeWriter } from '../src/scenes/recipe/recipe-work.ts';
+import { readStarterRecipe } from '../src/scenes/recipe/starter.ts';
 import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
 import type { SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
+import type { TopicRuns } from '../src/scenes/lesson/topic-runs.ts';
 import { createTutorScenes } from '../src/tutor/tutor-scenes.ts';
 import { createWordTimeline } from '../src/live/word-timeline.ts';
 
@@ -26,7 +30,7 @@ const NO_FIT = JSON.stringify({ t: 'fit', in: false, topic: 'bees', why: 'no par
 // Saving a scene is real file work, so this waits on the clock and not on ticks.
 const flush = () => new Promise((resolve) => setTimeout(resolve, 120));
 
-function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true }: { route?: SceneRoute; text?: string; canCutIn?: boolean } = {}) {
+function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true, liveRuns, isBeforeFirstWord = false }: { route?: SceneRoute; text?: string; canCutIn?: boolean; liveRuns?: TopicRuns; isBeforeFirstWord?: boolean } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'fast-scenes-'));
   const store = createSceneStore(root);
   const sent: SceneAgentMessage[] = [];
@@ -51,6 +55,7 @@ function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true }: { r
     fast: {
       canCutIn: () => state.canCutIn,
       isInBreath: () => false,
+      isBeforeFirstWord: () => isBeforeFirstWord,
       cutIn(beats) {
         cuts.push(beats);
         return true;
@@ -65,6 +70,7 @@ function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true }: { r
           reviewer: { read: async () => ({ isGood: false, reasons: ['held'], ...USAGE }) },
           nameReader: { clear: async () => new Set() },
           matcher: { match: async () => '' },
+          ...(liveRuns ? { liveRuns } : {}),
           store,
           storeRoot: root,
           getParts: getPartCatalogue,
@@ -91,6 +97,167 @@ function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true }: { r
 }
 
 const getCommands = (beats: readonly Beat[]) => beats.flatMap((beat) => beat.script).flatMap((part) => (typeof part === 'string' ? [] : [part]));
+
+describe('a typed question from Home', () => {
+  it('starts its picture before the page joins, and sends it the moment the page says it can play', async () => {
+    const { scenes, say, sent, write, cuts } = setUp();
+    scenes.noteEarlyQuestion('why rockets have stages', STUDENT);
+    await flush();
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(sent.filter((message) => message.type === 'loadScene')).toHaveLength(0);
+    say({ type: 'sceneDevice', canPlay: true });
+    const load = sent.findLast((message) => message.type === 'loadScene');
+    if (load?.type !== 'loadScene') throw new Error('no scene went to the page');
+    say({ type: 'sceneLoaded', sceneId: load.sceneId });
+    scenes.noteStudentTurn();
+    scenes.noteSentenceBreak();
+    expect(cuts).toHaveLength(1);
+  });
+
+  it('lands as the first teaching when the reply has said nothing yet', async () => {
+    const { scenes, say, sent, cuts } = setUp({ isBeforeFirstWord: true });
+    scenes.noteEarlyQuestion('why rockets have stages', STUDENT);
+    await flush();
+    say({ type: 'sceneDevice', canPlay: true });
+    const load = sent.findLast((message) => message.type === 'loadScene');
+    if (load?.type !== 'loadScene') throw new Error('no scene went to the page');
+    say({ type: 'sceneLoaded', sceneId: load.sceneId });
+    expect(cuts).toHaveLength(1);
+  });
+
+  it('never cuts in ahead of a read that has not answered, and tries again', async () => {
+    const { scenes, say, sent, cuts, state } = setUp({ isBeforeFirstWord: true, canCutIn: false });
+    scenes.noteEarlyQuestion('why rockets have stages', STUDENT);
+    await flush();
+    say({ type: 'sceneDevice', canPlay: true });
+    const load = sent.findLast((message) => message.type === 'loadScene');
+    if (load?.type !== 'loadScene') throw new Error('no scene went to the page');
+    say({ type: 'sceneLoaded', sceneId: load.sceneId });
+    expect(cuts).toHaveLength(0);
+    state.canCutIn = true;
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(cuts).toHaveLength(1);
+  });
+
+  it('holds the first reply once for a picture on its way, and lets go when the picture lands', async () => {
+    const { scenes, say, sent } = setUp({ isBeforeFirstWord: true, canCutIn: true });
+    scenes.noteEarlyQuestion('why rockets have stages', STUDENT);
+    let isLetGo = false;
+    void scenes.holdFirstWord().then(() => (isLetGo = true));
+    await flush();
+    expect(isLetGo).toBe(false);
+    say({ type: 'sceneDevice', canPlay: true });
+    const load = sent.findLast((message) => message.type === 'loadScene');
+    if (load?.type !== 'loadScene') throw new Error('no scene went to the page');
+    say({ type: 'sceneLoaded', sceneId: load.sceneId });
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(isLetGo).toBe(true);
+    let isSecondLetGo = false;
+    void scenes.holdFirstWord().then(() => (isSecondLetGo = true));
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(isSecondLetGo).toBe(true);
+  });
+
+  it('leaves a later ask to the next sentence', async () => {
+    const { scenes, say, askAndLoad, cuts } = setUp({ isBeforeFirstWord: true });
+    say({ type: 'sceneDevice', canPlay: true });
+    await askAndLoad('why rockets have stages');
+    expect(cuts).toHaveLength(0);
+    scenes.noteSentenceBreak();
+    expect(cuts).toHaveLength(1);
+  });
+
+  it('writes one scene when the tutor then asks in other words', async () => {
+    const { scenes, say, write } = setUp();
+    scenes.noteEarlyQuestion('why rockets have stages', STUDENT);
+    say({ type: 'sceneDevice', canPlay: true });
+    await flush();
+    scenes.ask('why a rocket drops its stages');
+    await flush();
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks nothing for a page that cannot play', async () => {
+    const { scenes, say, sent } = setUp();
+    say({ type: 'sceneDevice', canPlay: false });
+    scenes.noteEarlyQuestion('why rockets have stages', STUDENT);
+    await flush();
+    expect(sent.filter((message) => message.type === 'loadScene')).toHaveLength(0);
+  });
+});
+
+describe('a saved scene', () => {
+  const savedRocket = { ...getSceneKey('Why rockets have stages') };
+
+  async function saveRocket(store: ReturnType<typeof createSceneStore>) {
+    const parts = getPartCatalogue();
+    const read = await readStarterRecipe({ text: ROCKET_RECIPE.replace('why rockets have stages', 'Why rockets have stages'), parts });
+    if (!read.isOk) throw new Error(read.why);
+    await store.saveChecked(toRecipeScene({ recipe: read.recipe, code: compileRecipe(read.recipe, { core: getCoreSource(), parts }), key: savedRocket, costUsd: 0, writeMs: 0 }), [], []);
+  }
+
+  it('plays with no model read on the same words in another form', async () => {
+    const { scenes, store, say, sent, write } = setUp();
+    await saveRocket(store);
+    say({ type: 'sceneDevice', canPlay: true });
+    scenes.ask('Why do rockets have stages?');
+    await flush();
+    expect(write).not.toHaveBeenCalled();
+    expect(sent.findLast((message) => message.type === 'loadScene')).toMatchObject({ sceneId: savedRocket.id, engine: 'kit' });
+  });
+
+  it('does not answer a question that adds a word', async () => {
+    const { scenes, store, say, write } = setUp();
+    await saveRocket(store);
+    say({ type: 'sceneDevice', canPlay: true });
+    scenes.ask('Why do toy rockets have stages?');
+    await flush();
+    expect(write).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('live 3D at the end of the chain', () => {
+  function setUpLive(route = KIT_ROUTE) {
+    const join = vi.fn<TopicRuns['join']>(() => ({ plan: Promise.resolve('nothing' as const), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: false as const, reasons: ['refused'] }), leave: () => {} }));
+    return { join, ...setUp({ route, text: NO_FIT, liveRuns: { join } }) };
+  }
+
+  it('writes only after no saved scene and no part fits', async () => {
+    const { scenes, say, join, write } = setUpLive();
+    say({ type: 'sceneDevice', canPlay: true });
+    scenes.ask('how bees make honey');
+    await flush();
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(join).toHaveBeenCalledTimes(1);
+    expect(join.mock.calls[0]?.[0]).toMatchObject({ ownerId: STUDENT });
+  });
+
+  it('stays out of what the parts can draw', async () => {
+    const { scenes, say, join } = setUp({ liveRuns: { join: vi.fn() as never } }) as ReturnType<typeof setUp> & { join?: never };
+    say({ type: 'sceneDevice', canPlay: true });
+    scenes.ask('why rockets have stages');
+    await flush();
+    expect(join).toBeUndefined();
+  });
+
+  it('never writes for the queue', async () => {
+    const { scenes, say, join } = setUpLive();
+    say({ type: 'sceneDevice', canPlay: true });
+    scenes.prepare('how bees make honey');
+    await flush();
+    expect(join).not.toHaveBeenCalled();
+  });
+
+  it('leaves a route the kit does not draw to the words and the board', async () => {
+    const { scenes, say, join } = setUpLive({ ...KIT_ROUTE, engine: 'manimgx' });
+    say({ type: 'sceneDevice', canPlay: true });
+    scenes.ask('how bees make honey');
+    await flush();
+    expect(join).not.toHaveBeenCalled();
+  });
+});
 
 describe('a fresh scene from a recipe', () => {
   it('comes in at the next sentence, in place of the rest of the reply', async () => {
