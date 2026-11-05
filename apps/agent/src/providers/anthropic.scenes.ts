@@ -26,7 +26,8 @@ const ROUTER_TOKENS = 400;
 const NAME_READER_TOKENS = 600;
 const RECIPE_TOKENS = 1800;
 const RECIPE_REVIEW_TOKENS = 800;
-const FRESH_DRAW_TOKENS = 3000;
+/** A short drawing is about 1,000 tokens. This leaves room for a long one, since a reply cut at the limit cannot run at all. */
+const FRESH_DRAW_TOKENS = 5000;
 const VOICE_STARTS = 'Talk like a warm';
 const VOICE_ENDS = 'Three ways of talking';
 const MATCH_TOKENS = 200;

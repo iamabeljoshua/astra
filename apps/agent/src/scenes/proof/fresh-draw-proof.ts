@@ -7,7 +7,7 @@ const { values: args } = parseArgs({ options: { web: { type: 'string' }, plan: {
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
 const POLL_MS = 150;
 const AFTER_LANDING_S = 26;
-const TRACED = new Set(['sceneAsked', 'sceneCue', 'recipeWritten', 'sceneMatched', 'sceneRouted', 'freshStarted', 'freshWritten', 'scenePageHas', 'freshOnPage', 'sceneEnded', 'recipeReviewed', 'recipeNoPicture', 'sceneOffTopic', 'sceneAskPassed']);
+const TRACED = new Set(['sceneAskFromLine', 'sceneAsked', 'sceneCue', 'recipeWritten', 'sceneMatched', 'sceneRouted', 'freshStarted', 'freshWritten', 'scenePageHas', 'freshOnPage', 'sceneEnded', 'recipeReviewed', 'recipeNoPicture', 'sceneOffTopic', 'sceneAskPassed']);
 
 /** One lesson: `ask` starts it from Home, and `say`, when given, is typed once the tutor has started talking, and is what the clock runs from. */
 interface PlannedLesson {
@@ -52,6 +52,7 @@ async function runLesson(page: Page, lesson: PlannedLesson, out: string) {
   const limitS = Number(args.waitS);
   let firstWordsAtS: number | null = null;
   let saidAtS: number | null = null;
+  let sceneWhenSaid: string | null = null;
   let pictureAtS: number | null = null;
   let lastCaption = '';
   let lastProblem: string | null = null;
@@ -62,9 +63,10 @@ async function runLesson(page: Page, lesson: PlannedLesson, out: string) {
     if (lesson.say && firstWordsAtS !== null && saidAtS === null && atS() >= firstWordsAtS + (lesson.sayAfterS ?? 4)) {
       await page.evaluate((words) => (window as unknown as { astraVoice: { sendTyped(text: string): void } }).astraVoice.sendTyped(words), lesson.say);
       saidAtS = atS();
+      sceneWhenSaid = read.sceneId;
     }
     lastProblem = read.problem ?? lastProblem;
-    if (read.sceneId && read.opacity > 0.5 && pictureAtS === null && (!lesson.say || saidAtS !== null)) pictureAtS = atS();
+    if (read.sceneId && read.sceneId !== sceneWhenSaid && read.opacity > 0.5 && pictureAtS === null && (!lesson.say || saidAtS !== null)) pictureAtS = atS();
     if (pictureAtS !== null && read.caption !== lastCaption && read.caption !== '') {
       lastCaption = read.caption;
       const frame = `frame-${lines.length}.jpg`;

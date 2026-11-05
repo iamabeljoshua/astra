@@ -72,7 +72,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
         cutIn,
         mostAsks: FAST_MOST_ASKS,
         askLimitMs: freshTools ? FRESH_ASK_LIMIT_MS : FAST_ASK_LIMIT_MS,
-        landsAtClause: freshTools !== null,
+        drawsFresh: freshTools !== null,
         makeWork: (input) =>
           createRecipeWork({
             ...input,

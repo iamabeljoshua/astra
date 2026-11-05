@@ -26,7 +26,7 @@ const NO_FIT = JSON.stringify({ t: 'fit', in: false, topic: 'bees', why: 'no par
 // Saving a scene is real file work, so this waits on the clock and not on ticks.
 const flush = () => new Promise((resolve) => setTimeout(resolve, 120));
 
-function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true, landsAtClause = false }: { route?: SceneRoute; text?: string; canCutIn?: boolean; landsAtClause?: boolean } = {}) {
+function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true, drawsFresh = false }: { route?: SceneRoute; text?: string; canCutIn?: boolean; drawsFresh?: boolean } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'fast-scenes-'));
   const store = createSceneStore(root);
   const sent: SceneAgentMessage[] = [];
@@ -57,7 +57,7 @@ function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true, lands
       },
       mostAsks: 40,
       askLimitMs: 20_000,
-      landsAtClause,
+      drawsFresh,
       makeWork: (input) =>
         createRecipeWork({
           ...input,
@@ -290,6 +290,23 @@ describe('a drawing that starts from the student\'s line', () => {
   });
 });
 
+describe('a drawing the student has moved on from', () => {
+  it('stops being written, so it costs no more', async () => {
+    const { scenes, write, say } = setUp({ drawsFresh: true });
+    say({ type: 'sceneDevice', canPlay: true });
+    let stopSignal: AbortSignal | null = null;
+    write.mockImplementationOnce((_ask, _parts, signal) => {
+      stopSignal = signal;
+      return new Promise((_resolve, reject) => signal.addEventListener('abort', () => reject(new Error('stopped'))));
+    });
+    scenes.ask('why rockets have stages');
+    await flush();
+    scenes.ask('how a bicycle stays up');
+    await flush();
+    expect((stopSignal as AbortSignal | null)?.aborted).toBe(true);
+  });
+});
+
 describe('where a scene may land', () => {
   it('waits for a sentence, unless a late drawing may come in at a comma', async () => {
     const waits = setUp();
@@ -299,7 +316,7 @@ describe('where a scene may land', () => {
     expect(waits.cuts).toHaveLength(0);
     waits.scenes.noteSentenceBreak('sentence');
     expect(waits.cuts).toHaveLength(1);
-    const comes = setUp({ landsAtClause: true });
+    const comes = setUp({ drawsFresh: true });
     comes.say({ type: 'sceneDevice', canPlay: true });
     await comes.askAndLoad('why rockets have stages');
     comes.scenes.noteSentenceBreak('clause');

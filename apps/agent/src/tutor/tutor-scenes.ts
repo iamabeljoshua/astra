@@ -29,8 +29,8 @@ export interface FastSceneHooks {
   cutIn(beats: readonly TutorBeat[]): boolean;
   mostAsks: number;
   askLimitMs: number;
-  /** A fresh drawing is late already, so it may come in at a comma and not wait for the sentence's end. */
-  landsAtClause?: boolean;
+  /** A drawing is paid by the token and is late already, so it may come in at a comma, and one the student has moved on from stops. */
+  drawsFresh?: boolean;
 }
 
 export interface TutorScenesOptions {
@@ -184,6 +184,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     if (ask.page.kind === 'loading') clearTimeout(ask.page.limit);
     current = null;
     if (ask === lineAskObject) lineAsk = how === 'landed' ? 'landed' : 'none';
+    if (how === 'replaced' && fast?.drawsFresh) ask.work.leave();
     if (MISSED_ITS_MOMENT.has(how)) askedTopics.delete(toKey(ask.topic));
     if (ask.isOpening) giveOpening(null);
     if (ask.isAhead && how !== 'landed') {
@@ -582,7 +583,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       prepared.clear();
     },
     noteSentenceBreak(kind = 'sentence') {
-      if (current && (kind === 'sentence' || fast?.landsAtClause)) land(current, 'sentence');
+      if (current && (kind === 'sentence' || fast?.drawsFresh)) land(current, 'sentence');
     },
     noteSceneCut(heard) {
       screen = noteSceneWordsCut(screen, heard, `r${(wordCuts += 1)}`);
