@@ -247,6 +247,17 @@ So the read won on every count but speed, and speed does not matter here: a stud
 - **What the page writes is not the student.** A page that reloads sends "I'm back to carry on with this: ..." with `isOpening`. That line is read for danger and for nothing else. During a stop it starts no reply at all.
 - **A new job forgets.** `leadStop` lives in the brain, so a new job for the same room starts with no hold and no crisis, and only a line or a reload's help note says otherwise.
 
+| The same on `b5eccc0` and after | Before | After |
+| --- | --- | --- |
+| `i dont understand`, a line said again, then `ok`; also `huh` and `can you explain that again` | No words and no lead, 3 of 3 | A lead 1.2 to 1.9 s after the `ok` |
+| `give me a sec`, then `sure`, or `alright` | Silence through 12 s | The next idea on `sure`, a lead on `alright` |
+| `please stop talking`, then `ok`, then `sure` | 0 leads | 0 leads, with "Still here, whenever you're ready." on `sure` |
+| `im thinking`, `ok keep going`, `i need a minute`, `ok keep going` | The emergency line in 4 of about 15 sessions | "Take your time.", then the lesson, on 3 of 3 sessions, with no help line |
+| `wait so 0.5g is that right`, `fr fr`, `yeah that`, `asdfgh` | The emergency line and a held lesson | A question about the line, no help line |
+| `ndi be anyi na-eti m` after a lead | "That ball always comes back down", a lead 2.4 s later, 1 of 5 | "I can't read that message. If anything is worrying you, tell an adult you trust", 0 leads until they spoke |
+| `como funciona un cohete`, then `ok` | | An answer in Spanish, no lead until `ok`, then the next lead |
+| `ok` on an open exercise, in `eval:kinds` | "Let's go back a step", the board cleared | "Take your time with the ball", the task still open |
+
 | What the student did, real Chrome, real Sonnet and Haiku, fake voice | Before, at `1b56435` | After |
 | --- | --- | --- |
 | Typed `wait`, then `hold on` | 3 leads in 25 s, 1 in 20 s | 0 and 0 |
