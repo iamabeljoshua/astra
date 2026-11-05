@@ -75,24 +75,26 @@ A question with the same words as a saved title in another form, such as "How do
 The job starts about 0.5 s after the press, because the API opens the room as the session saves. It reads `GET /agent/sessions/:id/opening`, which names the room's student and a typed question, for the worker alone. LiveKit's dispatch metadata and the tutor's brief stay free of both, as their tests require.
 
 - **The picture starts at the press.** The worker asks for the scene from the student's words before the page joins, and sends it once the page says it can play.
-- **The page's first messages need no wait.** The job hears them up to 2 s before LiveKit names their sender. The API named the only student with a token for the room, so the worker reads them at once. That took first words from 3.1 to 3.9 s to 1.5 to 3.5 s.
+- **The page's first messages need no wait.** The job hears them up to 2 s before LiveKit names their sender. The API named the only student with a token for the room, so the worker reads them at once. That took first words from 3.1 to 3.9 s to 1.4 to 3.8 s.
 - **The picture is the first teaching.** The greeting plays as it did, because it says this is an AI tutor. When it ends, a ready picture comes before the tutor's first line. The first reply holds its first word 2.5 s at most for a picture on its way, once. `isClearToLand` already waits for the safety read, so a picture never comes ahead of it, and a crisis still ends the ask.
 - **The stylish wait.** With `VITE_FAST_SCENES=1`, the connecting screen shows the topic and holds its dots until the picture lands, 5 s from the press at most. The shared board gains nothing. Only past 15 s without a tutor does the screen say why.
 
 The plan and the first reply still start when the page's line arrives, 1.2 to 2.9 s after the press. Starting them at the job would need the brain to run a turn with nobody to hear it.
 
-| Stage, from the press, at load 7 to 14 | Before | Now |
+Measured on 5 November 2026 in real Chrome, headed and muted, with the fake voice and real models. It was never a quiet Mac.
+
+| Stage, from the press | Before, 4 presses at load 5 to 10 | Now, 8 presses at load 7 to 19 |
 | --- | --- | --- |
 | Session saved | 0.1 to 0.2 s | The same |
-| The page opens | 0.7 to 0.9 s | The same |
-| The job in the room | 0.5 to 2.6 s | The same |
-| The page in the room | 1.2 to 3.0 s | The same |
-| The job reads the page's line | 3.1 s | 1.3 to 3.0 s |
-| First words, the greeting | 3.1 to 3.9 s | 1.5 to 3.5 s |
-| The scene asked for | 5.8 s | 0.7 to 2.9 s |
-| The page has a saved scene | 6.8 s | 2.5 to 3.5 s |
-| Picture and its first line, saved | 10.4 to 13.4 s | 4.4 to 5.9 s |
-| Picture and its first line, fresh parts | 12.5 s | 7.2 s, measured before the hold, and see `What this does not prove` |
+| The page opens | 0.7 to 0.8 s | 0.7 to 1.1 s |
+| The job in the room | 0.5 to 2.9 s | 0.6 to 3.3 s |
+| The page in the room | 1.2 to 3.0 s | 1.3 to 2.9 s |
+| The job reads the page's line | about 3 s | With the page in the room, or as it reads the opening route |
+| First words, the greeting | 3.1 to 3.9 s | 1.4 to 3.8 s |
+| The scene asked for | 5.8 s | 0.7 to 3.3 s |
+| Picture and its first line, saved | 11.4 s | 4.2 to 5.9 s, on 5 topics |
+| Picture and its first line, fresh parts | Not reached in 14 s | 7.2 s, real, before the first word held. 7.9 s after it, with a 2 s fake writer and the job at 3.3 s |
+| No part fits, the reply's first sound | 6.7 s | 3.6 and 5.8 s |
 
 ## What this does not prove
 
