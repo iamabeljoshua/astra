@@ -10,7 +10,7 @@ const LONGEST_RUN_MS = 180_000;
 it(
   'stops a spinning scene and keeps a scene from the network, cookies, and the page',
   async () => {
-    // CI installs this browser in a step beside these tests, so this waits on that install's lock. --no-remove keeps browsers other checkouts on a machine use.
+    // Playwright's lock makes this wait for CI's parallel install, and --no-remove spares other checkouts' browsers.
     await run('pnpm', ['exec', 'playwright', 'install', 'chromium', '--no-remove'], { cwd: REPO_ROOT });
     const { stdout } = await run(process.execPath, ['scripts/check-kit-sandbox.ts'], { cwd: REPO_ROOT });
     expect(stdout).toContain('The sandbox held.');
