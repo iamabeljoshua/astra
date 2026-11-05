@@ -59,7 +59,6 @@ let sceneObject = null;
 let wantSeconds = null;
 let lastSeconds = null;
 let renderErrors = 0;
-let bitmaps = [];
 
 const draw = (seconds) => {
   sceneSeconds = seconds;
@@ -130,7 +129,6 @@ async function load(command) {
   const textures = {};
   await Promise.all(Object.entries(command.textures || {}).map(async ([name, blob]) => {
     textures[name] = await createImageBitmap(blob, { imageOrientation: 'flipY', colorSpaceConversion: 'none' });
-    bitmaps.push(textures[name]);
   }));
   const momentsSeen = new Set();
   try {
