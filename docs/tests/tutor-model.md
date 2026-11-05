@@ -188,7 +188,7 @@ Abel heard the tutor as too fast. By the clock it was not, at 190 to 204 words a
 
 Each stretch is its own turn on the voice line. The session stops at the next stretch's first beat, waits for the audio to finish, takes a breath of 300 to 450 ms, and starts it, so the gap heard is 760 to 1080 ms once the voice's own start is counted, measured on the saved clip. A student who jumps in during a breath replaces the next stretch, and the next request says it was not heard. A noise or an "mm" lets it carry on. Code breathes on its own at the next sentence end past 25 words. Sentence gaps inside a stretch stay at the voice's own 180 to 260 ms, with nothing added. Chris runs on the voice's own defaults. Abel tried stability 0.45, similarity 0.8, at speed 1.0 and 0.95 on real lessons, and rejected them because one word stretched.
 
-The whole explanation stays in one request, so a breath adds no model wait. A tutor that carries on with no student message, as a new request after each pause, would hear more of what the student does, and it is not built.
+The whole explanation stays in one request, so a breath adds no model wait. A tutor that carries on with no student message, as a new request after each pause, hears more of what the student does. That is how a lesson runs on, and `docs/tests/lesson-flow.md` says what stops it.
 
 | Real turns on Sonnet 5.5 | Words a reply p50, p95 | Longest unbroken stretch a reply p50, p95 | Replies ending on a question | `text` commands |
 | --- | --- | --- | --- | --- |
@@ -218,8 +218,8 @@ Abel: "it usually says good question when i didn't ask a question". Two things s
 
 | What happens | What the student hears | Proof |
 | --- | --- | --- |
-| No text for 3 s | "One moment." or a version of it, while the dot pulses. If the safety check has read danger, the student hears code's help line instead, and the turn ends there | Recorded stream, live, `safety-check.test.ts` |
-| No text for 5 s | The request is dropped and a new one sent, with "Still with you, nearly there." | Recorded 10 s stall, live: answered at 5 s plus the new request |
+| No text for 3 s, on words the safety check has read as danger | Code's help line, and the turn ends there | Recorded stream, live, `safety-check.test.ts` |
+| No text for 5 s, on a reply to the student | The dot pulses and nothing is said until then. The request is dropped and a new one sent, with "Still with you, nearly there." A stored "One moment." at 3 s opened 5 of 41 replies at one prompt, crisis replies among them, so it is gone. Neither line plays while the read is out, or on words read as about safety | Recorded 10 s stall, live: answered at 5 s plus the new request |
 | A second request stalls | "I can't reach my notes right now.", one sentence naming an adult they trust or their local emergency number, and "Ask me again in a moment?" | `tutor-brain.test.ts`, `claims-and-turns.test.ts` |
 | Text stops for 4 s mid reply | "Sorry, I lost my thread for a second." if it had already said something, and a new request carries what was said | `tutor-brain.test.ts` |
 | A refusal that could be about the student's safety: `bio`, `general_harms`, a category with no name or one not listed here, or any refused message whose words mention being hurt or in danger | A line that says it is not the student's fault, and points to an adult they trust or their local emergency number. The message stays out of history, and the next request carries a `declined` note, built by code with none of the refused words, so the tutor checks on them before teaching on, unless their newest message comes first | `tutor-brain.test.ts`, `claims-and-turns.test.ts` |

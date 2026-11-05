@@ -569,15 +569,16 @@ describe('a scene ready ahead meeting the session limits', () => {
     expect(spoken).toHaveLength(1);
   });
 
-  it('readies nothing once the 6 asks are used, because it could never land', async () => {
+  it('readies no new write once the 6 asks are used, because it could never land, and still readies a saved scene', async () => {
     const { scenes, store } = setUp();
     await saveShared(store);
     opened(scenes);
     await askMany(scenes, 6);
-    expect(scenes.prepare(TOPIC)).toBe(false);
+    expect(scenes.prepare('one idea too many')).toBe(false);
+    expect(scenes.prepare(TOPIC)).toBe(true);
   });
 
-  it('counts a next scene toward the 6 when it is asked for, and not before', async () => {
+  it('never counts a saved scene toward the 6, so a long lesson can use every one that fits', async () => {
     const { scenes, spoken, traces, store } = setUp();
     const scene = await saveShared(store);
     const getAsksStarted = () => traces.filter(({ name, fields }) => name === 'sceneAsked' && fields.isAhead === false).length;
@@ -590,9 +591,12 @@ describe('a scene ready ahead meeting the session limits', () => {
     await flush();
     scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
     expect(spoken).toHaveLength(1);
+    scenes.ask('the last new write');
+    await flush();
+    expect(getAsksStarted()).toBe(6);
     scenes.ask('one idea too many');
     await flush();
-    expect(getAsksStarted()).toBe(5);
+    expect(getAsksStarted()).toBe(6);
   });
 
   it('lands a scene readied for the new lesson while the reply catches up with its title', async () => {

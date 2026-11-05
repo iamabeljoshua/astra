@@ -6,7 +6,7 @@ import { createTutorBrain, type TurnSummary } from '../src/tutor/brain.ts';
 import { TUTOR_PROMPT } from '../src/tutor/prompt.ts';
 import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 
-const QUICK = { stillWorkingMs: 400, firstTextMs: 300, betweenTextMs: 300, finishGraceMs: 20, reportWaitMs: 30 };
+const QUICK = { firstTextMs: 300, betweenTextMs: 300, finishGraceMs: 20, reportWaitMs: 30 };
 const CUBED = '{"tool":"compute","expression":"17^3"}';
 const OPENER = 'Let me work that out. ';
 const CUBED_SPOKEN = 'It comes to four thousand nine hundred thirteen.';

@@ -26,6 +26,11 @@ export function getPrepareRefusal(facts: AheadFacts): PrepareRefusal | null {
   return isUnderPressure(facts) ? 'pressure' : null;
 }
 
+export function getSavedRefusal({ isOverLimit, leftTodayUsd }: AheadFacts): PrepareRefusal | null {
+  if (isOverLimit) return 'overLimit';
+  return leftTodayUsd !== null && leftTodayUsd < DAY_RESERVE_USD ? 'nearDayLimit' : null;
+}
+
 export function getWriteRefusal(facts: AheadFacts): WriteRefusal | null {
   const refusal = getPrepareRefusal(facts);
   if (refusal) return refusal;

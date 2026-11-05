@@ -1,17 +1,20 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import type { AgentMessage, BrowserMessage, ElementId, InkPoint, ReadMath, StudentAction, StudentWork, Task } from '@astra/contracts';
-import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getLinearAnswer, getNod, getPickParts, type Nod, NODS, wantsSomethingElse } from '@astra/board/shared';
+import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getLinearAnswer, getNod, getPickParts, type Nod, NODS, wantsSomethingElse, isThinkingAloud } from '@astra/board/shared';
 import type { BoardElement } from '@astra/board';
 import type { SpokenReading } from './read-spoken.ts';
 import { decideSpoken, type SpokenDecision, type SpokenExpected, type SpokenPart } from './spoken-answer.ts';
+import { MAY_BE_ABOUT_SAFETY } from '../safety-words.ts';
 import type { TutorBrain } from '../brain.ts';
-import { decideOnReading, decideOnWork, decideWatch, getGate, getWorkWords, type WatchDecision, type WatchSituation, type WordMeaning, decideOnSpokenWork } from './watch-rule.ts';
+import { decideOnReading, decideOnWork, decideWatch, getGate, getWorkWords, HOLDS_WORDS, type WatchDecision, type WatchSituation, type WordMeaning, decideOnSpokenWork } from './watch-rule.ts';
 
 export interface BoardWorkOptions {
-  tutor: Pick<TutorBrain, 'noteWork' | 'noteWatcher' | 'getBoard'>;
+  tutor: Pick<TutorBrain, 'noteWork' | 'noteWatcher' | 'getBoard' | 'noteQuietLine'>;
   writeLog(message: BrowserMessage & { type: 'worked' }, checked: CheckedWork): void;
   speakUp(words: string): void;
+  speakUpAsCode?(words: string): void;
   isTutorTalking(): boolean;
+  isLeadStopped?(): boolean;
   getSecondsSinceQuestion(): number | null;
   readMeaning(words: string): Promise<WordMeaning | null>;
   readStrokes(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
@@ -29,6 +32,8 @@ interface Unanswered {
 
 const MOST_STROKES_HELD = 400;
 const MOST_INK_READS = 300;
+const MOST_DRAFT_READS = 60;
+const DRAFT_HOLDS_FOR_MS = 60_000;
 const HOLD_WHILE_TYPING_MS = 1200;
 const HOLD_LOOKS_EVERY_MS = 50;
 const LONGEST_HOLD_MS = 8000;
@@ -38,7 +43,7 @@ const NOT_READ = '(handwriting that could not be read)';
 const getWorkKey = (work: StudentWork) => JSON.stringify(work.way === 'write' ? cleanStudentText(work.text) : work);
 
 // What the student does on the board: code checks it, notes it, logs it, and decides whether the tutor answers.
-export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getSecondsSinceQuestion, readMeaning, readStrokes, readSpokenWords, writeHeardLog, send, getNowMs, trace }: BoardWorkOptions) {
+export function createBoardWork({ tutor, writeLog, speakUp, speakUpAsCode = speakUp, isTutorTalking, isLeadStopped = () => false, getSecondsSinceQuestion, readMeaning, readStrokes, readSpokenWords, writeHeardLog, send, getNowMs, trace }: BoardWorkOptions) {
   let spokenLines = 0;
   let inkReads = 0;
   let latestInkRead: { key: string; reading: ReturnType<BoardWorkOptions['readStrokes']> | Promise<null> } | null = null;
@@ -50,11 +55,36 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
   let unanswered: Unanswered | null = null;
   let wrongKeys: readonly string[] = [];
   let hasLeanedIn = false;
+  let triedTask: ElementId | null = null;
   const takenKeys = new Set<string>();
+
+  let lastKeyAtMs = Number.NEGATIVE_INFINITY;
+  let hasDraft = false;
+  let draftNow: string | undefined;
+  let draftChangedAtMs = Number.NEGATIVE_INFINITY;
+  let draftReads = 0;
+  let latestDraftRead: { text: string; meaning: Promise<WordMeaning | null> } | null = null;
+  let draftSpokenFor: string | null = null;
 
   const noteTyping = () => {
     typedAtMs = getNowMs();
+    lastKeyAtMs = typedAtMs;
   };
+
+  const noteDraft = (draft: string | undefined) => {
+    if (draft !== draftNow) draftChangedAtMs = getNowMs();
+    draftNow = draft;
+    hasDraft = Boolean(draft);
+  };
+
+  const noteLineSent = () => {
+    typedAtMs = null;
+    lastKeyAtMs = Number.NEGATIVE_INFINITY;
+    hasDraft = false;
+    draftNow = undefined;
+  };
+
+  const isWriting = (afterKeyMs: number) => (hasDraft && getNowMs() - draftChangedAtMs < DRAFT_HOLDS_FOR_MS) || getNowMs() - lastKeyAtMs < afterKeyMs;
 
   const waitWhileTyping = async () => {
     const startedMs = getNowMs();
@@ -77,6 +107,15 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     takeWork(message);
   };
 
+  // "done" on a problem with numbers is no answer yet, so the exercise keeps its own wait.
+  const noteTried = ({ verdict, reading }: CheckedWork) => {
+    const open = getOpenTask();
+    const isOnlyWordsOnAProblem = reading?.kind === 'words' && open?.task.way === 'write' && open.task.reads !== 'words' && !open.task.accepts;
+    triedTask = verdict.status === 'wrong' || isOnlyWordsOnAProblem ? null : (open?.task.id ?? null);
+  };
+
+  const hasTriedOpenTask = () => triedTask !== null && getOpenTask()?.task.id === triedTask;
+
   const takeWork = (message: BrowserMessage & { type: 'worked' }, onTaken?: () => void) => {
     const noted = tutor.noteWork?.(message.work);
     const key = getWorkKey(message.work);
@@ -87,7 +126,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
       return;
     }
     if (message.work.way === 'write') takenKeys.add(`${message.work.id} ${key}`);
-    typedAtMs = null;
+    noteLineSent();
     onTaken?.();
     const { checked, hadTask } = noted;
     hasLeanedIn = false;
@@ -96,13 +135,16 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     const decision = decideOnWork(message.work, checked, hadTask);
     trace('workDecided', { way: message.work.way, status: checked.verdict.status, ...decision });
     if (decision.act === 'reply') {
+      noteTried(checked);
       noteAnswered();
       isAnsweringJudgedWork = checked.verdict.status !== 'unknown';
       // "Hm." in front of a line that turns out right sounds like doubt, so a line code cannot judge gets a sound that says nothing.
       nodDue = getNod(message.work, checked) ?? (checked.verdict.status === 'unknown' && checked.reading?.kind === 'math' ? NODS.neutral : null);
-      speakUp(getWorkWords(message.work));
+      if (message.work.way === 'write' && message.work.text !== NOT_READ) speakUp(message.work.text);
+      else speakUpAsCode(getWorkWords(message.work));
     } else {
       unanswered = { checked, keys: wrongKeys };
+      if (message.work.way === 'write' && isThinkingAloud(message.work.text)) tutor.noteQuietLine?.(message.work.text);
     }
   };
 
@@ -172,17 +214,22 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     return element?.content.kind === 'task' ? { task: element.content, board } : null;
   };
 
+  const leaveOpenTask = () => {
+    const open = getOpenTask();
+    const leaving: StudentWork = open ? { way: 'leave', task: open.task.id } : { way: 'leave' };
+    const left = tutor.noteWork?.(leaving);
+    if (left) {
+      writeHeardLog(leaving, left.checked);
+      send({ type: 'workRead', work: leaving });
+    }
+  };
+
   const onSpoken = async (rawText: string): Promise<boolean> => {
     const open = getOpenTask();
     const text = cleanStudentText(rawText);
     if (!open && !wantsSomethingElse(text)) return true;
     if (wantsSomethingElse(text)) {
-      const leaving: StudentWork = open ? { way: 'leave', task: open.task.id } : { way: 'leave' };
-      const left = tutor.noteWork?.(leaving);
-      if (left) {
-        writeHeardLog(leaving, left.checked);
-        send({ type: 'workRead', work: leaving });
-      }
+      leaveOpenTask();
       return true;
     }
     if (!open) return true;
@@ -195,7 +242,9 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     send({ type: 'workRead', work });
     hasLeanedIn = false;
     nodDue = getNod(work, noted.checked);
-    return decideOnSpokenWork(work, noted.checked, noted.hadTask).act === 'reply';
+    const wantsReply = decideOnSpokenWork(work, noted.checked, noted.hadTask).act === 'reply';
+    if (wantsReply) noteTried(noted.checked);
+    return wantsReply;
   };
 
   const getSituation = (seconds: number, draftText: string | undefined): WatchSituation => {
@@ -211,6 +260,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
       unanswered: unanswered && { verdict: unanswered.checked.verdict, isSameWrongLineTwice: new Set(unanswered.keys).size < unanswered.keys.length },
       hasOpenTask: board?.openTask != null,
       hasLeanedInOnThisSilence: hasLeanedIn,
+      isLeadStopped: isLeadStopped(),
     };
   };
 
@@ -220,18 +270,33 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     noteAnswered();
     tutor.noteWatcher?.({ why: decision.why, seconds_paused: seconds, ...(draftText ? { unsent_draft: cleanStudentText(draftText) } : {}) });
     trace('watcherSpoke', { why: decision.why, seconds });
-    speakUp('(has paused)');
+    speakUpAsCode('(has paused)');
+  };
+
+  const readDraftOnce = (text: string): Promise<WordMeaning | null> => {
+    if (latestDraftRead?.text === text) return latestDraftRead.meaning;
+    draftReads += 1;
+    const read = draftReads > MOST_DRAFT_READS ? Promise.resolve(null) : readMeaning(text);
+    const meaning = read.then((reading) => reading ?? (MAY_BE_ABOUT_SAFETY.test(text) ? 'needsAPerson' : null));
+    latestDraftRead = { text, meaning };
+    return meaning;
   };
 
   const onPaused = async ({ seconds, draft }: BrowserMessage & { type: 'paused' }) => {
+    const meaning = draft && HOLDS_WORDS.test(draft) ? await readDraftOnce(draft) : null;
+    if (meaning === 'needsAPerson' && draft && draftSpokenFor !== draft) {
+      draftSpokenFor = draft;
+      speakAtPause({ act: 'speak', why: 'their unsent words read as needsAPerson' }, seconds, draft);
+      return;
+    }
     const situation = getSituation(seconds, draft);
     const first = decideWatch(situation);
-    const decision = first.act === 'readWords' ? decideOnReading(first, await readMeaning(situation.draft?.text ?? '')) : first;
+    const decision = first.act === 'readWords' ? decideOnReading(first, meaning) : first;
     trace('watcherDecided', { seconds, ...decision });
     if (decision.act === 'speak' && getGate(getSituation(seconds, draft)) === null) speakAtPause(decision, seconds, draft);
   };
 
-  return { onWorked, onPaused, onInkStroke, onInkPeek, onInkDone, noteTyping, waitWhileTyping, onSpoken, hasOpenTask: () => getOpenTask() !== null, canSayStockWord: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered };
+  return { onWorked, onPaused, onInkStroke, onInkPeek, onInkDone, noteTyping, noteDraft, noteLineSent, isWriting, waitWhileTyping, onSpoken, hasOpenTask: () => getOpenTask() !== null, canSayStockWord: () => !isAnsweringJudgedWork && getOpenTask() === null, takeNod, noteAnswered, leaveOpenTask, hasTriedOpenTask };
 }
 
 function getSpokenParts(task: Task, board: { elements: ReadonlyMap<ElementId, BoardElement> } | undefined): SpokenPart[] {

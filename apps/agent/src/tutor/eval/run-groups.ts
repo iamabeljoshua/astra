@@ -7,9 +7,10 @@ import { type BoardProblemReport, type ElementId, getBeatText, getCues, type Sce
 import { readKey } from '../../keys.ts';
 import { askPlanner } from '../../lesson-plan/ask-planner.ts';
 import { createLessonPlanner } from '../../lesson-plan/lesson-planner.ts';
-import { makeAnthropicAsker, makeAnthropicJsonReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
+import { makeAnthropicAsker, makeAnthropicJsonReader, makeAnthropicOneWordReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, type TutorModelName } from '../../providers/anthropic.ts';
 import type { MemoryLine } from '../../learner-record/memory-note.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary } from '../brain.ts';
+import { createLineReaders } from '../line-read/read-line.ts';
 import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
 import { getWorkWords } from '../watcher/watch-rule.ts';
@@ -156,6 +157,7 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
     prompt,
     profile,
     lessonPlanner,
+    readers: createLineReaders(makeAnthropicOneWordReader({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost: (usd) => ledger.charge({ anthropicUsd: usd }) })),
     ...(memory ? { memory: { memory: { count: memory.length, notes: [...memory] } } } : {}),
     ...(prompt === PROMPT_VERSIONS.v3FindSource ? { findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }) } : {}),
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}${fields?.report ? `: ${String(fields.report)}` : ''}`),

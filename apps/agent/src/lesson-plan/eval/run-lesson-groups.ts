@@ -5,8 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { type Cue, type ElementId, getBeatText, getCues, getSpokenWords, type StudentWork, type Task } from '@astra/contracts';
 import { readKey } from '../../keys.ts';
-import { makeAnthropicJsonReader, makeAnthropicTutorModel } from '../../providers/anthropic.ts';
+import { makeAnthropicJsonReader, makeAnthropicOneWordReader, makeAnthropicTutorModel } from '../../providers/anthropic.ts';
 import { createTutorBrain, type TurnSummary, type TutorBeat } from '../../tutor/brain.ts';
+import { createLineReaders } from '../../tutor/line-read/read-line.ts';
 import { REPLY_CHECKS } from '../../tutor/eval/reply-checks.ts';
 import { TUTOR_PROMPT } from '../../tutor/prompt.ts';
 import { createSpendLedger } from '../../tutor/spend-ledger.ts';
@@ -166,6 +167,7 @@ function startGroupRun(group: LessonGroup, ledger: ReturnType<typeof createSpend
   const brain = createTutorBrain({
     model,
     profile: PROFILE,
+    readers: createLineReaders(makeAnthropicOneWordReader({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost: (usd) => ledger.charge({ anthropicUsd: usd }) })),
     onTurnEnd(summary) {
       latest = summary;
       ledger.charge({ anthropicUsd: summary.costUsd });

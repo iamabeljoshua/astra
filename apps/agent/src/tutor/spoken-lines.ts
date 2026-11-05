@@ -2,7 +2,6 @@ const IF_WORRIED = "If anything is worrying you, or you don't feel safe, please 
 
 // A crisis line can arrive on any turn, and these may be the only words the student gets, so each line that ends a turn with no real reply names help.
 export const SPOKEN_LINES = {
-  stillWorking: ['One moment.', 'Let me think about that.', 'Let me work that out.'],
   stillThere: ['Still with you, nearly there.', 'Bear with me a moment.', 'Sorry, this is taking a little longer.'],
   couldNotReply: [`I can't reach my notes right now. ${IF_WORRIED} Ask me again in a moment?`, `Something's slow on my side. ${IF_WORRIED} Could you ask that again?`, `I lost my connection for a moment. ${IF_WORRIED} Would you ask me again?`],
   lostThread: ['Sorry, I lost my thread for a second.', 'Hold on, I lost my place.', 'Sorry, let me pick that back up.'],
@@ -18,9 +17,12 @@ export const SPOKEN_LINES = {
   refusedPlain: ["I can't go into that one here, and you haven't done anything wrong by asking. What else are you working on?", "That one's not something I can help with here, and that's down to me, not you. What else are you working on?"],
   refusedPlainAfterWords: ["I have to stop there on that one, and that's down to me, not you. What else are you working on?"],
   askedHowDeclined: ["Let's come at that a different way. Which part do you want to go through first?"],
+  waitingAfterFailedRead: ["I'm having a little trouble on my side, so I'll wait here. Tell me when you want to carry on."],
+  lostPlace: ["Sorry, I've lost my place. Tell me what you'd like to do next."],
   cutShort: ["That's a lot at once, so I'll stop there. What do you make of it so far?"],
   noToolAnswer: [`I couldn't work that out just now. ${IF_WORRIED} Could you ask me that another way?`],
   notHeard: ["I didn't catch any words in that. Could you try again?"],
+  ifWorried: [IF_WORRIED],
   safetyHelp: ['Please tell an adult you trust now, or call your local emergency number if you are in danger.'],
   safetyStop: ['That sounds serious. Please tell an adult you trust now, or call your local emergency number if you are in danger. Are you safe right now?'],
   safetyStopHurt: ['That sounds serious, and it is not your fault. Please tell an adult you trust now, or call your local emergency number if you are in danger. Are you safe right now?'],

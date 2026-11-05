@@ -547,6 +547,8 @@ describe('the messages a held microphone and a quiet room add', () => {
     const stamp = { clockId: 'page-1', browserMs: 5000, startedMsAgo: 0 };
     expect(parseBrowserMessage({ type: 'stillHere', ...stamp })).toEqual({ ok: true, value: { type: 'stillHere', ...stamp } });
     expect(parseBrowserMessage({ type: 'stillHere' }).ok).toBe(false);
+    expect(parseBrowserMessage({ type: 'pageHidden', isHidden: true, ...stamp })).toEqual({ ok: true, value: { type: 'pageHidden', isHidden: true, ...stamp } });
+    expect(parseBrowserMessage({ type: 'pageHidden', isHidden: 'yes', ...stamp }).ok).toBe(false);
   });
 
   it('reads what holding to talk and the invitation send', () => {

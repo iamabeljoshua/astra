@@ -5,6 +5,8 @@ import { parseArgs } from 'node:util';
 import { readKey } from '../../keys.ts';
 import { makeAnthropicTutorModel } from '../../providers/anthropic.ts';
 import { createTutorBrain, type TurnSummary } from '../../tutor/brain.ts';
+import { makeAnthropicOneWordReader } from '../../providers/anthropic.ts';
+import { createLineReaders } from '../../tutor/line-read/read-line.ts';
 import { makeAnthropicSafetyCheck } from '../safety-check.ts';
 import { createSafetyWatch, type SafetyFlag } from '../safety-watch.ts';
 import { TUTOR_PROMPT } from '../../tutor/prompt.ts';
@@ -84,7 +86,8 @@ async function main(): Promise<void> {
       ? createSafetyWatch({ check: makeAnthropicSafetyCheck({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost: (usd) => (spentUsd += usd) }), addFlag: async (flag) => void flags.push(flag), showHelp: () => (helpShown = true), trace: () => {} })
       : undefined;
     let msAhead = 0;
-    const brain = createTutorBrain({ model, prompt, profile: PROFILE, getNowMs: () => performance.now() + msAhead, trace: (name) => traces.push(name), onTurnEnd: (ended) => (summary = ended), ...(safety ? { safety } : {}) });
+    const readers = createLineReaders(makeAnthropicOneWordReader({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost: (usd) => (spentUsd += usd) }));
+    const brain = createTutorBrain({ model, prompt, profile: PROFILE, getNowMs: () => performance.now() + msAhead, trace: (name) => traces.push(name), onTurnEnd: (ended) => (summary = ended), readers, ...(safety ? { safety } : {}) });
     if (wording.after) for await (const beat of brain.reply({ text: wording.after }, new AbortController().signal)) void beat;
     msAhead = (wording.minutesIn ?? 0) * MS_PER_MINUTE;
     for await (const beat of brain.reply({ text: wording.text }, new AbortController().signal)) void beat;

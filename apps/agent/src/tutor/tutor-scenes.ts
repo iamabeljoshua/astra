@@ -257,7 +257,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
   };
 
   const startClock = (ask: SceneAsk) => {
-    asksMade += 1;
+    if (!store.find(getSceneKey(ask.topic))) asksMade += 1;
     ask.askLimit = setTimeout(() => end(ask, 'tooLate'), ASK_LIMIT_MS);
   };
 
@@ -298,9 +298,12 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     return false;
   };
 
+  // The limit stops a session that keeps asking for new writes. A saved scene pays only for its voice, and a student's plays a day cap that.
+  const isPastTheAskLimit = (topic: string) => asksMade >= MOST_ASKS_IN_A_SESSION && !store.find(getSceneKey(topic));
+
   const ask = (topic: string) => {
     const key = toKey(topic);
-    if (isStopped || device === 'cannotPlay' || isAfterSafetyReply || isClosed() || key === '' || topic.length > MOST_TOPIC_CHARACTERS || askedTopics.has(key) || asksMade >= MOST_ASKS_IN_A_SESSION) return false;
+    if (isStopped || device === 'cannotPlay' || isAfterSafetyReply || isClosed() || key === '' || topic.length > MOST_TOPIC_CHARACTERS || askedTopics.has(key) || isPastTheAskLimit(topic)) return false;
     if (isTitleUnheard && lessonTitle !== null && !prepared.has(key) && !isSameTopic(topic, lessonTitle)) {
       trace('sceneOffTopic', { text: topic });
       return false;
@@ -330,7 +333,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     prepare(request) {
       const key = toKey(request);
       // The queue's titles were read once for the topic, so one can have been flagged since, and a flagged title has no saved scene and would pay for a new write.
-      if (isStopped || isClosed() || device !== 'canPlay' || !canPlayShared(studentId) || store.isFlagged(getSceneKey(request)) || prepared.has(key) || askedTopics.has(key) || request.length > MOST_TOPIC_CHARACTERS || asksMade >= MOST_ASKS_IN_A_SESSION) return false;
+      if (isStopped || isClosed() || device !== 'canPlay' || !canPlayShared(studentId) || store.isFlagged(getSceneKey(request)) || prepared.has(key) || askedTopics.has(key) || request.length > MOST_TOPIC_CHARACTERS || isPastTheAskLimit(request)) return false;
       const ahead = makeAsk(request, true);
       if (!ahead) return false;
       prepared.set(key, ahead);

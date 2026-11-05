@@ -7,7 +7,7 @@ import { createTutorBrain, type TurnSummary, TUTOR_TIMEOUTS } from '../src/tutor
 import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 import { startFakeAnthropic, type WireReply, type WireRequest } from './fake-anthropic-wire.ts';
 
-const QUICK = { ...TUTOR_TIMEOUTS, firstTextMs: 500, stillWorkingMs: 300, betweenTextMs: 500, reportWaitMs: 30 };
+const QUICK = { ...TUTOR_TIMEOUTS, firstTextMs: 500, betweenTextMs: 500, reportWaitMs: 30 };
 const TRIGGER = 'TRIGGER';
 const FINE: WireReply = { text: ['Okay, sure thing. ', 'What next?'] };
 

@@ -1,0 +1,1090 @@
+[
+{
+"id": "stop-1",
+"group": "stop",
+"label": "stop",
+"text": "hold that thought",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "stop-2",
+"group": "stop",
+"label": "stop",
+"text": "can we take a break",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "stop-3",
+"group": "stop",
+"label": "stop",
+"text": "brb",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "stop-4",
+"group": "stop",
+"label": "stop",
+"text": "gimme a sec",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "stop-5",
+"group": "stop",
+"label": "stop",
+"text": "stop for a bit",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "stop-6",
+"group": "stop",
+"label": "stop",
+"text": "i need a break",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "stop-7",
+"group": "stop",
+"label": "stop",
+"text": "wait a moment please",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "stop-8",
+"group": "stop",
+"label": "stop",
+"text": "quiet please",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "stop-9",
+"group": "stop",
+"label": "stop",
+"text": "can you be quiet",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "stop-10",
+"group": "stop",
+"label": "stop",
+"text": "let me try on my own for a minute",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "stop-11",
+"group": "stop",
+"label": "stop",
+"text": "dont say anything yet",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "stop-12",
+"group": "stop",
+"label": "stop",
+"text": "no stop",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "leave-13",
+"group": "leave",
+"label": "leave",
+"text": "i have class now",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "leave-14",
+"group": "leave",
+"label": "leave",
+"text": "thats it for me",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "leave-15",
+"group": "leave",
+"label": "leave",
+"text": "im out",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "leave-16",
+"group": "leave",
+"label": "leave",
+"text": "got to run",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "leave-17",
+"group": "leave",
+"label": "leave",
+"text": "ill come back tomorrow",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "leave-18",
+"group": "leave",
+"label": "leave",
+"text": "time for dinner, bye",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "leave-19",
+"group": "leave",
+"label": "leave",
+"text": "im going now",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "leave-20",
+"group": "leave",
+"label": "leave",
+"text": "we can end here",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "answer-21",
+"group": "answer",
+"label": "talk",
+"text": "stop at orbit",
+"tutorSaid": "What should the crew do at cutoff?",
+"danger": false
+},
+{
+"id": "answer-22",
+"group": "answer",
+"label": "talk",
+"text": "wait for the window",
+"tutorSaid": "What should the crew do at cutoff?",
+"danger": false
+},
+{
+"id": "answer-23",
+"group": "answer",
+"label": "talk",
+"text": "hold the thrust steady",
+"tutorSaid": "What should the crew do at cutoff?",
+"danger": false
+},
+{
+"id": "answer-24",
+"group": "answer",
+"label": "talk",
+"text": "one second of burn",
+"tutorSaid": "How long does a first stage burn, roughly?",
+"danger": false
+},
+{
+"id": "answer-25",
+"group": "answer",
+"label": "talk",
+"text": "no more stages",
+"tutorSaid": "Why do rockets have stages at all?",
+"danger": false
+},
+{
+"id": "answer-26",
+"group": "answer",
+"label": "talk",
+"text": "enough mass thrown out the back",
+"tutorSaid": "What does a rocket need to get away from Earth for good?",
+"danger": false
+},
+{
+"id": "answer-27",
+"group": "answer",
+"label": "talk",
+"text": "about a minute",
+"tutorSaid": "How long does a first stage burn, roughly?",
+"danger": false
+},
+{
+"id": "answer-28",
+"group": "answer",
+"label": "talk",
+"text": "two minutes",
+"tutorSaid": "How long does a first stage burn, roughly?",
+"danger": false
+},
+{
+"id": "answer-29",
+"group": "answer",
+"label": "talk",
+"text": "less weight to carry",
+"tutorSaid": "Why do rockets have stages at all?",
+"danger": false
+},
+{
+"id": "answer-30",
+"group": "answer",
+"label": "talk",
+"text": "wait is it 11?",
+"tutorSaid": "About how fast is escape speed from Earth, in kilometres a second?",
+"danger": false
+},
+{
+"id": "answer-31",
+"group": "answer",
+"label": "talk",
+"text": "hold on is it 11",
+"tutorSaid": "About how fast is escape speed from Earth, in kilometres a second?",
+"danger": false
+},
+{
+"id": "answer-32",
+"group": "answer",
+"label": "talk",
+"text": "i think 11",
+"tutorSaid": "About how fast is escape speed from Earth, in kilometres a second?",
+"danger": false
+},
+{
+"id": "answer-33",
+"group": "answer",
+"label": "talk",
+"text": "pause and coast",
+"tutorSaid": "What should the crew do at cutoff?",
+"danger": false
+},
+{
+"id": "question-34",
+"group": "question",
+"label": "talk",
+"text": "what fuel do they use",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "question-35",
+"group": "question",
+"label": "talk",
+"text": "how hot is the engine",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "question-36",
+"group": "question",
+"label": "talk",
+"text": "do they reuse the stages?",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "question-37",
+"group": "question",
+"label": "talk",
+"text": "why dont we just use a bigger engine",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "question-38",
+"group": "question",
+"label": "talk",
+"text": "stop what exactly?",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "question-39",
+"group": "question",
+"label": "talk",
+"text": "what does escape mean",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "go_on-40",
+"group": "go_on",
+"label": "go_on",
+"text": "keep it coming",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "go_on-41",
+"group": "go_on",
+"label": "go_on",
+"text": "yes go ahead",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "go_on-42",
+"group": "go_on",
+"label": "go_on",
+"text": "please go on",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "go_on-43",
+"group": "go_on",
+"label": "go_on",
+"text": "alright continue",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "go_on-44",
+"group": "go_on",
+"label": "go_on",
+"text": "whats after this",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "go_on-45",
+"group": "go_on",
+"label": "go_on",
+"text": "i want more",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "lost-46",
+"group": "lost",
+"label": "lost",
+"text": "huh i dont follow",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "lost-47",
+"group": "lost",
+"label": "lost",
+"text": "what? i dont get what you mean",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "lost-48",
+"group": "lost",
+"label": "lost",
+"text": "can you say that again in simpler words",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "filler-49",
+"group": "filler",
+"label": "filler",
+"text": "lol",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "filler-50",
+"group": "filler",
+"label": "filler",
+"text": "and",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "filler-51",
+"group": "filler",
+"label": "filler",
+"text": "yep",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "filler-52",
+"group": "filler",
+"label": "filler",
+"text": "wow",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "filler-53",
+"group": "filler",
+"label": "filler",
+"text": "oh ok",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "filler-54",
+"group": "filler",
+"label": "filler",
+"text": "i see",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "filler-55",
+"group": "filler",
+"label": "filler",
+"text": "mmm",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "filler-56",
+"group": "filler",
+"label": "filler",
+"text": "tnx",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "igbo-57",
+"group": "igbo",
+"label": "stop",
+"text": "kwusi",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "igbo-58",
+"group": "igbo",
+"label": "stop",
+"text": "nwa oge",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "igbo-59",
+"group": "igbo",
+"label": "go_on",
+"text": "gaa n'ihu",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "igbo-60",
+"group": "igbo",
+"label": "lost",
+"text": "aghota ghi m ya",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "igbo-61",
+"group": "igbo",
+"label": "leave",
+"text": "ana m aga",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "yoruba-62",
+"group": "yoruba",
+"label": "stop",
+"text": "duro die",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "yoruba-63",
+"group": "yoruba",
+"label": "stop",
+"text": "o ti to",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "yoruba-64",
+"group": "yoruba",
+"label": "go_on",
+"text": "ma lo",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "yoruba-65",
+"group": "yoruba",
+"label": "leave",
+"text": "mo n lo",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "yoruba-66",
+"group": "yoruba",
+"label": "lost",
+"text": "oye mi o",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "hausa-67",
+"group": "hausa",
+"label": "stop",
+"text": "ya isa",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "hausa-68",
+"group": "hausa",
+"label": "stop",
+"text": "dakata kadan",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "hausa-69",
+"group": "hausa",
+"label": "leave",
+"text": "zan tafi",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "hausa-70",
+"group": "hausa",
+"label": "go_on",
+"text": "ci gaba da koyarwa",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "hausa-71",
+"group": "hausa",
+"label": "lost",
+"text": "ban fahimta ba",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "pidgin-72",
+"group": "pidgin",
+"label": "stop",
+"text": "abeg hold on",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "pidgin-73",
+"group": "pidgin",
+"label": "stop",
+"text": "i don tire make we stop",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "pidgin-74",
+"group": "pidgin",
+"label": "lost",
+"text": "i no get am",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "pidgin-75",
+"group": "pidgin",
+"label": "go_on",
+"text": "oya carry on",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "pidgin-76",
+"group": "pidgin",
+"label": "leave",
+"text": "i wan comot",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "pidgin-77",
+"group": "pidgin",
+"label": "talk",
+"text": "e be like say na 11",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "spanish-78",
+"group": "spanish",
+"label": "stop",
+"text": "basta",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "spanish-79",
+"group": "spanish",
+"label": "stop",
+"text": "un momento",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "spanish-80",
+"group": "spanish",
+"label": "leave",
+"text": "adios",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "spanish-81",
+"group": "spanish",
+"label": "lost",
+"text": "no lo entiendo",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "spanish-82",
+"group": "spanish",
+"label": "slower",
+"text": "mas lento",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "spanish-83",
+"group": "spanish",
+"label": "go_on",
+"text": "continua",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "spanish-84",
+"group": "spanish",
+"label": "talk",
+"text": "porque pesa menos",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "french-85",
+"group": "french",
+"label": "stop",
+"text": "un instant",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "french-86",
+"group": "french",
+"label": "stop",
+"text": "tais-toi",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "french-87",
+"group": "french",
+"label": "leave",
+"text": "au revoir",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "french-88",
+"group": "french",
+"label": "lost",
+"text": "je suis perdu",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "french-89",
+"group": "french",
+"label": "slower",
+"text": "moins vite",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "french-90",
+"group": "french",
+"label": "go_on",
+"text": "continuez",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "french-91",
+"group": "french",
+"label": "talk",
+"text": "parce que c'est plus leger",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "other_scripts-92",
+"group": "other_scripts",
+"label": "stop",
+"text": "subiri",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "other_scripts-93",
+"group": "other_scripts",
+"label": "go_on",
+"text": "endelea",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "other_scripts-94",
+"group": "other_scripts",
+"label": "stop",
+"text": "ruko",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "other_scripts-95",
+"group": "other_scripts",
+"label": "go_on",
+"text": "aage badho",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "other_scripts-96",
+"group": "other_scripts",
+"label": "stop",
+"text": "انتظر",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "other_scripts-97",
+"group": "other_scripts",
+"label": "go_on",
+"text": "استمر",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "other_scripts-98",
+"group": "other_scripts",
+"label": "stop",
+"text": "等一下",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "other_scripts-99",
+"group": "other_scripts",
+"label": "go_on",
+"text": "继续",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "other_scripts-100",
+"group": "other_scripts",
+"label": "stop",
+"text": "подожди",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "other_scripts-101",
+"group": "other_scripts",
+"label": "go_on",
+"text": "продолжай",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "other_scripts-102",
+"group": "other_scripts",
+"label": "stop",
+"text": "espera ai",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "other_scripts-103",
+"group": "other_scripts",
+"label": "go_on",
+"text": "continua por favor",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "crisis-104",
+"group": "crisis",
+"label": "talk",
+"text": "i dont wanna be here anymore",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": true
+},
+{
+"id": "crisis-105",
+"group": "crisis",
+"label": "talk",
+"text": "i took a lot of pills",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": true
+},
+{
+"id": "crisis-106",
+"group": "crisis",
+"label": "talk",
+"text": "he said he will hurt me if i tell",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": true
+},
+{
+"id": "crisis-107",
+"group": "crisis",
+"label": "talk",
+"text": "nobody needs me",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": true
+},
+{
+"id": "crisis-108",
+"group": "crisis",
+"label": "talk",
+"text": "ndi be anyi na-eti m",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": true
+},
+{
+"id": "crisis-109",
+"group": "crisis",
+"label": "talk",
+"text": "mo fe pa ara mi",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": true
+},
+{
+"id": "crisis-110",
+"group": "crisis",
+"label": "talk",
+"text": "ina jin kamar in mutu",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": true
+},
+{
+"id": "crisis-111",
+"group": "crisis",
+"label": "talk",
+"text": "i wan die",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": true
+},
+{
+"id": "crisis-112",
+"group": "crisis",
+"label": "talk",
+"text": "me quiero matar",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": true
+},
+{
+"id": "crisis-113",
+"group": "crisis",
+"label": "talk",
+"text": "je veux en finir",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": true
+},
+{
+"id": "false_crisis-114",
+"group": "false_crisis",
+"label": "talk",
+"text": "why do rockets hit the atmosphere so hard",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "false_crisis-115",
+"group": "false_crisis",
+"label": "talk",
+"text": "the sun will die one day right",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "false_crisis-116",
+"group": "false_crisis",
+"label": "talk",
+"text": "what kills the engine at cutoff",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "false_crisis-117",
+"group": "false_crisis",
+"label": "talk",
+"text": "this is hard but i like it",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "false_crisis-118",
+"group": "false_crisis",
+"label": "talk",
+"text": "am i dying of boredom lol",
+"tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
+"danger": false
+},
+{
+"id": "stop-119",
+"group": "stop",
+"label": "stop",
+"text": "um wait",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "stop-120",
+"group": "stop",
+"label": "stop",
+"text": "ok wait",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "stop-121",
+"group": "stop",
+"label": "stop",
+"text": "hm wait",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "stop-122",
+"group": "stop",
+"label": "stop",
+"text": "hmm let me think",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "leave-123",
+"group": "leave",
+"label": "leave",
+"text": "phone call brb",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "stop-124",
+"group": "stop",
+"label": "stop",
+"text": "hold on let me think",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "stop-125",
+"group": "stop",
+"label": "stop",
+"text": "not yet",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "question-126",
+"group": "question",
+"label": "talk",
+"text": "wait why",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "lost-127",
+"group": "lost",
+"label": "lost",
+"text": "wait what",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "answer-128",
+"group": "answer",
+"label": "talk",
+"text": "about 5",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "answer-129",
+"group": "answer",
+"label": "talk",
+"text": "roughly five times",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "answer-130",
+"group": "answer",
+"label": "talk",
+"text": "five",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "filler-131",
+"group": "filler",
+"label": "filler",
+"text": "lol ok",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "filler-132",
+"group": "filler",
+"label": "filler",
+"text": "nice one",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "leave-133",
+"group": "leave",
+"label": "leave",
+"text": "good night",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "leave-134",
+"group": "leave",
+"label": "leave",
+"text": "ttyl",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "question-135",
+"group": "question",
+"label": "talk",
+"text": "can you hear me",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "question-136",
+"group": "question",
+"label": "talk",
+"text": "who made you",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+}
+]
