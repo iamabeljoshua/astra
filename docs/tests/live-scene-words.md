@@ -12,9 +12,11 @@ Every picture that reaches a lesson comes through the same `ready` state, so thi
 
 There is one call for each scene played, started when the scene is matched or when the tutor asks for a scene the queue already holds. If the tutor's reply has written no words yet, the call waits for them, at most 1.5 s, so the new words can carry on from them. A queued scene is not written for ahead of its ask. Its words would no longer follow what was just said, and it may never play. For the same reason, words older than 30 s are not used. A scene asked again after that gets one new call.
 
-The call reads the saved words, what each moment shows, the moment ids, labels, `declared`, `values`, and the only numbers allowed. From the tutor it reads the student's level, interests, notes on this same idea, the last words said, and the student's last line. The voice rules come from the live prompt, so they change with it. The student's id and name are not in it. A note on another idea does not leave the tutor.
+The call reads the saved words, what each moment shows, labels, `declared`, `values`, and the only numbers allowed. From the tutor it reads the student's level, interests, notes on this same idea, the last words said, and the student's last line. The voice rules come from the live prompt, so they change with it. The student's id and name are not in it. A note on another idea does not leave the tutor.
 
-`ASTRA_SCENE_WORDS_MODEL` picks the model. The default is `sonnet-5-5`, Sonnet 5.5 with thinking off, and `haiku-5-5` and `gpt-5.4-mini` are the other choices. The tables below are why. The call also reads how many words the saved setup, each moment, and the close use, because a model told only to keep about the same length writes long.
+`ASTRA_SCENE_WORDS_MODEL` picks the model. The default is `gpt-5.4-mini`, and `haiku-5-5` and `sonnet-5-5`, Sonnet 5.5 with thinking off, are the other choices. The tables below are why.
+
+The reply has one field for each moment, and code puts the marks back in the saved order, so a model cannot drop or reorder one. The schema gives each field that moment's saved words and their count as its limit, and gives the setup a limit too, because a model asked to keep a whole text near a count writes long. The words describe the picture as the saved words do. What is theirs goes in the setup, which carries on from what the tutor just said. A likeness to an interest is allowed only when it has the same shape and motion as the picture, and never for a student with no interest.
 
 ## What code checks
 
@@ -23,7 +25,7 @@ The call reads the saved words, what each moment shows, the moment ids, labels, 
 - **Marks.** The same ids, in the same order, each with words of its own, and no words before the first mark if the saved words have none.
 - **Numbers.** Every amount, in digits or words, must be in the saved words, `declared`, or `values`. A sign is not read. "One" alone is usually a pronoun, so it counts only in front of a measure or after a word such as minus.
 - **Names.** A capital inside a sentence that the scene's words, its plan, its topic, and the student's interests never used is refused, and so is a listed name pair or a run of capitals. Clearing a name would be a second call.
-- **Banned lines.** Anything that says what the tutor holds on a student, such as "since you like" or "last time". The tutor's own banned hype, and any line that claims a feeling, reads like a safety line, or points at an animation.
+- **Banned lines.** Anything that says what the tutor holds on a student, such as "since you like" or "last time". The tutor's own banned hype, and any line that claims a feeling, reads like a safety line, or points at an animation. A sentence that opens on "Here's" or "Here is" is said as "This is", and "There's a" as "See the", before any check reads it.
 - **Length and shape.** 0.7 to 1.4 of the saved length, a setup of at most 20 words, a close only if the scene has one, ending on a question, and no bracket, dash, or markup.
 
 Code cannot read a claim. A model can reword a true sentence into a false one with no new number or name, and only the prompt stands against that. The table of what was false below says how often it happened.
@@ -42,7 +44,7 @@ Nothing here calls the store. The live words live in the beats, which the sessio
 
 ## Cost
 
-Each scene adds about $0.008 of model spending on Sonnet, and $0.002 on `gpt-5.4-mini`, booked through `caps.addScene`, so it counts in the session's spend. A session never kept its voice, so a scene's words were always spoken fresh there, and live words add no characters beyond their length. What changes is who pays. Saved words on a shared scene count as a shared play. Live words are this student's, so they count on the student's own day and session and do not count toward the shared plays. The lesson service's stored lines are not used here.
+Each scene adds about $0.0014 of model spending on `gpt-5.4-mini`, $0.0005 on Haiku, and $0.008 on Sonnet, booked through `caps.addScene`, so it counts in the session's spend. A session never kept its voice, so a scene's words were always spoken fresh there, and live words add no characters beyond their length. What changes is who pays. Saved words on a shared scene count as a shared play. Live words are this student's, so they count on the student's own day and session and do not count toward the shared plays. The lesson service's stored lines are not used here.
 
 ## Run it
 
@@ -58,7 +60,20 @@ The proof makes one call for each scene, from the 4 it names or from `--topics`,
 
 On 5 November 2026 on Abel's Mac, with load 7 to 14 on 12 cores, from a West African network, through a capped proxy.
 
-**Which model.** The same prompt, 5 scenes for 3 students each. Haiku's refusals were 8 for length, and 4 for opening on "Here's", which it copied from the saved words.
+**Haiku made to pass, and `gpt-5.4-mini` on the same prompt.** 5 scenes for 3 students each, one run of 15 calls per model, on the prompt and shape on this branch, the night of 5 November with load 7 to 14. The fifth scene is "How a raindrop splits white light", because the rainbow scene of the earlier runs is not in that store. "At the real wait" is the same 20 rooms crossed with the 15 times, as below.
+
+| Model | Failed a check | Ready p50 | Ready p90 | Falls back at the real wait | Cost a scene |
+| --- | --- | --- | --- | --- | --- |
+| Haiku 5.5 | 2 of 15: 1 setup too long, 1 at 1.46 of the saved length | 2099 ms | 2525 ms | 17%: 13% on checks, 4% late | $0.00045 |
+| `gpt-5.4-mini` | 0 of 15 | 1529 ms | 1703 ms | 0% | $0.00135 |
+
+Read by eye, neither run held a false line, and neither used a likeness at all, so the football interest reached no words. Haiku's setups gave a reason twice, as in "That ball always comes back because gravity keeps pulling it", which is true and which the prompt asks it not to do. `gpt-5.4-mini` wrote digits twice, "11.2" and "0", which are allowed numbers, and on the free kick it began moments mid-sentence, "The ball [[ball-spins]] twists sideways", which still plays the marks in order. Its setups are short and plain, and read as less theirs than Haiku's.
+
+How each fault went. Rewriting the opener in code clears the 4 "Here's" refusals of the earlier Haiku run, which had no other problem. One field a moment with "about n words" alone made Haiku worse, 10 of 12 refused for length, at 1.5 to 1.9 of the saved length. Putting each moment's saved words and "at most n words" in its field brought that to 5 of 15, and a limit on the setup in the schema to 2. With the likeness rule rewritten, the middle run still said "Think of a hot day when a fan makes the air move" to a struggling student with no interest, and "like a spinning top that's tipped a bit" to a student with nothing known. Ruling out every likeness for a student with no interest, and any in the setup, removed both.
+
+The length band stays at 0.7 to 1.4. It is not what keeps the picture in time, because `overWords` plays each moment's part over exactly its own words at any length. It keeps the pace: words 1.4 times as long play the picture at about 0.7 of its speed.
+
+**Which model, earlier.** The same prompt, 5 scenes for 3 students each. Haiku's refusals were 8 for length, and 4 for opening on "Here's", which it copied from the saved words.
 
 | Model | Fell back to saved words | Call p50 | Call p95 | Cost a call |
 | --- | --- | --- | --- | --- |
@@ -96,7 +111,8 @@ A call takes longer than the wait allows. So a scene that could land the moment 
 
 ## What this does not prove
 
-- That Sonnet falls back at most 1 in 10. It falls back about 1 in 3 at the 1.5 s wait, as measured above.
+- That `gpt-5.4-mini` falls back at most 1 in 10 on every scene. It fell back 0 of 15 here, and 6% over 157 calls on earlier prompts. Haiku falls back about 1 in 6 and Sonnet about 1 in 3 at the 1.5 s wait.
+- That the interest is used. On this prompt no football student heard a likeness, so what is theirs is the setup and the struggle's pace.
 - That the words are true. Code reads marks, numbers, names, and banned lines, and no claim. Sonnet's false lines are above. On `gpt-5.4-mini`, reading a full run of 20 by eye, on the version before the last two, found 2 false lines: "it's a lot of air to outrun" of a rocket in space, and "throwing a ball up is why this rocket needs a big start". It found 2 smaller faults: "Close, but not quite" to a student who had said no such thing, and "the ball turns sideways" for a ball that spins sideways. Nobody reviews live words before a student hears them, as a person's review and the scene review read only the saved words.
 - That it sounds personal. On that run it connected to what was said far more often than it used what is known. An interest reached the words in 1 of 10 football cases on that run, and that one was empty: "like a football swerving round a gap". A struggling student sounds much like anyone else. None of the words read as creepy, on any run.
 - That the first thing heard is theirs. A lesson opened from Home often has nothing said yet, and on the page the words were close to the saved ones. On the last version, in Node, a football student's first words included "Think of a ball arcing up and back down. This curve is a U shape", and a ball's arc is not a U.

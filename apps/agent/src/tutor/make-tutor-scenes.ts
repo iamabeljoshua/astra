@@ -46,7 +46,7 @@ const WORDS_READERS = {
 
 type WordsModelName = keyof typeof WORDS_READERS;
 
-const DEFAULT_WORDS_MODEL: WordsModelName = 'sonnet-5-5';
+const DEFAULT_WORDS_MODEL: WordsModelName = 'gpt-5.4-mini';
 
 const isWordsModelName = (name: string | undefined): name is WordsModelName => name !== undefined && Object.hasOwn(WORDS_READERS, name);
 
