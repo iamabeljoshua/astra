@@ -1,11 +1,13 @@
+import type { SceneEngine } from './scene-command.ts';
+
 /** A scene is prepared out of band, so a slow or refused take never touches the words or the board's clock. */
 export const SCENE_TOPIC = 'astra.scenes';
 
 export type SceneAgentMessage =
   /** Fetch this stored scene's take now, and say when the first frame could draw. */
-  | { type: 'loadScene'; sceneId: string; durationSeconds: number }
+  | { type: 'loadScene'; sceneId: string; durationSeconds: number; engine?: SceneEngine }
   /** Fetch this take's bytes and do nothing else, so what is on screen stays and the next scene needs only its first frame. */
-  | { type: 'prepareScene'; sceneId: string }
+  | { type: 'prepareScene'; sceneId: string; engine?: SceneEngine }
   /** This lesson has no words of its own, so a reply box here could never be answered. */
   | { type: 'noLesson' }
   /** Past a voice limit a student hears a tone, so the page says why. */

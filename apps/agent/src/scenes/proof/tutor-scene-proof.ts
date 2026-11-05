@@ -20,10 +20,19 @@ const { values: args } = parseArgs({
     say: { type: 'string' },
     sayAfterS: { type: 'string', default: '3' },
     reloadAfterS: { type: 'string' },
+    realChrome: { type: 'boolean', default: true },
+    noWebgl: { type: 'boolean', default: false },
+    reducedMotion: { type: 'boolean', default: false },
+    kitFails: { type: 'boolean', default: false },
+    kitSlowMs: { type: 'string' },
+    kitStallsAfterFrames: { type: 'string' },
+    seekTimes: { type: 'string' },
+    replay: { type: 'boolean', default: false },
+    replayNoScene: { type: 'boolean', default: false },
   },
 });
 
-const FLAGS = ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--use-mock-keychain', '--autoplay-policy=no-user-gesture-required'];
+const FLAGS = ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--use-mock-keychain', '--mute-audio', '--autoplay-policy=no-user-gesture-required'];
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
 const out = args.out as string;
 mkdirSync(out, { recursive: true });
@@ -91,8 +100,9 @@ function readTrace(folder: string | undefined) {
     .flatMap((path) => readFileSync(path, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line) as { name: string; atMs: number } & Record<string, unknown>));
 }
 
-const browser = await chromium.launch({ headless: !args.headed, args: FLAGS });
-const context = await browser.newContext({ viewport: args.phone ? { width: 390, height: 844 } : { width: 1440, height: 900 }, colorScheme: 'light', baseURL: args.web as string });
+// The headless shell keeps a sandboxed frame in the page's own process, and real Chrome does not, so a stall means nothing on the shell.
+const browser = await chromium.launch({ ...(args.realChrome ? { channel: 'chrome' } : {}), headless: !args.headed, args: FLAGS });
+const context = await browser.newContext({ viewport: args.phone ? { width: 390, height: 844 } : { width: 1440, height: 900 }, colorScheme: 'light', baseURL: args.web as string, ...(args.reducedMotion ? { reducedMotion: 'reduce' as const } : {}) });
 const page = await context.newPage();
 const problems: string[] = [];
 page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
@@ -100,8 +110,46 @@ page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
 page.on('console', (message) => {
   if (message.type() === 'error' && !/data channel|DataChannel/.test(message.text())) problems.push(`console: ${message.text().slice(0, 300)}`);
 });
+// Chrome 156's --disable-webgl and --disable-webgl2 turn off WebGL on a canvas element but not on OffscreenCanvas, so the proof takes it away where the app asks for it.
+if (args.noWebgl) await page.addInitScript(() => { OffscreenCanvas.prototype.getContext = (() => null) as never; });
 if (args.noGpu) await page.addInitScript(() => Object.defineProperty(Navigator.prototype, 'gpu', { get: () => undefined }));
 if (args.damageTake) await page.route('**/api/scene-takes/**', (route) => route.fulfill({ status: 200, contentType: 'application/octet-stream', body: Buffer.from(Array.from({ length: 4096 }, (_, index) => (index * 37) % 256)) }));
+
+await page.addInitScript(() => {
+  if (window.top !== window) return;
+  const samples: unknown[][] = [];
+  (window as unknown as { kitSamples: unknown[][] }).kitSamples = samples;
+  let drawnSeconds: number | null = null;
+  addEventListener('message', (event) => {
+    const shown = [...document.querySelectorAll('iframe')].find((frame) => getComputedStyle(frame).visibility === 'visible');
+    if ((event.data as { type?: string } | null)?.type === 'drawn' && event.source === shown?.contentWindow) drawnSeconds = (event.data as { seconds: number }).seconds;
+  });
+  const sample = () => {
+    const seconds = document.querySelector<HTMLElement>('[data-testid="scene-layer"]')?.dataset.seconds;
+    if (seconds !== undefined) {
+      const view = (window as unknown as { astraVoice?: { getView(): { tutorHeard: { text: string }[] | string } } }).astraVoice?.getView();
+      const heard = view ? JSON.stringify(view.tutorHeard).slice(-60) : '';
+      samples.push([performance.now(), Number(seconds), drawnSeconds, heard, document.querySelector<HTMLElement>('[data-engine]')?.dataset.engine ?? null, document.querySelector<HTMLElement>('[data-testid="scene-take"]') ? true : false]);
+    }
+    requestAnimationFrame(sample);
+  };
+  requestAnimationFrame(sample);
+});
+if (args.kitFails) await page.route('**/api/scene-takes/*/kit', (route) => route.fulfill({ status: 500, body: '{}' }));
+if (args.kitSlowMs) {
+  await page.route('**/scene-kit/*/kit.js', async (route) => {
+    await delay(Number(args.kitSlowMs));
+    await route.continue();
+  });
+}
+if (args.kitStallsAfterFrames) {
+  await page.route('**/api/scene-takes/*/kit', async (route) => {
+    const reply = await route.fetch();
+    const take = (await reply.json()) as { code: string };
+    const spin = `window.kitFrames = (window.kitFrames || 0) + 1; if (window.kitFrames > ${Number(args.kitStallsAfterFrames)}) /(a+)+$/.test('a'.repeat(40) + 'b');`;
+    await route.fulfill({ response: reply, json: { ...take, code: take.code.replace(/render\(t\) \{/, `render(t) { ${spin}`) } });
+  });
+}
 
 await page.goto('/');
 await page.getByRole('button', { name: 'Development sign-in' }).click();
@@ -160,8 +208,45 @@ while (atS() < waitLimitS) {
 }
 await page.screenshot({ path: join(out, sceneSeenAtS === null ? 'no-scene.png' : 'scene-played.png') });
 
+async function readSeekPoints() {
+  return page.evaluate(
+    (times) =>
+      new Promise((resolve) => {
+        const frame = [...document.querySelectorAll('iframe')].find((candidate) => getComputedStyle(candidate).visibility === 'visible');
+        if (!frame?.contentWindow) return resolve({ noFrame: true });
+        const limit = setTimeout(() => resolve({ timedOut: true }), 30_000);
+        addEventListener('message', function onReply(event) {
+          const reply = event.data as { type?: string; result?: { samples: { t: number; hash: number; lit: number; std: number }[]; deterministic: boolean; mismatches: number[] }; error?: string };
+          if (event.source !== frame.contentWindow || reply.type !== 'gate') return;
+          clearTimeout(limit);
+          removeEventListener('message', onReply);
+          resolve({ hashes: reply.result?.samples.map(({ t, hash, lit, std }) => ({ t, hash, lit, std })), isSameBackwards: reply.result?.deterministic, mismatches: reply.result?.mismatches, error: reply.error });
+        });
+        frame.contentWindow.postMessage({ type: 'gate', times }, '*');
+      }),
+    (args.seekTimes as string).split(',').map(Number),
+  );
+}
+
+async function readKitClock() {
+  const samples = await page.evaluate(() => (window as unknown as { kitSamples: unknown[][] }).kitSamples);
+  const rows = samples as [number, number, number | null, string, string | null][];
+  const engines = [...new Set(rows.map(([, , , , engine]) => engine))];
+  const lags = rows.filter(([, seconds, drawn]) => drawn !== null && seconds > 0).map(([, seconds, drawn]) => Math.abs(seconds - (drawn as number)) * 1000).sort((first, second) => first - second);
+  const isHeldAt = (moment: number) => rows.find(([, seconds]) => seconds >= moment - 0.001);
+  const pageGapsMs = rows.slice(1).map(([atMs], index) => atMs - (rows[index]?.[0] ?? atMs));
+  return { rows: rows.length, largestPageGapMs: Math.round(Math.max(...pageGapsMs)), engines, drawnLagMsP50: Math.round(lags[Math.floor(lags.length * 0.5)] ?? -1), drawnLagMsP95: Math.round(lags[Math.floor(lags.length * 0.95)] ?? -1), firstAndLast: [rows[0]?.[1], rows.at(-1)?.[1]], getAt: Object.fromEntries((args.seekTimes as string | undefined)?.split(',').map((moment) => [moment, isHeldAt(Number(moment))?.[3]]) ?? []) };
+}
+
 const glide: { atS: number; rect: VisualRead['rect']; transform: string | null; boardOpacity: string | null; isMoving: boolean; isSmall: boolean }[] = [];
 const summary: Record<string, unknown> = { ask: args.card ?? args.ask, firstWordsAtS, sceneSeenAtS, sceneId: sceneAtStart?.sceneId ?? null, canvasPixels: sceneAtStart?.canvasPixels ?? 0, secondsAtEnd: timeline.at(-1)?.sceneSeconds ?? null, wordsHeard: timeline.at(-1)?.caption ?? '' };
+
+if (args.seekTimes && sceneSeenAtS !== null) summary.kitClock = await readKitClock();
+if (args.seekTimes && sceneSeenAtS !== null) {
+  summary.seekPoints = await readSeekPoints();
+  await page.screenshot({ path: join(out, 'after-seeks.png') });
+}
+summary.framesWhileLive = await page.evaluate(() => document.querySelectorAll('iframe').length);
 
 if (sceneSeenAtS !== null && args.handsOn) {
   await page.evaluate((words) => (window as unknown as { astraVoice: { sendTyped(text: string): void } }).astraVoice.sendTyped(words), args.handsOn);
@@ -216,7 +301,45 @@ if (sceneSeenAtS !== null && args.handsOn) {
   }
 }
 
+const sessionPath = new URL(page.url()).pathname;
 await page.getByRole('button', { name: 'End session' }).click();
+await delay(5000);
+summary.framesDuringRecap = await page.evaluate(() => document.querySelectorAll('iframe').length);
+await page.screenshot({ path: join(out, 'recap.png') });
+await page.goto('/sessions');
+await delay(1500);
+summary.framesAfterLeaving = await page.evaluate(() => document.querySelectorAll('iframe').length);
+
+async function watchReplay() {
+  if (args.replayNoScene) {
+    await page.route('**/api/scene-takes/**', (route) => route.fulfill({ status: 404, body: '{}' }));
+    await page.route('**/api/sessions/*', async (route) => {
+      const reply = await route.fetch();
+      await route.fulfill({ response: reply, json: { ...((await reply.json()) as object), artwork: null } });
+    });
+  }
+  await page.goto(sessionPath);
+  await page.locator('[data-testid="replay-transport"]').waitFor({ timeout: 45_000 });
+  const seek = page.getByRole('slider', { name: 'Lesson timeline' });
+  const durationMs = Number(await seek.getAttribute('max'));
+  const points: Record<string, unknown>[] = [];
+  for (const share of [1, 0.05, 0.25, 0.5, 0.75, 1]) {
+    await seek.fill(String(Math.round(durationMs * share)));
+    await delay(3500);
+    const shotName = `replay-${String(points.length)}-${Math.round(share * 100)}.png`;
+    await page.screenshot({ path: join(out, shotName) });
+    points.push({
+      share,
+      shotName,
+      ...(await page.evaluate(() => {
+        const layer = document.querySelector<HTMLElement>('[data-testid="scene-layer"]');
+        return { sceneSeconds: layer?.dataset.seconds ?? null, engine: document.querySelector<HTMLElement>('[data-engine]')?.dataset.engine ?? null, frames: document.querySelectorAll('iframe').length, emptyNote: document.querySelector('[data-testid="board-empty"]')?.textContent ?? null, hasPicture: Boolean(document.querySelector('[data-testid="board-visual"] img, [data-testid="board-visual"] svg')) };
+      })),
+    });
+  }
+  summary.replay = { durationMs, points };
+}
+if (args.replay) await watchReplay().catch((error: unknown) => problems.push(`replay: ${String(error).slice(0, 300)}`));
 await page.close();
 let trace = readTrace(args.trace);
 for (let tries = 0; tries < 60 && args.trace && !trace.some(({ name }) => name === 'jobClosed'); tries += 1) {

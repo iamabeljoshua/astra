@@ -27,6 +27,53 @@ describe('a scene id', () => {
   });
 });
 
+describe('a scene with a 3D take beside it', () => {
+  const saveKitScene = (root: string, folder: string, record: object) => {
+    mkdirSync(join(root, 'kit', folder), { recursive: true });
+    writeFileSync(join(root, 'kit', folder, 'scene.js'), 'function scene(kit) {}');
+    writeFileSync(join(root, 'kit', folder, 'scene.json'), JSON.stringify(record));
+  };
+
+  it('plays on the kit when a reviewed scene names it, on the 2D record\'s own moments', async () => {
+    const root = makeRoot();
+    const store = createSceneStore(root);
+    const scene = makeScene();
+    await store.saveChecked(scene, TAKES, []);
+    saveKitScene(root, 'derivative', { sceneId: scene.id, reviewed: true, moments: { other: 99 } });
+    const found = store.find(getSceneKey(TOPIC));
+    expect(found?.engine).toBe('kit');
+    expect(found?.moments).toEqual(scene.moments);
+  });
+
+  it('stays on the 2D take when the scene is not marked reviewed', async () => {
+    const root = makeRoot();
+    const store = createSceneStore(root);
+    const scene = makeScene();
+    await store.saveChecked(scene, TAKES, []);
+    saveKitScene(root, 'derivative', { sceneId: scene.id, reviewed: false });
+    expect(store.find(getSceneKey(TOPIC))?.engine).not.toBe('kit');
+  });
+
+  it('stays on the 2D take when the kit scene is another topic\'s', async () => {
+    const root = makeRoot();
+    const store = createSceneStore(root);
+    await store.saveChecked(makeScene(), TAKES, []);
+    saveKitScene(root, 'other', { sceneId: getSceneId('Another topic'), reviewed: true });
+    expect(store.find(getSceneKey(TOPIC))?.engine).not.toBe('kit');
+  });
+
+  it('shows nobody a flagged scene, on either take', async () => {
+    const root = makeRoot();
+    const store = createSceneStore(root);
+    const scene = makeScene();
+    await store.saveChecked(scene, TAKES, []);
+    saveKitScene(root, 'derivative', { sceneId: scene.id, reviewed: true });
+    mkdirSync(join(root, 'flags'), { recursive: true });
+    writeFileSync(join(root, 'flags', `${scene.id}.json`), '{}');
+    expect(store.find(getSceneKey(TOPIC))).toBeNull();
+  });
+});
+
 describe('the list of shared scenes', () => {
   it('leaves out a scene a person has flagged, because the queue offers what it lists', async () => {
     const root = makeRoot();

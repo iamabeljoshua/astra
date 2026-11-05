@@ -54,6 +54,21 @@ const LOADED = { type: 'sceneLoaded', sceneId: SCENE.id } as const;
 
 afterEach(() => vi.useRealTimers());
 
+describe('a scene with a 3D take', () => {
+  const KIT_SCENE = { ...SCENE, engine: 'kit' as const };
+
+  it('names the kit to the page and on the board, with the same moments and words', async () => {
+    const { scenes, sent, spoken } = setUp({ getScene: async () => ({ isOk: true as const, scene: KIT_SCENE }) } as never);
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    expect(sent).toEqual([{ type: 'loadScene', sceneId: SCENE.id, durationSeconds: 5, engine: 'kit' }]);
+    scenes.onPage(LOADED, 'maya');
+    const command = spoken[0]?.flatMap((beat) => beat.script).find((part) => typeof part === 'object' && part.kind === 'richScene');
+    expect(command).toMatchObject({ kind: 'richScene', engine: 'kit', sceneId: SCENE.id, moments: SCENE.moments });
+  });
+});
+
 describe('asking for a scene', () => {
   it('lands at a pause once the page has the take, with the picture before its first word', async () => {
     const { scenes, sent, spoken, shown } = setUp();

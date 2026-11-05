@@ -4,6 +4,7 @@ import { type AgentMessage, type BrowserMessage, type BrowserStamp, clipTypedTex
 import { readSceneCommand } from './parse-command.ts';
 import { PLAY_REPORT_KEYS, readFrozenFrames, readPlayReport, readStudentAction, readStudentWork } from './parse-event.ts';
 import { readSessionRecap } from './parse-recap.ts';
+import { SCENE_ENGINES } from './scene-command.ts';
 import type { SceneAgentMessage, SceneBrowserMessage } from './scene-message.ts';
 import {
   type CheckedFields,
@@ -257,8 +258,16 @@ export function parseBrowserMessage(value: unknown): ParseResult<BrowserMessage>
 const SCENE_AGENT_MESSAGES: VariantTable<SceneAgentMessage, 'type'> = {
   tag: 'type',
   variants: {
-    loadScene: { keys: ['sceneId', 'durationSeconds'], read: (fields) => ({ type: 'loadScene', sceneId: readSceneId(fields.at('sceneId')), durationSeconds: readNumberInRange(fields.at('durationSeconds'), { min: 0.1, max: 600 }) }) },
-    prepareScene: { keys: ['sceneId'], read: (fields) => ({ type: 'prepareScene', sceneId: readSceneId(fields.at('sceneId')) }) },
+    loadScene: {
+      keys: ['sceneId', 'durationSeconds', 'engine'],
+      read: (fields) => ({
+        type: 'loadScene',
+        sceneId: readSceneId(fields.at('sceneId')),
+        durationSeconds: readNumberInRange(fields.at('durationSeconds'), { min: 0.1, max: 600 }),
+        ...fields.optional('engine', (field) => readOneOf(field, SCENE_ENGINES)),
+      }),
+    },
+    prepareScene: { keys: ['sceneId', 'engine'], read: (fields) => ({ type: 'prepareScene', sceneId: readSceneId(fields.at('sceneId')), ...fields.optional('engine', (field) => readOneOf(field, SCENE_ENGINES)) }) },
     noLesson: { keys: [], read: () => ({ type: 'noLesson' }) },
     voiceAtLimit: { keys: [], read: () => ({ type: 'voiceAtLimit' }) },
   },
