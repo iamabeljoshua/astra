@@ -61,7 +61,7 @@ function getPlacingOrder(placed: readonly BoardElement[]): BoardElement[] {
 }
 
 // Items close over their command, so new content under an id rebuilds the item, except math, whose painter follows the line it is given.
-function canKeepItem(first: BoardElement['content'], second: BoardElement['content']): boolean {
+export function canKeepItem(first: BoardElement['content'], second: BoardElement['content']): boolean {
   if (first === second) return true;
   if (first.kind !== second.kind) return false;
   return first.kind === 'writeMath' || JSON.stringify(first) === JSON.stringify(second);

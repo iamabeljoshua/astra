@@ -37,7 +37,10 @@ function getReport(problem: BoardProblem): BoardProblemReport | null {
     case 'labelWithoutRoom':
       return { problem: problem.kind, subject: problem.text };
     case 'sliderWithoutConstant':
+    case 'sliderOverlaps':
       return { problem: problem.kind, subject: problem.sliderId };
+    case 'curveTooFine':
+      return { problem: problem.kind, subject: problem.target };
     default:
       return null;
   }

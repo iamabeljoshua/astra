@@ -89,6 +89,15 @@ describe('drawMark', () => {
 });
 
 describe('drawDiagram', () => {
+  it('lays a fan of labelled arrows out again to fit a narrow row, with its text the same size', () => {
+    const family = { nodes: [['root', 'write'], ['writer', 'writer'], ['written', 'written'], ['rewrite', 'rewrite']].map(([name, label]) => ({ name: name as string, label: label as string })), edges: [{ from: 'root', to: 'writer', label: 'adds -er' }, { from: 'root', to: 'written', label: 'adds -ten' }, { from: 'root', to: 'rewrite', label: 'adds re-' }], handwritten: false };
+    const wide = drawDiagram(family, { fontSize: 23, maxWidth: 700, seed: 'family' });
+    const narrow = drawDiagram(family, { fontSize: 23, maxWidth: 248, seed: 'family' });
+    expect(wide.width).toBeGreaterThan(248);
+    expect(narrow.width).toBeLessThanOrEqual(248);
+    expect(narrow.steps[0]?.textLabels[0]?.fontSize).toBe(wide.steps[0]?.textLabels[0]?.fontSize);
+  });
+
   const diagram = { nodes: [{ name: 'a', label: 'Rain' }, { name: 'b', label: 'River' }, { name: 'c', label: 'Sea' }], edges: [{ from: 'a', to: 'b', label: 'runs' }, { from: 'c', to: 'a' }] };
 
   it('draws one step per node, and an edge once both its ends are there', () => {
