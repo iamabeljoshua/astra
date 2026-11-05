@@ -69,7 +69,7 @@ export interface TutorBrain {
   /** A lesson's plan still has ideas to teach. */
   hasLessonLeft?(): boolean;
   noteLead?(kind: LeadKind): void;
-  /** Asks the model for the next lead now, while the last reply is still playing. Nothing about the lesson changes unless that lead really comes. */
+  /** Asks the model for the next lead while the last reply still plays. */
   prepareLead?(): void;
   dropPreparedLead?(): void;
   holdLeads?(): void;
@@ -163,7 +163,6 @@ export interface TutorBrainOptions {
   onAskScene?(topic: string): void;
   onStudentWords?(words: string): void;
   onSafetyReply?(): void;
-  /** A lead written ahead that nobody heard still cost what it cost. */
   onPreparedLeadDropped?(costUsd: number): void;
 }
 
@@ -209,7 +208,6 @@ interface TurnWork {
   hasSaidChecking: boolean;
   /** A steer on what to set, which is no false line, so the retry says nothing about checking. */
   isExerciseSteered: boolean;
-  /** The plan owed a worked example when this reply started. */
   isExampleReply: boolean;
   exampleLines: string[];
   wrongMath: string | null;
@@ -264,8 +262,8 @@ const MAX_ATTEMPTS = 2;
 const MOST_TOOL_CALLS_A_TURN = 3;
 /** Drawing these shows a student the step, and a ring or a pointer does not. */
 const SHOWING_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'text', 'simulate', 'table', 'timeline', 'code', 'image', 'drawing']);
-/** Varied, because a pause of one fixed length turns into a tic. The voice adds about 400 ms to each. */
-const BREATHS_MS = [300, 450, 350];
+/** Varied, because one fixed pause turns into a tic, and the voice's first audio and the last word's tail add about 800 ms to each. */
+const BREATHS_MS = [150, 250, 200];
 /** A repeated opening of a few words is dropped only at the start of a retry, where it sounds like starting over, and a longer repeat anywhere. */
 const FEWEST_WORDS_IN_A_REPEAT = 4;
 const COMPACT_AT_TOKENS = 60_000;
@@ -335,7 +333,7 @@ const OPENING_NOD = /^\s*(?:h+m+|mm-?hm+)[.,!…]*\s+/i;
 
 const isWords = (part: WrittenBeatParts['script'][number]): part is string => typeof part === 'string';
 
-// An opener can span a command, because the drawing guard lands on the third word, so what goes is counted across the words, and each command stays before the word it came before.
+// An opener can span a command, so what goes is counted across the words and each command stays before its word.
 function dropOpeningCharacters(script: WrittenBeatParts['script'], count: number, firstLetter: string): WrittenBeatParts['script'] {
   let left = count;
   const kept = script.flatMap((part): WrittenBeatParts['script'] => {
@@ -409,6 +407,8 @@ const getLineNote = (wish: LineRead | 'pending', wasPausedAtStart: boolean) => {
 
 const holdsWhereToStart = ({ memory: { notes } }: MemoryNote) => notes.some(({ kind }) => kind === 'showed' || kind === 'struggled');
 
+const holdsAShowedNote = ({ memory: { notes } }: MemoryNote) => notes.some(({ kind }) => kind === 'showed');
+
 const toProfileNote = ({ level, interests, goal, cardTitle }: StudentProfile) => ({ student: { level, interests, goal, ...(cardTitle ? { card_title: cardTitle } : {}) } });
 
 export function createTutorBrain({ model, profile = null, loadProfile, memory: knownMemory = null, loadMemory, onWorkNoted, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), prompt = TUTOR_PROMPT, findSource, lessonPlanner, safety, readers, onAskScene, onSafetyReply, onStudentWords, onPreparedLeadDropped }: TutorBrainOptions): Required<TutorBrain> {
@@ -427,6 +427,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   let toldStep = 'null';
   let memoryNote: Record<string, unknown> | null = knownMemory ? { ...knownMemory } : null;
   let canFitTheStart = knownMemory !== null && holdsWhereToStart(knownMemory);
+  let hasShowedNote = knownMemory !== null && holdsAShowedNote(knownMemory);
   const getStandingNotes = () => [profileNote, memoryNote].filter((note) => note !== null);
   let isComeBackUnanswered = false;
   let studentLevel = profile?.level ?? null;
@@ -607,8 +608,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return Boolean(step && 'worked_example_due' in step);
   };
 
-  const hasShowedNote = () => Array.isArray((memoryNote?.memory as { notes?: unknown } | undefined)?.notes) && (memoryNote?.memory as { notes: { kind?: string }[] }).notes.some(({ kind }) => kind === 'showed');
-
   const getLeadNote = (lead: LeadKind) => {
     const stage = lead !== 'next' ? lead : isExerciseDueNow() ? 'exercise' : isExampleDueNow() ? 'workedExample' : 'next';
     return leadNotes[stage] ?? leadNotes[lead];
@@ -720,7 +719,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           const givenAway = isExerciseReply && command.kind === 'writeMath' && showsItsAnswer(command.tex) ? getAnswerShownProblem(command.tex) : getGivenAwayProblem(command, readerMemory, memory);
           // Only on a first try, because a student with some exercise is better off than one with none.
           const repeatedLine = isExerciseReply && turn.attempts < MAX_ATTEMPTS ? getRepeatedLineProblem(command, saidRecently.join(' ')) : null;
-          const steer = givenAway ?? repeatedLine ?? (command.kind === 'task' && turn.attempts < MAX_ATTEMPTS ? ((lead && isExampleReply && !hasShowedNote() ? EXAMPLE_COMES_FIRST : null) ?? getRepeatedProblem(command, readerMemory) ?? (wantedExercise ? getExerciseProblem(command, wantedExercise, wasLastExerciseWords, readerMemory, memory) : null)) : null);
+          const steer = givenAway ?? repeatedLine ?? (command.kind === 'task' && turn.attempts < MAX_ATTEMPTS ? ((lead && isExampleReply && !hasShowedNote ? EXAMPLE_COMES_FIRST : null) ?? getRepeatedProblem(command, readerMemory) ?? (wantedExercise ? getExerciseProblem(command, wantedExercise, wasLastExerciseWords, readerMemory, memory) : null)) : null);
           turn.isExerciseSteered = steer !== null;
           return steer ? { ok: false, problem: steer, isWrongMath: true } : checkAgainstBoard(command, readerMemory);
         },
@@ -940,7 +939,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     onPreparedLeadDropped?.(costUsd);
   }
 
-  // Only a request the turn would have made word for word is used, so a wrong guess costs a wait and never changes what the tutor says.
   const takeLeadAhead = (request: TutorModelRequest): RequestAhead | null => {
     if (!leadAhead) return null;
     if (leadAhead.sent !== JSON.stringify(request)) {
@@ -1460,7 +1458,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return soundsLikeCrisisReply(lastSpokenText) || lastSpokenText.includes('?') ? 'hold' : null;
   };
 
-  // A lead that drew no line gets one more go, because a model told only in words has not kept this rule, and after that the lesson moves on.
+  // A lead that drew no line gets one more go, and after that the lesson moves on.
   const noteExampleTurn = (turn: TurnWork) => {
     if (!turn.isExampleReply || turn.endedAs === 'aborted' || !isExampleDueNow()) return;
     const hasWorkedLines = turn.exampleLines.length > 0;
@@ -1550,6 +1548,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     (loaded) => {
       memoryNote = { ...loaded };
       canFitTheStart = holdsWhereToStart(loaded);
+      hasShowedNote = holdsAShowedNote(loaded);
       pendingNotes.push(memoryNote);
     },
     (error: unknown) => trace('memoryFailed', { problem: String(error) }),

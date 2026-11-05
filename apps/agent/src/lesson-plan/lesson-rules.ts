@@ -27,7 +27,7 @@ export const LEAD_NOTES = {
 
 export const OPENING_A_CARD_NOTE = { opening_a_card: 'Open on the idea itself, in a reply that ends with no question. Their level is in the student note, so never ask what they have done or know.' };
 
-const NAMES_THE_PLAN = /\b(?:(?:whole|lesson|my|our|your) plan|plan(?:'s| is| was)? (?:covered|done|finished|stale|out of date)|the student\b|(?:last|final) (?:idea|exercise|problem|one for this idea))\b/i;
+const NAMES_THE_PLAN = /\b(?:(?:memory|showed|struggled) note\b|the note says\b|(?:whole|lesson|my|our|your) plan|plan(?:'s| is| was)? (?:covered|done|finished|stale|out of date)|the student\b|(?:last|final) (?:idea|exercise|problem|one for this idea))\b/i;
 
 const ANNOUNCES_A_CORRECTION = /\b(?:quick|small|one) correction\b|\bcorrection on my\b|\bcorrect(?:ing)? myself\b|\bI misspoke\b|\bmy last line\b|^\s*slight fix\b|\bi need to correct\b|\bfix to something i said\b|^\s*careful\b[^.]*\bisn'?t quite right\b|\bsomething is off with what i\b|^\s*careful,? that line\b|\bthat line was muddled\b/i;
 
@@ -69,7 +69,6 @@ const OPENS_ON_HERES = /(^\s*|[.!?]\s+)(?:(?:now|so|okay|ok|and|but),?\s+)?here(
 
 const toNextWord = (_whole: string, before: string, next: string) => `${before}${next.toUpperCase()}`;
 
-/** "Here's the thing" is the habit that sounds most like a chatbot, and Sonnet writes it whatever the prompt says, so the opener comes off in code and the sentence starts on what it was going to say. "Actually, let me say it plainly" is how a retry sounds. */
 export const withoutFillerOpener = (text: string) => text.replace(OPENS_ON_HERES, toNextWord).replace(OPENS_ON_LET_ME_START_OVER, toNextWord);
 
 /** Goes with the short turn, so a reply can stay short and still set an exercise. */

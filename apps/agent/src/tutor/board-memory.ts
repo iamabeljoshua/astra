@@ -122,6 +122,7 @@ export const isWrittenWordsTask = (command: SceneCommand & { kind: 'task' }, mem
 export function getExerciseProblem(command: SceneCommand & { kind: 'task' }, wanted: 'problem' | 'board', wasLastWrittenWords: boolean, memory: BoardMemory, atTurnStart: BoardMemory): string | null {
   const isProblem = command.way === 'pick' || (command.way === 'write' && isProblemOnTheBoard(command, memory, atTurnStart));
   if (wanted === 'problem' && !isProblem) return 'This idea has numbers or working, so its exercise is a real problem, and the student did not hear what you were about to set. Write the problem with its numbers using writeMath, with no answer on the line, then set a write task on that line. A pick on a part of what is drawn also does.';
+  if (wanted === 'board' && command.way === 'write' && isProblem) return 'This idea has nothing to calculate, so its exercise is a quiz on the board, and the student did not hear what you were about to set. Set a pick on a part of a diagram, things to put in order or match with a place task, or a sentence with a blank.';
   return wanted === 'board' && wasLastWrittenWords && isWrittenWordsTask(command, memory, atTurnStart) ? 'The last exercise was written words too, and the student did not hear what you were about to set. Set something on the board this time: a pick on a part of a diagram, things to put in order with a place task, or a sentence with a blank.' : null;
 }
 
@@ -129,7 +130,6 @@ const toWordsOfALine = (text: string) => new Set(text.toLowerCase().match(/\p{L}
 const FEWEST_WORDS_THAT_MAKE_A_LINE = 3;
 const SHARE_THAT_IS_THE_SAME_LINE = 0.75;
 
-/** A blank in a sentence the tutor has just said tests memory, and readers counted 6 of 16 such exercises. */
 export function getRepeatedLineProblem(command: SceneCommand, saidRecently: string): string | null {
   if (command.kind !== 'text' || !command.text.includes('___')) return null;
   const line = toWordsOfALine(command.text);

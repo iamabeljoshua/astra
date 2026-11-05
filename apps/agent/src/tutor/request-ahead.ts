@@ -5,7 +5,6 @@ const CHARACTERS_PER_TOKEN = 3.2;
 export interface RequestAhead {
   events: AsyncIterable<ModelEvent>;
   abort(): void;
-  /** What the request has cost so far, with its output counted from the words that came back. */
   getUsageSoFar(): ModelUsage;
 }
 

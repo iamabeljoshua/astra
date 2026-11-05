@@ -326,7 +326,7 @@ describe('a reply in short stretches', () => {
     const stretchEndedAtMs = performance.now();
     await until(() => replyTurns(notes).length === 2);
     expect(replyTurns(notes)).toHaveLength(2);
-    expect((replyTurns(notes)[1]?.atMs as number) - stretchEndedAtMs).toBeGreaterThanOrEqual(200);
+    expect((replyTurns(notes)[1]?.atMs as number) - stretchEndedAtMs).toBeGreaterThanOrEqual(120);
     await until(() => spokenWords(messages).includes('leaf'));
     expect(spokenWords(messages)).toContain('leaf');
     await session.close();

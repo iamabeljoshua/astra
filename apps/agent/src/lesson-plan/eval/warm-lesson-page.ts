@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium } from 'playwright';
 
-// Runs the rocket card on a real page in real Chrome, stops at a word limit so a proof cannot overspend, and saves the page's audio, the trace, and when each thing was done, for `read-warm-lesson.py` to measure.
+// Plays a lesson in real Chrome and saves its audio and timings, so pauses and gaps are measured on what really played.
 const { values: args } = parseArgs({
   options: {
     web: { type: 'string' },
@@ -63,15 +63,17 @@ await page.getByRole('button', { name: 'maya@astra.test' }).click();
 const box = page.getByRole('textbox', { name: 'What do you want to learn next' });
 await box.waitFor({ timeout: 60_000 });
 await delay(1000);
-await page.route('**/api/sessions', async (route) => {
-  if (route.request().method() !== 'POST') return route.continue();
-  await route.continue({ postData: JSON.stringify({ title: args.title, subject: args.subject, language: 'en', topicId: args.topic }) });
-});
+if (args.topic) {
+  await page.route('**/api/sessions', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue();
+    await route.continue({ postData: JSON.stringify({ title: args.title, subject: args.subject, language: 'en', topicId: args.topic }) });
+  });
+}
 const startedAtEpochMs = Date.now();
 await box.fill(args.title as string);
 await page.getByRole('button', { name: 'Start session' }).click();
 await page.waitForURL(/\/sessions\/[0-9a-f-]{36}$/);
-await page.unroute('**/api/sessions');
+if (args.topic) await page.unroute('**/api/sessions');
 await page.screenshot({ path: join(OUT, 'start.png') });
 
 const readRows = () =>

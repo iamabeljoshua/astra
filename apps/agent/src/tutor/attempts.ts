@@ -3,7 +3,6 @@ export type AttemptReport = 'missed' | 'got';
 export interface AttemptTracker {
   /** Counts a student who says they are stuck, whatever the model reports, and returns the note this turn's request carries. */
   startTurn(studentText: string): Record<string, string> | null;
-  /** The note a turn with no sign of being stuck would carry, read without starting one. */
   getNote(): Record<string, string> | null;
   noteReport(report: AttemptReport): void;
   isAtDeadEnd(): boolean;

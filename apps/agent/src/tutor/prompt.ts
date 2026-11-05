@@ -11,7 +11,7 @@ export interface TutorPrompt {
   openingNote?: Record<string, string>;
   /** One line a turn for each student level, because that holds the model where the level in the prompt loses to its habit. */
   levelLines?: Readonly<Record<string, string>>;
-  /** What a lead is told, by the kind of lead. Older versions use the notes in `lesson-rules.ts`. */
+  /** Older versions use the notes in `lesson-rules.ts`. */
   leadNotes?: Readonly<Record<string, string>>;
   openingACardNote?: Record<string, string>;
 }
