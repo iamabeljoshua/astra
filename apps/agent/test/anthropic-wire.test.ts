@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { type Beat, getBeatText } from '@astra/contracts';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { makeAnthropicSourceFinder, makeAnthropicTutorModel } from '../src/providers/anthropic.ts';
+import { makeAnthropicSceneModels } from '../src/providers/anthropic.scenes.ts';
 import { createTutorBrain, type TurnSummary, TUTOR_TIMEOUTS } from '../src/tutor/brain.ts';
 import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 import { startFakeAnthropic, type WireReply, type WireRequest } from './fake-anthropic-wire.ts';
@@ -93,6 +94,24 @@ describe('the real SDK against a recorded stream', () => {
     const sent = JSON.stringify(server.requests[0]?.body.messages);
     expect(sent).toContain('😀');
     expect(sent).not.toMatch(/\\ud83d(?!\\ud)/i);
+  });
+});
+
+describe('the saved-scene matcher', () => {
+  const savedBaseUrl = process.env.ANTHROPIC_BASE_URL;
+
+  afterEach(() => {
+    if (savedBaseUrl === undefined) delete process.env.ANTHROPIC_BASE_URL;
+    else process.env.ANTHROPIC_BASE_URL = savedBaseUrl;
+  });
+
+  it('answers when thinking would have used its whole token limit', async () => {
+    const TITLE = 'What a derivative really measures';
+    const server = await startFakeAnthropic(({ body }) => (body.thinking?.type === 'between_tools' ? { text: [JSON.stringify({ title: TITLE })] } : { stopReason: 'max_tokens' }));
+    process.env.ANTHROPIC_BASE_URL = server.url;
+    const answer = makeAnthropicSceneModels({ apiKey: 'test-key' }).sceneMatcher.match('Introduction to calculus', [TITLE], new AbortController().signal);
+    await expect(answer).resolves.toBe(TITLE);
+    await server.close();
   });
 });
 

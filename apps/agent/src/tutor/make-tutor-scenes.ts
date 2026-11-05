@@ -42,6 +42,10 @@ const HAIKU_WORDS_MODEL = 'haiku-5-5';
 
 // A missing key costs a failed call and so the saved words, and never the session.
 const makeWordsReader = (): JsonReader => ({ read: (request) => (process.env.ASTRA_SCENE_WORDS_MODEL === HAIKU_WORDS_MODEL ? makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') }) : makeOpenAiJsonReader({ apiKey: readKey('OPENAI_API_KEY') })).read(request) });
+/** Words like these ask about something, so the drawing need not wait for the tutor to ask. The router still reads them first, and anything else waits for the tutor. */
+const ASKS_TO_BE_TAUGHT = /^(how|why|what|when|where|which|who|whose|explain|show|teach|tell me|can you|could you|do|does|did|is|are|i want to|i'd like to|what's|how's)\b|\?\s*$/i;
+const FEWEST_WORDS_IN_AN_ASK = 3;
+export const isAskingToBeTaught = (words: string) => words.trim().split(/\s+/).length >= FEWEST_WORDS_IN_AN_ASK && ASKS_TO_BE_TAUGHT.test(words.trim());
 
 type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'send' | 'speak' | 'canSpeak' | 'onShown' | 'trace'>;
 
@@ -49,6 +53,7 @@ export interface SessionScenes extends TutorScenes {
   queue: SceneQueue | null;
   onTutorAsk(topic: string): void;
   noteFirstWords(): void;
+  noteStudentWords(words: string): void;
 }
 
 const hasScenesAhead = () => process.env.ASTRA_SCENES_AHEAD !== '0';
@@ -74,12 +79,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
   const kitRuns = hasKitLive() ? createTopicRuns({ engine: 'kit', themes: ['dark'], checkCode: getKitCodeProblems, getLinesToReview: getKitSpokenLines, planner: models.planner, nameReader: models.nameReader, writers: [models.kitWriter, models.kitFallbackWriter], repairWriter: models.kitFallbackWriter, reviewer: models.kitReviewer, worker: createKitWorker(), store, warn }) : undefined;
   let queue: SceneQueue | null = null;
   let freshDrawings = 0;
-  const claimDrawing = () => {
-    if (freshDrawings >= MOST_FRESH_DRAWINGS) return false;
-    freshDrawings += 1;
-    return true;
-  };
-  const freshTools = hasFreshDraw() ? { writer: models.freshWriter, reviewer: models.freshReviewer, claimDrawing } : null;
+  const freshTools = hasFreshDraw() ? { writer: models.freshWriter, reviewer: models.freshReviewer, canDraw: () => freshDrawings < MOST_FRESH_DRAWINGS, noteDrawn: () => void (freshDrawings += 1) } : null;
   const fast: FastSceneHooks | null = hasFastScenes() && canCutIn && cutIn && isInBreath
     ? {
         canCutIn,
@@ -88,6 +88,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
         cutIn,
         mostAsks: FAST_MOST_ASKS,
         askLimitMs: freshTools ? FRESH_ASK_LIMIT_MS : FAST_ASK_LIMIT_MS,
+        drawsFresh: freshTools !== null,
         makeWork: (input) =>
           createRecipeWork({
             ...input,
@@ -163,7 +164,12 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
     ...scenes,
     queue,
     noteFirstWords: () => liveWords?.noteFirstWords(),
+    noteStudentWords(words) {
+      queue?.noteStudentWords(words);
+      if (freshTools && isAskingToBeTaught(words)) scenes.askFromLine(words);
+    },
     onTutorAsk(topic) {
+      if (freshTools && scenes.isLineAnswering()) return hooks.trace('sceneAskPassed', { text: topic, why: 'lineAsked' });
       if (queue) return queue.onTutorAsk(topic);
       hooks.trace('sceneCue', { text: topic, source: 'asked', wallMs: Date.now() });
       scenes.ask(topic);

@@ -13,6 +13,7 @@ import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
 import { createClosingWait } from './closing-wait.ts';
 import { createEarlyMessages } from './early-messages.ts';
 import { createLiveSession, type SceneHeard } from './live-session.ts';
+import type { SpeechBreak } from './word-timeline.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
 import type { LessonEvent, LessonState } from '../lesson-plan/plan-progress.ts';
@@ -95,7 +96,7 @@ async function runSession(context: JobContext, enteredAtWallMs: number): Promise
   let lastFirstTextMs: number | null = null;
   const sceneHooks = {
     onAskScene: (topic: string) => scenes?.onTutorAsk(topic),
-    onStudentWords: (words: string) => scenes?.queue?.noteStudentWords(words),
+    onStudentWords: (words: string) => scenes?.noteStudentWords(words),
     onLessonChange(state: LessonState, event: LessonEvent | null) {
       scenes?.queue?.onLesson(state, event);
       if (hasFastScenes() && state.active) scenes?.noteTopic(state.active.plan.topic);
@@ -162,7 +163,7 @@ async function runSession(context: JobContext, enteredAtWallMs: number): Promise
       : {}),
     ...(hasTutorScenes() && hasFastScenes()
       ? {
-          sentenceBreaks: { queueMs: AUDIO_QUEUE_MS, onBreak: () => scenes?.noteSentenceBreak() },
+          sentenceBreaks: { queueMs: AUDIO_QUEUE_MS, onBreak: (kind: SpeechBreak) => scenes?.noteSentenceBreak(kind) },
           onSceneCut: (heard: SceneHeard) => scenes?.noteSceneCut(heard),
           takeOwedCommands: () => scenes?.takeOwedCommands() ?? [],
         }

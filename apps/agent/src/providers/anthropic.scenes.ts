@@ -26,9 +26,11 @@ const ROUTER_TOKENS = 400;
 const NAME_READER_TOKENS = 600;
 const RECIPE_TOKENS = 1800;
 const RECIPE_REVIEW_TOKENS = 800;
-const FRESH_DRAW_TOKENS = 6000;
+/** A short drawing is about 1,000 tokens. This leaves room for a long one, since a reply cut at the limit cannot run at all. */
+const FRESH_DRAW_TOKENS = 5000;
 const VOICE_STARTS = 'Talk like a warm';
 const VOICE_ENDS = 'Three ways of talking';
+/** One title is about 17 tokens. Thinking counts against this limit and has used all of it, so the matcher runs with thinking off. */
 const MATCH_TOKENS = 200;
 const MATCH_SCHEMA = { type: 'object', additionalProperties: false, required: ['title'], properties: { title: { type: 'string' } } };
 const MATCH_SYSTEM = `You match a student's topic to one saved teaching scene. You are given the topic and a list of scene titles. Reply with one JSON object and nothing else: {"title":"<a title, copied exactly>"} or {"title":""}.
@@ -240,7 +242,7 @@ export function makeAnthropicSceneModels({ apiKey, onUsage, assertRoom, reviewPa
     },
     sceneMatcher: {
       async match(topic, titles, signal) {
-        const reply = await call({ role: 'router', setting: 'reviewQuick', system: MATCH_SYSTEM, user: JSON.stringify({ topic, scene_titles: titles }), maxTokens: MATCH_TOKENS, signal, schema: MATCH_SCHEMA });
+        const reply = await call({ role: 'router', setting: 'sonnetFast', system: MATCH_SYSTEM, user: JSON.stringify({ topic, scene_titles: titles }), maxTokens: MATCH_TOKENS, signal, schema: MATCH_SCHEMA });
         return (JSON.parse(reply.text) as { title: string }).title;
       },
     },
@@ -255,7 +257,7 @@ export function makeAnthropicSceneModels({ apiKey, onUsage, assertRoom, reviewPa
       },
     },
     freshWriter: {
-      write: (ask, signal) => call({ role: 'writer', setting: 'reviewQuick', system: getFreshSystem(), user: getRecipeUser(ask), maxTokens: FRESH_DRAW_TOKENS, signal }),
+      write: (ask, signal) => call({ role: 'writer', setting: 'sonnetFast', system: getFreshSystem(), user: getRecipeUser(ask), maxTokens: FRESH_DRAW_TOKENS, signal }),
     },
     freshReviewer: {
       async read(drawing, signal) {
