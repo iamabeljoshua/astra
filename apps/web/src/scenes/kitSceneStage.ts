@@ -1,9 +1,9 @@
 import type { SceneEngine } from '@astra/contracts';
 import type { KitTake } from '@astra/board/scene3d';
 import { api } from '../api/client';
-import { isFastSceneEnabled, isKitSceneEnabled } from '../session/lessonFlag';
+import { isFastSceneEnabled, isFreshDrawEnabled, isKitSceneEnabled } from '../session/lessonFlag';
 import { getAppliedTheme } from '../theme/theme';
-import type { KitFrame } from './kitFrame';
+import type { FrameEngine, KitFrame } from './kitFrame';
 import { createSceneStage, type SceneStage } from './sceneStage';
 
 const PHONE_WIDTH = 860;
@@ -23,6 +23,9 @@ const hasWorkerWebGl = () => typeof OffscreenCanvas === 'function' && new Offscr
 export const getCanPlayKit = () => isKitSceneEnabled() && window.innerWidth > PHONE_WIDTH && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && isMeasuredBrowser() && hasWorkerWebGl();
 
 export const getCanDrawRecipes = () => isFastSceneEnabled() && isMeasuredBrowser() && hasWorkerWebGl();
+
+/** A fresh drawing is plain 2D in the same worker, so a device with no WebGL can still have one. */
+export const getCanDrawFresh = () => isFreshDrawEnabled() && isMeasuredBrowser() && typeof OffscreenCanvas === 'function' && new OffscreenCanvas(1, 1).getContext('2d') !== null;
 
 function createLayer(parent: HTMLElement): HTMLElement {
   const layer = document.createElement('div');
@@ -55,7 +58,7 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
     }
   };
 
-  const openEntry = async (sceneId: string, layer: HTMLElement, drawsFlat: boolean): Promise<boolean> => {
+  const openEntry = async (sceneId: string, layer: HTMLElement, drawsFlat: boolean, engine: FrameEngine): Promise<boolean> => {
     try {
       const [{ openKitFrame }, take] = await Promise.all([import('./kitFrame'), getKitTake(sceneId)]);
       const frame = await openKitFrame({
@@ -64,6 +67,7 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
         theme: getAppliedTheme(),
         limitMs: KIT_LOAD_LIMIT_MS,
         drawsFlat,
+        engine,
         onLost: () => {
           drop(sceneId);
           onChange();
@@ -86,14 +90,14 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
     }
   };
 
-  const open = (sceneId: string, drawsFlat = false): Promise<boolean> => {
+  const open = (sceneId: string, drawsFlat = false, engine: FrameEngine = 'kit'): Promise<boolean> => {
     const held = entries.get(sceneId);
     if (held) return held.opening;
     const layer = createLayer(container);
     Object.assign(layer.style, { opacity: '0', visibility: 'hidden' });
     const entry: KitEntry = { layer, frame: null, opening: Promise.resolve(false) };
     entries.set(sceneId, entry);
-    entry.opening = openEntry(sceneId, layer, drawsFlat);
+    entry.opening = openEntry(sceneId, layer, drawsFlat, engine);
     dropOldest(sceneId);
     return entry.opening;
   };
@@ -114,6 +118,11 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
 
   return {
     async load(sceneId, durationSeconds, engine?: SceneEngine) {
+      if (engine === 'canvas') {
+        const isOpen = getCanDrawFresh() && (await open(sceneId, false, 'canvas'));
+        onChange();
+        return isOpen;
+      }
       if (engine === 'kit' && getCanDrawRecipes() && getCanPlayKit() && (await open(sceneId))) {
         onChange();
         return true;
@@ -129,6 +138,7 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
       return hasFlat || kitOpening;
     },
     async prepare(sceneId, engine?: SceneEngine) {
+      if (engine === 'canvas') return getCanDrawFresh() && open(sceneId, false, 'canvas');
       if (engine === 'kit' && getCanDrawRecipes() && getCanPlayKit() && (await open(sceneId))) return true;
       const kitOpening = engine === 'kit' && getCanPlayKit() ? open(sceneId) : Promise.resolve(false);
       return (await flat.prepare(sceneId)) || kitOpening || (engine === 'kit' && getCanDrawRecipes() && open(sceneId, true));

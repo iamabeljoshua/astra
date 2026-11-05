@@ -6,7 +6,7 @@ What `ASTRA_FAST_SCENES` does, how to run it, and what it measured on 5 November
 
 A scene is a recipe: spoken lines, approved parts, motions, labels, and a camera, written as JSON Lines by one Haiku call. A strict schema reads each line in `apps/agent/src/scenes/recipe/recipe.ts`, and any field it does not list never gets past it. No field is ever run. The parts in `recipe/parts/` are the only code, kept in the repo and named by a hash of their source. A saved scene holds the exact part code it played with, so a later edit cannot change an old seek or replay.
 
-The chain is saved scene, then recipe, then words and the board with nothing said. The ManimGX writer and live written code stay off on this path, so a math topic with no saved scene gets the board alone. Route and match run beside the recipe call. A safety or dangerous read stops the picture, and a picture never lands before the read has answered.
+The chain is saved scene, then recipe, then words and the board with nothing said. `ASTRA_FRESH_DRAW` adds a fresh drawing after the recipe, in `docs/tests/fresh-draw.md`. The ManimGX writer and live written code stay off on this path, so a math topic with no saved scene gets the board alone. Route and match run beside the recipe call. A safety or dangerous read stops the picture, and a picture never lands before the read has answered.
 
 A scene lands on the voice's clock. `speak-turn.ts` tells the session as the student reaches the quiet after a sentence, and the session stops the reply there and says the scene's lines in its place. The brain hears exactly what was heard. A question with words after it counts as a sentence end, and one that ends the reply has no next word. If the reply ends first, the scene lands at the pause.
 

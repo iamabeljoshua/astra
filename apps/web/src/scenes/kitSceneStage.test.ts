@@ -192,6 +192,36 @@ describe('when a browser should not play the kit', () => {
   });
 });
 
+describe('a fresh drawing', () => {
+  beforeEach(() => {
+    vi.stubEnv('VITE_FRESH_DRAW', '1');
+    vi.stubEnv('VITE_KIT_SCENES', '0');
+  });
+
+  it('opens on the Canvas runtime alone, with no 2D take and no WebGL', async () => {
+    vi.stubGlobal('OffscreenCanvas', class { getContext(kind: string) { return kind === '2d' ? {} : null; } });
+    const stage = createKitSceneStage(makeContainer());
+    await expect(stage.load(SCENE, 20, 'canvas')).resolves.toBe(true);
+    expect(fakes.openKitFrame.mock.calls[0]?.[0]).toMatchObject({ engine: 'canvas' });
+    expect(fakes.flat.load).not.toHaveBeenCalled();
+  });
+
+  it('refuses when its frame check fails, so the board stays with nothing said', async () => {
+    fakes.openKitFrame.mockReset().mockRejectedValue(new Error('the frame check refused it'));
+    fakes.flat.canDraw.mockReturnValue(false);
+    const stage = createKitSceneStage(makeContainer());
+    await expect(stage.load(SCENE, 20, 'canvas')).resolves.toBe(false);
+    expect(stage.canDraw(SCENE)).toBe(false);
+  });
+
+  it('refuses with the switch off', async () => {
+    vi.stubEnv('VITE_FRESH_DRAW', '0');
+    const stage = createKitSceneStage(makeContainer());
+    await expect(stage.load(SCENE, 20, 'canvas')).resolves.toBe(false);
+    expect(fakes.openKitFrame).not.toHaveBeenCalled();
+  });
+});
+
 describe('the next scene', () => {
   it('waits off screen in its own frame, and what is on screen stays', async () => {
     const container = makeContainer();
