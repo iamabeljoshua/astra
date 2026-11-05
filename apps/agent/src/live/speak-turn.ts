@@ -5,7 +5,7 @@ import { createPlayoutTracker, type PlayoutTracker } from '@astra/board';
 import { createFirstSound, type FirstSound, getFrameMs } from './first-sound.ts';
 import { createFrameQueue, type FrameQueue } from './frame-queue.ts';
 import { getSteadyNowMs, type LineTurn, type VoiceLine } from './voice-line.ts';
-import { createWordTimeline, type SpeechBreak } from './word-timeline.ts';
+import { createWordTimeline } from './word-timeline.ts';
 
 const MS_PER_SECOND = 1000;
 const STILL_ARRIVING_MS = 300;
@@ -50,21 +50,17 @@ export interface SpeakTurnOptions {
   /** The source refused a frame or the voice threw. The turn has ended as a stop, and this is the one place the cause shows. */
   onFailure?(failure: unknown): void;
   getNowMs?(): number;
-  sentenceBreaks?: SentenceBreaks;
 }
 
-export interface SentenceBreaks {
-  queueMs: number;
-  onBreak(kind: SpeechBreak): void;
-}
-
-/** The voice leaves about 275 to 472 ms between sentences, so a break told this early falls inside that quiet. */
-const BREAK_BEFORE_NEXT_WORD_MS = 40;
+/** The voice leaves at least 275 ms between sentences, so audio sent to this far short of the next one ends inside that quiet. */
+const SENTENCE_END_MARGIN_MS = 100;
 
 export interface SpokenTurn {
   /** Settles once the turn is off the line, and never rejects, because one bad turn must not end a session. */
   finished: Promise<void>;
   stop(): void;
+  /** Sends no audio past the end of the sentence it is sending, and stops once that audio has played. */
+  endAtSentence(): void;
   getWordMismatches(): { ours: string; theirs: string }[];
   /** Words were sent to the voice that have not come back, so a silence now is the voice's and not the writer's. */
   isVoiceOwing(): boolean;
@@ -118,6 +114,8 @@ interface TurnWork {
   noteVoiceDone(): void;
   noteAudioSent(ms: number): void;
   isStopped(): boolean;
+  isEndingAtSentence(): boolean;
+  stop(): void;
 }
 
 // A turn's messages wait with its audio, so the browser never unmutes or starts a clock before the last turn's audio has gone.
@@ -207,12 +205,23 @@ async function readVoice(work: TurnWork): Promise<void> {
   work.frames.finish();
 }
 
-async function pumpAudio({ options, frames, firstSound, timeline, tracker, lineTurn, noteAudioSent, isStopped }: TurnWork): Promise<void> {
+const reachesNextSentence = ({ firstSound, timeline }: TurnWork, sentMs: number, frameMs: number) => {
+  const nextSentenceMs = timeline.getSentenceStartFrom(firstSound.toTimeline(sentMs));
+  return nextSentenceMs !== null && firstSound.toTimeline(sentMs + frameMs) + SENTENCE_END_MARGIN_MS > nextSentenceMs;
+};
+
+async function pumpAudio(work: TurnWork): Promise<void> {
+  const { options, frames, firstSound, tracker, lineTurn, noteAudioSent, isStopped, isEndingAtSentence, stop } = work;
   const { messenger, turnId, proofStalls = [], onFrameCaptured, onGap, getNowMs = getSteadyNowMs } = options;
   const pendingStalls = [...proofStalls];
   let audioMs = 0;
   await lineTurn.opened;
   for (let frame = await frames.next(); frame && !isStopped(); frame = await frames.next()) {
+    if (isEndingAtSentence() && reachesNextSentence(work, audioMs, getFrameMs(frame))) {
+      await lineTurn.waitForPlayout();
+      stop();
+      return;
+    }
     const stall = pendingStalls[0];
     if (stall && audioMs >= stall.atAudioMs) {
       pendingStalls.shift();
@@ -229,9 +238,6 @@ async function pumpAudio({ options, frames, firstSound, timeline, tracker, lineT
     await lineTurn.captureFrame(frame);
     audioMs += getFrameMs(frame);
     noteAudioSent(audioMs);
-    const { sentenceBreaks } = options;
-    const crossed = sentenceBreaks ? timeline.getCrossedBreak(firstSound.toTimeline(audioMs) - sentenceBreaks.queueMs + BREAK_BEFORE_NEXT_WORD_MS) : null;
-    if (crossed) sentenceBreaks?.onBreak(crossed);
   }
 }
 
@@ -253,6 +259,7 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
   const lineTurn = line.takeTurn();
   const heldMessenger = createHeldMessenger(messenger);
   let isStopped = false;
+  let isEndingAtSentence = false;
   let isFinished = false;
   let audioSentMs = 0;
   let audioReadMs = 0;
@@ -283,6 +290,8 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
       audioSentMs = ms;
     },
     isStopped: () => isStopped,
+    isEndingAtSentence: () => isEndingAtSentence,
+    stop: () => stop(),
   };
 
   // A finished turn has no audio to cut and leaves no silence, so a stop for it would only mute the next turn.
@@ -318,5 +327,5 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
       lineTurn.leave();
     });
 
-  return { finished, getWordMismatches: timeline.getMismatches, isVoiceOwing: () => !timeline.isComplete(), getWordsSent: () => timeline.getWordsSent(firstSound.toTimeline(audioSentMs)), getAudioLeftMs: () => (isVoiceDone ? audioReadMs - audioSentMs : Number.POSITIVE_INFINITY), stop };
+  return { finished, getWordMismatches: timeline.getMismatches, isVoiceOwing: () => !timeline.isComplete(), getWordsSent: () => timeline.getWordsSent(firstSound.toTimeline(audioSentMs)), getAudioLeftMs: () => (isVoiceDone ? audioReadMs - audioSentMs : Number.POSITIVE_INFINITY), stop, endAtSentence: () => void (isEndingAtSentence = true) };
 }

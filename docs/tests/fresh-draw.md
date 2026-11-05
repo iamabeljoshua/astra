@@ -10,7 +10,7 @@ A line that asks about something starts the work at once, without waiting for th
 
 The lines and the drawing come from one reply and share moment names, so each line plays with what it names. `readFreshDrawing` drops a line whose moment the code never uses, because nothing on screen would match its words.
 
-A drawing lands at the next comma or sentence, where a recipe waits for a sentence, with the old picture cleared on a new topic. A drawing the student has moved on from stops being written. A crisis, a stop, a seek, and a replay take the path they take for a recipe. A later idea in a lesson's plan gets a drawing too, because `prepare` runs the same work.
+A drawing lands at the end of the tutor's sentence, as a recipe does, with the old picture cleared on a new topic. A comma is not a place to land, because the scene's words would break the sentence. A drawing the student has moved on from stops being written. A crisis, a stop, a seek, and a replay take the path they take for a recipe. A later idea in a lesson's plan gets a drawing too, because `prepare` runs the same work.
 
 ## Who may run what
 

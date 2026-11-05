@@ -14,16 +14,12 @@ interface ExpectedWord {
 }
 
 const ENDS_A_SENTENCE = /[.!?]["')\]]*$/;
-const ENDS_A_CLAUSE = /[,;:]["')\]]*$/;
-
-export type SpeechBreak = 'sentence' | 'clause';
 
 // A voice names words its own way, so its words are matched to ours by position and `atWord` always counts ours. Beats arrive as the brain writes them.
 export function createWordTimeline(beats: readonly Beat[] = []) {
   const expected: ExpectedWord[] = [];
   let nextWord = 0;
   const mismatches: { ours: string; theirs: string }[] = [];
-  let breakCursor = 0;
 
   const addBeat = (beat: Beat) => {
     getSpokenWords(getBeatText(beat)).forEach((text, wordInBeat) => expected.push({ beatId: beat.id, wordInBeat, text, startMs: null }));
@@ -53,18 +49,13 @@ export function createWordTimeline(beats: readonly Beat[] = []) {
     return sent;
   };
 
-  /** True once for each sentence end whose next word starts by `positionMs`. */
-  const getCrossedBreak = (positionMs: number): SpeechBreak | null => {
-    let crossed: SpeechBreak | null = null;
-    for (; breakCursor < expected.length; breakCursor += 1) {
-      const { startMs } = expected[breakCursor] as ExpectedWord;
-      if (startMs === null || startMs > positionMs) break;
-      const word = expected[breakCursor - 1]?.text ?? '';
-      if (ENDS_A_SENTENCE.test(word)) crossed = 'sentence';
-      else if (crossed === null && ENDS_A_CLAUSE.test(word)) crossed = 'clause';
+  const getSentenceStartFrom = (positionMs: number): number | null => {
+    for (const [index, { startMs }] of expected.entries()) {
+      if (startMs === null) return null;
+      if (startMs >= positionMs && index > 0 && ENDS_A_SENTENCE.test(expected[index - 1]?.text ?? '')) return startMs;
     }
-    return crossed;
+    return null;
   };
 
-  return { addBeat, toBeatWords, getWordsSent, getCrossedBreak, getMismatches: () => mismatches, isComplete: () => nextWord === expected.length };
+  return { addBeat, toBeatWords, getWordsSent, getSentenceStartFrom, getMismatches: () => mismatches, isComplete: () => nextWord === expected.length };
 }

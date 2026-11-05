@@ -40,9 +40,10 @@ export interface LessonWorkOptions {
   onChange?(state: SceneState, atMs: number): void;
   /** A tutor in a live session has its own words, so nothing is paid for a plan unless a scene can come of it. */
   isOnlyForScene?: boolean;
+  trace?(name: string, fields?: Record<string, unknown>): void;
 }
 
-export function createLessonWork({ router, runs, kitRuns, fitReader, store, request, isCard, studentId, cardLine, getNowMs, getWallMs = () => Date.now(), onChange, isOnlyForScene = false }: LessonWorkOptions): LessonWork {
+export function createLessonWork({ router, runs, kitRuns, fitReader, store, request, isCard, studentId, cardLine, getNowMs, getWallMs = () => Date.now(), onChange, isOnlyForScene = false, trace = () => {} }: LessonWorkOptions): LessonWork {
   // A card's title comes from the server's own list, so its scene is shared. A typed question stays with its student, because router-cleaned words are still a student's words shaped by a model.
   const ownerId = isCard ? null : studentId;
   // A card's scene reaches every student, so only the reviewed library may give one a 3D scene.
@@ -100,12 +101,17 @@ export function createLessonWork({ router, runs, kitRuns, fitReader, store, requ
     return isCard ? asked.catch(() => NO_ROUTE) : asked;
   };
 
-  const findFit = async (topic: string): Promise<StoredScene | null> => {
+  const findFit = async (topic: string): Promise<StoredScene | 'unread' | null> => {
     if (!fitReader || isCard || !writesKit) return null;
     const titles = (await store.listShared()).map((scene) => scene.topic);
     if (titles.length === 0) return null;
-    const title = await fitReader.find(topic, titles, AbortSignal.timeout(FIT_LIMIT_MS)).catch(() => null);
-    return title ? findSaved(title) : null;
+    try {
+      const title = await fitReader.find(topic, titles, AbortSignal.timeout(FIT_LIMIT_MS));
+      return title ? findSaved(title) : null;
+    } catch (error) {
+      trace('sceneFitFailed', { problem: String(error) });
+      return 'unread';
+    }
   };
 
   const getRoute = async (): Promise<SceneRoute> => {
@@ -143,6 +149,10 @@ export function createLessonWork({ router, runs, kitRuns, fitReader, store, requ
     }
     const savedByTopic = findSaved(topic);
     const fit = savedByTopic || route.engine === 'none' ? null : await findFit(topic);
+    if (fit === 'unread') {
+      settlePlan('nothing');
+      return { ...route, engine: 'none', topic: '' };
+    }
     if (fit) {
       useSaved(fit.topic, fit);
       return { ...SAVED_ROUTE, topic: fit.topic };

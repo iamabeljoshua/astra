@@ -13,7 +13,6 @@ import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
 import { createClosingWait } from './closing-wait.ts';
 import { createEarlyMessages } from './early-messages.ts';
 import { createLiveSession, type SceneHeard } from './live-session.ts';
-import type { SpeechBreak } from './word-timeline.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
 import type { LessonEvent, LessonState } from '../lesson-plan/plan-progress.ts';
@@ -163,7 +162,6 @@ async function runSession(context: JobContext, enteredAtWallMs: number): Promise
       : {}),
     ...(hasTutorScenes() && hasFastScenes()
       ? {
-          sentenceBreaks: { queueMs: AUDIO_QUEUE_MS, onBreak: (kind: SpeechBreak) => scenes?.noteSentenceBreak(kind) },
           onSceneCut: (heard: SceneHeard) => scenes?.noteSceneCut(heard),
           takeOwedCommands: () => scenes?.takeOwedCommands() ?? [],
         }

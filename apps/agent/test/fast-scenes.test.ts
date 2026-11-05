@@ -11,7 +11,7 @@ import { readStarterRecipe } from '../src/scenes/recipe/starter.ts';
 import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
 import type { SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
 import type { TopicRuns } from '../src/scenes/lesson/topic-runs.ts';
-import { createTutorScenes } from '../src/tutor/tutor-scenes.ts';
+import { createTutorScenes, type ReplyEnd } from '../src/tutor/tutor-scenes.ts';
 import { createWordTimeline } from '../src/live/word-timeline.ts';
 
 const USAGE = { model: 'fake', ms: 1, costUsd: 0 };
@@ -36,6 +36,7 @@ function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true, draws
   const sent: SceneAgentMessage[] = [];
   const said: (readonly Beat[])[] = [];
   const cuts: (readonly Beat[])[] = [];
+  const replyEnds: ReplyEnd[] = [];
   const state = { canSpeak: false, canCutIn };
   const write = vi.fn<RecipeWriter['write']>(async () => ({ text, ...USAGE }));
   const scenes = createTutorScenes({
@@ -56,8 +57,9 @@ function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true, draws
       canCutIn: () => state.canCutIn,
       isInBreath: () => false,
       isBeforeFirstWord: () => isBeforeFirstWord,
-      cutIn(beats) {
+      cutIn(beats, replyEnd) {
         cuts.push(beats);
+        replyEnds.push(replyEnd);
         return true;
       },
       mostAsks: 40,
@@ -94,7 +96,7 @@ function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true, draws
     say({ type: 'sceneLoaded', sceneId: load.sceneId });
     return load;
   };
-  return { scenes, store, sent, said, cuts, state, write, say, askAndLoad };
+  return { scenes, store, sent, said, cuts, replyEnds, state, write, say, askAndLoad };
 }
 
 const getCommands = (beats: readonly Beat[]) => beats.flatMap((beat) => beat.script).flatMap((part) => (typeof part === 'string' ? [] : [part]));
@@ -110,13 +112,11 @@ describe('a typed question from Home', () => {
     const load = sent.findLast((message) => message.type === 'loadScene');
     if (load?.type !== 'loadScene') throw new Error('no scene went to the page');
     say({ type: 'sceneLoaded', sceneId: load.sceneId });
-    scenes.noteStudentTurn();
-    scenes.noteSentenceBreak();
     expect(cuts).toHaveLength(1);
   });
 
   it('lands as the first teaching when the reply has said nothing yet', async () => {
-    const { scenes, say, sent, cuts } = setUp({ isBeforeFirstWord: true });
+    const { scenes, say, sent, cuts, replyEnds } = setUp({ isBeforeFirstWord: true });
     scenes.noteEarlyQuestion('why rockets have stages', STUDENT);
     await flush();
     say({ type: 'sceneDevice', canPlay: true });
@@ -124,6 +124,7 @@ describe('a typed question from Home', () => {
     if (load?.type !== 'loadScene') throw new Error('no scene went to the page');
     say({ type: 'sceneLoaded', sceneId: load.sceneId });
     expect(cuts).toHaveLength(1);
+    expect(replyEnds).toEqual(['now']);
   });
 
   it('never cuts in ahead of a read that has not answered, and tries again', async () => {
@@ -161,13 +162,12 @@ describe('a typed question from Home', () => {
     expect(isSecondLetGo).toBe(true);
   });
 
-  it('leaves a later ask to the next sentence', async () => {
-    const { scenes, say, askAndLoad, cuts } = setUp({ isBeforeFirstWord: true });
+  it('lets the reply finish its sentence for a later ask', async () => {
+    const { say, askAndLoad, cuts, replyEnds } = setUp({ isBeforeFirstWord: true });
     say({ type: 'sceneDevice', canPlay: true });
     await askAndLoad('why rockets have stages');
-    expect(cuts).toHaveLength(0);
-    scenes.noteSentenceBreak();
     expect(cuts).toHaveLength(1);
+    expect(replyEnds).toEqual(['atSentenceEnd']);
   });
 
   it('writes one scene when the tutor then asks in other words', async () => {
@@ -261,24 +261,22 @@ describe('live 3D at the end of the chain', () => {
 });
 
 describe('a fresh scene from a recipe', () => {
-  it('comes in at the next sentence, in place of the rest of the reply', async () => {
-    const { scenes, say, askAndLoad, cuts, said, write } = setUp();
+  it('comes in once the page has it, in place of the rest of the reply after its sentence', async () => {
+    const { say, askAndLoad, cuts, replyEnds, said, write } = setUp();
     say({ type: 'sceneDevice', canPlay: true });
     const load = await askAndLoad('why rockets have stages');
     expect(load).toMatchObject({ engine: 'kit' });
-    expect(cuts).toHaveLength(0);
-    scenes.noteSentenceBreak();
     expect(said).toHaveLength(0);
+    expect(replyEnds).toEqual(['atSentenceEnd']);
     expect(cuts).toHaveLength(1);
     expect(getCommands(cuts[0] as Beat[])[0]).toMatchObject({ kind: 'richScene', engine: 'kit', sceneId: load.sceneId });
     expect(write.mock.calls[0]?.[0]).toEqual({ topic: 'why rockets have stages', level: 'high_school' });
   });
 
   it('never ends its words on a question, and plays each line on its own word as one stretch', async () => {
-    const { scenes, say, askAndLoad, cuts } = setUp();
+    const { say, askAndLoad, cuts } = setUp();
     say({ type: 'sceneDevice', canPlay: true });
     await askAndLoad('why rockets have stages');
-    scenes.noteSentenceBreak();
     const beats = cuts[0] as (Beat & { pauseBeforeMs?: number })[];
     expect(beats.some((beat) => beat.expectsReply)).toBe(false);
     expect(beats.some((beat) => beat.pauseBeforeMs !== undefined)).toBe(false);
@@ -286,12 +284,15 @@ describe('a fresh scene from a recipe', () => {
   });
 
   it('waits for the pause when the student has spoken since it was asked, because the tutor is answering them', async () => {
-    const { scenes, say, askAndLoad, cuts, said, state } = setUp();
+    const { scenes, say, sent, cuts, said, state } = setUp();
     say({ type: 'sceneDevice', canPlay: true });
     scenes.noteStudentTurn();
-    await askAndLoad('why rockets have stages');
+    scenes.ask('why rockets have stages');
+    await flush();
     scenes.noteStudentTurn();
-    scenes.noteSentenceBreak();
+    const load = sent.findLast((message) => message.type === 'loadScene');
+    if (load?.type !== 'loadScene') throw new Error('no scene went to the page');
+    say({ type: 'sceneLoaded', sceneId: load.sceneId });
     expect(cuts).toHaveLength(0);
     state.canSpeak = true;
     scenes.notePause();
@@ -303,7 +304,6 @@ describe('a fresh scene from a recipe', () => {
     say({ type: 'sceneDevice', canPlay: true });
     scenes.ask('how bees make honey');
     await flush();
-    scenes.noteSentenceBreak();
     expect(sent.filter((message) => message.type === 'loadScene')).toHaveLength(0);
     expect(cuts).toHaveLength(0);
   });
@@ -317,10 +317,9 @@ describe('a fresh scene from a recipe', () => {
   });
 
   it('keeps a shared copy out of the library when the review holds it, and the picture still lands', async () => {
-    const { scenes, store, say, askAndLoad, cuts } = setUp();
+    const { store, say, askAndLoad, cuts } = setUp();
     say({ type: 'sceneDevice', canPlay: true });
     await askAndLoad('why rockets have stages');
-    scenes.noteSentenceBreak();
     await flush();
     expect(cuts).toHaveLength(1);
     expect(await store.listShared()).toHaveLength(0);
@@ -344,7 +343,6 @@ describe('a new topic in the middle of a lesson', () => {
   const landRocket = async (context: ReturnType<typeof setUp>) => {
     context.say({ type: 'sceneDevice', canPlay: true });
     await context.askAndLoad('why rockets have stages');
-    context.scenes.noteSentenceBreak();
   };
 
   it('takes the old picture away on the next beat and asks for its own', async () => {
@@ -412,7 +410,6 @@ describe('asks while a scene is under way', () => {
     const { scenes, say, askAndLoad, cuts, write } = setUp();
     say({ type: 'sceneDevice', canPlay: true });
     await askAndLoad('why rockets have stages');
-    scenes.noteSentenceBreak();
     const beats = cuts[0] as Beat[];
     scenes.noteSceneCut({ reports: new Map(), wordsSent: new Map([[beats[0]?.id as Beat['id'], 3]]) });
     write.mockClear();
@@ -442,7 +439,6 @@ describe('a drawing that starts from the student\'s line', () => {
     const { scenes, say, askAndLoad, cuts } = setUp();
     say({ type: 'sceneDevice', canPlay: true });
     await askAndLoad(STOPS_ON_TOPIC);
-    scenes.noteSentenceBreak();
     expect(cuts).toHaveLength(1);
     expect(scenes.askFromLine('how do the rockets drop a stage')).toBe(false);
   });
@@ -474,24 +470,7 @@ describe('a drawing the student has moved on from', () => {
   });
 });
 
-describe('where a scene may land', () => {
-  it('waits for a sentence, unless a late drawing may come in at a comma', async () => {
-    const waits = setUp();
-    waits.say({ type: 'sceneDevice', canPlay: true });
-    await waits.askAndLoad('why rockets have stages');
-    waits.scenes.noteSentenceBreak('clause');
-    expect(waits.cuts).toHaveLength(0);
-    waits.scenes.noteSentenceBreak('sentence');
-    expect(waits.cuts).toHaveLength(1);
-    const comes = setUp({ drawsFresh: true });
-    comes.say({ type: 'sceneDevice', canPlay: true });
-    await comes.askAndLoad('why rockets have stages');
-    comes.scenes.noteSentenceBreak('clause');
-    expect(comes.cuts).toHaveLength(1);
-  });
-});
-
-describe('a sentence break on the voice clock', () => {
+describe('a sentence start on the voice clock', () => {
   const timelineOf = (text: string) => {
     const words = text.split(' ').map((word, index) => ({ text: word, startMs: index * 100 }));
     const timeline = createWordTimeline([{ id: 'one' as Beat['id'], script: [text], expectsReply: false }]);
@@ -499,17 +478,15 @@ describe('a sentence break on the voice clock', () => {
     return timeline;
   };
 
-  it('fires once, when the next sentence is about to start, after a full stop and after a question with words behind it', () => {
+  it('names the next word after a full stop or a question, and never a word after a comma', () => {
     const timeline = timelineOf('Ever wondered why? Okay, dig in. Fans push air');
-    expect(timeline.getCrossedBreak(250)).toBeNull();
-    expect(timeline.getCrossedBreak(300)).toBe('sentence');
-    expect(timeline.getCrossedBreak(400)).toBe('clause');
-    expect(timeline.getCrossedBreak(600)).toBe('sentence');
-    expect(timeline.getCrossedBreak(900)).toBeNull();
+    expect(timeline.getSentenceStartFrom(0)).toBe(300);
+    expect(timeline.getSentenceStartFrom(300)).toBe(300);
+    expect(timeline.getSentenceStartFrom(301)).toBe(600);
+    expect(timeline.getSentenceStartFrom(601)).toBeNull();
   });
 
-  it('does not break inside a sentence, and has nothing to say after the last word', () => {
-    const timeline = timelineOf('Fans push air out the back.');
-    expect(timeline.getCrossedBreak(10_000)).toBeNull();
+  it('has nothing to name inside the last sentence', () => {
+    expect(timelineOf('Fans push air out the back.').getSentenceStartFrom(0)).toBeNull();
   });
 });

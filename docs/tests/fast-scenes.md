@@ -8,7 +8,7 @@ A scene is a recipe: spoken lines, approved parts, motions, labels, and a camera
 
 The chain is saved scene, then recipe, then words and the board with nothing said. `ASTRA_FRESH_DRAW` adds a fresh drawing after the recipe, in `docs/tests/fresh-draw.md`. The ManimGX writer and live written code stay off on this path, so a math topic with no saved scene gets the board alone. Route and match run beside the recipe call. A safety or dangerous read stops the picture, and a picture never lands before the read has answered.
 
-A scene lands on the voice's clock. `speak-turn.ts` tells the session as the student reaches the quiet after a sentence, and the session stops the reply there and says the scene's lines in its place. The brain hears exactly what was heard. A question with words after it counts as a sentence end, and one that ends the reply has no next word. If the reply ends first, the scene lands at the pause.
+A scene lands at the end of the tutor's sentence. Once the page has the picture, the session asks the reply to end there and starts the scene's turn behind it. `speak-turn.ts` stops sending audio about 100 ms before the first word of the next sentence, on what has really left the agent and not on a guess at the source's queue, so no word of that sentence is heard. It waits for that audio to play, then stops the turn, and the scene's lines start after the line's usual silence. The brain hears exactly what was sent. A question with words after it counts as a sentence end. A reply with nothing heard yet ends at once for an early picture, and a student who talks over the end of the sentence stops it at once. If the reply ends first, the scene lands at the pause.
 
 ## Whose words
 

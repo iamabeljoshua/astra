@@ -97,7 +97,7 @@ describe('the real SDK against a recorded stream', () => {
   });
 });
 
-describe('the saved-scene matcher', () => {
+describe('the saved-scene readers', () => {
   const savedBaseUrl = process.env.ANTHROPIC_BASE_URL;
 
   afterEach(() => {
@@ -110,6 +110,15 @@ describe('the saved-scene matcher', () => {
     const server = await startFakeAnthropic(({ body }) => (body.thinking?.type === 'between_tools' ? { text: [JSON.stringify({ title: TITLE })] } : { stopReason: 'max_tokens' }));
     process.env.ANTHROPIC_BASE_URL = server.url;
     const answer = makeAnthropicSceneModels({ apiKey: 'test-key' }).sceneMatcher.match('Introduction to calculus', [TITLE], new AbortController().signal);
+    await expect(answer).resolves.toBe(TITLE);
+    await server.close();
+  });
+
+  it('finds a fit when thinking would have used its whole token limit', async () => {
+    const TITLE = 'How the heart pumps blood';
+    const server = await startFakeAnthropic(({ body }) => (body.thinking?.type === 'between_tools' ? { text: [JSON.stringify({ title: TITLE })] } : { stopReason: 'max_tokens' }));
+    process.env.ANTHROPIC_BASE_URL = server.url;
+    const answer = makeAnthropicSceneModels({ apiKey: 'test-key' }).fitReader.find('how the heart pumps blood around the body', [TITLE], new AbortController().signal);
     await expect(answer).resolves.toBe(TITLE);
     await server.close();
   });

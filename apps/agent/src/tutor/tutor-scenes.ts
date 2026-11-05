@@ -29,16 +29,17 @@ const OPENING_WAIT_MS = 2500;
 export const LIVE_WORDS_WAIT_MS = 1500;
 const EARLY_PICTURE_HOLD_MS = 2500;
 
+export type ReplyEnd = 'now' | 'atSentenceEnd';
+
 export interface FastSceneHooks {
   makeWork(input: SceneWorkInput): SceneWork;
   canCutIn(): boolean;
   isInBreath(): boolean;
   /** The reply has said nothing yet, so a picture ready now can be the lesson's first teaching and no sentence is cut. */
   isBeforeFirstWord?(): boolean;
-  cutIn(beats: readonly TutorBeat[]): boolean;
+  cutIn(beats: readonly TutorBeat[], replyEnds: ReplyEnd): boolean;
   mostAsks: number;
   askLimitMs: number;
-  /** A drawing is paid by the token and is late already, so it may come in at a comma, and one the student has moved on from stops. */
   drawsFresh?: boolean;
 }
 
@@ -90,7 +91,6 @@ export interface TutorScenes {
   waitForPicture(): Promise<boolean>;
   /** The student pressed End or left, so nothing more is asked or lands. A scene already on screen can still come back to a reloaded page. */
   close(): void;
-  noteSentenceBreak(kind?: 'sentence' | 'clause'): void;
   noteWordsSettled(sceneId: string): void;
   /** The student's own line names the idea, so a drawing can start before the tutor asks. False when it does not. */
   askFromLine(line: string): boolean;
@@ -253,7 +253,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
     return isAhead && page.kind === 'notAsked' && state.kind === 'ready' ? state.scene : null;
   };
 
-  const land = (ask: SceneAsk, at: 'pause' | 'sentence' = 'pause') => {
+  const land = (ask: SceneAsk) => {
     const waiting = getSceneWaiting(ask);
     if (ask !== current || !waiting) return;
     if (ask.recheck) clearTimeout(ask.recheck);
@@ -274,10 +274,10 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
       give(beats);
       return;
     }
-    const isFirstReplyUnspoken = ask.isEarly && fast?.isBeforeFirstWord?.() === true;
-    const cutIn = (at === 'sentence' || fast?.isInBreath() || isFirstReplyUnspoken) && ask.canLandOnSentence ? fast : undefined;
-    if (cutIn ? !cutIn.canCutIn() : !canSpeak()) {
-      if (at === 'pause') ask.recheck = setTimeout(() => land(ask), RECHECK_PAUSE_MS);
+    const cutIn = ask.canLandOnSentence && fast?.canCutIn() ? fast : undefined;
+    const replyEnds: ReplyEnd = ask.isEarly && fast?.isBeforeFirstWord?.() === true ? 'now' : 'atSentenceEnd';
+    if (!cutIn && !canSpeak()) {
+      ask.recheck = setTimeout(() => land(ask), RECHECK_PAUSE_MS);
       return;
     }
     if (ask.page.kind === 'notAsked') return loadInPage(ask, waiting);
@@ -288,7 +288,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
     const number = (scenesShown += 1);
     const { speech, isLive } = getSpeech(scene);
     const beats = getTutorSceneBeats({ plan: speech, scene, number, ...(fast ? { firstCommands: getReplacedSceneCommands(screen) } : {}) });
-    if (!(cutIn ? cutIn.cutIn(beats) : speak(beats))) return end(ask, 'lostThePause');
+    if (!(cutIn ? cutIn.cutIn(beats, replyEnds) : speak(beats))) return end(ask, 'lostThePause');
     show(ask, scene, beats, isLive);
   };
 
@@ -345,7 +345,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
     // A live 3D scene is paid for only when a student is asking, so the queue never starts one.
     const work: SceneWork = fast
       ? fast.makeWork({ request, isCard, studentId, canPlayTakes, canDrawRecipes, canWriteLive: !isAhead, onLiveWrite: () => keepAskForKit(ask), getNowMs, onChange })
-      : createLessonWork({ router, runs, ...(kitRuns && !isAhead ? { kitRuns } : {}), ...(fitReader && !isAhead ? { fitReader } : {}), store, request, isCard, studentId, getNowMs, isOnlyForScene: true, onChange });
+      : createLessonWork({ router, runs, ...(kitRuns && !isAhead ? { kitRuns } : {}), ...(fitReader && !isAhead ? { fitReader } : {}), store, request, isCard, studentId, getNowMs, isOnlyForScene: true, onChange, trace });
     const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: null, windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isAhead, isOpening: isCard && !isAhead && opening.kind === 'possible', canLandOnSentence: true, heldForWordsSinceMs: null, isEarly: false, isKit: false };
     works.push(work);
     trace('sceneAsked', { text: topic, isCard, isAhead });
@@ -659,9 +659,6 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
       settlePictureWaits(false);
       for (const work of works.splice(0)) work.leave();
       prepared.clear();
-    },
-    noteSentenceBreak(kind = 'sentence') {
-      if (current && (kind === 'sentence' || fast?.drawsFresh)) land(current, 'sentence');
     },
     noteWordsSettled(sceneId) {
       if (current?.heldForWordsSinceMs != null && getSceneWaiting(current)?.id === sceneId) land(current);
