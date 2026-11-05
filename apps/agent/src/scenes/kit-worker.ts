@@ -2,7 +2,7 @@ import { buildKitFramePage, getNeededTextures, type KitFrameCommand, type KitFra
 import { SCENE_ENGINE_VERSIONS } from '@astra/contracts';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { chromium, type Page } from 'playwright';
+import type { Page } from 'playwright';
 import type { RenderResult, RenderWorker } from './render-worker.ts';
 import type { SceneTheme } from './scene-types.ts';
 
@@ -143,6 +143,8 @@ async function readFrames(page: Page, { code, moments, durationSeconds, seconds 
 export function createFrameCheck(): KitFrameCheck {
   return async (request, signal) => {
     const startedAt = performance.now();
+    // Loaded here, so a session with live 3D off never pays for it and a server with no browser only loses this scene.
+    const { chromium } = await import('playwright');
     const browser = await chromium.launch({ headless: true, args: [...GL_ARGS, '--use-mock-keychain', '--no-first-run'] });
     const escapes: string[] = [];
     let settle: (result: KitFrameResult) => void = () => {};
