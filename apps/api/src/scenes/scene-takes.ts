@@ -47,7 +47,8 @@ function readReviewedKitCode(storeRoot: string, sceneId: string, topic: string):
   for (const folder of readdirSync(kitRoot)) {
     const codePath = join(kitRoot, folder, 'scene.js');
     const record = readRecord<KitSceneRecord>(join(kitRoot, folder, 'scene.json'));
-    const isThisScene = record?.sceneId === sceneId || (record?.sceneId === undefined && normalizeTopic(record?.topic ?? '') === normalizeTopic(topic));
+    const kitTopic = normalizeTopic(record?.topic ?? '');
+    const isThisScene = record?.sceneId === sceneId || (record?.sceneId === undefined && kitTopic !== '' && kitTopic === normalizeTopic(topic));
     if (record?.reviewed === true && isThisScene && existsSync(codePath)) return readFileSync(codePath, 'utf8');
   }
   return null;

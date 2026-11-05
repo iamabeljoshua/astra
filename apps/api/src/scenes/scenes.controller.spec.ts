@@ -90,6 +90,12 @@ describe('the scene routes', () => {
       await getKitTake('flat-only').expect(404);
     });
 
+    it('does not take a kit scene with no id and no topic for a scene with an empty topic', async () => {
+      saveRecord('no-topic', { topic: '' });
+      saveKitScene('nameless', { reviewed: true });
+      await getKitTake('no-topic').expect(404);
+    });
+
     it('sends a live scene from its own record, in the same shape', async () => {
       saveRecord('live-1a2b', { engine: 'kit', reviewed: true, code: 'function scene(kit) { /* live */ }' });
       const response = await getKitTake('live-1a2b').expect(200);
