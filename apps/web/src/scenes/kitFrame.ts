@@ -35,7 +35,6 @@ async function readSharedFiles(): Promise<{ kitBundle: string; fontCss: string }
   return { kitBundle: new TextDecoder().decode(kit), fontCss };
 }
 
-/** A fresh scene has seconds to land, so the kit is fetched before the first one is asked for. */
 export const warmKitFiles = () => void getSharedFiles().catch(() => {});
 
 function getSharedFiles() {

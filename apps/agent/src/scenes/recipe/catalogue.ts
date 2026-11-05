@@ -16,10 +16,8 @@ export interface PartDefinition {
   motions: Readonly<Record<string, string>>;
   views: Readonly<Record<string, readonly [number, number]>>;
   stage?: 'space' | 'studio' | 'outdoor';
-  /** False for a part that shares a stage. Any other part is a whole scene and is used alone. */
   alone?: boolean;
   source: string;
-  /** Names this exact code, so changing a part takes back its approval. */
   hash: string;
 }
 
@@ -31,7 +29,6 @@ const getHash = (source: string) => createHash('sha256').update(source).digest('
 
 function readPartDefinition(source: string): PartDefinition {
   let found: Omit<PartDefinition, 'source' | 'hash'> | null = null;
-  // Our own reviewed file, read for what it declares. Its build code only ever runs in the scene's sandbox.
   new Function('PART', source)((name: string, declared: Omit<PartDefinition, 'name' | 'source' | 'hash'>) => {
     found = { ...declared, name };
   });
@@ -78,8 +75,7 @@ export function writePartApproval({ name, isApproved, folder = PARTS_FOLDER, atI
 
 export const isPartApproved = (part: Pick<PartDefinition, 'name' | 'hash'>, approvals: PartApprovals) => approvals[part.name]?.hash === part.hash;
 
-/** Parts a person has approved by eye. The demo switch opens the rest, and no student build sets it. */
-export function getUsableParts({ canUseUnapproved = process.env.ASTRA_FAST_SCENES_ANY_PART === '1', approvals = readPartApprovals() }: { canUseUnapproved?: boolean; approvals?: PartApprovals } = {}): PartCatalogue {
+export function getUsableParts({ canUseUnapproved = process.env.ASTRA_FAST_SCENES_ANY_PART === '1' && process.env.NODE_ENV !== 'production', approvals = readPartApprovals() }: { canUseUnapproved?: boolean; approvals?: PartApprovals } = {}): PartCatalogue {
   const parts = [...getPartCatalogue().values()];
   return new Map(parts.filter((part) => canUseUnapproved || isPartApproved(part, approvals)).map((part) => [part.name, part]));
 }

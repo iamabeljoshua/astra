@@ -22,7 +22,6 @@ export const ASK_LIMIT_MS = 35_000;
 /** The greeting takes about 3 s, so a card's first words wait this long at most for a page that is slow to take the scene, and a reply starts at once when no scene is saved. */
 const OPENING_WAIT_MS = 2500;
 
-/** What a session adds with fast scenes on. With none of it, a scene takes the older path. */
 export interface FastSceneHooks {
   makeWork(input: SceneWorkInput): SceneWork;
   canCutIn(): boolean;
@@ -75,9 +74,7 @@ export interface TutorScenes {
   waitForPicture(): Promise<boolean>;
   /** The student pressed End or left, so nothing more is asked or lands. A scene already on screen can still come back to a reloaded page. */
   close(): void;
-  /** The student has reached a sentence's end in a reply, so a ready scene can come in now. */
   noteSentenceBreak(): void;
-  /** A student's line cut a scene's words, so they can carry on once the line is answered. */
   noteSceneCut(heard: SceneHeard): void;
   takeOwedCommands(): readonly SceneCommand[];
 }
@@ -97,7 +94,6 @@ interface SceneAsk {
   page: PageState;
   isAhead: boolean;
   isOpening: boolean;
-  /** The reply it was asked in can give way at a sentence. A student's line after the ask means the tutor is answering something else, so it waits for the pause. */
   canLandOnSentence: boolean;
 }
 
@@ -121,7 +117,6 @@ export function getTutorSceneBeats({ plan, scene, number, endsOnQuestion = true,
   const firstDrawn = getFirstMomentAfterStart(scene.moments);
   const startsDrawing: Beat['script'] = firstDrawn ? [{ kind: 'runSimulation', target: sceneCommand.id, action: 'play', until: firstDrawn, overWords: getSpokenWords(getBeatText(first)).length }] : [];
   const opening: TutorBeat = { ...first, script: [...firstCommands, sceneCommand, { kind: 'boardMode', mode: 'teach' }, ...startsDrawing, ...first.script] };
-  // A recipe's lines are one flowing stretch, written to be said in one breath after another.
   if (scene.recipe) return [opening, ...rest];
   const close: TutorBeat = { id: `n${number}-close` as Beat['id'], script: [plan.close], expectsReply: true };
   return [opening, ...[...rest, ...(endsOnQuestion ? [close] : [])].map((beat) => ({ ...beat, pauseBeforeMs: BREATH_MS }))];
@@ -355,7 +350,6 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     pictureWaits.clear();
   };
 
-  // The tutor carries on with what the scene's words said, so a scene turn that comes back counts as a scene turn.
   const sayWordsLeft = () => {
     if (wordsLeftRecheck) clearTimeout(wordsLeftRecheck);
     wordsLeftRecheck = null;
@@ -371,7 +365,6 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     onShown({ topic: scene.topic, beats: taken.left, isShared: scene.ownerId === null, studentId });
   };
 
-  // A title that names nothing on the shelf gets its own scene now, because a reply can have asked for the old idea or not asked at all.
   const onNewLessonTitle = (title: string) => {
     const moved = noteLessonTitle(screen, title, `scene-${(scenesShown += 1)}` as ElementId);
     screen = moved.screen;
@@ -406,7 +399,6 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
         for (const late of lateWrites) late.work.leave();
         return;
       }
-      // A saved scene or a recipe takes seconds, so a student's line moves it to the next pause and does not lose it.
       if (fast && how === 'studentTurn') return;
       if (current) end(current, how);
     },

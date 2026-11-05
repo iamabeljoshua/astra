@@ -89,11 +89,8 @@ export interface LiveSessionOptions {
   readSafety?(): Promise<SessionReading>;
   /** A recap has been written. Memory can note here that a `gentle` ending needs a person, and a model's `lesson` lines are not for its notes. */
   onRecap?(recap: SessionRecap): void;
-  /** With fast scenes on, the student has reached a sentence's end in a reply, where a scene may cut in. */
   sentenceBreaks?: SentenceBreaks;
-  /** A student's line cut a scene's words, so the scene can carry on from here after it is answered. */
   onSceneCut?(heard: SceneHeard): void;
-  /** Board changes owed to the student, such as taking away a scene from an old topic. They reach the page on the next beat, so seek and replay stay exact. */
   takeOwedCommands?(): readonly SceneCommand[];
   /** The student pressed End, so whatever was going to teach next has lost its moment. */
   onEnding?(): void;
@@ -111,9 +108,8 @@ export interface LiveSession {
   /** Says a scene's words as a turn of its own, stopped and resumed as any reply is. False, and nothing said, unless this is a pause. */
   speakScene(beats: readonly TutorBeat[]): boolean;
   canCutInScene(): boolean;
-  /** Between two stretches of a reply, where a scene can come in with nothing to wait for. */
   isInBreath(): boolean;
-  /** Ends the reply here, at a sentence's end, and says a scene's words in its place. The brain hears exactly what the student heard. False, and nothing changes, if the student has the floor. */
+  /** Ends the reply here and says a scene's words in its place. False, and nothing changes, unless `canCutInScene` holds. */
   cutInScene(beats: readonly TutorBeat[]): boolean;
   close(): Promise<void>;
 }
@@ -676,7 +672,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
 
   const canCutInScene = () => isClearToLand() && (isInBreath() || (reply !== null && reply.canResume)) && !reaction && !thought?.isScene;
 
-  // The rest of the reply goes, and what was heard stays with the brain, in the same order a student's line cuts a reply.
   const startSceneThought = (beats: readonly TutorBeat[]) => {
     const started: Thought = { controller: new AbortController(), iterator: toBeatStream(beats), unspoken: [], reading: null, latestReader: 0, isScene: true, isLead: false, isWritten: false };
     isPictureInDoubt = false;

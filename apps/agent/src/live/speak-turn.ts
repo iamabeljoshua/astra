@@ -50,12 +50,10 @@ export interface SpeakTurnOptions {
   /** The source refused a frame or the voice threw. The turn has ended as a stop, and this is the one place the cause shows. */
   onFailure?(failure: unknown): void;
   getNowMs?(): number;
-  /** Told as the student reaches the quiet after a sentence, on the voice's clock, because text reaches the voice long before it is heard. */
   sentenceBreaks?: SentenceBreaks;
 }
 
 export interface SentenceBreaks {
-  /** How much sent audio is still in the line's queue, so the position heard is this far behind the position sent. */
   queueMs: number;
   onBreak(): void;
 }

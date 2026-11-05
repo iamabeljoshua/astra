@@ -18,7 +18,6 @@ export interface SceneDeskOptions {
   make(route: SceneRoute): Promise<MadeScene>;
   getNowMs(): number;
   onChange?(state: SceneState, atMs: number): void;
-  /** Which route this desk can draw. Any other is declined. */
   drawsEngine?: RouteEngine;
 }
 

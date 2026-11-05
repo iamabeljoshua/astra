@@ -56,7 +56,6 @@ export interface TutorBrain {
   getClosedReason?(): TutorClosedReason | null;
   /** A scene landed and its words are being said, so the next turn knows what is on screen and what was heard. */
   noteSceneTurn?(turn: { topic: string; beats: readonly Beat[] }): void;
-  /** The one thing about the student a scene is told. */
   getStudentLevel?(): string | null;
   /** Checks the student's work against the board as the tutor knows it, and notes it for the next turn. Null if the work cannot stand, such as a line id already used. */
   noteWork?(work: StudentWork): { checked: CheckedWork; hadTask: boolean } | null;
@@ -1649,7 +1648,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         lastBeats = beats;
         pendingNotes.push({ scene_on_screen: { topic, said: beats.map(getBeatText).join(' ') } });
       };
-      // A scene that cuts into a reply comes while the stopped turn is still ending, and that turn must not overwrite it as the last thing said.
       if (isTurnRunning) sceneTurnsWaiting.push(noteIt);
       else noteIt();
     },

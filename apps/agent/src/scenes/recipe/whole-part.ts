@@ -3,7 +3,6 @@ import type { SceneRecipe } from './recipe.ts';
 
 const MOST_LABELS = 5;
 
-/** Runs every motion a part has, so a part that only misbehaves while moving is caught. */
 export function getWholePartRecipe(part: PartDefinition): SceneRecipe {
   const motions = Object.keys(part.motions);
   return {

@@ -33,7 +33,6 @@ export interface SceneQueueOptions {
   canPlay(): boolean;
   moveToNextStep(): void;
   trace(name: string, fields?: Record<string, unknown>): void;
-  /** A scene takes seconds and costs little, so an ask is never passed over because another is under way. */
   asksAlwaysGo?: boolean;
 }
 

@@ -24,7 +24,6 @@ const TIME_DECIMALS = 2;
 
 export type RecipeStage = (typeof STAGES)[number];
 export type Point = readonly [number, number, number];
-/** An item's id, or `item.anchor`, or a place in the scene. */
 export type RecipeTarget = string | Point;
 
 export interface RecipeLine {
@@ -32,7 +31,6 @@ export interface RecipeLine {
   text: string;
 }
 
-/** Numbers, short words, or moment ids naming a part's own keys. Parts read these as plain values. */
 export type RecipeArg = string | number | boolean | readonly number[] | Readonly<Record<string, string>>;
 
 export interface RecipeItem {
@@ -88,7 +86,6 @@ export interface RecipeCamera {
   zoom?: number;
 }
 
-/** Everything a scene is, as data. Parts are the only code, and no field here is ever run. */
 export interface SceneRecipe {
   topic: string;
   stage: RecipeStage;
@@ -104,7 +101,6 @@ export interface SceneRecipe {
 
 export type RecipeFit = { kind: 'unknown' } | { kind: 'fits'; topic: string; stage: RecipeStage } | { kind: 'noFit'; topic: string; why: string };
 
-/** The lines of one streamed reply as they arrive. Nothing here has been checked against the parts yet. */
 export interface RecipeDraft {
   fit: RecipeFit;
   says: RecipeLine[];
@@ -241,7 +237,6 @@ const LINE_READERS: Readonly<Record<string, (draft: RecipeDraft, line: Written) 
   cam: addCamera,
 };
 
-/** The boundary. One model line becomes typed data or nothing, and any field it does not list never gets past here. */
 export function addRecipeLine(draft: RecipeDraft, rawLine: string): void {
   const line = rawLine.trim();
   if (line === '' || line.startsWith('```')) return;
@@ -316,7 +311,7 @@ function keepWhere<Shape>(list: readonly Shape[], isKept: (one: Shape) => boolea
 
 const isLabelWordingFine = ({ text, sub }: RecipeLabel) => text.split(/\s+/).length <= MOST_LABEL_WORDS && !ADDRESS.test(text) && !ADDRESS.test(sub ?? '');
 
-// A bad label or arrow is dropped, because a missing label is safe and a wrong one is not. A wrong main part, or no words, refuses the whole recipe, and anything beside a whole scene is dropped.
+// A bad label or arrow is dropped, and an unknown part or too few lines refuses the whole recipe.
 export function checkRecipe(draft: RecipeDraft, parts: PartCatalogue): CheckedRecipe {
   const problems: string[] = [];
   const dropped: string[] = [];
@@ -348,10 +343,8 @@ export function getRecipeTiming(says: readonly RecipeLine[]): { moments: Record<
   return { moments, durationSeconds: Number((toSeconds(atCharacter) + SECONDS_AFTER_LAST_WORD).toFixed(TIME_DECIMALS)) };
 }
 
-/** Marks each line's moment for the path that turns narration into beats. */
 export const getMarkedNarration = (says: readonly RecipeLine[]) => says.map(({ m, text }) => `[[${m}]] ${text}`).join(' ');
 
-/** The approved code a recipe needs, with the recipe as a JSON value in it. `window.__drawFlat` is set by the page that builds the sandbox. */
 export function compileRecipe(recipe: SceneRecipe, { core, parts }: { core: string; parts: PartCatalogue }): string {
   const used = [...new Set(recipe.items.map(({ part }) => part))].map((name) => parts.get(name)?.source ?? '');
   return `${core}\n${used.join('\n')}\nfunction scene(kit) { return runRecipe(kit, ${JSON.stringify(recipe)}, { flat: window.__drawFlat === true }); }`;

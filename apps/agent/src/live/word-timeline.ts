@@ -50,7 +50,7 @@ export function createWordTimeline(beats: readonly Beat[] = []) {
     return sent;
   };
 
-  /** True once for each sentence end whose next word starts by `positionMs`. A question with more words after it is one the tutor answers itself, so it counts, and one that ends the reply has no next word. */
+  /** True once for each sentence end whose next word starts by `positionMs`. */
   const hasCrossedSentenceBreak = (positionMs: number): boolean => {
     let hasCrossed = false;
     for (; breakCursor < expected.length; breakCursor += 1) {

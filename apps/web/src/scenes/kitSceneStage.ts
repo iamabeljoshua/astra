@@ -21,7 +21,6 @@ const hasWebGl = () => document.createElement('canvas').getContext('webgl2') !==
 
 export const getCanPlayKit = () => isKitSceneEnabled() && window.innerWidth > PHONE_WIDTH && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && hasWebGl();
 
-/** A recipe's scene has no 2D take, so where depth cannot run, the same scene draws itself flat. It needs WebGL, and a page without it gets words and the board. */
 export const getCanDrawRecipes = () => isFastSceneEnabled() && hasWebGl();
 
 function createLayer(parent: HTMLElement): HTMLElement {
@@ -115,15 +114,14 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
 
   return {
     async load(sceneId, durationSeconds, engine?: SceneEngine) {
-      // A scene from parts has no 2D take, so with fast scenes on nothing boots that engine to find out.
-      if (engine === 'kit' && getCanDrawRecipes() && (await open(sceneId, !getCanPlayKit()))) {
+      if (engine === 'kit' && getCanDrawRecipes() && getCanPlayKit() && (await open(sceneId))) {
         onChange();
         return true;
       }
       if (engine !== 'kit' || !getCanPlayKit()) {
         const isLoaded = await flat.load(sceneId, durationSeconds);
         onChange();
-        return isLoaded;
+        return isLoaded || (engine === 'kit' && getCanDrawRecipes() && open(sceneId, true));
       }
       const kitOpening = open(sceneId);
       const hasFlat = await flat.load(sceneId, durationSeconds);
@@ -131,9 +129,9 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
       return hasFlat || kitOpening;
     },
     async prepare(sceneId, engine?: SceneEngine) {
-      if (engine === 'kit' && getCanDrawRecipes() && (await open(sceneId, !getCanPlayKit()))) return true;
+      if (engine === 'kit' && getCanDrawRecipes() && getCanPlayKit() && (await open(sceneId))) return true;
       const kitOpening = engine === 'kit' && getCanPlayKit() ? open(sceneId) : Promise.resolve(false);
-      return (await flat.prepare(sceneId)) || kitOpening;
+      return (await flat.prepare(sceneId)) || kitOpening || (engine === 'kit' && getCanDrawRecipes() && open(sceneId, true));
     },
     draw(sceneId, seconds) {
       lastDrawnId = sceneId;

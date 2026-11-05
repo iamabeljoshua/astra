@@ -31,7 +31,6 @@ export interface KitFramePageInput {
   kitBundle: string;
   code: string;
   fontCss?: string;
-  /** Tells a scene made from parts to draw itself as a flat diagram, for a page that cannot run it in depth. */
   drawsFlat?: boolean;
 }
 

@@ -5,7 +5,6 @@ import type { StoredScene } from '../scenes/scene-types.ts';
 import type { TutorBeat } from './brain.ts';
 
 const MOST_SHELVED = 8;
-/** A scene's words wait through one reply, and past that the lesson has gone somewhere else. */
 const MOST_STUDENT_TURNS_AWAY = 2;
 
 const WORDS_NAMING_NO_TOPIC = new Set(['what', 'when', 'where', 'which', 'with', 'that', 'this', 'from', 'does', 'work', 'tell', 'your', 'about', 'really']);
@@ -15,21 +14,18 @@ export const isSameTopic = (asked: string, title: string) => getTopicWords(asked
 export interface ScreenScene {
   scene: StoredScene;
   elementId: ElementId;
-  /** The lesson's title when it landed, because a return names that title and not the scene's. */
   lessonTitle: string | null;
   beats: readonly TutorBeat[];
-  /** Words a student's line cut, kept to say once they are answered. Empty while the words are playing or done. */
   left: readonly TutorBeat[];
-  /** The last moment the student reached, so a return opens on the same picture. */
   reachedMoment: string | null;
+  /** Its words were stopped and not said again, so `reachedMoment` is as far as the student got. */
+  wasCut: boolean;
   studentTurnsAway: number;
 }
 
-/** The one record of what a session's scene is doing. The session owns what was heard, and hands it over once, at the cut. */
 export interface Screen {
   onScreen: ScreenScene | null;
   shelved: readonly ScreenScene[];
-  /** Commands reach the page only inside beats, so these wait for the next one. */
   owed: readonly SceneCommand[];
 }
 
@@ -39,10 +35,9 @@ const shelve = (one: ScreenScene, shelved: readonly ScreenScene[]) => [one, ...s
 
 export function noteSceneLanded(screen: Screen, landed: { scene: StoredScene; elementId: ElementId; lessonTitle: string | null; beats: readonly TutorBeat[] }): Screen {
   const { onScreen } = screen;
-  return { ...screen, onScreen: { ...landed, left: [], reachedMoment: null, studentTurnsAway: 0 }, shelved: onScreen ? shelve(onScreen, screen.shelved) : screen.shelved };
+  return { ...screen, onScreen: { ...landed, left: [], reachedMoment: null, wasCut: false, studentTurnsAway: 0 }, shelved: onScreen ? shelve(onScreen, screen.shelved) : screen.shelved };
 }
 
-/** What a new scene's first beat must take away, so two pictures are never on the board. */
 export const getReplacedSceneCommands = ({ onScreen }: Screen): SceneCommand[] => (onScreen ? [{ kind: 'hide', target: onScreen.elementId }] : []);
 
 function getReachedMoment(beats: readonly Beat[], left: readonly Beat[]): string | null {
@@ -56,7 +51,7 @@ export function noteSceneWordsCut(screen: Screen, heard: Pick<ResumeRequest, 're
   const { onScreen } = screen;
   if (!onScreen) return screen;
   const left = getResumeBeats({ beats: onScreen.beats, ...heard, resumeTag });
-  return { ...screen, onScreen: { ...onScreen, left, reachedMoment: getReachedMoment(onScreen.beats, left) ?? onScreen.reachedMoment, studentTurnsAway: 0 } };
+  return { ...screen, onScreen: { ...onScreen, left, reachedMoment: getReachedMoment(onScreen.beats, left) ?? onScreen.reachedMoment, wasCut: true, studentTurnsAway: 0 } };
 }
 
 export function noteStudentTurnAway(screen: Screen): Screen {
@@ -69,10 +64,9 @@ export function noteStudentTurnAway(screen: Screen): Screen {
 export function takeWordsLeft(screen: Screen): { screen: Screen; left: readonly TutorBeat[] } {
   const { onScreen } = screen;
   if (!onScreen || onScreen.left.length === 0) return { screen, left: [] };
-  return { screen: { ...screen, onScreen: { ...onScreen, left: [] } }, left: onScreen.left };
+  return { screen: { ...screen, onScreen: { ...onScreen, left: [], wasCut: false } }, left: onScreen.left };
 }
 
-/** A crisis never gets a scene's words back. The picture stays, and goes to the corner on the help line. */
 export function dropAllWordsLeft(screen: Screen): Screen {
   const clear = (one: ScreenScene) => ({ ...one, left: [] });
   return { ...screen, onScreen: screen.onScreen && clear(screen.onScreen), shelved: screen.shelved.map(clear) };
@@ -82,21 +76,19 @@ export function takeOwedCommands(screen: Screen): { screen: Screen; owed: readon
   return { screen: { ...screen, owed: [] }, owed: screen.owed };
 }
 
-// A scene that comes back has a new element, because the old one was hidden, so its words must drive the new one.
 const getBeatsAimedAt = (beats: readonly TutorBeat[], from: ElementId, to: ElementId): TutorBeat[] => beats.map((beat) => ({ ...beat, script: beat.script.map((part) => (typeof part !== 'string' && part.kind === 'runSimulation' && part.target === from ? { ...part, target: to } : part)) }));
 
 const isAboutTitle = (one: ScreenScene, title: string) => (one.lessonTitle !== null && one.lessonTitle.trim().toLowerCase() === title.trim().toLowerCase()) || isSameTopic(one.scene.topic, title);
 
-// With no words left it was heard to its end, so it comes back on its last moment.
 function getBackCommands(back: ScreenScene, elementId: ElementId): SceneCommand[] {
   const place = getSceneCommand(back.scene, elementId);
-  const moment = back.left.length > 0 ? back.reachedMoment : (getReachedMoment(back.beats, []) ?? back.reachedMoment);
+  const moment = back.wasCut ? back.reachedMoment : (getReachedMoment(back.beats, []) ?? back.reachedMoment);
   return moment ? [place, { kind: 'runSimulation', target: elementId, action: 'seek', to: moment }] : [place];
 }
 
 export type TitleMove = { kind: 'stayed' } | { kind: 'needsScene' } | { kind: 'back'; scene: StoredScene };
 
-/** The lesson has a new title. A scene of that title stays, one on the shelf comes back, and anything else goes off the board at once, so an old picture never sits over a new lesson. */
+/** A scene of the new title stays, one on the shelf comes back, and anything else leaves the board at once. */
 export function noteLessonTitle(screen: Screen, title: string, newElementId: ElementId): { screen: Screen; move: TitleMove } {
   const { onScreen, shelved } = screen;
   if (onScreen && isAboutTitle(onScreen, title)) return { screen: { ...screen, onScreen: { ...onScreen, lessonTitle: title } }, move: { kind: 'stayed' } };

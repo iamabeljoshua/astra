@@ -21,7 +21,6 @@ const DEFAULT_SCENE_LIMIT_USD = 0.8;
 /** Three whole lessons of a card's six scenes. Each play is spoken again, at about 100 credits. */
 const DEFAULT_SHARED_PLAYS_A_DAY = 18;
 
-/** Hard edge on a fresh scene. Past it, the words have moved on. */
 const FAST_ASK_LIMIT_MS = 20_000;
 const FAST_MOST_ASKS = 40;
 
