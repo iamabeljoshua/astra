@@ -3,7 +3,7 @@ import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoar
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { toCardPlan, type CardMaterial } from '../lesson-plan/card-lesson.ts';
 import { asksToBeTaught, getProblemNote, getTeachFirstNote, IS_ONLY_A_NOD, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
-import { getLessonWordsProblem, HOLD_NOTE, LEAD_NOTES, OPENING_A_CARD_NOTE, promisesToWait, SLOW_NOTE, STAY_NOTE, withoutNextSignpost, withoutOpeningTic, withoutReplyToNobody } from '../lesson-plan/lesson-rules.ts';
+import { getLeadWordsProblem, getLessonWordsProblem, HOLD_NOTE, LEAD_NOTES, OPENING_A_CARD_NOTE, promisesToWait, SLOW_NOTE, STAY_NOTE, withoutNextSignpost, withoutOpeningTic, withoutReplyToNobody } from '../lesson-plan/lesson-rules.ts';
 import { readStudentWish, saysTheyAreLost } from '../lesson-plan/student-wish.ts';
 import { getLeadStopAfter, type LeadKind, type LeadStop, type LeadStopEvent } from '../live/tutor-lead.ts';
 import { asksToMakeAWeapon, namesHelp, readsAsEnglish, saysItCannotRead, saysNobodyCanBeTold, soundsLikeCrisisReply } from '../safety/help-words.ts';
@@ -398,6 +398,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   let cutWordsSent: ReadonlyMap<BeatId, number> | null = null;
   let turnCount = 0;
   let promptTokens = 0;
+  let lastCompactedAtTurn = Number.NEGATIVE_INFINITY;
   let isCompacting = false;
   let isTurnRunning = false;
   let lastAskedText: string | null = null;
@@ -491,6 +492,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return step && 'exercise_kind' in step ? (step.exercise_kind ?? null) : null;
   };
 
+  const hasLessonLeft = () => {
+    const step = lessonPlanner?.getStepNote();
+    return Boolean(step && 'step' in step);
+  };
+
   const isLessonOver = () => {
     const step = lessonPlanner?.getStepNote();
     return Boolean(step && 'is_finished' in step);
@@ -541,6 +547,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     if (claims) pendingNotes.push({ said_so_far: claims });
     const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote, isAskedToHold ? (saysTheyAreLost(studentText) ? STAY_NOTE : HOLD_NOTE) : null, leadNote, lead && isPaceSlowNow ? SLOW_NOTE : null, isOnACard && turnCount === 1 ? OPENING_A_CARD_NOTE : null].filter((note) => note !== null);
     const memoryAtStart = memory;
+    const isLessonGoingOn = hasLessonLeft();
     const wordsForSafetyCheck = speaker === 'code' ? (draftToRead ?? studentText) : studentText;
     const turn: TurnWork = {
       wordsForSafetyCheck,
@@ -622,7 +629,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           trace('mathRefused', { problem });
         },
         // Only a first attempt, because help for a student in crisis must get out, even in imperfect words.
-        checkWords: (text) => (onAskScene ? getPictureProblem(text, readerMemory) : null) ?? getWordsProblem(text, readerMemory, turn.beats.length === 0) ?? (turn.attempts < MAX_ATTEMPTS ? (getClaimProblem(text) ?? getLessonWordsProblem(text) ?? (lead && wantedExercise && !readerMemory.openTask && ENDS_ON_A_QUESTION.test(text) ? BARE_QUESTION_PROBLEM : null)) : null),
+        checkWords: (text) => (onAskScene ? getPictureProblem(text, readerMemory) : null) ?? getWordsProblem(text, readerMemory, turn.beats.length === 0) ?? (turn.attempts < MAX_ATTEMPTS ? (getClaimProblem(text) ?? getLessonWordsProblem(text) ?? (lead && isLessonGoingOn ? getLeadWordsProblem(text) : null) ?? (lead && wantedExercise && !readerMemory.openTask && ENDS_ON_A_QUESTION.test(text) ? BARE_QUESTION_PROBLEM : null)) : null),
         onWrongWords(problem) {
           turn.wrongWords = problem;
           trace('wordsRefused', { problem });
@@ -1152,7 +1159,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const getAcceptedRaw = (turn: TurnWork) => (turn.hasModelWords ? turn.reader.getKeptText(turn.raw).trim() : '');
 
   const startCompactingIfNeeded = () => {
-    if (isCompacting || promptTokens < compactAtTokens || turns.length <= TURNS_KEPT_AFTER_COMPACTING) return;
+    if (isCompacting || promptTokens < compactAtTokens || turns.length <= TURNS_KEPT_AFTER_COMPACTING || turnCount - lastCompactedAtTurn < TURNS_KEPT_AFTER_COMPACTING) return;
     const keptFrom = turns.findIndex((turn, index) => index >= turns.length - TURNS_KEPT_AFTER_COMPACTING && turn.role === 'user');
     if (keptFrom <= 0) return;
     isCompacting = true;
@@ -1166,6 +1173,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         turns = [{ role: 'summary', summary: result.summary }, ...turns.slice(keptFrom)];
         // The old size is out of date now, and a turn ending before the next request reports would compact again, as a 19 turn history did 11 s after a 562 turn one, for $0.02.
         promptTokens = 0;
+        lastCompactedAtTurn = turnCount;
         toldBoard = '{}';
         toldStep = 'null';
         if (profileNote) pendingNotes.push(profileNote);
@@ -1366,10 +1374,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     isPaceSlow: () => isPaceSlowNow,
     holdLeads: () => noteLeadStopEvent('hold'),
     onLeadStopped: (listener) => void leadStoppedListeners.push(listener),
-    hasLessonLeft: () => {
-      const step = lessonPlanner?.getStepNote();
-      return Boolean(step && 'step' in step);
-    },
+    hasLessonLeft,
     noteLead(kind) {
       workedForLead = kind === 'taskLeft' ? getWorkedOpenProblem() : null;
       if (kind === 'taskLeft' || kind === 'taskTried') lessonPlanner?.moveToNextStep();

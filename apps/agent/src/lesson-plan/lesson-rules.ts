@@ -28,12 +28,16 @@ export const OPENING_A_CARD_NOTE = { opening_a_card: 'Open on the idea itself, i
 
 const NAMES_THE_PLAN = /\b(?:(?:whole|lesson|my|our|your) plan|plan (?:is |was )?(?:covered|done|finished|stale|out of date)|the student\b|(?:last|final) (?:idea|exercise|problem|one for this idea))\b/i;
 
-const ANNOUNCES_A_CORRECTION = /\b(?:quick|small|one) correction\b|\bcorrection on my\b|\bcorrect(?:ing)? myself\b|\bI misspoke\b|\bmy last line\b|^\s*slight fix\b|\bfix to something i said\b/i;
+const ANNOUNCES_A_CORRECTION = /\b(?:quick|small|one) correction\b|\bcorrection on my\b|\bcorrect(?:ing)? myself\b|\bI misspoke\b|\bmy last line\b|^\s*slight fix\b|\bfix to something i said\b|^\s*careful\b[^.]*\bisn'?t quite right\b/i;
 
 export function getLessonWordsProblem(text: string): string | null {
   if (NAMES_THE_PLAN.test(text)) return 'Never tell them about a plan, or how much of the lesson is left. Carry straight on, and say it without that.';
   return ANNOUNCES_A_CORRECTION.test(text) ? 'Never announce a correction. If something you said was really false, say what is true as your next line, as a plain statement. If it was true, carry on to something new.' : null;
 }
+
+const SOUNDS_LIKE_THE_END = /\bthat'?s (?:the )?(?:whole|full) (?:story|picture|path)\b|\bthat'?s the whole trick\b|\bthe lesson done\b|\bwrap up\b|\bgood place to stop\b|\bsay the word\b|\bwhat you want next\b|\bwhere to next\b/i;
+
+export const getLeadWordsProblem = (text: string) => (SOUNDS_LIKE_THE_END.test(text) ? 'The lesson carries on after this by itself, so never sound as if it is ending, and never offer to stop or ask where to go next. Say the next idea as a plain line.' : null);
 
 const PROMISES_TO_WAIT = /\bi(?:'ll| will| am going to|'m going to)\s+(?:stop\b(?! there)|wait\b|pause\b|hold\b|be quiet\b|leave you\b|give you (?:a (?:sec|second|minute|moment|bit)|some time|time|space)\b)|\btake your time\b|\bno rush\b|\bwhen(?:ever)? you(?:'re| are) ready\b|\blet me know when\b/i;
 

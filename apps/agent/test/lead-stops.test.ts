@@ -1,7 +1,7 @@
 import { getBeatText } from '@astra/contracts';
 import { initializeLogger, tts } from '@livekit/agents';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { askPlanner } from '../src/lesson-plan/ask-planner.ts';
+import { askMoreSteps, askPlanner } from '../src/lesson-plan/ask-planner.ts';
 import { asksToBeTaught, createLessonPlanner } from '../src/lesson-plan/lesson-planner.ts';
 import { getLessonWordsProblem, withoutNextSignpost } from '../src/lesson-plan/lesson-rules.ts';
 import { readStudentWish } from '../src/lesson-plan/student-wish.ts';
@@ -519,8 +519,43 @@ describe('small things a long lesson says', () => {
   it('sends back a reply that announces a fix, and takes "Next up:" off a sentence', async () => {
     expect(getLessonWordsProblem('One small fix to something I said earlier.')).not.toBeNull();
     expect(getLessonWordsProblem('Slight fix: drag points down on the way up.')).not.toBeNull();
+    expect(getLessonWordsProblem('Careful, "slowest" isn\'t quite right. It is still moving fast.')).not.toBeNull();
+    expect(getLessonWordsProblem('That isn\'t quite right, so look at the sign.')).toBeNull();
     expect(getLessonWordsProblem('A slight fix to the orbit needs little fuel.')).toBeNull();
     expect(withoutNextSignpost('It is about five. Next up: what fights a rocket.')).toBe('It is about five. What fights a rocket.');
+  });
+
+  it('sends back a lead that sounds like the end while the lesson goes on, and lets the last reply say so', async () => {
+    const seen: string[] = [];
+    const lines = ["That's the whole story of how rockets escape. Tell me what you want next, or we can wrap up here.", 'Stages also help the last burn.'];
+    const model = { getCostUsd: () => 0, compact: async () => null, warm: async () => {}, stream: async function* () { const text = lines[Math.min(seen.length, 1)] as string; seen.push(text); yield { type: 'text' as const, text, isNewBlock: false }; yield { type: 'finished' as const, stopReason: 'finished' as const, usage: USAGE }; } } as never;
+    const planner = makePlanner();
+    planner.noteCardLesson(LESSON);
+    const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner });
+    expect(await say(brain, LEAD_WORDS.next, 'next')).toBe('Stages also help the last burn.');
+    expect(seen).toHaveLength(2);
+    const asked = createTutorBrain({ model: makeModel(() => "That's the whole story of how rockets escape.").model, timeouts: QUICK, lessonPlanner: makePlanner() });
+    expect(await say(asked, 'is that all')).toContain('whole story');
+  });
+
+  it('does not compact again straight after compacting', async () => {
+    let compactions = 0;
+    const heavy = { inputTokens: 90_000, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    const model = { getCostUsd: () => 0, warm: async () => {}, compact: async () => ((compactions += 1), { summary: 'earlier', usage: USAGE }), stream: async function* () { yield { type: 'started' as const, usage: heavy }; yield { type: 'text' as const, text: 'Gravity keeps pulling.', isNewBlock: false }; yield { type: 'finished' as const, stopReason: 'finished' as const, usage: heavy }; } } as never;
+    const brain = createTutorBrain({ model, timeouts: QUICK, compactAtTokens: 10 });
+    for (let line = 0; line < 12; line += 1) {
+      await say(brain, `tell me about idea ${line}`);
+      await delay(1);
+    }
+    expect(compactions).toBeGreaterThan(0);
+    expect(compactions).toBeLessThanOrEqual(2);
+  });
+
+  it('asks the planner for digits on steps it adds to a measured topic', async () => {
+    let system = '';
+    const reader = { read: async (ask: { system: string }) => ((system = ask.system), { answer: { steps: [] }, costUsd: 0 }) };
+    await askMoreSteps(reader as never, { topic: 'Rockets', taught: [], said: '', most: 2 });
+    expect(system).toMatch(/digits/);
   });
 
   it('gives the recap words from the whole lesson, not only its end', async () => {
