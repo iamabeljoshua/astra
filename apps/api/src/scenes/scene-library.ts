@@ -35,6 +35,7 @@ interface SceneRecord {
 
 export interface CardMaterial {
   title: string;
+  subject: string;
   ideas: { title: string; lines: string[]; hasScene: boolean }[];
 }
 
