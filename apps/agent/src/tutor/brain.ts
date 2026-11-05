@@ -1296,7 +1296,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
 
   // With an exercise open, "take your time" is about the exercise, whose own wait goes on. A reply that asks after them, or cannot read them, needs their answer whatever is open.
   const readWhetherItWaits = (turn: TurnWork) => {
-    if (lastSpokenText === '' || leadStop !== 'none') return;
+    if (leadStop !== 'none') return;
     const isTaskOpen = getOpenTaskOnBoard(getBoardNow()) !== null;
     if (saysItCannotRead(lastSpokenText) || (!isTaskOpen && promisesToWait(lastSpokenText))) return noteLeadStopEvent('hold');
     if (!readers) return;
@@ -1332,10 +1332,12 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     if (turn.endedAs === 'ended') rejectionsInARow = 0;
     attempts.endTurn({ askedAQuestion: turn.beats.at(-1)?.expectsReply ?? false, wasCut: turn.endedAs === 'aborted' });
     lastBeats = turn.beats;
-    lastSpokenText = getWordsSaid(turn);
+    const spoken = getWordsSaid(turn);
+    // A nod during a stop says nothing, and the next line still answers what the tutor last said.
+    if (spoken !== '') lastSpokenText = spoken;
     hasHadAReply = true;
     turn.isFinished = true;
-    safety?.noteTurnEnd({ spoken: lastSpokenText, safetyRead: turn.safetyRead, getKind: () => (isSafetyKind(turn.safetyReading) ? turn.safetyReading : null) });
+    safety?.noteTurnEnd({ spoken, safetyRead: turn.safetyRead, getKind: () => (isSafetyKind(turn.safetyReading) ? turn.safetyReading : null) });
     lastRefused = wasRefused ? [] : turn.refused;
     hidesLastWords = wasRefused;
     const wasCrisisReply = isCrisisReply(turn);
@@ -1349,7 +1351,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     else if (ENDS_THAT_STOP_A_LEAD.has(turn.endedAs)) noteLeadStopEvent('replyFailed');
     else if (turn.endedAs === 'ended') noteLeadStopEvent('replyWorked');
     if (didNobodySpeak(turn) && turn.endedAs === 'ended') refusalsNobodyAskedFor = 0;
-    if (!turn.isLead) readWhetherItWaits(turn);
+    if (!turn.isLead && spoken !== '') readWhetherItWaits(turn);
     onTurnEnd?.({
       wasLead: turn.isLead,
       studentText: turn.studentText,

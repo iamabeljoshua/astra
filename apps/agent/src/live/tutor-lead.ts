@@ -11,7 +11,7 @@ export const LEAD_TIMINGS = {
   afterTaskTriedMs: 5000,
   afterKeyMs: 8000,
   mostQuietMs: 10 * 60_000,
-  // A listener and a student who walked away look the same from here, so a running lesson goes to its own end. Its 16 ideas take about 25 minutes, and this is only for a plan that somehow never ends.
+  // A listener and a student who walked away look the same from here, so a running lesson goes to its own end. Its 12 ideas take about 20 minutes, and this is only for a plan that somehow never ends.
   mostQuietInALessonMs: 35 * 60_000,
 };
 

@@ -510,6 +510,19 @@ describe('a student who comes back to a held lesson', () => {
     expect(run.lineFacts.at(-1)).toMatchObject({ tutorSaid: 'Sure, tell me when you are back.', isTutorWaiting: true });
   });
 
+  it('a nod says nothing, and the next line is still read against what the tutor last said', async () => {
+    const run = startLesson({ wishes: { brb: 'leave' }, answer: (words, index) => (words === 'brb' ? 'Sure, tell me when you are back.' : `Gravity keeps pulling, beat ${index}.`) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox('brb');
+    await delay(STILL_MS);
+    run.typeInBox('ok');
+    await delay(STILL_MS);
+    run.typeInBox('yes');
+    await delay(STILL_MS);
+    expect(run.lineFacts.at(-1)).toMatchObject({ tutorSaid: 'Sure, tell me when you are back.' });
+  });
+
   it.each(['im back', 'lets go'])('%s read as go on brings the lesson back', async (line) => {
     const run = startLesson({ wishes: { brb: 'leave', [line]: 'go_on' } });
     run.type('teach me rockets');
