@@ -126,7 +126,7 @@ describe('the brain', () => {
 });
 
 describe('scene spending', () => {
-  const makeCaps = (reportSpend = vi.fn(async () => ({ isOverDailyLimit: false }))) => ({ reportSpend, caps: createSpendCaps({ link: { reportSpend }, ledger: null, trace: () => {}, sessionLimitUsd: 1, sessionVoiceLimitCharacters: 1000 }) });
+  const makeCaps = (reportSpend = vi.fn(async () => ({ isOverDailyLimit: false, leftTodayUsd: 3 }))) => ({ reportSpend, caps: createSpendCaps({ link: { reportSpend }, ledger: null, trace: () => {}, sessionLimitUsd: 1, sessionVoiceLimitCharacters: 1000 }) });
 
   it('counts against the student for the day', async () => {
     const { caps, reportSpend } = makeCaps();
@@ -138,7 +138,7 @@ describe('scene spending', () => {
   });
 
   it('charges a shared scene\'s words to the project ceiling, not to this student or this room', async () => {
-    const reportSpend = vi.fn(async () => ({ isOverDailyLimit: false }));
+    const reportSpend = vi.fn(async () => ({ isOverDailyLimit: false, leftTodayUsd: 3 }));
     const charge = vi.fn();
     const caps = createSpendCaps({ link: { reportSpend }, ledger: { charge, isOverModelLimit: () => false, isOverVoiceLimit: () => false } as never, trace: () => {}, sessionLimitUsd: 1, sessionVoiceLimitCharacters: 100 });
     caps.addSharedVoice(300, "maya");
@@ -156,7 +156,7 @@ describe('scene spending', () => {
   });
 
   it('a student past the day limit gets the tutor closed by the next report, as with any spend', async () => {
-    const { caps } = makeCaps(vi.fn(async () => ({ isOverDailyLimit: true })));
+    const { caps } = makeCaps(vi.fn(async () => ({ isOverDailyLimit: true, leftTodayUsd: 0 })));
     caps.addScene(0.15);
     await caps.flush();
     expect(caps.getSpendLimit()).toBe('dailyLimit');

@@ -458,7 +458,7 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
       kit.sunLight = new THREE.DirectionalLight(0xfff3e0, 3.2); scene.add(kit.sunLight, kit.sunLight.target);
     } else {
       const lightTheme = theme === 'light';
-      if (lightTheme) document.documentElement.dataset.canvas = 'light';
+      if (lightTheme) { document.documentElement.dataset.canvas = 'light'; kit.lightCanvas = true; }
       const top = hexOf(o.top ?? (lightTheme ? '#f2ebdd' : '#141b2b')), bottom = hexOf(o.bottom ?? (lightTheme ? '#cfc5b2' : '#020204')), accent = hexOf(o.accent ?? (lightTheme ? '#e8dcc6' : '#34222a'));
       const m = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), new THREE.ShaderMaterial({
         side: THREE.BackSide, depthTest: false, depthWrite: false,
@@ -608,7 +608,10 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
       uRes, uWidth: { value: Math.min(o.width ?? 2, 5) * Q.dpr }, uWorld: { value: o.worldWidth ?? 0 }, uColor: { value: hexOf(o.color ?? '#ffcc94') }, uReveal: { value: o.reveal ?? 1 }, uFrom: { value: 0 },
       uOpacity: { value: o.opacity ?? 1 }, uGlow: { value: o.glow ?? 1.5 }, uDash: { value: o.dash ?? 0 }, uFlow: { value: o.flow ?? 0 }, uHead: { value: o.head ?? 0.6 }, uT,
     };
-    const m = new THREE.ShaderMaterial({ uniforms, vertexShader: RIBBON_VS, fragmentShader: RIBBON_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: o.solid ? THREE.NormalBlending : THREE.AdditiveBlending });
+    // Adding light onto a pale background shows nothing, so on a light canvas a glowing line is drawn as a darker solid line of the same hue.
+    const onLight = kit.lightCanvas && !o.solid;
+    if (onLight) { const hsl = {}; uniforms.uColor.value.getHSL(hsl); uniforms.uColor.value.setHSL(hsl.h, Math.max(hsl.s, 0.55), Math.min(hsl.l, 0.34)); uniforms.uGlow.value = 0.9; uniforms.uHead.value = 0; }
+    const m = new THREE.ShaderMaterial({ uniforms, vertexShader: RIBBON_VS, fragmentShader: RIBBON_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide, blending: o.solid || onLight ? THREE.NormalBlending : THREE.AdditiveBlending });
     const mesh = new THREE.Mesh(rb.geometry, m);
     mesh.frustumCulled = false;
     scene.add(mesh);

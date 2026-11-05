@@ -1,8 +1,8 @@
 import type { components } from '@astra/contracts';
+import { isDetailOnTheList, isTopicOnTheList } from '@astra/contracts/topic-words';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { getMemoryNote } from '../src/learner-record/memory-note.ts';
-import { isDetailOnTheList, isTopicOnTheList } from '../src/learner-record/topic-words.ts';
 
 type LearnerNote = components['schemas']['LearnerNoteDto'];
 
@@ -54,6 +54,12 @@ describe('the memory note the tutor reads', () => {
     expect(lines.map(({ kind }) => kind)).toEqual(['showed']);
   });
 
+  it('keeps a struggle when the student only looked at the topic later, as Home does', () => {
+    const lines = getLines([makeNote({ kind: 'explored', topic: 'fractions', daysAgo: 1 }), makeNote({ kind: 'struggled', topic: 'fractions', daysAgo: 9 })]);
+
+    expect(lines.map(({ kind }) => kind)).toEqual(['struggled', 'explored']);
+  });
+
   it('forgets a note the student removed, because the record is read fresh for each session', () => {
     const removed = makeNote({ kind: 'struggled', topic: 'long division' });
     const kept = makeNote({ kind: 'cares_about', topic: 'baking bread' });
@@ -75,6 +81,10 @@ describe('the memory note the tutor reads', () => {
 
   it('stops reading a note too old to trust', () => {
     expect(getLines([makeNote({ topic: 'fractions', daysAgo: 121 }), makeNote({ topic: 'decimals', daysAgo: 120 })]).map(({ about }) => about)).toEqual(['decimals']);
+  });
+
+  it('stops reading a note at the same moment Home does, part way through a day', () => {
+    expect(getLines([makeNote({ topic: 'fractions', daysAgo: 120.5 })])).toEqual([]);
   });
 
   it.each([

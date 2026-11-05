@@ -4,7 +4,7 @@ import type { LearnerRecordDto, WriteLearnerNotesBodyDto } from '../learner-reco
 import { LearnerRecordService } from '../learner-record/learner-record.service';
 import { SessionsService } from '../sessions/sessions.service';
 import { StudentsService } from '../students/students.service';
-import { TutorSpendService } from '../tutor-spend/tutor-spend.service';
+import { type SpendReply, TutorSpendService } from '../tutor-spend/tutor-spend.service';
 import type { SaveLogBodyDto, TutorBrief } from './agent-channel.dto';
 
 
@@ -22,7 +22,7 @@ export class AgentChannelService {
     return { level: profile?.level ?? null, interests: profile?.interests ?? [], goal: profile?.goal ?? null, cardTitle };
   }
 
-  async addSpend(sessionId: string, usd: number): Promise<{ isOverDailyLimit: boolean }> {
+  async addSpend(sessionId: string, usd: number): Promise<SpendReply> {
     return this.tutorSpend.addSpend(await this.getStudentId(sessionId), usd);
   }
 

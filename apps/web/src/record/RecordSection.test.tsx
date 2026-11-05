@@ -1,5 +1,6 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { HOME_SCREEN_KEY } from '../home/useHomeScreen';
 import { RECORD_LABELS } from '../strings';
 import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { RecordSection } from './RecordSection';
@@ -46,6 +47,18 @@ afterEach(() => {
 });
 
 describe('what the tutor remembers, on the Your notes page', () => {
+  it('drops the cards Home saved when a note goes, and loads new ones, so its reason cannot show again', async () => {
+    const savedCards = { picks: [{ reason: 'You got stuck on moving a term' }] };
+    stubApi([SIGN_ERROR]);
+    const { queryClient } = renderWithQueryClient(<RecordSection />);
+    queryClient.setQueryData(HOME_SCREEN_KEY, savedCards);
+
+    fireEvent.click(await screen.findByRole('button', { name: RECORD_LABELS.removeNamed(SIGN_ERROR.topic) }));
+
+    await waitFor(() => expect(screen.queryByText(SIGN_ERROR.topic)).toBeNull());
+    await waitFor(() => expect(queryClient.getQueryData(HOME_SCREEN_KEY)).toEqual({ notes: [] }));
+  });
+
   it('says so plainly when there is nothing yet', async () => {
     stubApi([]);
     renderWithQueryClient(<RecordSection />);
@@ -62,6 +75,14 @@ describe('what the tutor remembers, on the Your notes page', () => {
     screen.getByText(RECORD_LABELS.markedWrong('2x = 14'));
     screen.getByText(RECORD_LABELS.fromYourWords);
     expect(screen.getAllByText(new RegExp(SIGN_ERROR.sessionTitle))).toHaveLength(2);
+  });
+
+  it('promises only what removing a note does, which is to change the next session', async () => {
+    stubApi([SIGN_ERROR]);
+    renderWithQueryClient(<RecordSection />);
+
+    await screen.findByText(/from your next session/);
+    expect(screen.queryByText(/forgets it/)).toBeNull();
   });
 
   it('removes one note and leaves the others', async () => {

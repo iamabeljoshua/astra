@@ -463,6 +463,41 @@ export function addStudio(kit, x) {
     return part;
   };
 
+  // A small live graph in the overlay. Each curve is a pure function of x, drawn up to where the scene says, with a dot at the current point.
+  kit.plot = (o = {}) => {
+    const el = document.createElement('div');
+    el.className = 'hud';
+    const svg = svgEl('svg', { viewBox: '0 0 240 170' }, el);
+    const L = 34, R = 228, T = 24, B = 140;
+    const xMax = o.xMax ?? 1, yMax = o.yMax ?? 1;
+    const px = (v) => L + (Math.min(Math.max(v, 0), xMax) / xMax) * (R - L), py = (v) => B - (Math.min(Math.max(v, 0), yMax) / yMax) * (B - T);
+    const title = svgEl('text', { x: 120, y: 15, 'text-anchor': 'middle', class: 't-label' }, svg);
+    title.textContent = o.label ?? '';
+    svgEl('line', { x1: L, y1: T, x2: L, y2: B, class: 's-tick' }, svg);
+    svgEl('line', { x1: L, y1: B, x2: R, y2: B, class: 's-tick' }, svg);
+    for (const tv of o.yTicks ?? []) { const t = svgEl('text', { x: L - 5, y: py(tv) + 4, 'text-anchor': 'end', class: 't-tick' }, svg); t.textContent = String(tv); }
+    const xl = svgEl('text', { x: (L + R) / 2, y: 160, 'text-anchor': 'middle', class: 't-unit' }, svg);
+    xl.textContent = o.xLabel ?? '';
+    const curves = (o.curves ?? []).map((c) => {
+      const n = c.points ?? 90, pts = [];
+      const x0 = c.xStart ?? 0, x1 = c.xEnd ?? xMax;
+      for (let i = 0; i < n; i++) { const x = x0 + (i / (n - 1)) * (x1 - x0); pts.push([px(x), py(c.fn(x))]); }
+      const line = svgEl('polyline', { fill: 'none', stroke: c.color ?? 'var(--hud-accent)', 'stroke-width': c.width ?? 2.4, points: '' }, svg);
+      const dot = svgEl('circle', { r: 4, fill: c.color ?? 'var(--hud-accent)', opacity: 0 }, svg);
+      return { c, pts, line, dot };
+    });
+    const h = addHud(el, { ...o, label: o.label ?? 'plot', size: o.size ?? 0.34 }, 240 / 170);
+    h.read = () => o.label ?? '';
+    const part = {
+      id: o.id,
+      reveal(i, k) { const e = curves[i]; if (!e) return part; const m = Math.max(2, Math.ceil(e.pts.length * Math.min(k, 1))); e.line.setAttribute('points', e.pts.slice(0, m).map((q) => `${q[0].toFixed(1)},${q[1].toFixed(1)}`).join(' ')); e.line.style.opacity = k > 0.001 ? '1' : '0'; return part; },
+      dot(i, x, y, k = 1) { const e = curves[i]; if (e) { e.dot.setAttribute('cx', px(x).toFixed(1)); e.dot.setAttribute('cy', py(y).toFixed(1)); e.dot.setAttribute('opacity', String(k)); } return part; },
+      show(k) { h.k = k; return part; },
+      focus(k) { h.focus = k; return part; },
+    };
+    return part;
+  };
+
   kit.readout = (o = {}) => {
     const el = document.createElement('div');
     el.className = 'hud hud-read';
@@ -480,8 +515,8 @@ export function addStudio(kit, x) {
   };
 
   const paletteFor = () => (kit.theme === 'light'
-    ? { zenith: '#6f9fd4', horizon: '#f2e6cf', sunGlow: '#fff2d8', sun: '#fff4e2', sunPower: 3.1, hemiTop: '#bcd4ee', hemiBot: '#b8a888', hemi: 1.15, fog: '#e9e0cd', exposure: 1 }
-    : { zenith: '#101b38', horizon: '#c98a5e', sunGlow: '#ffb67a', sun: '#ffd2a0', sunPower: 2.7, hemiTop: '#44597f', hemiBot: '#3a2d26', hemi: 0.75, fog: '#6a5560', exposure: 1 });
+    ? { zenith: '#5f95d2', horizon: '#ece4d2', sunGlow: '#fff2d8', sun: '#fff4e2', sunPower: 3.1, hemiTop: '#bcd4ee', hemiBot: '#b8a888', hemi: 1.15, fog: '#ece4d2', exposure: 1 }
+    : { zenith: '#16264e', horizon: '#bb8468', sunGlow: '#ffb67a', sun: '#ffd2a0', sunPower: 2.7, hemiTop: '#44597f', hemiBot: '#3a2d26', hemi: 0.75, fog: '#bb8468', exposure: 1 });
 
   // Soft sun shadows for standard materials. Tight bounds keep the one extra pass cheap and the edges sharp enough to read.
   const enableShadows = (light, o = {}) => {
@@ -515,7 +550,7 @@ export function addStudio(kit, x) {
   };
 
   const GROUNDS = {
-    sand: { a: '#d9b98a', b: '#b4905f', scale: 0.09, detail: 2.6, ripple: 0.5 },
+    sand: { a: '#cfae80', b: '#a98659', scale: 0.11, detail: 3.2, ripple: 0.5 },
     grass: { a: '#4f8a3c', b: '#3a7030', scale: 0.32, detail: 7, stripes: 11 },
     dirt: { a: '#a58f6d', b: '#7f6c50', scale: 0.2, detail: 4 },
   };
@@ -523,12 +558,13 @@ export function addStudio(kit, x) {
   kit.outdoor = (o = {}) => {
     const pal = { ...paletteFor(), ...(o.palette ?? {}) };
     document.documentElement.dataset.canvas = kit.theme === 'light' ? 'light' : 'dark';
+    if (kit.theme === 'light' && o.ground !== 'grass') kit.lightCanvas = true;
     const sunDir = new THREE.Vector3(...(o.sun ?? [-40, 34, 50])).normalize();
     const skyMat = new THREE.ShaderMaterial({
       side: THREE.BackSide, depthTest: false, depthWrite: false,
       uniforms: { uZ: { value: new THREE.Color(pal.zenith) }, uH: { value: new THREE.Color(pal.horizon) }, uG: { value: new THREE.Color(pal.sunGlow) }, uS: { value: sunDir } },
       vertexShader: 'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
-      fragmentShader: 'uniform vec3 uZ,uH,uG,uS; varying vec3 vP; void main(){ vec3 d=normalize(vP); float h=clamp(d.y,0.,1.); vec3 c=mix(uH,uZ,pow(h,.55)); float s=max(dot(d,uS),0.); c+=uG*(pow(s,8.)*.22+pow(s,120.)*.9); if(d.y<0.) c=uH; gl_FragColor=vec4(c,1.); }',
+      fragmentShader: 'uniform vec3 uZ,uH,uG,uS; varying vec3 vP; void main(){ vec3 d=normalize(vP); float h=clamp(d.y,0.,1.); vec3 c=mix(uH,uZ,pow(h,.42)); float s=max(dot(d,uS),0.); c+=uG*(pow(s,8.)*.22+pow(s,120.)*.9); if(d.y<0.) c=uH; gl_FragColor=vec4(c,1.); }',
     });
     const dome = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 24), skyMat);
     dome.scale.setScalar(5e4); dome.renderOrder = -10;
@@ -554,7 +590,7 @@ export function addStudio(kit, x) {
         .replace('#include <color_fragment>', `#include <color_fragment>
           { vec2 p=vG.xz; float big=fb(vec3(p*${(g.scale * 0.35).toFixed(4)},1.)); float mid=fb(vec3(p*${g.scale.toFixed(4)},4.)); float fine=fb(vec3(p*${g.detail.toFixed(3)},9.));
             float k=clamp(big*.9+mid*.5+fine*.35-.3,0.,1.);
-            ${g.ripple ? `k+=.1*sin((p.x*.8+p.y*.5)*${(g.ripple * 8).toFixed(2)}+big*9.);` : ''}
+            ${g.ripple ? `k+=.035*sin((p.x*.8+p.y*.5)*${(g.ripple * 8).toFixed(2)}+big*9.);` : ''}
             ${g.stripes ? `k+=.14*step(.5,fract(p.x/${(g.stripes * 0.5).toFixed(2)}));` : ''}
             diffuseColor.rgb=mix(uB,uA,clamp(k,0.,1.)); }`);
     };
@@ -631,8 +667,16 @@ export function addStudio(kit, x) {
     part.show = (v) => { m.visible = v > 0.001; return part; };
     return register(o.id, part);
   };
-  // A hardwood court, 28 m by 15 m, centred on the origin with the basket line at +x. Real markings at real sizes.
-  kit.court = (o = {}) => texturedFloor({ id: o.id ?? 'court', ...o }, (g, w, h) => {
+  // A hardwood court, 28 m by 15 m, centred on the origin with the basket line at +x. Real markings at real sizes. A plain arena floor runs out from it so it never floats in the dark.
+  kit.court = (o = {}) => {
+    const outer = new THREE.Mesh(new THREE.CircleGeometry(120, 64).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: new THREE.Color(kit.theme === 'light' ? '#cdbfa8' : '#0a0908'), roughness: 1, envMapIntensity: 0 }));
+    outer.position.set(0, -0.01, 0);
+    outer.userData.noShadow = true;
+    outer.receiveShadow = true;
+    scene.add(outer);
+    return makeCourt(o);
+  };
+  const makeCourt = (o = {}) => texturedFloor({ id: o.id ?? 'court', roughness: 0.6, env: 0.32, ...o }, (g, w, h) => {
     const sx = w / 34, sz = h / 22, ox = w / 2, oz = h / 2;
     const rng = kit.rng(5);
     for (let i = 0; i < 90; i++) { for (let j = 0; j < 14; j++) {
@@ -653,6 +697,95 @@ export function addStudio(kit, x) {
     g.beginPath(); g.ellipse(X(hoopX), Z(0), 6.75 * sx, 6.75 * sz, 0, Math.PI * 0.62, Math.PI * 1.38); g.stroke();
   }, 34, 22);
 
+  // The inside of a star: a slow sea of plasma on the inside of a sphere around the camera's world, kept below the bloom threshold so subjects stay readable.
+  kit.plasma = (o = {}) => {
+    const u = { uT, uA: { value: new THREE.Color(o.a ?? '#c8460f') }, uB: { value: new THREE.Color(o.b ?? '#ffb257') }, uP: { value: o.power ?? 0.85 }, uO: { value: 1 } };
+    const m = new THREE.ShaderMaterial({
+      uniforms: u, side: THREE.BackSide, transparent: true, depthWrite: false,
+      vertexShader: 'varying vec3 vP; void main(){ vP=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.); }',
+      fragmentShader: `uniform float uT,uP,uO; uniform vec3 uA,uB; varying vec3 vP; ${NOISE} void main(){ vec3 d=normalize(vP); float n=fb(d*2.6+vec3(uT*.05,-uT*.035,uT*.03)); float g=fb(d*7.+vec3(n*3.,uT*.08,-uT*.05)); float k=clamp(n*.9+g*.55-.18,0.,1.); gl_FragColor=vec4(mix(uA,uB,k)*uP*(.55+.75*k),uO); }`,
+    });
+    const s = new THREE.Mesh(new THREE.SphereGeometry(o.radius ?? 120, 48, 32), m);
+    s.renderOrder = -5; s.frustumCulled = false;
+    scene.add(s);
+    const part = basePart(s);
+    part.show = (v) => { s.visible = v > 0.001; u.uO.value = v; return part; };
+    return register(o.id, part);
+  };
+
+  // Hot gas with soft edges and slow moving texture. It can be clipped to a cylinder, so a flame fills an engine's bore instead of poking through its walls.
+  kit.fireball = (o = {}) => {
+    const u = {
+      uT, uHot: { value: new THREE.Color(o.hot ?? '#fff0c4').multiplyScalar(o.power ?? 1.9) }, uMid: { value: new THREE.Color(o.mid ?? '#ff9a2e').multiplyScalar(o.power ?? 1.9) }, uCool: { value: new THREE.Color(o.cool ?? '#a8320c').multiplyScalar(o.power ?? 1.9) },
+      uHeat: { value: 1 }, uO: { value: 1 }, uFill: { value: o.fill ? 1 : 0 }, uR: { value: 1e6 }, uY0: { value: -1e6 }, uY1: { value: 1e6 }, uC: { value: new THREE.Vector2() }, uScale: { value: o.noiseScale ?? 40 },
+    };
+    const m = new THREE.ShaderMaterial({
+      uniforms: u, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      vertexShader: 'varying vec3 vN; varying vec3 vW; varying vec3 vL; void main(){ vL=position; vN=normalize(mat3(modelMatrix)*normal); vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }',
+      fragmentShader: `uniform float uT,uHeat,uO,uFill,uR,uY0,uY1,uScale; uniform vec2 uC; uniform vec3 uHot,uMid,uCool; varying vec3 vN; varying vec3 vW; varying vec3 vL; ${NOISE}
+        void main(){ if(length(vW.xz-uC)>uR||vW.y<uY0||vW.y>uY1) discard;
+          vec3 V=normalize(cameraPosition-vW); float r=abs(dot(normalize(vN),V)); float n=fb(vW*uScale+vec3(0.,-uT*.5,uT*.22)); float a=mix(pow(r,1.1),.72,uFill);
+          float k=clamp(a*.75+(n-.35)*.9,0.,1.)*uHeat; vec3 c=mix(uCool,uMid,smoothstep(.1,.55,k)); c=mix(c,uHot,smoothstep(.55,.95,k)); gl_FragColor=vec4(c*(.3+.7*a)*(.55+.9*n)*uO,1.); }`,
+    });
+    const g = o.geometry ?? new THREE.SphereGeometry(1, 40, 28);
+    const s = new THREE.Mesh(g, m);
+    s.frustumCulled = false;
+    scene.add(s);
+    const part = basePart(s);
+    part.clip = (r, y0, y1, cx = 0, cz = 0) => { u.uR.value = r; u.uY0.value = y0; u.uY1.value = y1; u.uC.value.set(cx, cz); return part; };
+    part.heat = (k) => { u.uHeat.value = k; return part; };
+    part.show = (v) => { s.visible = v > 0.001; u.uO.value = v; return part; };
+    if (o.at) part.place(o.at);
+    return register(o.id, part);
+  };
+
+  // An expanding shell of glowing gas, brightest at its limb and torn into filaments, the way a supernova remnant looks.
+  kit.nebula = (o = {}) => {
+    const u = { uT, uA: { value: new THREE.Color(o.a ?? '#ff6a3a') }, uB: { value: new THREE.Color(o.b ?? '#6fd0d8') }, uI: { value: 1 }, uSeed: { value: o.seed ?? 2.3 } };
+    const m = new THREE.ShaderMaterial({
+      uniforms: u, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+      vertexShader: 'varying vec3 vN; varying vec3 vW; varying vec3 vL; void main(){ vL=normalize(position); vN=normalize(mat3(modelMatrix)*normal); vec4 w=modelMatrix*vec4(position,1.); vW=w.xyz; gl_Position=projectionMatrix*viewMatrix*w; }',
+      fragmentShader: `uniform float uT,uI,uSeed; uniform vec3 uA,uB; varying vec3 vN; varying vec3 vW; varying vec3 vL; ${NOISE} void main(){ vec3 V=normalize(cameraPosition-vW); float r=1.-abs(dot(normalize(vN),V)); float f=fb(vL*3.4+uSeed+vec3(uT*.02)); float f2=fb(vL*9.+f*4.+uSeed); float fil=smoothstep(.34,.7,f*.75+f2*.5); vec3 c=mix(uB,uA,clamp(pow(r,1.2)+.25*(f2-.5),0.,1.)); gl_FragColor=vec4(c*(pow(r,1.5)*1.25+.08)*(.25+1.25*fil)*uI,1.); }`,
+    });
+    const s = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 44), m);
+    s.frustumCulled = false;
+    scene.add(s);
+    const part = basePart(s);
+    part.radius = 1;
+    part.expand = (r) => { s.scale.setScalar(Math.max(r, 0.001)); part.radius = r; return part; };
+    part.show = (v) => { s.visible = v > 0.001; u.uI.value = v * (o.intensity ?? 1); return part; };
+    if (o.at) part.place(o.at);
+    return register(o.id, part);
+  };
+
+  // A classic ball: dark patches at the twelve corners of an icosahedron, so its spin can be read.
+  kit.football = (o = {}) => {
+    const r = o.radius ?? 0.11;
+    const ph = (1 + Math.sqrt(5)) / 2;
+    const raw = [[0, 1, ph], [0, 1, -ph], [0, -1, ph], [0, -1, -ph], [1, ph, 0], [1, -ph, 0], [-1, ph, 0], [-1, -ph, 0], [ph, 0, 1], [ph, 0, -1], [-ph, 0, 1], [-ph, 0, -1]];
+    const verts = raw.map((v) => { const n = Math.hypot(v[0], v[1], v[2]); return [v[0] / n, v[1] / n, v[2] / n]; });
+    const map = paint(1024, 512, (g, w, h) => {
+      const img = g.createImageData(w, h);
+      for (let y = 0; y < h; y++) for (let xx = 0; xx < w; xx++) {
+        const lon = (xx / w) * Math.PI * 2, lat = (y / h) * Math.PI;
+        const d = [-Math.cos(lon) * Math.sin(lat), Math.cos(lat), Math.sin(lon) * Math.sin(lat)];
+        let best = 0, second = 0;
+        for (const v of verts) { const c = v[0] * d[0] + v[1] * d[1] + v[2] * d[2]; if (c > best) { second = best; best = c; } else if (c > second) second = c; }
+        const ang = Math.acos(Math.min(best, 1));
+        const seam = Math.abs(best - second) < 0.006;
+        const i = (y * w + xx) * 4;
+        const v = ang < 0.27 ? 28 : seam ? 150 : 232;
+        img.data[i] = v; img.data[i + 1] = v; img.data[i + 2] = v * 0.97; img.data[i + 3] = 255;
+      }
+      g.putImageData(img, 0, 0);
+    });
+    const part = kit.mesh({ id: o.id, geometry: new THREE.SphereGeometry(r, 48, 32), material: 'plastic', color: '#ffffff', at: o.at });
+    part.material.map = map;
+    part.material.needsUpdate = true;
+    part.radius = r;
+    return part;
+  };
+
   // A basket at x, facing -x: rim at 3.05 m, backboard, post and a net that swishes when told to.
   kit.hoop = (o = {}) => {
     const root = new THREE.Group();
@@ -661,7 +794,7 @@ export function addStudio(kit, x) {
     const rim = new THREE.Mesh(new THREE.TorusGeometry(rimR, 0.012, 12, 48).rotateX(Math.PI / 2), rimMat);
     rim.position.set(0, rimH, 0);
     root.add(rim);
-    const boardMat = new THREE.MeshPhysicalMaterial({ color: new THREE.Color('#eef2f4'), roughness: 0.2, transparent: true, opacity: 0.55, envMapIntensity: 1.4, depthWrite: false });
+    const boardMat = new THREE.MeshPhysicalMaterial({ color: new THREE.Color('#f4f3ee'), roughness: 0.3, transparent: true, opacity: 0.5, envMapIntensity: 0.7, depthWrite: false });
     const board = new THREE.Mesh(new THREE.BoxGeometry(0.03, 1.05, 1.8), boardMat);
     board.position.set(rimR + 0.15, rimH + 0.3, 0);
     root.add(board);
@@ -675,11 +808,11 @@ export function addStudio(kit, x) {
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, rimH + 0.3, 16), frameMat);
     post.position.set(rimR + 1.05, (rimH + 0.3) / 2, 0);
     root.add(post);
-    const netU = { uSwish: { value: 0 }, uC: { value: new THREE.Color(kit.theme === 'light' ? '#ffffff' : '#e8e4da') } };
+    const netU = { uSwish: { value: 0 }, uC: { value: new THREE.Color(kit.theme === 'light' ? '#6d6558' : '#e8e4da') } };
     const netMat = new THREE.ShaderMaterial({
       uniforms: netU, transparent: true, depthWrite: false, side: THREE.DoubleSide,
       vertexShader: 'uniform float uSwish; varying vec2 vUv; void main(){ vUv=uv; vec3 p=position; float k=1.-uv.y; p.xz*=1.+uSwish*.32*sin(3.14*k); p.y-=uSwish*.05*k; gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.); }',
-      fragmentShader: 'uniform vec3 uC; varying vec2 vUv; void main(){ float a=abs(fract(vUv.x*24.+vUv.y*5.)-.5); float b=abs(fract(vUv.x*24.-vUv.y*5.)-.5); float m=smoothstep(.1,.02,min(a,b)); if(m<.05) discard; gl_FragColor=vec4(uC*1.2,m*.9); }',
+      fragmentShader: 'uniform vec3 uC; varying vec2 vUv; void main(){ float a=abs(fract(vUv.x*24.+vUv.y*5.)-.5); float b=abs(fract(vUv.x*24.-vUv.y*5.)-.5); float m=smoothstep(.1,.02,min(a,b)); if(m<.05) discard; gl_FragColor=vec4(uC,m*.9); }',
     });
     const net = new THREE.Mesh(new THREE.CylinderGeometry(rimR, rimR * 0.62, 0.42, 32, 6, true), netMat);
     net.position.set(0, rimH - 0.21, 0);

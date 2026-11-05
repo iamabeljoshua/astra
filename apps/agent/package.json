@@ -15,6 +15,8 @@
     "voice-proof": "node src/lab/proof/voice/run-voice-proof.ts",
     "math-proof": "node src/lab/proof/math-proof.ts",
     "lesson-proof": "node src/lab/proof/lesson-proof.ts",
+    "next-scene-proof": "node src/scene-queue/proof/next-scene-proof.ts",
+    "eval:library-match": "node src/scene-queue/eval/run-library-match.ts",
     "graph-proof": "node src/lab/proof/graph-proof.ts",
     "math-load": "node src/lab/proof/math-load.ts",
     "eval:tutor": "node src/tutor/eval/run-eval.ts",

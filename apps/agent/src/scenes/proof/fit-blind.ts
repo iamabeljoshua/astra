@@ -11,7 +11,7 @@ interface Case {
 
 const cases = JSON.parse(readFileSync(process.argv[2] as string, 'utf8')) as Case[];
 const models = makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY') });
-const titles = createSceneStore(process.env.SCENE_STORE_DIR as string).list().filter((scene) => scene.ownerId === null).map((scene) => scene.topic);
+const titles = (await createSceneStore(process.env.SCENE_STORE_DIR as string).listShared()).map((scene) => scene.topic);
 console.log(`${titles.length} titles`);
 let falseMatches = 0;
 let missed = 0;

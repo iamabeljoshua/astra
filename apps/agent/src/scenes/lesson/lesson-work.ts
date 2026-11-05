@@ -59,6 +59,7 @@ export function createLessonWork({ router, runs, kitRuns, fitReader, store, requ
   });
   void plan.then((settled) => settleFirstLine(typeof settled === 'string' ? null : (settled.opening[0] ?? null)));
   let run: TopicRun | null = null;
+  const leaving = new AbortController();
   let voiceShelf: VoiceShelf = isCard ? { kind: 'shared' } : { kind: 'nowhere' };
 
   const getOwnKey = (topic: string) => getSceneKey(topic, { ownerId });
@@ -97,14 +98,14 @@ export function createLessonWork({ router, runs, kitRuns, fitReader, store, requ
 
   // A card has its title, so it can teach whatever the router does. A typed question has only what the router says about it.
   const askRouter = (): Promise<SceneRoute> => {
-    const asked = router.route(request, AbortSignal.timeout(ROUTER_LIMIT_MS));
+    const asked = router.route(request, AbortSignal.any([AbortSignal.timeout(ROUTER_LIMIT_MS), leaving.signal]));
     return isCard ? asked.catch(() => NO_ROUTE) : asked;
   };
 
   // Null on any doubt or failure, because a reader that is down must cost a fresh scene and nothing else.
   const findFit = async (topic: string): Promise<StoredScene | null> => {
     if (!fitReader || isCard || !writesKit) return null;
-    const titles = store.list().filter((scene) => scene.ownerId === null).map((scene) => scene.topic);
+    const titles = (await store.listShared()).map((scene) => scene.topic);
     if (titles.length === 0) return null;
     const title = await fitReader.find(topic, titles, AbortSignal.timeout(FIT_LIMIT_MS)).catch(() => null);
     return title ? findSaved(title) : null;
@@ -121,6 +122,11 @@ export function createLessonWork({ router, runs, kitRuns, fitReader, store, requ
       return { ...SAVED_ROUTE, topic: request };
     }
     const route = await askRouter();
+    // A leave can only reach a run that exists, so an answer that comes after one must not start the write nobody is left for.
+    if (leaving.signal.aborted) {
+      settlePlan('nothing');
+      return NO_ROUTE;
+    }
     if (!isCard && (route.kind === SAFETY_KIND || isAboutBeingUnsafe(route.topic))) {
       settlePlan('unsafe');
       return { ...route, engine: 'none', topic: '' };
@@ -174,6 +180,10 @@ export function createLessonWork({ router, runs, kitRuns, fitReader, store, requ
     firstLine,
     planWithoutScene: () => void getRoute().catch(settleWithNoRoute),
     getVoiceShelf: () => voiceShelf,
-    leave: () => run?.leave(),
+    leave() {
+      if (leaving.signal.aborted) return;
+      leaving.abort();
+      run?.leave();
+    },
   };
 }

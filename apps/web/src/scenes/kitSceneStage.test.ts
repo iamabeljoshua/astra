@@ -15,7 +15,7 @@ interface FakeFrame {
 }
 
 const fakes = vi.hoisted(() => ({
-  flat: { load: vi.fn(), draw: vi.fn(), canDraw: vi.fn(), free: vi.fn() },
+  flat: { load: vi.fn(), prepare: vi.fn(), draw: vi.fn(), canDraw: vi.fn(), free: vi.fn() },
   opened: [] as { input: { onStall(): void; onFirstDraw(): void }; frame: FakeFrame; setDrawn(): void }[],
   openKitFrame: vi.fn(),
   getTake: vi.fn(),
@@ -39,6 +39,7 @@ beforeEach(() => {
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
   fakes.opened.length = 0;
   fakes.flat.load.mockReset().mockResolvedValue(true);
+  fakes.flat.prepare.mockReset().mockResolvedValue(true);
   fakes.flat.draw.mockReset();
   fakes.flat.canDraw.mockReset().mockReturnValue(true);
   fakes.flat.free.mockReset();
@@ -177,6 +178,25 @@ describe('when a browser should not play the kit', () => {
   it('plays only the 2D take with no WebGL', async () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
     await expectFlatOnly();
+  });
+});
+
+describe('the next scene', () => {
+  it('waits off screen in its own frame, and what is on screen stays', async () => {
+    const container = makeContainer();
+    const stage = createKitSceneStage(container);
+    await stage.load(SCENE, 20, 'kit');
+    await settle();
+    fakes.opened[0]?.setDrawn();
+    stage.draw(SCENE, 5);
+    expect(await stage.prepare(OTHER_SCENE, 'kit')).toBe(true);
+    await settle();
+    expect(fakes.opened).toHaveLength(2);
+    expect(fakes.flat.prepare).toHaveBeenCalledWith(OTHER_SCENE);
+    expect(fakes.flat.load).toHaveBeenCalledTimes(1);
+    stage.draw(SCENE, 6);
+    expect(container.dataset.engine).toBe('kit');
+    expect(fakes.opened[1]?.frame.render).not.toHaveBeenCalled();
   });
 });
 

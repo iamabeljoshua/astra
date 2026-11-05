@@ -184,15 +184,19 @@ export async function openKitFrame({ host, take, theme, limitMs, onStall, onFirs
     if (reply && handler) handler(reply);
   }
 
-  window.addEventListener('message', onMessage);
   return new Promise<KitFrame>((resolve, reject) => {
-    settleOpen = { resolve, reject };
-    const limit = setTimeout(() => settleOpen && fail('the scene took too long to start'), limitMs);
-    void Promise.resolve().then(() => host.append(iframe));
-    const settledResolve = resolve;
-    settleOpen.resolve = (made) => {
-      clearTimeout(limit);
-      settledResolve(made);
+    const limit = setTimeout(() => fail('the scene took too long to start'), limitMs);
+    settleOpen = {
+      resolve(made) {
+        clearTimeout(limit);
+        resolve(made);
+      },
+      reject(error) {
+        clearTimeout(limit);
+        reject(error);
+      },
     };
+    window.addEventListener('message', onMessage);
+    host.append(iframe);
   });
 }

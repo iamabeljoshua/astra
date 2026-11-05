@@ -7,6 +7,7 @@ import { createTopicRuns } from '../src/scenes/lesson/topic-runs.ts';
 import { KIT_ASK_LIMIT_MS } from '../src/scenes/scene-desk.ts';
 import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
 import type { LessonPlan, SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
+import type { AheadNews } from '../src/scene-queue/scene-queue.ts';
 import { ASK_LIMIT_MS, createTutorScenes, getTutorSceneBeats } from '../src/tutor/tutor-scenes.ts';
 
 const USAGE = { model: 'fake', ms: 1, costUsd: 0 };
@@ -21,7 +22,7 @@ const flush = async () => {
   for (let tick = 0; tick < 6; tick += 1) await new Promise((resolve) => setImmediate(resolve));
 };
 
-function setUp({ route = { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE } as SceneRoute, canSpeak = true, getScene = async () => ({ isOk: true as const, scene: SCENE }) as { isOk: true; scene: StoredScene } | { isOk: false; reasons: string[] }, cardTitle = null as string | null, canPlayShared = undefined as ((studentId: string) => boolean) | undefined } = {}) {
+function setUp({ route = { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE } as SceneRoute, canSpeak = true, getScene = async () => ({ isOk: true as const, scene: SCENE }) as { isOk: true; scene: StoredScene } | { isOk: false; reasons: string[] }, cardTitle = null as string | null, canPlayShared = undefined as ((studentId: string) => boolean) | undefined, onAhead = undefined as ((request: string, state: AheadNews) => void) | undefined } = {}) {
   const sent: SceneAgentMessage[] = [];
   const spoken: (readonly Beat[])[] = [];
   const shown: { topic: string }[] = [];
@@ -42,6 +43,7 @@ function setUp({ route = { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...US
       return true;
     },
     onShown: (one) => void shown.push(one),
+    ...(onAhead ? { onAhead } : {}),
     trace: (name, fields = {}) => void traces.push({ name, fields }),
     ...(canPlayShared ? { canPlayShared } : {}),
   } as Parameters<typeof createTutorScenes>[0]);
@@ -52,6 +54,21 @@ const opened = (scenes: ReturnType<typeof setUp>['scenes'], canPlay = true) => s
 const LOADED = { type: 'sceneLoaded', sceneId: SCENE.id } as const;
 
 afterEach(() => vi.useRealTimers());
+
+describe('a scene with a 3D take', () => {
+  const KIT_SCENE = { ...SCENE, engine: 'kit' as const };
+
+  it('names the kit to the page and on the board, with the same moments and words', async () => {
+    const { scenes, sent, spoken } = setUp({ getScene: async () => ({ isOk: true as const, scene: KIT_SCENE }) } as never);
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    expect(sent).toEqual([{ type: 'loadScene', sceneId: SCENE.id, durationSeconds: 5, engine: 'kit' }]);
+    scenes.onPage(LOADED, 'maya');
+    const command = spoken[0]?.flatMap((beat) => beat.script).find((part) => typeof part === 'object' && part.kind === 'richScene');
+    expect(command).toMatchObject({ kind: 'richScene', engine: 'kit', sceneId: SCENE.id, moments: SCENE.moments });
+  });
+});
 
 describe('asking for a scene', () => {
   it('lands at a pause once the page has the take, with the picture before its first word', async () => {
@@ -282,6 +299,339 @@ describe('a topic that draws nothing', () => {
     made.store.saveRefusal({ key: getSceneKey(TOPIC, { ownerId: 'maya' }), review: [{ moment: 'a', what: 'wrong', truth: '', confidence: 'high' }], attempts: 1, savedAt: new Date().toISOString() } as never);
     await ask(made, { engine: 'manimgx', kind: 'graph', topic: TOPIC, ...USAGE });
     expect(made.plan).not.toHaveBeenCalled();
+  });
+});
+
+describe('a scene started ahead of its moment', () => {
+  const saveShared = (store: ReturnType<typeof setUp>['store'], topic = TOPIC) => {
+    const key = getSceneKey(topic);
+    const scene = { ...SCENE, id: key.id, topic, ownerId: null, status: 'checked' } as StoredScene;
+    return store.saveChecked(scene, [], []).then(() => scene);
+  };
+
+  it('holds a saved scene in the page with no model and no write, and shows nothing', async () => {
+    const { scenes, sent, spoken, joinRun, store } = setUp();
+    const scene = await saveShared(store);
+    opened(scenes);
+    expect(scenes.prepare(TOPIC)).toBe(true);
+    await flush();
+    expect(sent).toEqual([{ type: 'prepareScene', sceneId: scene.id }]);
+    expect(joinRun).not.toHaveBeenCalled();
+    expect(spoken).toEqual([]);
+  });
+
+  it('lands on the first pause once asked, and takes its first frame only then', async () => {
+    const { scenes, sent, spoken, shown, store, state } = setUp({ canSpeak: false });
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    scenes.ask(TOPIC);
+    await flush();
+    expect(sent.some((message) => message.type === 'loadScene')).toBe(false);
+    state.canSpeak = true;
+    scenes.notePause();
+    expect(sent.at(-1)).toEqual({ type: 'loadScene', sceneId: scene.id, durationSeconds: scene.durationSeconds });
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    expect(spoken).toHaveLength(1);
+    expect(shown).toMatchObject([{ topic: TOPIC, isShared: true }]);
+  });
+
+  it('never lands when nobody asks for it', async () => {
+    const { scenes, spoken, store } = setUp();
+    await saveShared(store);
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    scenes.notePause();
+    expect(spoken).toEqual([]);
+  });
+
+  it('tells the queue only once the page holds the bytes', async () => {
+    const onAhead = vi.fn();
+    const { scenes, store } = setUp({ onAhead });
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    expect(onAhead).not.toHaveBeenCalled();
+    scenes.onPage({ type: 'scenePrepared', sceneId: scene.id }, 'maya');
+    expect(onAhead).toHaveBeenCalledWith(TOPIC, 'ready');
+  });
+
+  it('goes quietly when the page refuses its take, and a failed write says nothing either', async () => {
+    const onAhead = vi.fn();
+    const { scenes, spoken, sent, store } = setUp({ onAhead });
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    scenes.onPage({ type: 'sceneRefused', sceneId: scene.id }, 'maya');
+    expect(onAhead).toHaveBeenCalledWith(TOPIC, 'failed');
+
+    const failing = setUp({ onAhead, getScene: async () => ({ isOk: false as const, reasons: ['nope'] }) });
+    opened(failing.scenes);
+    failing.scenes.prepare('another topic');
+    await flush();
+    expect(onAhead).toHaveBeenLastCalledWith('another topic', 'failed');
+    expect(spoken).toEqual([]);
+    expect(failing.spoken).toEqual([]);
+    expect(sent.filter((message) => message.type === 'loadScene')).toEqual([]);
+    expect(failing.sent).toEqual([]);
+  });
+
+  it('stops a write nobody needs now, and leaves a shown scene alone', async () => {
+    const leave = vi.fn();
+    const { scenes, joinRun } = setUp();
+    joinRun.mockImplementation(() => ({ plan: Promise.resolve(PLAN), firstLine: Promise.resolve(null), getScene: () => new Promise(() => {}), leave }));
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    expect(joinRun).toHaveBeenCalledOnce();
+    scenes.dropPrepared(TOPIC);
+    expect(leave).toHaveBeenCalledOnce();
+  });
+
+  it('drops a scene whose moment passed, and asking again is free to land', async () => {
+    const { scenes, spoken, store, sent } = setUp();
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.dropWaiting('movedOn');
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    scenes.notePause();
+    expect(spoken).toEqual([]);
+    scenes.ask(TOPIC);
+    await flush();
+    expect(sent.filter((message) => message.type === 'loadScene')).toHaveLength(2);
+  });
+
+  it('says when a write that missed its moment is still running, and when it ends', async () => {
+    const onAhead = vi.fn();
+    let finish: (made: { isOk: true; scene: StoredScene }) => void = () => {};
+    const { scenes } = setUp({ onAhead, getScene: () => new Promise((resolve) => (finish = resolve)) });
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    scenes.ask(TOPIC);
+    scenes.dropWaiting('movedOn');
+    expect(onAhead).toHaveBeenLastCalledWith(TOPIC, 'lateWrite');
+    finish({ isOk: true, scene: SCENE });
+    await flush();
+    expect(onAhead).toHaveBeenLastCalledWith(TOPIC, 'settled');
+  });
+
+  it('on a switch, stops a write left over from the old lesson, and leaves an ask for the new one alone', async () => {
+    const leave = vi.fn();
+    const { scenes, joinRun, sent, store } = setUp();
+    joinRun.mockImplementation(() => ({ plan: Promise.resolve(PLAN), firstLine: Promise.resolve(null), getScene: () => new Promise(() => {}), leave }));
+    opened(scenes);
+    scenes.prepare('the old idea');
+    await flush();
+    scenes.ask('the old idea');
+    scenes.dropWaiting('studentTurn');
+    const fresh = await saveShared(store, 'the new idea');
+    scenes.ask('the new idea');
+    await flush();
+    scenes.dropWaiting('switched');
+    expect(leave).toHaveBeenCalledOnce();
+    expect(sent.at(-1)).toEqual({ type: 'loadScene', sceneId: fresh.id, durationSeconds: fresh.durationSeconds });
+    scenes.onPage({ type: 'sceneLoaded', sceneId: fresh.id }, 'maya');
+    scenes.notePause();
+  });
+
+  it('never shows the same scene twice, when the router words two ideas into one topic', async () => {
+    const onAhead = vi.fn();
+    const { scenes, spoken, sent, store } = setUp({ onAhead, route: { engine: 'manimgx', kind: 'graph', topic: 'the shared topic', ...USAGE } as SceneRoute });
+    const scene = await saveShared(store, 'the shared topic');
+    opened(scenes);
+    scenes.ask('the shared topic');
+    await flush();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    expect(spoken).toHaveLength(1);
+    sent.length = 0;
+    scenes.prepare('another wording of it');
+    await flush();
+    expect(onAhead).toHaveBeenLastCalledWith('another wording of it', 'declined');
+    expect(sent).toEqual([]);
+    scenes.ask('a third wording of it');
+    await flush();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    expect(spoken).toHaveLength(1);
+  });
+
+  it('sends its bytes again after a reload, and brings the last scene back', async () => {
+    const { scenes, sent, store } = setUp();
+    const shownScene = await saveShared(store);
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: shownScene.id }, 'maya');
+    const next = await saveShared(store, 'the next idea');
+    scenes.prepare('the next idea');
+    await flush();
+    sent.length = 0;
+    opened(scenes);
+    expect(sent).toContainEqual({ type: 'prepareScene', sceneId: next.id });
+    expect(sent).toContainEqual({ type: 'loadScene', sceneId: shownScene.id, durationSeconds: shownScene.durationSeconds });
+  });
+
+  it('a safety stop ends a write that was on its way to landing', async () => {
+    const leave = vi.fn();
+    const { scenes, joinRun } = setUp();
+    joinRun.mockImplementation(() => ({ plan: Promise.resolve(PLAN), firstLine: Promise.resolve(null), getScene: () => new Promise(() => {}), leave }));
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.stopForGood();
+    expect(leave).toHaveBeenCalledOnce();
+  });
+
+  it('after a stop, nothing is prepared, asked for, or landed', async () => {
+    const { scenes, spoken, sent, store } = setUp();
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.stopForGood();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    scenes.notePause();
+    expect(spoken).toEqual([]);
+    sent.length = 0;
+    expect(scenes.prepare('the next idea')).toBe(false);
+    scenes.ask('the next idea');
+    await flush();
+    expect(sent).toEqual([]);
+  });
+});
+
+describe('a scene ready ahead meeting the session limits', () => {
+  const saveShared = (store: ReturnType<typeof setUp>['store'], topic = TOPIC) => {
+    const key = getSceneKey(topic);
+    const scene = { ...SCENE, id: key.id, topic, ownerId: null, status: 'checked' } as StoredScene;
+    return store.saveChecked(scene, [], []).then(() => scene);
+  };
+  const getEnding = (traces: ReturnType<typeof setUp>['traces']) => traces.find(({ name }) => name === 'sceneEnded')?.fields.how;
+  const askMany = async (scenes: ReturnType<typeof setUp>['scenes'], count: number) => {
+    for (let index = 0; index < count; index += 1) {
+      scenes.ask(`another idea ${index}`);
+      await flush();
+    }
+  };
+
+  it('does not land once a person flags it while it waits in the page, and takes no first frame', async () => {
+    const { scenes, sent, spoken, traces, store } = setUp();
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    scenes.onPage({ type: 'scenePrepared', sceneId: scene.id }, 'maya');
+    vi.spyOn(store, 'isFlagged').mockReturnValue(true);
+    scenes.ask(TOPIC);
+    await flush();
+    expect(spoken).toEqual([]);
+    expect(sent.some((message) => message.type === 'loadScene')).toBe(false);
+    expect(getEnding(traces)).toBe('flagged');
+  });
+
+  it('does not play a shared scene readied before the student used their last play', async () => {
+    const plays = { left: true };
+    const { scenes, spoken, shown, traces, store } = setUp({ canPlayShared: () => plays.left });
+    await saveShared(store);
+    opened(scenes);
+    expect(scenes.prepare(TOPIC)).toBe(true);
+    await flush();
+    plays.left = false;
+    scenes.ask(TOPIC);
+    await flush();
+    expect(spoken).toEqual([]);
+    expect(shown).toEqual([]);
+    expect(getEnding(traces)).toBe('sharedPlaysUsed');
+  });
+
+  it('counts a shared scene the router named, which no card asked for', async () => {
+    const { scenes, spoken, traces, store } = setUp({ canPlayShared: () => false });
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    expect(spoken).toEqual([]);
+    expect(getEnding(traces)).toBe('sharedPlaysUsed');
+  });
+
+  it("still plays the student's own scene past their shared plays", async () => {
+    const { scenes, spoken } = setUp({ canPlayShared: () => false });
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage(LOADED, 'maya');
+    expect(spoken).toHaveLength(1);
+  });
+
+  it('readies nothing once the 6 asks are used, because it could never land', async () => {
+    const { scenes, store } = setUp();
+    await saveShared(store);
+    opened(scenes);
+    await askMany(scenes, 6);
+    expect(scenes.prepare(TOPIC)).toBe(false);
+  });
+
+  it('counts a next scene toward the 6 when it is asked for, and not before', async () => {
+    const { scenes, spoken, traces, store } = setUp();
+    const scene = await saveShared(store);
+    const getAsksStarted = () => traces.filter(({ name, fields }) => name === 'sceneAsked' && fields.isAhead === false).length;
+    opened(scenes);
+    scenes.prepare(TOPIC);
+    await flush();
+    await askMany(scenes, 5);
+    expect(getAsksStarted()).toBe(5);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    expect(spoken).toHaveLength(1);
+    scenes.ask('one idea too many');
+    await flush();
+    expect(getAsksStarted()).toBe(5);
+  });
+
+  it('lands a scene readied for the new lesson while the reply catches up with its title', async () => {
+    const { scenes, spoken, traces, store } = setUp();
+    const scene = await saveShared(store);
+    opened(scenes);
+    scenes.noteTopic('Newton and his apple');
+    scenes.prepare(TOPIC);
+    await flush();
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.onPage({ type: 'sceneLoaded', sceneId: scene.id }, 'maya');
+    expect(traces.some(({ name }) => name === 'sceneOffTopic')).toBe(false);
+    expect(spoken).toHaveLength(1);
+  });
+
+  it('still refuses what the tutor asked for from the old lesson while its reply catches up', async () => {
+    const { scenes, joinRun, traces } = setUp();
+    opened(scenes);
+    scenes.noteTopic('Newton and his apple');
+    scenes.ask(TOPIC);
+    await flush();
+    expect(joinRun).not.toHaveBeenCalled();
+    expect(traces.some(({ name }) => name === 'sceneOffTopic')).toBe(true);
+  });
+
+  it('stops a write the tutor asked for when the safety reply already ended that ask', async () => {
+    const leave = vi.fn();
+    const { scenes, joinRun } = setUp({ getScene: () => new Promise(() => {}) });
+    joinRun.mockImplementation(() => ({ plan: Promise.resolve(PLAN), firstLine: Promise.resolve(null), getScene: () => new Promise(() => {}), leave }));
+    opened(scenes);
+    scenes.ask(TOPIC);
+    await flush();
+    scenes.noteSafetyReply();
+    expect(leave).not.toHaveBeenCalled();
+    scenes.stopForGood();
+    expect(leave).toHaveBeenCalled();
+    expect(scenes.prepare('anything else')).toBe(false);
   });
 });
 
