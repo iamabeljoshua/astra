@@ -8,7 +8,7 @@ const GATE = { deterministic: true, mismatches: [], costMean: 20 };
 
 describe('the kit worker', () => {
   it('gives the review its frames and makes no take, since the page builds its take from the saved code', async () => {
-    const worker = createKitWorker(async () => ({ isOk: true, parts: Array.from({ length: 30 }, (_, index) => `part-${index}`), sheet: Buffer.from('jpeg'), ms: 5 }));
+    const worker = createKitWorker(async () => ({ isOk: true, parts: Array.from({ length: 30 }, (_, index) => `part-${index}`), sheet: Buffer.from('jpeg') }));
     const result = await worker(JOB, signal);
     expect(result).toMatchObject({ isOk: true, takes: [], sheets: [{ theme: 'dark', bytes: Buffer.from('jpeg') }] });
     expect(result.isOk && result.parts).toHaveLength(24);

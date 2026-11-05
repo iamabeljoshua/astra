@@ -58,7 +58,7 @@ const worker: typeof checkFrames = (job, signal) => {
 };
 const kitRuns = createTopicRuns({ engine: 'kit', themes: ['dark'], checkCode: getKitCodeProblems, getLinesToReview: getKitSpokenLines, planner: models.planner, nameReader: models.nameReader, writers: [models.kitWriter, models.kitFallbackWriter], repairWriter: models.kitFallbackWriter, reviewer: models.kitReviewer, worker, store, warn });
 const stopAtRoute = (reason: string) => ({ join: () => ({ plan: Promise.resolve('nothing'), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: false, reasons: [reason] }), leave() {} }) }) as unknown as TopicRuns;
-const noManimRuns = { join: () => ({ plan: Promise.resolve('nothing'), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: false, reasons: ['this proof writes no ManimGX'] }), leave() {} }) } as unknown as TopicRuns;
+const noManimRuns = stopAtRoute('this proof writes no ManimGX');
 
 const questions = [...(args.ask ?? []), ...(args.questions ? (JSON.parse(readFileSync(args.questions, 'utf8')) as string[]) : [])];
 for (const question of questions) {

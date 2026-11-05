@@ -30,16 +30,16 @@ export interface KitFrameRequest {
   seconds: readonly number[];
 }
 
-export type KitFrameResult = { isOk: false; reasons: readonly string[] } | { isOk: true; parts: readonly string[]; sheet: Buffer; ms: number };
+export type KitFrameResult = { isOk: false; reasons: readonly string[] } | { isOk: true; parts: readonly string[]; sheet: Buffer };
 
 export type KitFrameCheck = (request: KitFrameRequest, signal: AbortSignal) => Promise<KitFrameResult>;
 
-type Sample = NonNullable<Extract<KitFrameReply, { type: 'gate' }>['result']>['samples'][number];
+type GateResult = NonNullable<Extract<KitFrameReply, { type: 'gate' }>['result']>;
 
 /** The same pictures a parent would see must exist, differ over time, and repeat for the same second, or the review has nothing true to read. */
-export function getFrameProblems({ samples, deterministic, mismatches, costMean }: NonNullable<Extract<KitFrameReply, { type: 'gate' }>['result']>, firstMomentSeconds: number): string[] {
+export function getFrameProblems({ samples, deterministic, mismatches, costMean }: GateResult, firstMomentSeconds: number): string[] {
   const shown = samples.filter(({ t }) => t >= firstMomentSeconds);
-  const blank = shown.filter((sample: Sample) => sample.lit < LEAST_LIT || sample.std < LEAST_CONTRAST).map(({ t }) => t.toFixed(1));
+  const blank = shown.filter(({ lit, std }) => lit < LEAST_LIT || std < LEAST_CONTRAST).map(({ t }) => t.toFixed(1));
   return [
     ...(blank.length > 0 ? [`it draws nothing visible at ${blank.join(', ')} s`] : []),
     ...(deterministic ? [] : [`render(t) is not pure, because the frames at ${mismatches.join(', ')} s changed when drawn again`]),
@@ -103,7 +103,12 @@ interface HostWindow {
   kitHost: { take(isWanted: (reply: { type?: string }) => boolean): Promise<KitFrameReply>; send(command: KitFrameCommand): void; sendLoad(timing: unknown, names: readonly string[], files: Readonly<Record<string, string>>): Promise<void> };
 }
 
-const waitFor = <Type extends KitFrameReply['type']>(page: Page, type: Type) => page.evaluate((wanted) => (window as unknown as HostWindow).kitHost.take((reply) => reply.type === wanted), type as string);
+// An error from the frame ends the check wherever it comes, so a reader of the replies only sees what it asked for.
+async function waitFor<Type extends KitFrameReply['type']>(page: Page, type: Type): Promise<Extract<KitFrameReply, { type: Type }>> {
+  const reply = await page.evaluate((wanted) => (window as unknown as HostWindow).kitHost.take((one) => one.type === wanted), type as string);
+  if (reply.type === 'error') throw new Error(getErrorReason(reply));
+  return reply as Extract<KitFrameReply, { type: Type }>;
+}
 
 const send = (page: Page, command: KitFrameCommand) => page.evaluate((message) => (window as unknown as HostWindow).kitHost.send(message), command);
 
@@ -111,38 +116,32 @@ async function readFrames(page: Page, { code, moments, durationSeconds, seconds 
   const bundle = readFileSync(join(KIT_PUBLIC, SCENE_ENGINE_VERSIONS.kit, 'kit.js'), 'utf8');
   await page.goto(HOST_URL);
   await page.evaluate(startHost, buildKitFramePage({ kitBundle: bundle, code }));
-  const loaded = await waitFor(page, 'loaded');
-  if (loaded.type === 'error') return { isOk: false, reasons: [getErrorReason(loaded)] };
+  await waitFor(page, 'loaded');
   const names = getNeededTextures(code);
   const timing = { moments: { ...moments }, duration: durationSeconds };
   await page.evaluate(({ timing: sent, names: wanted }) => (window as unknown as HostWindow).kitHost.sendLoad(sent, wanted, Object.fromEntries(wanted.map((name) => [name, `/kit-texture/${name}`]))), { timing, names });
   const ready = await waitFor(page, 'ready');
-  if (ready.type === 'error') return { isOk: false, reasons: [getErrorReason(ready)] };
-  if (ready.type !== 'ready') return { isOk: false, reasons: ['the frame never said it was ready'] };
   await send(page, { type: 'gate', times: [...seconds] });
   const gate = await waitFor(page, 'gate');
-  if (gate.type === 'error') return { isOk: false, reasons: [getErrorReason(gate)] };
-  if (gate.type !== 'gate' || !gate.result) return { isOk: false, reasons: [gate.type === 'gate' ? (gate.error ?? 'the frame check gave no result') : 'the frame check gave no result'] };
+  if (!gate.result) return { isOk: false, reasons: [gate.error ?? 'the frame check gave no result'] };
   const firstMoment = Math.min(...Object.values(moments));
   const problems = [...ready.issues, ...gate.issues, ...getFrameProblems(gate.result, firstMoment + 1), ...onEscape()];
   if (problems.length > 0) return { isOk: false, reasons: [...new Set(problems)] };
   const frames: { seconds: number; jpeg: Buffer }[] = [];
   for (const at of seconds) {
     await send(page, { type: 'render', seconds: at });
-    const drawn = await waitFor(page, 'drawn');
-    if (drawn.type === 'error') return { isOk: false, reasons: [getErrorReason(drawn)] };
+    await waitFor(page, 'drawn');
     frames.push({ seconds: at, jpeg: await page.locator('#host').screenshot({ type: 'jpeg', quality: JPEG_QUALITY }) });
   }
   const escaped = onEscape();
   if (escaped.length > 0) return { isOk: false, reasons: escaped };
   await page.setContent(getSheetPage(frames));
-  return { isOk: true, parts: ready.parts, sheet: await page.screenshot({ type: 'jpeg', quality: JPEG_QUALITY, fullPage: true }), ms: 0 };
+  return { isOk: true, parts: ready.parts, sheet: await page.screenshot({ type: 'jpeg', quality: JPEG_QUALITY, fullPage: true }) };
 }
 
 /** Each check gets its own browser, which starts in about a second, so nothing outlives a session and a renderer spinning past its limit goes with it. */
 export function createFrameCheck(): KitFrameCheck {
   return async (request, signal) => {
-    const startedAt = performance.now();
     // Loaded here, so a session with live 3D off never pays for it and a server with no browser only loses this scene.
     const { chromium } = await import('playwright');
     const browser = await chromium.launch({ headless: true, args: [...GL_ARGS, '--use-mock-keychain', '--no-first-run'] });
@@ -167,8 +166,7 @@ export function createFrameCheck(): KitFrameCheck {
       page.on('framenavigated', (frame) => {
         if (frame !== page.mainFrame() && frame.url() !== 'about:srcdoc') escapes.push('the scene tried to leave its frame');
       });
-      const result = await Promise.race([readFrames(page, request, () => escapes), stopped]);
-      return result.isOk ? { ...result, ms: performance.now() - startedAt } : result;
+      return await Promise.race([readFrames(page, request, () => escapes), stopped]);
     } catch (error) {
       return { isOk: false, reasons: [error instanceof Error ? error.message : String(error)] };
     } finally {
