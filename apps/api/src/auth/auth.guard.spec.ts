@@ -22,7 +22,7 @@ import { getAcceptedSignInMethods, isRefusedToken, TokenVerifier } from './token
 
 const PUBLIC_ROUTES: readonly string[] = ['get /health'];
 const SIGNED_IN_ROUTES: readonly string[] = ['get /me', 'post /me/birth-date', 'delete /me', 'get /review/flags', 'post /review/flags/:id/reviewed'];
-const AGENT_KEY_ROUTES: readonly string[] = ['get /agent/sessions/:id/brief', 'post /agent/sessions/:id/spend', 'post /agent/sessions/:id/title', 'get /agent/sessions/:id/record', 'post /agent/sessions/:id/record', 'post /agent/sessions/:id/log', 'post /agent/sessions/:id/recap', 'post /agent/sessions/:id/flags'];
+const AGENT_KEY_ROUTES: readonly string[] = ['get /agent/sessions/:id/brief', 'get /agent/sessions/:id/opening', 'post /agent/sessions/:id/spend', 'post /agent/sessions/:id/title', 'get /agent/sessions/:id/record', 'post /agent/sessions/:id/record', 'post /agent/sessions/:id/log', 'post /agent/sessions/:id/recap', 'post /agent/sessions/:id/flags'];
 const DELETE_MY_DATA_ROUTE = 'delete /me';
 const CLOSED_PORT_URL = 'http://127.0.0.1:1';
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
