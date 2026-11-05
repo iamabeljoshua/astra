@@ -41,15 +41,18 @@ The page needs `VITE_FAST_SCENES=1`. Depth needs `VITE_KIT_SCENES=1`, a width ab
 | The tutor's ask to the scene landing | 29 asks: p50 5.7 s, p95 9.5 s, worst 13.1 s |
 | The recipe call | 32 calls: p50 2.7 s, p95 3.6 s, worst 4.4 s, about $0.0004 |
 | The page having the scene to the scene landing | 26 scenes: mean 1.8 s, p50 1.4 s, p95 4.3 s, worst 6.2 s. The prototype's arithmetic said a mean of 1.65 s and at most 4.1 s |
-| Typed mid-lesson, the line to a fresh scene | 13.4, 14.3, and 18.2 s at load 41 to 63 |
+| Typed mid-lesson, the line to a fresh scene | 7.8, 8.8, and 9.7 s at load 6 to 10. 13.4, 14.3, and 18.2 s at load 41 to 63 |
 | Typed mid-lesson, the line to a saved scene | 6.6 s at load about 30 |
 | No part fits | Bees, helicopter, submarine, rocket engine on no WebGL: words and the board, and the miss logged |
 | All 31 parts in the worker sandbox | 29 passed on the full run, and `moonPhases` and `seasons` passed after a fix, along with `alveoli` and `lungs`, in both directions at 7 times |
 | A side question | The picture stayed and its time ran from 6.8 to 18 s after the answer |
 | A new topic | The old picture left at 9 s and the new one came at 11.1 s after the line |
+| Real Chris, from Home | One scene, 14.2 s, first words 4.7 s, load 9.5, on the moon's phases |
+| Replay on Light and Dark | The scene played on both from the same second, on one lesson. Seeks gave the same frame forward and backward at 3 points in Dark |
+| Hands-on, in Dark | The scene went to 30% of the right side, 12 px from its edges. A click brought it back big, and a second click put it back |
 | A crisis during a scene | The scene held 4.2 s, the picture went to the corner, the help line played, and no scene words came back |
 
-The press to the ask costs more than everything after it, about 8 to 11 s from Home on these runs, in session start, joining the room, the greeting, and the tutor's first words. That is what keeps Home from 15 s on this Mac. No run here was on a quiet machine.
+The press to the ask costs more than everything after it, about 8 to 11 s from Home on these runs, in session start, joining the room, the greeting, and the tutor's first words. That is what keeps Home from 15 s on this Mac. No run here was on a quiet machine. All but the last lesson ran with no `ASTRA_AGENT_KEY`, so with no profile, level, or memory read, which a real session does.
 
 ## What this does not prove
 
