@@ -9,7 +9,7 @@ import type { JsonReader } from '../src/providers/anthropic.ts';
 import { checkSceneSpeech, type SceneSpeech } from '../src/scenes/live-words/check-speech.ts';
 import { createLiveSceneWords } from '../src/scenes/live-words/live-scene-words.ts';
 import { getNumbersSaid } from '../src/scenes/live-words/number-words.ts';
-import type { StudentFacts } from '../src/scenes/live-words/write-speech.ts';
+import { type StudentFacts, writeSceneSpeech } from '../src/scenes/live-words/write-speech.ts';
 import { createSceneStore } from '../src/scenes/scene-store.ts';
 import type { LessonPlan, SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
 import { toFreshScene } from '../src/scenes/recipe/fresh-drawing.ts';
@@ -50,6 +50,18 @@ describe('reading the numbers a line says', () => {
 describe('what code lets a student hear', () => {
   it('lets through a reply with every mark, only known numbers, and about the same length', () => {
     expect(check(GOOD)).toEqual({ isOk: true, speech: GOOD });
+  });
+
+  it('says a plain opener in place of "Here is", wherever a sentence starts', () => {
+    const checked = check({ ...GOOD, setup: "Here's that line again.", narration: "[[a]] Here is the climb, two steps at a time as it goes. [[b]] It keeps going. Now here's the same steady rate along." });
+    expect(checked).toEqual({ isOk: true, speech: { ...GOOD, setup: 'This is that line again.', narration: '[[a]] This is the climb, two steps at a time as it goes. [[b]] It keeps going. Now this is the same steady rate along.' } });
+  });
+
+  it('asks for one field a moment, guided by its saved words, and plays them on their marks', async () => {
+    const read = vi.fn<JsonReader['read']>(async () => ({ answer: { setup: GOOD.setup, moments: { a: 'It climbs two steps at a time as it moves along.', b: 'Same steady climb, the same curve a ball keeps, all the way.' }, close: GOOD.close }, costUsd: 0 }));
+    const { answer } = await writeSceneSpeech({ read }, { scene: SCENE, student: STUDENT, askedAbout: 'lines' });
+    expect(read.mock.calls[0]?.[0].schema).toMatchObject({ properties: { moments: { required: ['a', 'b'], properties: { a: { description: 'Saved says: The line climbs two steps at a time as it goes. At most 11 words.' } } } } });
+    expect(check(answer)).toEqual({ isOk: true, speech: GOOD });
   });
 
   it('allows a number from declared or values', () => {
@@ -187,9 +199,8 @@ describe('a saved scene in a lesson', () => {
     const ask = JSON.parse(read.mock.calls[0]?.[0].text ?? '{}') as { student: { interests: string[]; notes_on_this_idea: unknown[] }; numbers_you_may_say: number[]; moments: string[]; word_counts: unknown };
     expect(ask.student.interests).toEqual(['football']);
     expect(ask.student.notes_on_this_idea).toEqual([{ kind: 'struggled' }]);
-    expect(ask.moments).toEqual(['a', 'b']);
     expect(ask.numbers_you_may_say).toEqual([0, 2, 7, 9, 12]);
-    expect(ask.word_counts).toEqual({ setup: 4, moments: { a: 11, b: 10 }, close: 6, whole: 31 });
+    expect(ask.word_counts).toEqual({ setup: 4, moments: { a: 11, b: 10 }, close: 6 });
   });
 
   it(`waits ${LIVE_WORDS_WAIT_MS} ms at most at a pause, then says the saved words`, async () => {
@@ -301,29 +312,33 @@ describe('a saved scene in a lesson', () => {
 });
 
 describe('who writes the live words', () => {
-  const saved = { url: process.env.ANTHROPIC_BASE_URL, key: process.env.ANTHROPIC_API_KEY, model: process.env.ASTRA_SCENE_WORDS_MODEL };
+  const saved = { url: process.env.ANTHROPIC_BASE_URL, key: process.env.ANTHROPIC_API_KEY, openAiUrl: process.env.OPENAI_BASE_URL, openAiKey: process.env.OPENAI_API_KEY, model: process.env.ASTRA_SCENE_WORDS_MODEL };
 
   afterEach(() => {
-    for (const [name, value] of [['ANTHROPIC_BASE_URL', saved.url], ['ANTHROPIC_API_KEY', saved.key], ['ASTRA_SCENE_WORDS_MODEL', saved.model]] as const) {
+    for (const [name, value] of [['ANTHROPIC_BASE_URL', saved.url], ['ANTHROPIC_API_KEY', saved.key], ['OPENAI_BASE_URL', saved.openAiUrl], ['OPENAI_API_KEY', saved.openAiKey], ['ASTRA_SCENE_WORDS_MODEL', saved.model]] as const) {
       if (value === undefined) delete process.env[name];
       else process.env[name] = value;
     }
   });
 
   const askOnce = async (modelName: string | undefined) => {
-    const sent: { model: string; thinking: { type: string } }[] = [];
+    const sent: { model: string; thinking?: { type: string } }[] = [];
     const server = createServer((request, response) => {
       let body = '';
       request.on('data', (chunk: Buffer) => (body += chunk.toString()));
       request.on('end', () => {
-        sent.push(JSON.parse(body) as { model: string; thinking: { type: string } });
+        sent.push(JSON.parse(body) as { model: string; thinking?: { type: string } });
         response.writeHead(200, { 'content-type': 'application/json' });
-        response.end(JSON.stringify({ id: 'm', type: 'message', role: 'assistant', model: 'fake', stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1000, output_tokens: 100 }, content: [{ type: 'text', text: JSON.stringify(GOOD) }] }));
+        const isOpenAi = request.url?.endsWith('/chat/completions') === true;
+        response.end(JSON.stringify(isOpenAi ? { choices: [{ message: { content: JSON.stringify(GOOD) } }], usage: { prompt_tokens: 1000, completion_tokens: 100 } } : { id: 'm', type: 'message', role: 'assistant', model: 'fake', stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1000, output_tokens: 100 }, content: [{ type: 'text', text: JSON.stringify(GOOD) }] }));
       });
     });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
-    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    process.env.ANTHROPIC_BASE_URL = url;
+    process.env.OPENAI_BASE_URL = url;
     process.env.ANTHROPIC_API_KEY = 'test-key';
+    process.env.OPENAI_API_KEY = 'test-key';
     if (modelName === undefined) delete process.env.ASTRA_SCENE_WORDS_MODEL;
     else process.env.ASTRA_SCENE_WORDS_MODEL = modelName;
     const { answer, costUsd } = await makeWordsReader().read({ system: 'write', text: '{}', schema: {}, timeoutMs: 2000, mostTokens: 700 });
@@ -331,12 +346,12 @@ describe('who writes the live words', () => {
     return { answer, costUsd, sent };
   };
 
-  it('is Sonnet with thinking off unless ASTRA_SCENE_WORDS_MODEL names another', async () => {
+  it('is gpt-5.4-mini unless ASTRA_SCENE_WORDS_MODEL names another', async () => {
     const plain = await askOnce(undefined);
-    expect(plain.sent).toEqual([expect.objectContaining({ model: 'claude-sonnet-5-5', thinking: { type: 'between_tools' } })]);
+    expect(plain.sent).toEqual([expect.objectContaining({ model: 'gpt-5.4-mini', reasoning_effort: 'none' })]);
     expect(plain.answer).toEqual(GOOD);
-    expect(plain.costUsd).toBeCloseTo(0.003);
-    expect((await askOnce('nobody')).sent[0]?.model).toBe('claude-sonnet-5-5');
+    expect((await askOnce('nobody')).sent[0]?.model).toBe('gpt-5.4-mini');
+    expect((await askOnce('sonnet-5-5')).sent).toEqual([expect.objectContaining({ model: 'claude-sonnet-5-5', thinking: { type: 'between_tools' } })]);
     expect((await askOnce('haiku-5-5')).sent).toEqual([expect.objectContaining({ model: 'claude-haiku-5-5', thinking: { type: 'disabled' } })]);
   });
 });

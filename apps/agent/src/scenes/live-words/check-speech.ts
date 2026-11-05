@@ -104,7 +104,15 @@ const isSceneSpeech = (written: unknown): written is SceneSpeech => {
   return typeof setup === 'string' && typeof narration === 'string' && typeof close === 'string';
 };
 
-const toPlainText = (text: string) => text.replace(/[\u2018\u2019]/g, "'").trim();
+const FILLER_OPENER = /(^|[.?!]\s+|\]\]\s*)(now,?\s+)?(here's|here is|there's a)\b/gi;
+const PLAIN_OPENER: Readonly<Record<string, string>> = { "here's": 'this is', 'here is': 'this is', "there's a": 'see the' };
+
+const toPlainOpener = (_whole: string, before: string, now: string | undefined, filler: string) => {
+  const plain = PLAIN_OPENER[filler.toLowerCase()] ?? filler;
+  return now ? `${before}${now}${plain}` : `${before}${plain.charAt(0).toUpperCase()}${plain.slice(1)}`;
+};
+
+const toPlainText = (text: string) => text.replace(/[\u2018\u2019]/g, "'").trim().replace(FILLER_OPENER, toPlainOpener);
 
 const toTrimmed = ({ setup, narration, close }: SceneSpeech): SceneSpeech => ({ setup: toPlainText(setup), narration: toPlainText(narration), close: toPlainText(close) });
 
