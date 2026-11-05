@@ -596,6 +596,14 @@ describe('the brain in a lead', () => {
     }
   });
 
+  it('takes a reply to nobody off a lead, and leaves it on a reply to a student', async () => {
+    const led = createTutorBrain({ model: reply(['Okay. Four percent of a thousand is forty.']), timeouts: QUICK });
+    led.noteLead('taskLeft');
+    expect(await run(led, LEAD_WORDS.taskLeft)).toBe('Four percent of a thousand is forty.');
+    const asked = createTutorBrain({ model: reply(['Okay. Four percent of a thousand is forty.']), timeouts: QUICK });
+    expect(await run(asked, 'what is four percent of a thousand')).toBe('Okay. Four percent of a thousand is forty.');
+  });
+
   it('takes "Next," off a sentence later in a reply', async () => {
     const brain = createTutorBrain({ model: reply(['A hundred minus thirty is seventy. Next, why rockets launch east.']), timeouts: QUICK });
     brain.noteLead('taskLeft');

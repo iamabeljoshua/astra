@@ -120,8 +120,10 @@ One lesson on the rocket card, real Sonnet and Haiku, the fake voice in real tim
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | 12 ideas at most | 12 | 6 | 8 number problems, 3 place, 1 pick | 16.8 min | 3.1 s | 2174, 2037 ms | $0.027 a minute | 620 characters a minute |
 | 14 ideas at most, compaction forced at 30,000 tokens | 14 | 6 | 1 number problem, 9 written, 1 own words, 3 place | 17.9 min | 3.8 s while teaching, then 75 s held after its one check | 2317, 1474 ms | $0.021 a minute | 610 characters a minute |
+| 16 ideas allowed, a student who says nothing at all, stopped by hand at the spending limit | 13 of 16 | 5 | 11 number problems, 1 match | 18.7 min, and still going | 5.3 s while teaching, 43 s on the first exercise and 20 to 23 s on the rest | Not kept, because the run was stopped before it wrote them | $0.036 a minute, or $0.029 without its compaction | 636 characters a minute |
+| Abel's own words, "rockets how they escape", typed, same student, stopped by hand at the same limit | 6 of 8 | 3 | 1 number problem, 4 pick or order on the board | 10.3 min, and still going | 6.7 s while teaching, 22.5 s on an exercise | Not kept | $0.016 a minute | 750 characters a minute |
 
-The 16 ideas now allowed should reach about 20 minutes, an estimate from about 75 s an idea, and no run has measured it. 610 characters a minute is about 136 credits a minute, about 2,700 credits for 20 minutes, on the fake voice's pace. The first run's prompt reached 59,041 tokens, about 450 a reply, so the real trigger of 60,000 fires at about 20 minutes. The second run compacted twice, at 577 s and 935 s, and the lesson carried on with nothing said word for word again.
+The 16 ideas should reach about 23 minutes, an estimate from 86 s an idea on the silent run, and no run has measured the last three. The silent run ran before the last edits to steering, so its steps from the planner were steered by a wider list of words than the code now uses. The typed run is on the final steering and is why that list narrowed: on the wider one, a lesson on sonnets was told to write math. 610 characters a minute is about 136 credits a minute, about 2,700 credits for 20 minutes, on the fake voice's pace. The first run's prompt reached 59,041 tokens, about 450 a reply, so the real trigger of 60,000 fires at about 20 minutes. The second run compacted twice, at 577 s and 935 s, and the lesson carried on with nothing said word for word again.
 
 ## Run it
 
@@ -146,7 +148,8 @@ node apps/agent/src/lesson-plan/eval/whole-lesson-page.ts --web <your stack> --o
 - The real voice. A real voice would change how long a reply takes, and the cue to scene wait with it.
 - How often a real student reaches a written scene in time. The driver's pace is a guess, so the share ready in time is not a measure.
 - A full lesson of many concepts on a real page. "A lesson that runs on" below measured one in Node with the fake voice.
-- That a lesson reaches 20 minutes by itself. The longest measured taught for 17.9 minutes on 14 ideas, and 16 ideas is an estimate.
+- That a lesson reaches 20 minutes with nobody there. The silent run was going at 18.7 minutes on idea 13 of 16 when it was stopped at the spending limit. Stopping at the plan's end is held by a test, on no real run.
+- A worst case on a real voice. A student who walks away with the tab open on a visible page costs one lesson. Measured over 18.7 minutes: $0.67 on the model, one compaction included, and 11,869 characters, about 2,640 credits at 22 credits per 99 characters. For 16 ideas, an estimate: about 23 minutes, $0.80, and about 3,250 credits. The project's daily credit limit, 1,500 by default, stops the lesson at about 11 minutes, so that default must rise before a real voice can teach for 20. If a plan somehow never ended, the $1 a session limit stops the model first.
 - First text against main, in alternating pairs, on this prompt. Inside one lesson it was no slower late than early.
 - Near-limit and pressure rules on a real page. Tests hold them, and the proof raised one on purpose.
 

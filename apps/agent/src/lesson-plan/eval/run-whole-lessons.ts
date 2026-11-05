@@ -236,7 +236,7 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
       const tasks = commands.flatMap((command) => (command.kind === 'task' ? [describeTask(command, summary.spokenText, commands.some(({ kind }) => kind === 'writeMath'))] : []));
       const board = summary.beats.flatMap((beat) => getCues(beat).map(({ command }) => `${command.kind}${'tex' in command && command.tex ? ` ${command.tex}` : ''}${'text' in command && command.text ? ` "${command.text}"` : ''}`));
       replies.push({ atSeconds: seconds(), student: summary.studentText, spoken: summary.spokenText, words: countWords(summary.spokenText), board, tasks, firstTextMs: summary.firstTextMs && Math.round(summary.firstTextMs), costUsd: summary.costUsd, step: stepName });
-      timeline.push(`${seconds()} s [${stepName}] student said ${JSON.stringify(summary.studentText)}\n  TUTOR: ${summary.spokenText}${board.length > 0 ? `\n  board: ${board.join(' | ')}` : ''}${summary.refused.length > 0 ? `\n  refused: ${summary.refused.join('; ')}` : ''}`);
+      timeline.push(`${seconds()} s [${stepName}] first text ${summary.firstTextMs === null ? 'none' : Math.round(summary.firstTextMs)} ms, student said ${JSON.stringify(summary.studentText)}\n  TUTOR: ${summary.spokenText}${board.length > 0 ? `\n  board: ${board.join(' | ')}` : ''}${summary.refused.length > 0 ? `\n  refused: ${summary.refused.join('; ')}` : ''}`);
     },
   });
   const send = (message: AgentMessage) => void message;

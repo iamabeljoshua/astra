@@ -3,7 +3,7 @@ import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoar
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { toCardPlan, type CardMaterial } from '../lesson-plan/card-lesson.ts';
 import { asksToBeTaught, getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
-import { getLessonWordsProblem, LEAD_NOTES, OPENING_A_CARD_NOTE, withoutNextSignpost, withoutOpeningTic } from '../lesson-plan/lesson-rules.ts';
+import { getLessonWordsProblem, LEAD_NOTES, OPENING_A_CARD_NOTE, withoutNextSignpost, withoutOpeningTic, withoutReplyToNobody } from '../lesson-plan/lesson-rules.ts';
 import type { LeadKind } from '../live/tutor-lead.ts';
 import { createAttemptTracker } from './attempts.ts';
 import { BeatTextReader, NAMES_HELP, type WrittenBeatParts } from './beat-text-reader.ts';
@@ -252,11 +252,11 @@ function getWrittenBeat(parts: WrittenBeatParts, id: string, refused: string[]):
 const OPENING_NOD = /^\s*(?:h+m+|mm-?hm+)[.,!…]*\s+/i;
 
 /** Null when the tic was all the beat said and it drew nothing. */
-function getBeatWithoutTic(parts: WrittenBeatParts, needsCapital: boolean): WrittenBeatParts | null {
+function getBeatWithoutTic(parts: WrittenBeatParts, needsCapital: boolean, isLead: boolean): WrittenBeatParts | null {
   const at = parts.script.findIndex((part) => typeof part === 'string' && part.trim() !== '');
   const first = parts.script[at];
   if (typeof first !== 'string') return parts;
-  const clean = withoutOpeningTic(first);
+  const clean = isLead ? withoutReplyToNobody(withoutOpeningTic(first)) : withoutOpeningTic(first);
   if (clean === first && !needsCapital) return parts;
   const isOnlyTic = clean.trim() === '' && parts.script.every((part, index) => index === at || typeof part === 'string');
   if (isOnlyTic) return parts.script.every((part) => typeof part === 'string') ? null : parts;
@@ -525,7 +525,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
             turn.isQuestionHeld = true;
             return;
           }
-          const opening = turn.beats.length === 0 ? getBeatWithoutTic(parts, turn.lostOpeningBeat) : parts;
+          const opening = turn.beats.length === 0 ? getBeatWithoutTic(parts, turn.lostOpeningBeat, turn.isLead) : parts;
           if (!opening) {
             turn.lostOpeningBeat = true;
             return;
@@ -958,6 +958,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       .then((result) => {
         if (!result) return trace('compactionEmpty');
         turns = [{ role: 'summary', summary: result.summary }, ...turns.slice(keptFrom)];
+        // The old size is out of date now, and a turn ending before the next request reports would compact again, as a 19 turn history did 11 s after a 562 turn one, for $0.02.
+        promptTokens = 0;
         toldBoard = '{}';
         toldStep = 'null';
         if (profileNote) pendingNotes.push(profileNote);
