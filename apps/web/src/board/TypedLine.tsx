@@ -89,6 +89,7 @@ export const TypedLine = memo(function TypedLine({ task, getBoard, onWork, onPau
 
   useEffect(() => {
     const focusOnTyping = (event: KeyboardEvent) => {
+      if (event.defaultPrevented) return;
       const active = document.activeElement;
       const isTyping = active instanceof HTMLInputElement || active instanceof HTMLTextAreaElement;
       if (!isTyping && event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) input.current?.focus();

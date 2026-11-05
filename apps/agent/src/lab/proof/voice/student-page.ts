@@ -65,6 +65,8 @@ export interface PageTrace {
   heardEpochMs: number[];
   yieldEpochMs: { turnId: string; isYielding: boolean; atMs: number }[];
   localYieldEpochMs: number[];
+  gainEpochMs: { level: string; atMs: number }[];
+  earsOpenEpochMs: number[];
   fired: { turnId: string; firedEpochMs: number; atWord: number }[];
   refused: string[];
   clockKinds: string[];
@@ -72,11 +74,11 @@ export interface PageTrace {
   outputLatencyMs: number;
 }
 
-export async function launchProofBrowser({ proxy, captureFile }: { proxy?: string; captureFile?: string } = {}): Promise<Browser> {
+export async function launchProofBrowser({ proxy, captureFile, usesFullChromium = false }: { proxy?: string; captureFile?: string; usesFullChromium?: boolean } = {}): Promise<Browser> {
   const args = ['--use-mock-keychain', '--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--no-sandbox'];
   if (captureFile) args.push('--use-fake-device-for-media-stream', `--use-file-for-fake-audio-capture=${captureFile}`);
   if (proxy) args.push(`--proxy-server=${proxy}`, '--force-webrtc-ip-handling-policy=disable_non_proxied_udp');
-  return chromium.launch({ headless: true, args });
+  return chromium.launch({ headless: true, args, ...(usesFullChromium ? { channel: 'chromium' } : {}) });
 }
 
 const ALREADY_SIGNED_OUT = 'Development sign-in';
@@ -96,7 +98,7 @@ function blockTutorAudio(): void {
 }
 
 // Signs in as a seeded student through the real sign-in page, starts a real session, and opens its real screen.
-export async function openStudentPage(browser: Browser, { email, title, recordVideoDir, blocksAudio = false, usesRealCapture = false, opensScreen = true, viewport = { width: 1440, height: 900 } }: { email: string; title: string; opensScreen?: boolean; recordVideoDir?: string; blocksAudio?: boolean; usesRealCapture?: boolean; viewport?: { width: number; height: number } }): Promise<StudentPage> {
+export async function openStudentPage(browser: Browser, { email, title, subject = 'Physics', recordVideoDir, blocksAudio = false, usesRealCapture = false, opensScreen = true, viewport = { width: 1440, height: 900 }, beforeOpen }: { beforeOpen?: (page: Page) => Promise<void>; email: string; title: string; subject?: string; opensScreen?: boolean; recordVideoDir?: string; blocksAudio?: boolean; usesRealCapture?: boolean; viewport?: { width: number; height: number } }): Promise<StudentPage> {
   const context = await browser.newContext({ baseURL: WEB_URL, viewport, recordVideo: recordVideoDir ? { dir: recordVideoDir, size: viewport } : undefined, permissions: ['microphone'] });
   const videoStartedEpochMs = Date.now();
   const page = await context.newPage();
@@ -124,6 +126,7 @@ export async function openStudentPage(browser: Browser, { email, title, recordVi
     };
   });
   if (blocksAudio) await page.addInitScript(blockTutorAudio);
+  await beforeOpen?.(page);
   await page.goto('/');
   await page.getByRole('button', { name: ALREADY_SIGNED_OUT }).click();
   await page.getByRole('button', { name: email }).click();
@@ -135,14 +138,14 @@ export async function openStudentPage(browser: Browser, { email, title, recordVi
     return null;
   }, undefined, { timeout: 20_000 });
   const token = await signedIn.jsonValue();
-  const created = await page.request.post(`${WEB_URL}/api/sessions`, { headers: { authorization: `Bearer ${token}` }, data: { title, subject: 'Physics', language: 'en' } });
+  const created = await page.request.post(`${WEB_URL}/api/sessions`, { headers: { authorization: `Bearer ${token}` }, data: { title, subject, language: 'en' } });
   if (!created.ok()) throw new Error(`could not start a session: ${created.status()} ${await created.text()}`);
   const { id: sessionId } = (await created.json()) as { id: string };
   const sessionUrl = `/sessions/${sessionId}`;
   const screenOpenedEpochMs = Date.now();
   if (opensScreen) {
     await page.goto(sessionUrl);
-    await page.getByRole('textbox', { name: 'Your reply' }).waitFor();
+    await page.locator('[data-page]').waitFor();
   }
   return {
     context,
@@ -156,7 +159,7 @@ export async function openStudentPage(browser: Browser, { email, title, recordVi
       return { firstSoundEpochMs: startedEpochMs + clip.firstMs, lastSoundEpochMs: startedEpochMs + clip.lastMs, endedEpochMs };
     },
     setNoise: (level) => page.evaluate((value) => window.speechInPage.setNoise(value), level),
-    pressTalk: () => page.getByRole('button', { name: 'Talk' }).click(),
+    pressTalk: () => page.locator('[data-talk-button]:visible').first().click(),
     async waitForLive() {
       await page.waitForFunction(() => window.astraVoice?.getView().phase === 'live', undefined, { timeout: 30_000 });
     },
@@ -194,8 +197,8 @@ export async function openStudentPage(browser: Browser, { email, title, recordVi
       page.evaluate(() => {
         const voice = window.astraVoice;
         if (!voice) throw new Error('no live voice on this page');
-        const { firstAudioEpochMs, turnStartedEpochMs, stopEpochMs, heardEpochMs, yieldEpochMs, localYieldEpochMs, fired, refused, clockKinds } = voice.records;
-        return { firstAudioEpochMs, turnStartedEpochMs, stopEpochMs, heardEpochMs, yieldEpochMs, localYieldEpochMs, fired, refused, clockKinds, view: voice.getView(), outputLatencyMs: 0 } as unknown as PageTrace;
+        const { firstAudioEpochMs, turnStartedEpochMs, stopEpochMs, heardEpochMs, yieldEpochMs, localYieldEpochMs, gainEpochMs, earsOpenEpochMs, fired, refused, clockKinds } = voice.records;
+        return { firstAudioEpochMs, turnStartedEpochMs, stopEpochMs, heardEpochMs, yieldEpochMs, localYieldEpochMs, gainEpochMs, earsOpenEpochMs, fired, refused, clockKinds, view: voice.getView(), outputLatencyMs: 0 } as unknown as PageTrace;
       }),
   };
 }

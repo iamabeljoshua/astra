@@ -3,7 +3,7 @@ import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoar
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
 import { createAttemptTracker } from './attempts.ts';
-import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
+import { BeatTextReader, NAMES_HELP, type WrittenBeatParts } from './beat-text-reader.ts';
 import { MAY_BE_ABOUT_SAFETY, PLAIN_REFUSALS } from './safety-words.ts';
 import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getClaimProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getPictureProblem, getWordsProblem } from './board-memory.ts';
 import type { MemoryNote } from '../learner-record/memory-note.ts';
@@ -194,7 +194,6 @@ const COMPACT_AT_TOKENS = 60_000;
 const TURNS_THAT_SET_THE_START = 2;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
-const NAMES_HELP = /\b(?:adult|emergency)\b/i;
 const PERSONAL_NOTE = /^\{"(?:student|memory|fit)":/;
 
 /** What the model is told after a safety check stops a student's message, built by code, so it holds none of what was refused. */

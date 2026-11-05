@@ -258,6 +258,307 @@ PR 85's rooms and PR 86's brain were merged and measured together. `docs/tests/t
 
 **The log.** It refused the row of every beat that starts a stretch, because the breath's length is not part of a beat. Those rows are now kept.
 
+## Hold to talk
+
+Press once stays the default. Holding Space when focus is not in a text field, or pressing and holding **Talk**, opens the microphone only while held. `run-hold-proof.ts` ran every line below in real Chromium on this Mac, on the merged tutor, with a fake microphone track, a fake tutor voice, the stand-in tutor, the real room, and real Muse. `docs/tests/hold-results.json` holds the runs. The load average was 8 to 16 from other lanes. No real microphone, room, or phone has run this.
+
+**What a tap is.** A press under 300 ms is a tap. A tap of **Talk** leaves the microphone on, which is press once. A tap of Space leaves nothing on. Past 300 ms a press is a hold, and only then does the tutor hear of it, so a tap never cuts the tutor. The voice dips at the press itself, in the browser, so the student gets a reaction with no network in the way.
+
+### What hold gains and what it costs
+
+**What it gains.** Between holds, noise cannot reach the tutor or Muse. The same bursts gave 0 voice starts, 0 cuts, and 0 bytes, where press once gave 4 voice starts, and 3 and 4 cuts on two runs. That is the point of hold, and the reason to choose it in a noisy room.
+
+The first word also comes sooner, by about 480 ms in quiet (1612 against 2093 ms) and about 330 to 380 ms in noise, at p50. A hold decides its turn about 40 ms after the final. Press once waits 298 to 760 ms after the final for the SDK's turn decision.
+
+**What it costs.** The final is not sooner. In quiet it comes 48 and 75 ms later, which is under the spread between runs, so that is no measurable difference. In noise it comes 204 and 392 ms later, at p50. Each hold publishes a new track, because a closed microphone must leave nothing in the room, and the page hears `earsOpen` about 1040 ms after the press, which read about 880 ms before the merge under a different load. A student talking through that wait builds a backlog, which drains in 361 ms at p50 in quiet, where silence can be skipped, and in 753 ms in noise, where it cannot. That difference of about 390 ms matches the gap between a hold's final in the two rooms. Press once has its track up and has already caught up.
+
+Rare words are also weaker on a hold in noise. Holds had 5 word errors of 63 in both noise runs, against 0 of 69 for press once. Of the 5, 2 are the digits "2" and "8", which are not mistakes. The other 3 are "slope" as "slow", and "hypotenuse" as "high potent" or "high potentius". With catch-up off they stayed, at 4 of 63. The cause is my inference. `endStream` ends a Muse session, so each hold starts a new one, and a fresh session straight into Muse got "hypotenuse" wrong in every mode, with silence too. A press-once session had already heard earlier lines.
+
+A hold also tells the tutor only at 300 ms, because a press under that is a tap. The voice dips in the browser within about 60 ms, and it stops about 800 ms after the press.
+
+**So,** hold is for what it keeps out, and not for a faster transcript. In a quiet room press once costs nothing and needs no key held, and it stays the default.
+
+### What letting go does
+
+The plugin's Muse mode has one word for this, `endStream`, and it ends the session. So the agent sends it when a line ends, and opens the next session at once. Straight into Muse on 12 clips, from the last sound to the final, in ms.
+
+| | p50 | p95 | Worst |
+| --- | --- | --- | --- |
+| Silence after the line, as press once does | 779 | 863 | 863 |
+| `endStream` after the line | 332 | 402 | 402 |
+| Muse's `PUSH_TO_TALK` mode, which the plugin cannot use | 342 | 1640 | 1640 |
+| White noise at 0.03: silence after the line | 976 | 3925 | 3925 |
+| White noise at 0.03: `endStream` | 343 | 460 | 460 |
+| White noise at 0.03: `PUSH_TO_TALK` | 354 | 484 | 484 |
+
+So the end of a line is worth about 450 ms on Muse alone, and it takes away the seconds-long final in noise. `measure-line-end.ts` reruns this. These rows came before the merge, and the merge did not change that path.
+
+### Against press once, the same clips
+
+From the last sound, in ms, p50 (p95), on 11 holds and 12 press-once lines of the same clips. A hold lets go 120 ms after the last sound.
+
+| Room | Final, hold | Final, press once | Reply decided, hold | Reply decided, press once | First word, hold | First word, press once | Word errors, hold | Word errors, press once |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| A quiet room | 1064 (1254) | 989 (1137) | 1103 (1281) | 1425 (2015) | 1612 (2396) | 2093 (2449) | 0 of 63 | 0 of 69 |
+| A quiet room, repeat | 1033 (1359) | 985 (1199) | 1076 (1379) | 1460 (2154) | 1639 (2504) | 2117 (2520) | 2 of 63 | 0 of 69 |
+| White noise at 0.03 | 1447 (1733) | 1243 (3999) | 1493 (1783) | 1541 (2097) | 1982 (2868) | 2309 (2714) | 5 of 63 | 0 of 69 |
+| White noise at 0.03, repeat | 1475 (1704) | 1083 (1299) | 1498 (1734) | 1843 (2237) | 1998 (2783) | 2377 (2638) | 5 of 63 | 0 of 69 |
+
+A hold let go right on the last sound, in a quiet room: final 1088 (1293), first word 1621 (2452), 2 of 63 words wrong, "slope" as "slow" and "hypotenuse" as "Hypotanus".
+
+**From letting go,** the final took 956 (1145) ms in quiet and 1338 (1616) ms in noise. Press once has no such moment, because nothing marks the end of its line.
+
+**The first hold** in a room pays for Muse's handshake once: `earsOpen` came 2312 ms after the press in quiet and 3714 ms in noise, and the final 2272 and 4112 ms after letting go. Muse then stays open on silence for 60 s after each line, so the next hold does not pay it.
+
+These are one or two runs per row, on one voice, so a difference under about 100 ms is noise. The two runs of a row differ by up to 302 ms on a p50, and by up to 2700 ms on a p95. A word error is one word edit, so "2" for "two" counts. The error counts move too: 0 and 2 of 63 on the same quiet clips.
+
+### Catch-up and what Muse hears
+
+Catch-up plays a backlog over 100 ms at 1.25 times speed, and only Muse hears it. It changes press once as well, so it had to earn its place. It did, on press once and on a hold.
+
+In the page, p50 from the last sound, 12 clips a run. The proof turned catch-up off by swapping the worklet at `addModule`, and the page counted that swap, because a first attempt through a Playwright route never touched the worklet. So those two runs kept catch-up on, and they are the repeats above.
+
+| | Catch-up on, 2 runs | Catch-up off, 1 run |
+| --- | --- | --- |
+| Press once, noise, final | 1243 and 1083 ms | 2171 ms |
+| Hold, noise, final | 1447 and 1475 ms | 1984 ms |
+| Press once, quiet, final | 989 and 985 ms | 1061 ms |
+| Hold, quiet, final | 1064 and 1033 ms | 1386 ms |
+| Press once, noise, word errors | 0 of 69, 0 of 69 | 0 of 69 |
+| Hold, noise, word errors | 5 of 63, 5 of 63 | 4 of 63 |
+| Press once, quiet, word errors | 0 of 69, 0 of 69 | 0 of 69 |
+| Hold, quiet, word errors | 0 of 63, 2 of 63 | 4 of 63 |
+
+Straight into Muse, with every clip at the speed named, so harder than the page, where only a backlog runs fast. 8 clips in noise at 0.03, a fresh session each, 5 rounds alternating.
+
+| Speed | Word errors of 230 | Per round | Final p50 per round, ms |
+| --- | --- | --- | --- |
+| Full | 10 | 2, 2, 2, 2, 2 | 345 to 361 |
+| 1.25 | 11 | 3, 1, 3, 1, 3 | 348 to 374 |
+
+So catch-up does not hurt what Muse hears, within what these runs can see. At full speed the errors were "2" and "8" for "two" and "eight", and in 2 rounds "A" for "eight". At 1.25 Muse also dropped a leading "The" on one clip in all 5 rounds, and that is the one repeatable cost. It saves 928 and 1088 ms on press once in noise, and 509 and 537 ms on a hold in noise, against the one run with it off, so it stays.
+
+**The lever left, not built.** Keeping one track published between holds and pausing its sender would need no new publish, and by inference would take off most of the wait for `earsOpen`. It is not built, because a paused track may leave the microphone open and the browser's indicator on, and that breaks "off means off". It stays an idea until someone proves that a paused sender can leave the microphone closed.
+
+### Every way a hold can end
+
+Each hold was first proved open, with 1 live track and sender bytes rising. Then, after what was held had gone, each had 0 live tracks, 0 live senders, 0 bytes moved in the next 1.5 s, `aria-pressed` false, and the microphone off.
+
+| How it ended | Closed |
+| --- | --- |
+| Space let go | Yes |
+| **Talk** let go | Yes |
+| **Talk** let go outside the window | Yes |
+| The pointer cancelled | Yes |
+| The window lost focus, on Space and on **Talk** | Yes, both |
+| Meta pressed, because a Mac sends no key-up while it is down | Yes |
+| The page hidden, by a script | Yes |
+| `pagehide` | Yes |
+| **A real tab switch in full Chromium** | Yes. The page reported `hasFocus` false and `visibilityState` visible, so the real blur closed it |
+| The room closing for quiet during a hold | Yes, and the later key-up changed nothing |
+| The 60 s limit, with key repeats arriving | Yes, at 60312 ms, with the note. A later repeat opened nothing |
+
+Headless Chromium never reports a hidden page, so `visibilitychange` itself ran only by script. A real tab switch fires blur first, and blur is what the proof saw close the microphone.
+
+### Presses
+
+| Press | Result |
+| --- | --- |
+| One tap of **Talk** | On, and a second tap is off |
+| Two taps of **Talk**, 0, 20, 60, or 200 ms apart | Off every time, so a double press never leaves it on |
+| Three taps | On, and a fourth is off |
+| 25 key repeats of Space | One capture |
+| Enter on a focused **Talk** | On, then off |
+| Space on a focused **Talk** | A tap is on, then off. A hold is on while held |
+| A quick tap of Space on the page | Nothing stays on |
+| Space in the reply box | 0 captures, and the box got its space |
+| Space on another button | 0 captures |
+| **Talk** during a Space hold | Off at once, with Space still down |
+| Space during a **Talk** hold | Still held, and off on letting go |
+
+### Before the room is ready
+
+The page now joins as the screen opens, so a first press can land during connecting. All three cases pressed the moment the screen showed, before the page had a room.
+
+| Case | Result |
+| --- | --- |
+| A hold across the join, with a line in it | 0 words lost. The final came 8968 ms after letting go, because the sound waited in the browser for the job and Muse's handshake. It played no greeting under the hold, cut the opening's reply at its first frame, then said the greeting and one reply holding both the opening line and what the student said. Microphone closed after |
+| A hold let go before the tutor arrived | No line reached anyone. The tutor greeted and answered the opening once. Microphone closed after |
+| A tap of **Talk** before the room was ready | Shown as on at once, on when the room came, off on the next tap |
+
+### Over the tutor
+
+Four rounds of a hold over a speaking tutor. The press-time numbers count from just before the key went down.
+
+| | Round 1 | Round 2 | Round 3 | Round 4 |
+| --- | --- | --- | --- | --- |
+| The page lowers the voice, after the press, ms | 10 | 56 | 16 | 11 |
+| The agent decides to stop, ms | 576 | 609 | 567 | 539 |
+| The stop lands at the page, ms | 818 | 818 | 776 | 786 |
+
+So the student hears the voice drop within about 60 ms, and it stops about 800 ms after the press. The stop cannot come sooner than the 300 ms tap limit plus the trip. All four replies held the earlier question and the new line, with 0 words lost. Before the merge one run put the stop at up to 1529 ms and its first dip at 673 to 894 ms. Nothing here explains that change. These numbers read a new record of each change of gain.
+
+### Across a drop
+
+All through a real cut of the student's network, on `cut-proxy.ts`, for 3 s.
+
+| Case | Result |
+| --- | --- |
+| Let go during the drop | The capture ended at once. 0 words lost, 1 reply, closed after. In the trace the link was lost at 2.4 s after the press, `lineEnded` reached the agent at 24.0 s once the page had rejoined, the link came back at 24.3 s, and the flush and the reply came at 24.6 s. So a 3 s cut through this proxy held the answer for about 21 s, and that wait is the rejoin and not the hold |
+| A hold kept through the drop | Still held after, and 0 words lost |
+| A rejoin after a drop | The microphone stayed off |
+
+`lineWhileAway` holds a line whose flush lands while the link is down. This run did not reach it, because `lineEnded` cannot leave a page that cannot hear the agent, and Muse flushes about 600 ms after it, sooner than the 1.5 s it takes to call a link lost. It needs Muse to take over 1.5 s on a line just as a drop starts, so only `live-session-hold.test.ts` proves it. One run before the merge ended a let-go in a drop with the words heard and 0 replies, and this run gave 1 reply.
+
+### Noise
+
+**Between holds nothing reaches anyone.** Three clips at once, four times, over a speaking tutor, with the microphone off: 0 voice starts, 0 stops, 0 bytes. With press once on, the same bursts gave 4 voice starts, and 3 and 4 cuts on two runs.
+
+**The first signal, steady noise.** Code hears steady noise when every 50 ms window stays at or over the 0.015 RMS rule for 5 s. `measure-noise-prompt.ts` runs the worklet's own class over 300 s of each sound, with all 84 of the speech clips across three voices.
+
+| Sound | RMS 0.012 or less | 0.018 | 0.025 | 0.04 and up |
+| --- | --- | --- | --- | --- |
+| Speech alone, at full and quarter level | None in 300 s | | | |
+| White noise | None | 5.1 s | 5.1 s | 5.1 s |
+| A low rumble, alone | None | None | 5.1 s | 5.1 s |
+| A low rumble under speech | None | 164 s | 5.1 s | 5.1 s |
+| 8 voices talking at once, alone | None | None | 6.1 s | 5.1 s |
+| 8 voices under speech | None | 12.7 s | 5.1 s | 5.1 s |
+
+So 0 false prompts on quiet clips, and every noise from 0.025 up is caught within about 6 s. Noise near the rule is caught late or not at all, and the browser's own noise suppression sits in front of this on a real microphone, so what it hears in a real room is unknown. Abel's room decides this. In real Chromium, white noise at 0.05 raised the prompt in 5.5 s with the microphone left on, nothing switched by itself, 0 prompts came from quiet or from speech, and after **Dismiss** a second noise raised none.
+
+**The second signal, the tutor kept being cut.** Two cuts in 2 minutes raise the prompt. A cut counts when the 800 ms wordless stop fired and the line that followed had at most one word. Three clips at once over a speaking tutor, the way a room of voices would be. Counting only cuts with no words at all, 5 cuts raised no prompt, because Muse heard one stray word such as "velocity" on 4 of them. With a line of one word counting too, the prompt came in both real runs, with the microphone left on and nothing switched by itself. The price is that a student who cuts the tutor twice in 2 minutes with one word, such as "why?", sees this prompt once, with **Dismiss** beside it. A real line of more words does not count, and neither does anything after the student has held once.
+
+### The microphone rules, at the merged code
+
+`run-safety-proof.ts` and an adapted `v-attack.ts` from PR 85's reviews ran again here. In every case below, once the microphone was off, 0 bytes moved, and the agent heard no words from a line turned off while held.
+
+| Attack | Result |
+| --- | --- |
+| A double press, and a press during starting at 0, 20, 60, and 200 ms | Off, 0 live tracks |
+| Three presses, then off | 0 bytes moved after off, 0 words heard after it |
+| Off while the sound was held for the ears, at 150, 600, and 900 ms | 0 bytes after off, 0 words reached the agent |
+| Off during catch-up, and off, on, off at gaps up to 500 ms | 0 live tracks, 0 bytes moved |
+| Off, then on again, at the moment of `earsOpen`, at 9 gaps from 0 to 2000 ms | On, with 1 live track and 1 sender, every time |
+| The room refusing a publish | The page said so, 0 live tracks, and the next press worked |
+| Leaving the page, a route change, and leaving while opening or starting | 0 live tracks, 0 senders |
+| Signed out in another tab | The tracks ended in 30 ms, and the job closed |
+| The room deleted at LiveKit, during a hold of Space | The session did not end. The page stayed live for at least 20 s, still showing the microphone on, with 1 live track and 0 senders. Letting go turned it off, and a later press published again, with 1 live sender and 183 bytes moved. Whether a tutor heard that press was not checked |
+| A drop, with the microphone off, on, or turned off during it | Off stayed off, on stayed on, and on then off ended off with 0 senders |
+| A press during LiveKit's own retry, 3 runs | The press showed at once, and the track went out when the room came back, about 20 s after the cut |
+| 15 patterns of presses at the screen opening, from 0 to 3000 ms apart | Each ended where the count of presses says, and the next press turned it off |
+
+Those scenarios opened more rooms than a student may in 10 minutes, so one run hit the limit of 12 rooms. `rejoin`, `pressInRetry`, and 3 press patterns ran again, each on a fresh API, and the rows above come from those runs.
+
+That run also showed a real fault. With the limit reached, a click of **Talk** with no pointer press behind it, as a keyboard or screen reader sends, started a capture before the API refused it. Nothing was sent, with 0 senders, but the browser's microphone light would come on for a tutor that could not answer. A click now does nothing while **Talk** cannot work, and `useHoldToTalk.test.tsx` proves it. No real browser reran that one row. A press during the first moments of a screen, or while the service is down, still captures until the API answers, because words said while the room opens must not be lost, and nothing leaves the browser in that time.
+
+### The invitation
+
+`You can talk to me any time, just press Talk.` is one stored take of 1.87 s, on the voice's default settings, and cost at most 46 credits by its characters. It comes once, in the first session, to a student who has not pressed **Talk**. Joining at open changed when that is, so the proof ran the whole first session on `tola@astra.test`, freshly seeded, with nothing pressed.
+
+| What happened | Measured |
+| --- | --- |
+| Turns, in order | The greeting, the first answer, the invitation |
+| The wait after the answer ended | 1533 ms |
+| The 8 s prompt `Press Talk to answer, or type.` | Once, about 7.9 s after the invitation ended, and not while the tutor spoke |
+| Recorded | `PUT /me/talk-invitation` answered 204, and `students.talk_invited_at` was set |
+| The next answer, and a reload | No second invitation |
+
+It waits for the last stretch of the first answer, not a breath inside it. It does not follow the greeting alone. It does not come if the student pressed, if sound is blocked, if a reply or the student is under way, or from a tutor that has closed, and `live-session-hold.test.ts` proves each of those. The 8 s prompt cannot land on it: the prompt counts from when the tutor stopped, and the invitation starts its wait over.
+
+It also does not follow a crisis reply, or a lesson after one, because "You can talk to me any time" promises what this tutor cannot do. Any spoken beat that names help or reads as a safety reply settles it for that session, and nothing is stored, so the page's 8 s prompt is what that student gets. On real Sonnet with a freshly seeded student, "how many sleeping pills is too many?" from Home gave the greeting and the safety reply and no invitation, and a crisis line typed in the 1.5 s wait after the first answer gave none either. The same first session with nothing said about safety gave the greeting, the answer, and the invitation once, with 204 from the route. A new job in that same first session does not know, and it can still say the line after its first plain answer. `live-session-hold.test.ts` proves each rule, and `reactions.test.ts` proves the stored take stays out of "Hm." and "I see.", which keep taking turns around it.
+
+`students.talk_invited_at` is a nullable time on a table that already has row security, written by `PUT /me/talk-invitation`, which takes a body, so `WRITE_ROUTES_WITHOUT_BODY` did not change.
+
+### At the merged code, with teach-first
+
+All on real Chromium, the real room, and real Muse, with the fake voice. The load average was 12 to 27. `hold-results.json` holds these under `afterTeachFirst`.
+
+| Case | Result |
+| --- | --- |
+| Space up, **Talk** up, up outside the window, pointer cancelled, blur on each, Meta, hidden, `pagehide`, and a real tab switch in full Chromium | 0 live tracks, 0 senders, and 0 bytes moved in the next 1.5 s, on all 10 |
+| A hold across joining at open | 0 words lost. The final came 7992 ms after letting go, down from 8968 ms, and one reply held the opening line and the student's |
+| A hold while coming back after leaving, 4, 16, and 30 s away | 0 words lost on all 3. The final came 6429, 8744, and 9036 ms after letting go, one reply held both lines, and the microphone closed after. The tutor said the greeting in a new room and did not in the one it had stayed in |
+| A limit line under a hold | The hold cut the line at its first frame. After letting go the tutor said it whole, naming an adult they trust and their local emergency number, and the page's note said the same. Then 0 live tracks and 0 bytes moved |
+| A press once the tutor has closed | 0 live tracks and 0 bytes moved. The note names an adult they trust and their local emergency number |
+| A crisis reply cut by a hold, with no words said | The reply resumed from the cut, on real Sonnet, and every word of its help played |
+| A crisis reply cut by a hold, with words said | On real Sonnet, the next reply answered the crisis line again with the new words after it, named help, and played to its end, all 27 words |
+| Noise between holds | Three clips at once, four times: 0 voice starts, 0 stops, and 0 bytes. Press once on the same bursts gave 4 voice starts and 3 stops |
+
+The noise prompt came 5.5 s into steady noise and after a run of cuts, with the microphone left on and nothing switched, and 0 prompts came from quiet, from speech, or from a second noise after **Dismiss**. `run-safety-proof.ts --only mic,leaving,publishFails` gave 0 bytes moved after off, 0 words heard after it, 0 live tracks on a press at 0, 20, 60, and 200 ms, an ended track at `pagehide`, and an ended track with 0 senders when the room refused it. `v-attack.ts --only offOnEars` ended on with 1 live track and 1 sender at all 9 gaps. The other attack scenarios did not run at this code, and the table below is from before this merge.
+
+**Found here.** A limit line is said once, so a hold over it left silence, and only the page's note carried the words. A closed tutor now resumes the line a hold cut. A press in the moment after leaving a room also used to open a new one, and now it opens nothing. `live-session-hold.test.ts` and `LiveVoice.test.tsx` fail without each fix.
+
+### On the shared board
+
+Once the tutor is live, the reply box closes and the board's own **Talk** is the one a student sees, so that button now holds as well. All of this ran on real Chromium, the real room, and real Muse, with a fake microphone track, the fake voice, and the stand-in tutor. `hold-results.json` holds these under `onTheSharedBoard`.
+
+| Case | Result |
+| --- | --- |
+| Hold Space twice, speak, and let go | Both lines heard and answered. Focus stayed on the page, so the second hold also talked. 0 live tracks and 0 bytes moved after each |
+| Hold the board's **Talk** | Heard and answered. Closed after |
+| Press **Talk** once | On, and still on through the reply. Off on the next press |
+| Hold Space over a speaking tutor | The stop was decided 682 and 692 ms after the press on two runs. One reply held both lines |
+| Space in the board line | Spaces typed, and the microphone was never asked for |
+| Space in the math keys | The microphone was never asked for |
+| Space in the reply box, with no room open | A space typed, and the microphone was never asked for |
+| Enter on **Talk**, and a click with no pointer press | On, then off |
+| **Talk** for a keyboard or a screen reader | A button named Talk, with `aria-pressed` and `aria-keyshortcuts`, 8 tabs from the top of the page |
+| Steady noise | The prompt came after 5.2 s with the microphone left on and nothing switched. 0 prompts from quiet, from speech, or from a second noise after **Dismiss** |
+| The invitation | In a first session, greeting, reply, then the invitation 1522 ms after the answer. Not after later answers, not after a reload, and not in a second session |
+| Hold **Talk** at 390 by 844, with touch emulated | Heard and answered. A tap stayed on, and a second tap went off. 0 characters selected, with `touch-action` and `user-select` both `none` |
+| Follow the prompt on a phone: at 390 by 844 with touch, tap **Talk** on, raise noise, then press and hold **Talk** | Noise stayed on at 0.02. The line was heard and answered on the first hold, `holdStarted` and `lineEnded` both ran, and the microphone was off at release with 0 live tracks and 0 bytes moved |
+| Follow the prompt after a mouse tap, with focus on **Talk**: hold Space | The same, on the first hold |
+| Follow the prompt with focus on the page: hold Space | The same, on the first hold. Noise at 0.05 afterward moved 0 bytes. Over 3 runs of each of these three rows, Muse heard every word on 8 of 9 holds, and on one it heard "Two high" for "Do I" in the noise |
+| A short press with the microphone on | A 60 ms tap of **Talk** went off, and a 60 ms tap of Space on a focused **Talk** went off. A 60 ms tap of Space on the page stayed on. No hold began in the Space tap on the page |
+| Lift a second finger during a hold of **Talk**, at 390 by 844 | The microphone stayed on through the second finger's `pointerup`, and the first finger's ended the hold. With the old hook, the same second finger closed it. A line said with a second finger down was heard, and a reply was decided |
+| Hold Space through a reload, so the page first sees a repeat | The repeat began the press, with the microphone on, `holdStarted` and `lineEnded` both traced, the line heard, a reply decided, and the microphone off at release |
+
+First word from the last sound, in ms, p50 (p95). The load average was about 25 in quiet and 18 to 25 in noise.
+
+| Room | Lines, hold and press once | First word, hold | First word, press once | Reply decided, hold | Reply decided, press once | Final, hold | Final, press once |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Quiet | 6 and 7 | 1374 (1434) | 2427 (2640) | 970 (1101) | 2087 (2341) | 941 (1080) | 1021 (1144) |
+| Noise at 0.02 | 3 and 4 | 2079 (2424) | 3280 (3720) | 1685 (1900) | 2335 (2749) | 1622 (1839) | 1328 (4673) |
+
+The gap comes from the turn decision and not from the transcript. In quiet, the two finals are 80 ms apart, while press once decides its reply 1066 ms after its final and a hold decides 29 ms after. Press once waited 298 to 760 ms after the final in the earlier runs, so this machine's load has probably widened the gap, and that is an inference. These are few lines, so read them as the same direction as before, not as a new size.
+
+Word errors were 0 of 21 and 0 of 27 in noise. In quiet, a hold had 2 of 39 and press once 0 of 45, and both of the hold's errors are digits for number words.
+
+**Found here.** Each of these failed a test before its fix.
+
+- The board line took any printable key as a cue to take focus, so the first press of Space moved focus there and every later press typed. It now leaves a key alone once the hold has claimed it.
+- A task taking focus during a hold let the key's repeats type into the line. Space now stays with the hold until it ends.
+- The board's **Talk** toggled on a press and could not be held. It now holds, and the hook lives on the session so both buttons share one hold.
+- Space during the recap opened the microphone for a tutor that was no longer listening. It now opens nothing once the student presses End.
+- The merge brought back a greeting under a hold. `live-session-hold.test.ts` caught it.
+- The noise prompt shows only with the microphone on, and a press with it on meant off for **Talk** and nothing for Space. So a student who followed the prompt lost the line or left the microphone on. A press with the microphone on now leaves the sound going out while the tap limit runs. Past the limit the press is a hold, and it closes on letting go. Short of it, **Talk** goes off and Space leaves it on. `FollowingTheNoisePrompt.test.tsx` failed on all three ways of following the prompt.
+- Lifting a second finger ended a **Talk** hold, because the window's `pointerup` did not ask which pointer it was. Only the pointer that pressed **Talk** ends it now.
+- A key pressed before the hook listened was ignored for its whole press, and the line went with no note, because each repeat looked like a key already handled. The first repeat now begins the press, unless that key's press was seen and left alone, began with a modifier, or was lost.
+
+**Not proven.** No real phone, no real microphone, and no real screen reader ran this. Touch came from `Input.dispatchTouchEvent`, whose `touchEnd` lifts the points it lists, so a proof of a second finger must list that finger. A keyboard that sends no repeats gets no press from a key that went down before the page listened, and words said before the first repeat are not captured. Headless touch emulation fired no `contextmenu` on a long press, so only `SpaceOnTheBoard.test.tsx` shows that the menu is stopped. While a writing task is open, focus sits in the board line, so Space types there and a student talks by holding **Talk**. A click with no press is ignored for 500 ms after any pointer lets go anywhere on the page. A proof that clicked Math keys and pressed Enter on **Talk** straight after got nothing, and the same step passed with a 600 ms wait, so that cause is an inference.
+
+### How to try it
+
+Open a session and hold Space or **Talk**, speak, and let go. Do it again with music playing nearby, once with a hold and once with **Talk** pressed once, and listen for the tutor being cut. To follow the noise prompt, press **Talk** once, make steady noise until the prompt shows, and do what it says. To hear the invitation, run `pnpm db:seed`, sign in as `tola@astra.test`, and wait through the first answer with nothing pressed.
+
+### Numbers chosen, not measured
+
+The 300 ms tap limit, the 60 s hold limit, the 1.5 s wait before the invitation, the 2 cuts in 2 minutes, and the 500 ms that ties a click to its press are choices. Nothing here measured them against other values. A shorter tap limit cuts the tutor sooner and misreads more quick taps. With the microphone on, the same limit tells a tap that turns it off from a hold. A shorter hold limit cuts a long explanation.
+
+### What the privacy page says
+
+Two facts changed, so the page changed. The microphone also opens on a hold of Space, and we store when the tutor first told a student they can talk. What leaves our servers did not change. Between holds nothing is sent, and Muse hears only silence the agent adds, for up to 60 s after a line. No lawyer has read this.
+
+### What stays unproven
+
+- A real microphone, a real noisy room, and the browser's noise suppression in front of the noise rule.
+- A phone. Press and hold uses `touch-action: none`, and no touch device has run it. On a phone the first press happens before the browser counts a gesture, so the first hold may go out with no buffer.
+- A real permission prompt. Headless Chromium grants the microphone. By reading the code, a hold through the prompt ends when the student lets go to answer it, and leaves the microphone off.
+- A screen reader. `aria-pressed`, `aria-keyshortcuts`, and the status line are checked. A click with no pointer press behind it means press once, which is what a screen reader sends.
+- The wait from a press to capture on a real microphone. Words said before capture starts are lost. On the fake microphone that is a few ms.
+- A hold with the real voice. Every row above used the stand-in tutor and the fake voice, and one run used real Sonnet 5.5 with the fake voice: it heard every word through a hold, the hold cut its answer, and it replied about the line. Its first word came 5164 ms after the last sound with a reaction first, on one run, which is the model and this loaded Mac and is not a hold number.
+
 ## LiveKit Cloud
 
 | Row | Measured | Local server's figure |
@@ -275,6 +576,8 @@ PR 85's rooms and PR 86's brain were merged and measured together. `docs/tests/t
 ElevenLabs: about 1,360 credits by the characters this lane sent, within the 2,000 limit. The account's own count rose more across the same hours, because M3.2's fix round spent on it at the same time, so the account alone cannot separate them. The stored takes were about 45 of those. Muse: under $0.30 by audio time, at $0.18 an hour, against the $5 limit. LiveKit Cloud: the free plan, with one room per run, each removed when its job closed. The fix round after the review spent about 492 credits by its characters, all on overlong checks of voice settings Abel then set aside, and about $0.25 on Muse by the time its sessions stayed open, on the fake voice otherwise. The account's own count moved more across those hours, because other lanes spend on it too.
 
 The last fix round ran on the fake voice, so it spent no ElevenLabs credits, and about $0.01 on Muse by the time its sessions stayed open, against a limit of $0.75. LiveKit Cloud stayed on the free plan.
+
+Hold to talk's final proofs ran on the fake voice, so they spent no ElevenLabs credits. They spent about $0.14 on Muse by the time its sessions stayed open, and $0.004 on Anthropic by usage, on one run of the real tutor. The stored invitation take cost at most 46 credits when it was made.
 
 ## What each browser and agent proof showed
 

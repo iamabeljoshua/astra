@@ -4,5 +4,8 @@ export class HeldAudio {
   hold(): void;
   release(): void;
   drop(): void;
-  process(input: Float32Array, output: Float32Array): void;
+  endInput(): void;
+  isDrained(): boolean;
+  takeSteadyNoise(): boolean;
+  process(input: Float32Array | undefined, output: Float32Array): void;
 }
