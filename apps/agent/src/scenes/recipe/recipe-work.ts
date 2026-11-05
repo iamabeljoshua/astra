@@ -57,7 +57,9 @@ export interface FreshTools {
   writer: FreshWriter;
   reviewer: FreshReviewer;
   /** False once this lesson has made all the drawings it may. */
-  claimDrawing(): boolean;
+  canDraw(): boolean;
+  /** Counted once written, because a drawing stopped by a saved copy or a part that fits is not one the lesson has. */
+  noteDrawn(): void;
 }
 
 export interface SceneWork {
@@ -140,11 +142,12 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     if (!store.find(key)) await store.saveChecked({ ...scene, id: key.id, topic: key.topic, ownerId: null }, [], []).catch((error: unknown) => noteTime('recipeShareFailed', { problem: String(error) }));
   };
 
-  const drawFresh = async (tools: FreshTools): Promise<StoredScene> => {
-    if (!tools.claimDrawing()) throw new Error('this lesson has made all its fresh drawings');
-    const signal = AbortSignal.any([AbortSignal.timeout(FRESH_LIMIT_MS), leaving.signal, stopDrawing.signal]);
+  const drawFresh = async (tools: FreshTools, partFits: AbortSignal): Promise<StoredScene> => {
+    if (!tools.canDraw()) throw new Error('this lesson has made all its fresh drawings');
+    const signal = AbortSignal.any([AbortSignal.timeout(FRESH_LIMIT_MS), leaving.signal, stopDrawing.signal, partFits]);
     noteTime('freshStarted');
     const reply = await tools.writer.write({ topic: request, level }, signal);
+    tools.noteDrawn();
     noteTime('freshWritten', { writeMs: Math.round(reply.ms), costUsd: reply.costUsd });
     const read = readFreshDrawing(reply.text);
     if (!read.isOk) throw new Error(read.problems.join('; '));
@@ -181,14 +184,20 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     return scene;
   };
 
+  // Every token is time the student waits, so the drawing starts beside the parts and the first answer that a part fits stops it, at about a third of a cent.
   const draw = async (): Promise<StoredScene> => {
+    if (!fresh) {
+      const fromParts = canDrawRecipes ? await drawFromParts() : 'noPart';
+      if (fromParts === 'noPart') throw new Error('this page cannot draw from parts');
+      return fromParts;
+    }
+    const partFits = new AbortController();
+    const drawn = drawFresh(fresh, partFits.signal);
+    drawn.catch(() => {});
     const fromParts = canDrawRecipes ? await drawFromParts() : 'noPart';
-    if (fromParts !== 'noPart') return fromParts;
-    if (!fresh) throw new Error('this page cannot draw from parts');
-    // A copy they already have costs nothing, and a drawing is paid for, so it waits for that answer, about 1.5 s from the ask.
-    const hasSavedCopy = await matching?.then(() => true, () => false);
-    if (hasSavedCopy) throw new Error('a saved scene fits');
-    return drawFresh(fresh);
+    if (fromParts === 'noPart') return drawn;
+    partFits.abort();
+    return fromParts;
   };
 
   const match = async (): Promise<StoredScene> => {
@@ -199,6 +208,7 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     const found = titles.includes(title) && isSameTopic(request, title) ? findPlayable(title) : null;
     noteTime('sceneMatched', { title: found ? title : '' });
     if (!found) throw new Error('no saved scene fits');
+    stopDrawing.abort();
     return found;
   };
 
@@ -220,8 +230,8 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     if (!isCard && (isOnlyAskingForHelp(request) || isAboutBeingUnsafe(request))) return { ...NO_ROUTE, kind: SAFETY_KIND };
     const saved = findPlayable(request);
     if (saved) return { ...SAVED_ROUTE, topic: request };
-    matching = match();
     drawing = draw();
+    matching = match();
     drawing.catch(() => {});
     matching.catch(() => {});
     const route = await router.route(request, AbortSignal.any([AbortSignal.timeout(ROUTER_LIMIT_MS), leaving.signal]));

@@ -21,17 +21,28 @@ const DRAWING = [FITS, LOOK, SPIN, '```js', CODE, '```'].join('\n');
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 120));
 
-function setUp({ recipeText = NO_FIT, drawingText = DRAWING, isGood = true, canDrawRecipes = true, mostDrawings = 6 }: { recipeText?: string; drawingText?: string; isGood?: boolean; canDrawRecipes?: boolean; mostDrawings?: number } = {}) {
+function setUp({ recipeText = NO_FIT, drawingText = DRAWING, isGood = true, canDrawRecipes = true, mostDrawings = 6, writesDrawingAfterMs = 0, matchedTitle = '' }: { recipeText?: string; drawingText?: string; isGood?: boolean; canDrawRecipes?: boolean; mostDrawings?: number; writesDrawingAfterMs?: number; matchedTitle?: string } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'fresh-draw-'));
   const store = createSceneStore(root);
   const write = vi.fn<RecipeWriter['write']>(async () => ({ text: recipeText, ...USAGE }));
-  const writeDrawing = vi.fn<FreshTools['writer']['write']>(async () => ({ text: drawingText, ...USAGE }));
+  const writeDrawing = vi.fn<FreshTools['writer']['write']>(
+    (_ask, signal) =>
+      new Promise((resolve, reject) => {
+        const writing = setTimeout(() => resolve({ text: drawingText, ...USAGE }), writesDrawingAfterMs);
+        signal.addEventListener('abort', () => {
+          clearTimeout(writing);
+          reject(new Error('stopped'));
+        });
+      }),
+  );
   const read = vi.fn<FreshTools['reviewer']['read']>(async () => ({ isGood, reasons: isGood ? [] : ['a fault'], ...USAGE }));
   let drawings = 0;
+  const noteDrawn = vi.fn(() => void (drawings += 1));
   const fresh: FreshTools = {
     writer: { write: writeDrawing },
     reviewer: { read },
-    claimDrawing: () => (drawings += 1) <= mostDrawings,
+    canDraw: () => drawings < mostDrawings,
+    noteDrawn,
   };
   const makeWork = (studentId = STUDENT) =>
     createRecipeWork({
@@ -39,7 +50,7 @@ function setUp({ recipeText = NO_FIT, drawingText = DRAWING, isGood = true, canD
       writer: { write },
       reviewer: { read: vi.fn(async () => ({ isGood: true, reasons: [], ...USAGE })) },
       nameReader: { clear: async () => new Set() },
-      matcher: { match: async () => '' },
+      matcher: { match: async () => matchedTitle },
       store,
       storeRoot: root,
       getParts: () => getPartCatalogue(),
@@ -55,7 +66,7 @@ function setUp({ recipeText = NO_FIT, drawingText = DRAWING, isGood = true, canD
       getNowMs: () => performance.now(),
       onChange: () => {},
     });
-  return { root, store, write, writeDrawing, read, makeWork };
+  return { root, store, write, writeDrawing, read, noteDrawn, makeWork };
 }
 
 describe('reading a drawing', () => {
@@ -145,6 +156,16 @@ describe('the chain', () => {
     expect(write).toHaveBeenCalledTimes(1);
   });
 
+  it('stops a drawing beside the parts when a part fits, and counts none', async () => {
+    const part = JSON.stringify({ t: 'part', id: 'rocket', part: 'rocket' });
+    const { writeDrawing, noteDrawn, makeWork } = setUp({ recipeText: [FITS, LOOK, SPIN, part].join('\n'), writesDrawingAfterMs: 5000 });
+    const state = await runToPicture(makeWork());
+    expect(state.kind === 'ready' && state.scene.engine).toBe('kit');
+    expect(writeDrawing).toHaveBeenCalledTimes(1);
+    expect(writeDrawing.mock.calls[0]?.[1].aborted).toBe(true);
+    expect(noteDrawn).not.toHaveBeenCalled();
+  });
+
   it('skips the parts on a page with no WebGL', async () => {
     const { write, writeDrawing, makeWork } = setUp({ canDrawRecipes: false });
     await runToPicture(makeWork());
@@ -166,39 +187,17 @@ describe('the chain', () => {
 });
 
 describe('a copy saved under other words', () => {
-  it('stops before paying for a drawing, and spends none of the lesson\'s limit', async () => {
-    const root = mkdtempSync(join(tmpdir(), 'fresh-draw-'));
-    const store = createSceneStore(root);
+  it('stops the drawing beside it, and counts none', async () => {
+    const { store, writeDrawing, noteDrawn, makeWork } = setUp({ writesDrawingAfterMs: 5000, matchedTitle: 'helicopters' });
     const read = readFreshDrawing(DRAWING);
     if (!read.isOk) throw new Error('the drawing should read');
     await store.saveChecked(toFreshScene({ drawing: read.drawing, key: getSceneKey('helicopters', { ownerId: STUDENT }), costUsd: 0, writeMs: 1 }), [], []);
-    const writeDrawing = vi.fn<FreshTools['writer']['write']>(async () => ({ text: DRAWING, ...USAGE }));
-    const claimDrawing = vi.fn(() => true);
-    const work = createRecipeWork({
-      router: { route: async () => ROUTE },
-      writer: { write: async () => ({ text: NO_FIT, ...USAGE }) },
-      reviewer: { read: async () => ({ isGood: true, reasons: [], ...USAGE }) },
-      nameReader: { clear: async () => new Set() },
-      matcher: { match: async () => 'helicopters' },
-      store,
-      storeRoot: root,
-      getParts: () => getPartCatalogue(),
-      getCore: getCoreSource,
-      getLevel: () => null,
-      trace: () => {},
-      fresh: { writer: { write: writeDrawing }, reviewer: { read: async () => ({ isGood: true, reasons: [], ...USAGE }) }, claimDrawing },
-      request: 'how helicopters fly',
-      isCard: false,
-      studentId: STUDENT,
-      canPlayTakes: true,
-      getNowMs: () => performance.now(),
-      onChange: () => {},
-    });
+    const work = makeWork();
     work.desk.ask(work.request);
     await vi.waitFor(() => expect(work.desk.getState().kind).toMatch(/ready|failed|declined/));
     expect(work.desk.getState().kind).toBe('ready');
-    expect(writeDrawing).not.toHaveBeenCalled();
-    expect(claimDrawing).not.toHaveBeenCalled();
+    expect(writeDrawing.mock.calls[0]?.[1].aborted).toBe(true);
+    expect(noteDrawn).not.toHaveBeenCalled();
   });
 });
 

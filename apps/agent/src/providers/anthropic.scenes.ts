@@ -26,7 +26,7 @@ const ROUTER_TOKENS = 400;
 const NAME_READER_TOKENS = 600;
 const RECIPE_TOKENS = 1800;
 const RECIPE_REVIEW_TOKENS = 800;
-const FRESH_DRAW_TOKENS = 6000;
+const FRESH_DRAW_TOKENS = 3000;
 const VOICE_STARTS = 'Talk like a warm';
 const VOICE_ENDS = 'Three ways of talking';
 const MATCH_TOKENS = 200;
@@ -233,7 +233,7 @@ export function makeAnthropicSceneModels({ apiKey, onUsage, assertRoom, reviewPa
       },
     },
     freshWriter: {
-      write: (ask, signal) => call({ role: 'writer', setting: 'reviewQuick', system: getFreshSystem(), user: getRecipeUser(ask), maxTokens: FRESH_DRAW_TOKENS, signal }),
+      write: (ask, signal) => call({ role: 'writer', setting: 'sonnetFast', system: getFreshSystem(), user: getRecipeUser(ask), maxTokens: FRESH_DRAW_TOKENS, signal }),
     },
     freshReviewer: {
       async read(drawing, signal) {

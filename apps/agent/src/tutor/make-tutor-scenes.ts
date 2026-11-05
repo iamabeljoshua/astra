@@ -31,11 +31,16 @@ export const hasFastScenes = () => process.env.ASTRA_FAST_SCENES === '1';
 
 const hasFreshDraw = () => process.env.ASTRA_FRESH_DRAW === '1';
 
+/** Words like these ask about something, so the drawing need not wait for the tutor to ask. The router still reads them first, and anything else waits for the tutor. */
+const ASKS_TO_BE_TAUGHT = /^(how|why|what|when|where|which|who|whose|explain|show|teach|tell me|can you|could you|do|does|did|is|are|i want to|i'd like to|what's|how's)\b|\?\s*$/i;
+const isAskingToBeTaught = (words: string) => ASKS_TO_BE_TAUGHT.test(words.trim());
+
 type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'send' | 'speak' | 'canSpeak' | 'onShown' | 'trace'>;
 
 export interface SessionScenes extends TutorScenes {
   queue: SceneQueue | null;
   onTutorAsk(topic: string): void;
+  noteStudentWords(words: string): void;
 }
 
 const hasScenesAhead = () => process.env.ASTRA_SCENES_AHEAD !== '0';
@@ -59,12 +64,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
   const runs = createTopicRuns({ planner: models.planner, nameReader: models.nameReader, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(process.env.ASTRA_SCENE_CONTAINERS ? { mostAtOnce: Number(process.env.ASTRA_SCENE_CONTAINERS) } : {}), store, warn: (line) => hooks.trace('sceneWarning', { problem: line }) });
   let queue: SceneQueue | null = null;
   let freshDrawings = 0;
-  const claimDrawing = () => {
-    if (freshDrawings >= MOST_FRESH_DRAWINGS) return false;
-    freshDrawings += 1;
-    return true;
-  };
-  const freshTools = hasFreshDraw() ? { writer: models.freshWriter, reviewer: models.freshReviewer, claimDrawing } : null;
+  const freshTools = hasFreshDraw() ? { writer: models.freshWriter, reviewer: models.freshReviewer, canDraw: () => freshDrawings < MOST_FRESH_DRAWINGS, noteDrawn: () => void (freshDrawings += 1) } : null;
   const fast: FastSceneHooks | null = hasFastScenes() && canCutIn && cutIn && isInBreath
     ? {
         canCutIn,
@@ -72,6 +72,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
         cutIn,
         mostAsks: FAST_MOST_ASKS,
         askLimitMs: freshTools ? FRESH_ASK_LIMIT_MS : FAST_ASK_LIMIT_MS,
+        landsAtClause: freshTools !== null,
         makeWork: (input) =>
           createRecipeWork({
             ...input,
@@ -131,7 +132,12 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
   return {
     ...scenes,
     queue,
+    noteStudentWords(words) {
+      queue?.noteStudentWords(words);
+      if (freshTools && isAskingToBeTaught(words)) scenes.askFromLine(words);
+    },
     onTutorAsk(topic) {
+      if (freshTools && scenes.isLineAnswering()) return hooks.trace('sceneAskPassed', { text: topic, why: 'lineAsked' });
       if (queue) return queue.onTutorAsk(topic);
       hooks.trace('sceneCue', { text: topic, source: 'asked', wallMs: Date.now() });
       scenes.ask(topic);

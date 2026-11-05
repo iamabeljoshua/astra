@@ -26,7 +26,7 @@ const NO_FIT = JSON.stringify({ t: 'fit', in: false, topic: 'bees', why: 'no par
 // Saving a scene is real file work, so this waits on the clock and not on ticks.
 const flush = () => new Promise((resolve) => setTimeout(resolve, 120));
 
-function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true }: { route?: SceneRoute; text?: string; canCutIn?: boolean } = {}) {
+function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true, landsAtClause = false }: { route?: SceneRoute; text?: string; canCutIn?: boolean; landsAtClause?: boolean } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'fast-scenes-'));
   const store = createSceneStore(root);
   const sent: SceneAgentMessage[] = [];
@@ -57,6 +57,7 @@ function setUp({ route = KIT_ROUTE, text = ROCKET_RECIPE, canCutIn = true }: { r
       },
       mostAsks: 40,
       askLimitMs: 20_000,
+      landsAtClause,
       makeWork: (input) =>
         createRecipeWork({
           ...input,
@@ -254,6 +255,58 @@ describe('asks while a scene is under way', () => {
   });
 });
 
+describe('a drawing that starts from the student\'s line', () => {
+  const STOPS_ON_TOPIC = 'why rockets have stages';
+
+  it('starts before the tutor asks, and the tutor\'s ask in reply to that line starts nothing more', async () => {
+    const { scenes, write, sent, say } = setUp();
+    say({ type: 'sceneDevice', canPlay: true });
+    scenes.noteStudentTurn();
+    expect(scenes.askFromLine(STOPS_ON_TOPIC)).toBe(true);
+    await flush();
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(sent.some((message) => message.type === 'loadScene')).toBe(true);
+    expect(scenes.isLineAnswering()).toBe(true);
+    scenes.noteStudentTurn();
+    expect(scenes.isLineAnswering()).toBe(false);
+  });
+
+  it('leaves a side question about what is on screen with the picture it has', async () => {
+    const { scenes, say, askAndLoad, cuts } = setUp();
+    say({ type: 'sceneDevice', canPlay: true });
+    await askAndLoad(STOPS_ON_TOPIC);
+    scenes.noteSentenceBreak();
+    expect(cuts).toHaveLength(1);
+    expect(scenes.askFromLine('how do the rockets drop a stage')).toBe(false);
+  });
+
+  it('hands the turn back to the tutor when the line led to no picture', async () => {
+    const { scenes, say } = setUp({ route: { ...KIT_ROUTE, engine: 'none', kind: 'chatter', topic: '' } });
+    say({ type: 'sceneDevice', canPlay: true });
+    scenes.noteStudentTurn();
+    scenes.askFromLine('what time is it');
+    await flush();
+    expect(scenes.isLineAnswering()).toBe(false);
+  });
+});
+
+describe('where a scene may land', () => {
+  it('waits for a sentence, unless a late drawing may come in at a comma', async () => {
+    const waits = setUp();
+    waits.say({ type: 'sceneDevice', canPlay: true });
+    await waits.askAndLoad('why rockets have stages');
+    waits.scenes.noteSentenceBreak('clause');
+    expect(waits.cuts).toHaveLength(0);
+    waits.scenes.noteSentenceBreak('sentence');
+    expect(waits.cuts).toHaveLength(1);
+    const comes = setUp({ landsAtClause: true });
+    comes.say({ type: 'sceneDevice', canPlay: true });
+    await comes.askAndLoad('why rockets have stages');
+    comes.scenes.noteSentenceBreak('clause');
+    expect(comes.cuts).toHaveLength(1);
+  });
+});
+
 describe('a sentence break on the voice clock', () => {
   const timelineOf = (text: string) => {
     const words = text.split(' ').map((word, index) => ({ text: word, startMs: index * 100 }));
@@ -264,15 +317,15 @@ describe('a sentence break on the voice clock', () => {
 
   it('fires once, when the next sentence is about to start, after a full stop and after a question with words behind it', () => {
     const timeline = timelineOf('Ever wondered why? Okay, dig in. Fans push air');
-    expect(timeline.hasCrossedSentenceBreak(250)).toBe(false);
-    expect(timeline.hasCrossedSentenceBreak(300)).toBe(true);
-    expect(timeline.hasCrossedSentenceBreak(400)).toBe(false);
-    expect(timeline.hasCrossedSentenceBreak(600)).toBe(true);
-    expect(timeline.hasCrossedSentenceBreak(900)).toBe(false);
+    expect(timeline.getCrossedBreak(250)).toBeNull();
+    expect(timeline.getCrossedBreak(300)).toBe('sentence');
+    expect(timeline.getCrossedBreak(400)).toBe('clause');
+    expect(timeline.getCrossedBreak(600)).toBe('sentence');
+    expect(timeline.getCrossedBreak(900)).toBeNull();
   });
 
   it('does not break inside a sentence, and has nothing to say after the last word', () => {
     const timeline = timelineOf('Fans push air out the back.');
-    expect(timeline.hasCrossedSentenceBreak(10_000)).toBe(false);
+    expect(timeline.getCrossedBreak(10_000)).toBeNull();
   });
 });
