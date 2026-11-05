@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeSession } from '../test/sessionsApi';
@@ -6,7 +6,9 @@ import { renderWithQueryClient } from '../test/renderWithQueryClient';
 import { RECAP_LABELS, REPLAY_LABELS } from '../strings';
 import { ReplayScreen } from './ReplayScreen';
 
-const stage = vi.hoisted(() => ({ canLoad: true, loaded: new Set<string>(), load: vi.fn(), draws: [] as [string, number][] }));
+const stage = vi.hoisted(() => ({ canPlay: true, canLoad: true, loaded: new Set<string>(), load: vi.fn(), draws: [] as [string, number][] }));
+
+vi.mock('../scenes/sceneEngine', () => ({ getCanPlayScenes: async () => stage.canPlay }));
 
 vi.mock('../scenes/kitSceneStage', () => ({
   createKitSceneStage: (_container: HTMLElement, onChange: () => void) => ({
@@ -77,6 +79,7 @@ describe('the replay screen', () => {
     beforeEach(() => {
       vi.stubEnv('VITE_TUTOR_SCENES', '1');
       vi.stubEnv('VITE_KIT_SCENES', '1');
+      stage.canPlay = true;
       stage.canLoad = true;
       stage.loaded.clear();
       stage.load.mockClear();
@@ -105,6 +108,17 @@ describe('the replay screen', () => {
       expect(await screen.findByTestId('scene-layer')).toBeTruthy();
     });
 
+    it('loads no scene on a device that cannot play one, as a live session does', async () => {
+      stage.canPlay = false;
+      stubReplay({ replay: { recap: null, runs: [{ startedAt: 'x', events: getSceneLog('manimgx') }] } });
+      open({ ...session, artwork: null });
+      await screen.findByRole('slider', { name: REPLAY_LABELS.timeline });
+      seekTo(500);
+      await act(() => new Promise((settled) => setTimeout(settled)));
+      expect(stage.load).not.toHaveBeenCalled();
+      expect(screen.queryByTestId('scene-layer')).toBeNull();
+    });
+
     it('leaves the plain board, saying nothing was drawn, and no box when the scene will not load', async () => {
       stage.canLoad = false;
       stubReplay({ replay: { recap: null, runs: [{ startedAt: 'x', events: getSceneLog('kit') }] } });
@@ -127,6 +141,10 @@ describe('the replay screen', () => {
     await screen.findByRole('slider', { name: REPLAY_LABELS.timeline });
     seekTo(100);
     expect(screen.getByTestId('board-empty').textContent).toBe(REPLAY_LABELS.emptyBoard);
+  });
+
+  it('does not say where the words are, because a phone has them above the board', () => {
+    expect(REPLAY_LABELS.emptyBoard).not.toMatch(/left|right|above|below/i);
   });
 
   it('opens on the recap, with the lesson ready to play', async () => {
