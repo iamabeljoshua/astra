@@ -22,7 +22,7 @@ const hasWorkerWebGl = () => typeof OffscreenCanvas === 'function' && new Offscr
 
 export const getCanPlayKit = () => isKitSceneEnabled() && window.innerWidth > PHONE_WIDTH && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && isMeasuredBrowser() && hasWorkerWebGl();
 
-export const getCanDrawRecipes = () => isFastSceneEnabled() && hasWebGl();
+export const getCanDrawRecipes = () => isFastSceneEnabled() && isMeasuredBrowser() && hasWorkerWebGl();
 
 function createLayer(parent: HTMLElement): HTMLElement {
   const layer = document.createElement('div');
