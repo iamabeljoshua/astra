@@ -1,6 +1,8 @@
-import type { BoardState } from '@astra/board';
+import type { BoardElement, BoardState } from '@astra/board';
 import type { ElementId } from '@astra/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
+
+const DOT_GOES_TO: ReadonlySet<BoardElement['content']['kind']> = new Set(['writeMath', 'studentLine', 'text', 'diagram', 'plot', 'task', 'table', 'timeline', 'code', 'image', 'drawing']);
 
 export function getLatestRowId(board: BoardState): string | null {
   const focused = board.focus?.split('.')[0];
@@ -12,7 +14,7 @@ export function getLatestRowId(board: BoardState): string | null {
       const root = hangsOn.split('.')[0] as string;
       if (board.elements.has(root as ElementId)) return root;
     }
-    if (content.kind === 'writeMath' || content.kind === 'studentLine' || content.kind === 'text' || content.kind === 'diagram' || content.kind === 'plot' || content.kind === 'task') return id;
+    if (DOT_GOES_TO.has(content.kind)) return id;
   }
   return null;
 }

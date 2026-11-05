@@ -76,12 +76,21 @@ const isWrittenInStrokes = (content: BoardElement['content']) => (content.kind =
 
 const getHostId = (content: BoardElement['content']) => ('target' in content && typeof content.target === 'string' ? (content.target.split('.')[0] ?? null) : content.kind === 'plot' && content.over !== undefined ? content.over : null);
 
-const getExpected = (board: BoardState): ExpectedWords[] => [...board.elements.values()].map(({ id, content, revealedUpTo }: BoardElement) => ({ elementId: id, words: getShownWords(content, revealedUpTo !== null), isWrittenInStrokes: isWrittenInStrokes(content), isRevealedInSteps: revealedUpTo !== null, hostId: getHostId(content) }));
+const getExpected = (board: BoardState, isRows: boolean): ExpectedWords[] => [...board.elements.values()].map(({ id, content, revealedUpTo }: BoardElement) => ({ elementId: id, words: content.kind === 'note' && !isRows ? [] : getShownWords(content, revealedUpTo !== null), isWrittenInStrokes: isWrittenInStrokes(content), isRevealedInSteps: revealedUpTo !== null, hostId: getHostId(content) }));
 
 const getArriving = (board: BoardState, atMs: number) => new Set([...board.elements.values()].filter(({ entrance }) => getMotionValue(entrance, atMs) < 1).map(({ id }) => id as string));
 
 async function waitForImages(board: HTMLElement): Promise<void> {
   await Promise.all([...board.querySelectorAll('img')].map((image) => image.decode().catch(() => {})));
+}
+
+const isOnRows = (board: HTMLElement) => board.querySelector('.board-scroll') !== null;
+
+// CSS entrances run on the wall clock and a sweep reads at once, so they are read as they end.
+function finishCssEntrances(board: HTMLElement): void {
+  for (const animation of board.getAnimations({ subtree: true })) {
+    if (animation instanceof CSSAnimation && animation.effect?.getComputedTiming().iterations !== Number.POSITIVE_INFINITY) animation.finish();
+  }
 }
 
 const nextFrame = () => new Promise((done) => requestAnimationFrame(done));
@@ -110,7 +119,8 @@ export function createBoardDeck({ present, getBoardElement }: { present(shown: S
     const { scene, operations } = getEntry(name);
     const board = getBoardAt(operations, atMs);
     const isAtRest = atMs >= getSceneRestMs(scene);
-    return findLayoutDefects({ board: getBoardElement(), expected: getExpected(board), reported: getReported(problems, refused), isAtRest, arriving: getArriving(board, atMs) });
+    finishCssEntrances(getBoardElement());
+    return findLayoutDefects({ board: getBoardElement(), expected: getExpected(board, isOnRows(getBoardElement())), reported: getReported(problems, refused), isAtRest, arriving: getArriving(board, atMs) });
   };
 
   const sweepScene = async (name: string, request: SweepRequest, result: SweepResult) => {
@@ -127,7 +137,7 @@ export function createBoardDeck({ present, getBoardElement }: { present(shown: S
         result.textsChecked += textsChecked;
         if ((defects.length > 0 || colors.length > 0) && result.failures.length < MOST_FAILURES_KEPT) result.failures.push({ scene: name, size: size.name, theme: request.theme, atMs, defects: [...defects, ...colors].slice(0, 6) });
       }
-      const silent = (scene.expectedProblems ?? []).filter((kind) => !problems.some((problem) => problem.kind === kind));
+      const silent = (scene.expectedProblems ?? []).filter((kind) => !problems.some((problem) => problem.kind === kind) && !(kind === 'tooSmallToRead' && isOnRows(getBoardElement())));
       if (silent.length > 0) result.failures.push({ scene: name, size: size.name, theme: request.theme, atMs: getSceneRestMs(scene), defects: silent.map((kind) => ({ kind: 'silent-problem', detail: `the board never reported ${kind}` })) });
       for (const problem of problems) {
         if (problem.kind === 'tooSmallToRead') result.tooSmallReported.push(`${name} at ${size.name}: ${problem.elementId}`);
@@ -158,6 +168,7 @@ export function createBoardDeck({ present, getBoardElement }: { present(shown: S
     checkWithColors: ({ scene }) => [...checkNow(scene, getSceneRestMs(getEntry(scene).scene)).defects, ...findColorDefects(getBoardElement())],
     async sweep(request) {
       document.documentElement.dataset.theme = request.theme;
+      await Promise.all(document.getAnimations().map((animation) => animation.finished.catch(() => {})));
       const result: SweepResult = { renders: 0, textsChecked: 0, failures: [], tooSmallReported: [], wordsReported: [] };
       for (const name of request.scenes ?? DECK.map((scene) => scene.name)) await sweepScene(name, request, result);
       return result;

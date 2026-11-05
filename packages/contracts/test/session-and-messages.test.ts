@@ -530,7 +530,7 @@ describe('the messages a held microphone and a quiet room add', () => {
     expect(parseAgentMessage({ type: 'quietWarning' }).ok).toBe(false);
   });
 
-  it.each(['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant'])('reads a board problem of %s', (problem) => {
+  it.each(['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant', 'sliderOverlaps', 'curveTooFine'])('reads a board problem of %s', (problem) => {
     const message = { type: 'boardProblem', problem, subject: 'words', clockId: 'c', browserMs: 1, startedMsAgo: 0 };
     expect(parseBrowserMessage(message)).toEqual({ ok: true, value: message });
   });

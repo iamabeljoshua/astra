@@ -1,6 +1,6 @@
 import type { BoardProblemReport, SceneCommand } from '@astra/contracts';
 
-export type BoardProblemNote = { problem: 'tooSmallToRead' | 'imageMissing'; target: string } | { problem: 'labelWithoutRoom'; label: string } | { problem: 'sliderWithoutConstant'; target: string; constant: string };
+export type BoardProblemNote = { problem: 'tooSmallToRead' | 'imageMissing' | 'curveTooFine'; target: string } | { problem: 'labelWithoutRoom'; label: string } | { problem: 'sliderWithoutConstant'; target: string; constant: string } | { problem: 'sliderOverlaps'; target: string };
 
 const LABEL_FIELDS = ['label', 'xLabel', 'yLabel'] as const;
 const ONLY_A_VALUE = /^[\d\s().,−-]+$/;
@@ -24,8 +24,12 @@ export function createBoardProblemNotes() {
         return command ? { problem, target: subject } : null;
       case 'imageMissing':
         return command?.kind === 'image' ? { problem, target: subject } : null;
+      case 'curveTooFine':
+        return command?.kind === 'plot' ? { problem, target: subject } : null;
       case 'sliderWithoutConstant':
         return command?.kind === 'slider' && 'constant' in command ? { problem, target: command.target, constant: command.constant } : null;
+      case 'sliderOverlaps':
+        return command?.kind === 'slider' ? { problem, target: command.target } : null;
       case 'labelWithoutRoom': {
         const label = getWrittenLabel(subject);
         return label === null ? null : { problem, label };

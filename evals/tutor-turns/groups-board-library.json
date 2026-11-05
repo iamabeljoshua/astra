@@ -1,0 +1,35 @@
+[
+ {"name":"heart","turns":[
+   {"text":"how does the heart pump blood? draw me the path it takes"},
+   {"text":"ok so where does it go after the lungs?"}]},
+ {"name":"roman-timeline","turns":[
+   {"text":"give me a timeline of the Roman empire, the big dates"},
+   {"text":"which came first, Caesar or Augustus?"}]},
+ {"name":"sonnet","turns":[
+   {"text":"help me read Shakespeare's sonnet 18, put the first lines up"},
+   {"text":"what does he mean by a summer's day?"}]},
+ {"name":"python-loop","turns":[
+   {"text":"how does a for loop work in python? show me one"},
+   {"text":"what would it print?"}]},
+ {"name":"compound-interest","turns":[
+   {"text":"show me how 100 dollars grows at 10 percent compound interest over a few years, as a table"},
+   {"text":"why is the third year more than the first?"}]},
+ {"name":"tan-x","turns":[
+   {"text":"what does the graph of y = tan x look like? draw it"},
+   {"text":"why does it shoot off like that?"}]},
+ {"name":"animal-cell","turns":[
+   {"text":"what are the parts of an animal cell? show me"},
+   {"text":"which part makes the energy?"}]},
+ {"name":"great-wave","turns":[
+   {"text":"can you show me The Great Wave painting and tell me about it?"},
+   {"text":"who made it?"}]},
+ {"name":"spanish-verbs","turns":[
+   {"text":"how do you conjugate hablar in the present tense? lay it out for me"},
+   {"text":"so how would I say we speak?"}]},
+ {"name":"water-cycle","turns":[
+   {"text":"explain the water cycle with a picture"},
+   {"text":"where does the rain go?"}]},
+ {"name":"told-curve-too-fine","turns":[
+   {"text":"draw y = x squared for me from -3 to 3"},
+   {"text":"ok and what does it do at zero?","boardProblem":{"problem":"curveTooFine","on":"plot"},"check":"drawsACurveAgain"}]}
+]
