@@ -186,7 +186,6 @@ type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stall
 interface TurnWork {
   sceneAside?: 'due' | 'moved';
   isLead: boolean;
-  /** The lead that closes a lesson whose plan has run out. */
   isClosing: boolean;
   wordsForSafetyCheck: string;
   heldTry: HeldTry;
