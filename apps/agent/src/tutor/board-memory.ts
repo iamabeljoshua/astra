@@ -125,6 +125,19 @@ export function getExerciseProblem(command: SceneCommand & { kind: 'task' }, wan
   return wanted === 'board' && wasLastWrittenWords && isWrittenWordsTask(command, memory, atTurnStart) ? 'The last exercise was written words too, and the student did not hear what you were about to set. Set something on the board this time: a pick on a part of a diagram, things to put in order with a place task, or a sentence with a blank.' : null;
 }
 
+const toWordsOfALine = (text: string) => new Set(text.toLowerCase().match(/\p{L}{3,}/gu) ?? []);
+const FEWEST_WORDS_THAT_MAKE_A_LINE = 3;
+const SHARE_THAT_IS_THE_SAME_LINE = 0.75;
+
+/** A blank in a sentence the tutor has just said tests memory, and readers counted 6 of 16 such exercises. */
+export function getRepeatedLineProblem(command: SceneCommand, saidRecently: string): string | null {
+  if (command.kind !== 'text' || !command.text.includes('___')) return null;
+  const line = toWordsOfALine(command.text);
+  const said = toWordsOfALine(saidRecently);
+  const shared = [...line].filter((word) => said.has(word)).length;
+  return line.size >= FEWEST_WORDS_THAT_MAKE_A_LINE && shared / line.size >= SHARE_THAT_IS_THE_SAME_LINE ? 'That blank is nearly word for word what you just told them, so it only tests memory, and they did not hear you set it. Set one that makes them use the idea on a new case, or join it to an earlier idea.' : null;
+}
+
 export function checkAgainstBoard(command: SceneCommand, memory: BoardMemory): CommandVerdict {
   const { lines } = memory;
   // The words after a clear lean on it, as "fresh start" does, so a refused one stops them too.
@@ -194,7 +207,7 @@ export function getMemoryOnComingBack(memory: BoardMemory): BoardMemory {
 }
 
 /** Their own words beat holding the answer back, so asking for it once is enough. */
-const ASKS_FOR_THE_ANSWER = /\b(?:just|please)\s+(?:tell|give|show)\s+me\b|\b(?:tell|give|show)\s+me\s+the\s+answer\b|\bwhat(?:'?s|\s+is)\s+the\s+answer\b|\bjust\s+the\s+answer\b/i;
+const ASKS_FOR_THE_ANSWER = /\bshow\s+me\b|\bi\s*(?:do\s*n[o'’]?t|dont)\s*know\s+how\b|\b(?:just|please)\s+(?:tell|give)\s+me\b|\b(?:tell|give|show)\s+me\s+the\s+answer\b|\bwhat(?:'?s|\s+is)\s+the\s+answer\b|\bjust\s+the\s+answer\b/i;
 
 export function getMemoryOnNewTurn(memory: BoardMemory, studentText: string): BoardMemory {
   if (!memory.openTask) return memory;

@@ -87,6 +87,7 @@ export function getCardMaterial(storeRoot: string | undefined, title: string, no
   const scenes = storeRoot ? getShelf(storeRoot, nowMs) : new Map<string, { sceneId: string; lines: string[] }>();
   return {
     title: topic.title,
+    subject: topic.subject,
     ideas: titles.map((idea) => {
       const saved = scenes.get(normalizeTitle(idea));
       const canShow = saved !== undefined && !existsSync(getFlagPath(storeRoot as string, saved.sceneId));

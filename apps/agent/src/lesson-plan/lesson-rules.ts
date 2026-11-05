@@ -55,20 +55,10 @@ export const STAY_NOTE = { hold_on: 'They asked you not to move on, because they
 
 export const SLOW_NOTE = { pace: 'They asked you to slow down. One short sentence, plain words, and one small step at a time.' };
 
-const OPENING_TIC = /^\s*(?:(?:fair enough|all good|no problem|no worries|that'?s (?:ok(?:ay)?|fine|all right))[,.!]|(?:and\s+)?next(?:\s+up)?\s*[,:.]|time (?:for|to) (?:a |an |another |one |try |the next )*(?:short|quick|try|one|problem|exercise|practice)\b[^,.:?!]*[,.:]|(?:(?:fine|ok(?:ay)?|alright|all right|right|sure)[,.]\s+)?(?:let'?s\s+)?skip(?:ping)?\s+(?:it|that|this)(?:\s+one)?[.!,]?)\s*/i;
+const OPENS_ON_HERES = /(^\s*|[.!?]\s+)(?:(?:now|so|okay|ok|and|but),?\s+)?here(?:'|’)?s\b[^.!?:,{]*[.!?:,]\s*(\S?)/giu;
 
-/** The words a reply opens on and comes back to, which read as a tic across a long lesson. Taken off in code, because a request again would add a wait. */
-export const withoutOpeningTic = (text: string) => text.replace(OPENING_TIC, '');
-
-const ANSWERS_NOBODY = /^\s*(?:sure|ok(?:ay)?|alright|all right|right|got it|i'?ll do it|here goes)[,.!]\s*/i;
-
-/** Nobody spoke before a lead, so an opening that sounds like a reply has nothing to reply to. */
-export const withoutReplyToNobody = (text: string) => text.replace(ANSWERS_NOBODY, '');
-
-const NEXT_SIGNPOST = /(^|[.!?]\s+)next(?:\s+up)?[,:]\s+(\p{L})/giu;
-
-/** The tutor is told to go on to the next idea, and says so at the start of a sentence in most worked answers. */
-export const withoutNextSignpost = (text: string) => text.replace(NEXT_SIGNPOST, (_whole, before: string, letter: string) => `${before}${letter.toUpperCase()}`);
+/** "Here's the thing" is the habit that sounds most like a chatbot, and Sonnet writes it whatever the prompt says, so the opener comes off in code and the sentence starts on what it was going to say. */
+export const withoutHeresOpener = (text: string) => text.replace(OPENS_ON_HERES, (_whole, before: string, next: string) => `${before}${next.toUpperCase()}`);
 
 /** Goes with the short turn, so a reply can stay short and still set an exercise. */
 export const LESSON_TURN_NOTE = {

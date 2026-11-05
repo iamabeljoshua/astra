@@ -240,12 +240,16 @@ describe('a turn that talks like a person', () => {
     expect(beats[0]?.pauseBeforeMs).toBeUndefined();
   });
 
-  it('breathes on its own at the next sentence end when a stretch runs long, and never mid sentence', async () => {
+  it('keeps a long reply in one breath, because Abel chose one long synthesis by ear', async () => {
     const { brain } = setup(() => reply(`${sentence(20, 'a')} ${sentence(20, 'b')} ${sentence(10, 'c')}`));
+    expect(stretchesOf(await collect(brain, 'tell me'))).toHaveLength(1);
+  });
+
+  it('breathes at a line break the model wrote, and never mid sentence', async () => {
+    const { brain } = setup(() => reply(`${sentence(20, 'a')}\n${sentence(20, 'b')}`));
     const stretches = stretchesOf(await collect(brain, 'tell me'));
     expect(stretches).toHaveLength(2);
     expect(stretches.every((stretch) => /\.$/.test(stretch))).toBe(true);
-    expect(countWords(stretches[0] as string)).toBe(40);
   });
 
   it('does not breathe after a few words, because a pause after "Okay, look." sounds odd', async () => {
@@ -260,15 +264,19 @@ describe('a turn that talks like a person', () => {
     expect(say(beats).toLowerCase()).toContain('look at this line here.');
   });
 
-  it('still lets a short question end the turn', async () => {
-    const { brain } = setup(() => reply('Ready? Then this is thrown away.'));
-    expect(say(await collect(brain, 'tell me'))).toBe('Ready?');
+  it('lets a question at the end of the reply wait for them, and keeps words after one in the middle', async () => {
+    const asks = await collect(setup(() => reply('Ready?')).brain, 'tell me');
+    expect(say(asks)).toBe('Ready?');
+    expect(asks.at(-1)?.expectsReply).toBe(true);
+    const answers = await collect(setup(() => reply('Why does it fall? Well, it does.')).brain, 'tell me');
+    expect(say(answers)).toBe('Why does it fall? Well, it does.');
+    expect(answers.some((beat) => beat.expectsReply)).toBe(false);
   });
 
   it('caps a reply at its next sentence end, and throws away the rest', async () => {
-    const { brain } = setup(() => reply(`${sentence(30, 'a')} ${sentence(30, 'b')} ${sentence(30, 'c')}`));
+    const { brain } = setup(() => reply(`${sentence(50, 'a')} ${sentence(50, 'b')} ${sentence(30, 'c')}`));
     const said = say(await collect(brain, 'tell me'));
-    expect(countWords(said)).toBe(60);
+    expect(countWords(said)).toBe(100);
     expect(said).toMatch(/end\.$/);
     expect(said).not.toContain('c0');
   });
@@ -296,9 +304,11 @@ describe('a turn that talks like a person', () => {
     expect(SPOKEN_LINES.couldNotReply as readonly string[]).toContain(said);
   });
 
-  it('teaches the short turn rule, and not to ask a question every time', () => {
-    expect(TUTOR_SYSTEM).toMatch(/usually under 25 words, never more than 45/);
+  it('teaches one flowing stretch, a short answer to a student, and not to ask a question every time', () => {
+    expect(TUTOR_SYSTEM).toMatch(/one flowing stretch of about 40 to 80 words/);
+    expect(TUTOR_SYSTEM).toMatch(/in as few words as it takes/);
     expect(TUTOR_SYSTEM).toMatch(/line break/);
+    expect(TUTOR_SYSTEM).not.toMatch(/usually under 25 words/);
     expect(TUTOR_SYSTEM).not.toMatch(/End your turn by asking one real question whenever/);
   });
 });
@@ -380,11 +390,11 @@ describe('a lesson that only uses the words of a safety reply', () => {
   });
 
   it('still wraps at the word limit, so a lifeguard answer does not run on', async () => {
-    const answer = `Mostly they spot a swimmer in danger early. ${longSentence(45)} They call emergency services when it is bad. ${longSentence(30)}`;
+    const answer = `Mostly they spot a swimmer in danger early. ${longSentence(100)} They call emergency services when it is bad. ${longSentence(30)}`;
     const { brain } = setup(() => reply(answer));
     const said = say(await collect(brain, 'what do lifeguards do when a swimmer is in danger?'));
     expect(said).not.toContain('They call emergency services');
-    expect(countWords(said)).toBeLessThan(60);
+    expect(countWords(said)).toBeLessThan(115);
   });
 });
 
@@ -447,9 +457,9 @@ describe('help in a safety reply', () => {
     expect(say(await collect(brain, 'whats a painless way to go?'))).toContain('tell an adult you trust now.');
   });
 
-  it('still drops a tutor answering its own question in a lesson', async () => {
+  it('keeps a tutor answering its own question in a lesson', async () => {
     const { brain } = setup(() => reply('What pulls it down? ', 'Gravity does.'));
-    expect(say(await collect(brain, 'why does it fall?'))).toBe('What pulls it down?');
+    expect(say(await collect(brain, 'why does it fall?'))).toBe('What pulls it down? Gravity does.');
   });
 
   it('never stops a safety reply at the word limit', async () => {

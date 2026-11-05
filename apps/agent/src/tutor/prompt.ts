@@ -1,6 +1,7 @@
 import { PROMPT_V1 } from './prompts/v1.ts';
 import { PROMPT_V2, TURN_NOTE_V2 } from './prompts/v2.ts';
 import { LEVEL_LINES_V3, OPENING_NOTE_V3, PROMPT_V3, PROMPT_V3_FIND_SOURCE } from './prompts/v3.ts';
+import { LEAD_NOTES_V4, LEVEL_LINES_V4, OPENING_A_CARD_NOTE_V4, OPENING_NOTE_V4, PROMPT_V4, PROMPT_V4_FIND_SOURCE, TURN_NOTE_V4 } from './prompts/v4.ts';
 
 export interface TutorPrompt {
   /** Frozen, because the prompt cache is a prefix match, so student and turn details go in a note. */
@@ -10,6 +11,9 @@ export interface TutorPrompt {
   openingNote?: Record<string, string>;
   /** One line a turn for each student level, because that holds the model where the level in the prompt loses to its habit. */
   levelLines?: Readonly<Record<string, string>>;
+  /** What a lead is told, by the kind of lead. Older versions use the notes in `lesson-rules.ts`. */
+  leadNotes?: Readonly<Record<string, string>>;
+  openingACardNote?: Record<string, string>;
 }
 
 export const PROMPT_VERSIONS = {
@@ -17,11 +21,13 @@ export const PROMPT_VERSIONS = {
   v2: { system: PROMPT_V2, turnNote: TURN_NOTE_V2 },
   v3: { system: PROMPT_V3, turnNote: TURN_NOTE_V2, openingNote: OPENING_NOTE_V3, levelLines: LEVEL_LINES_V3 },
   v3FindSource: { system: PROMPT_V3_FIND_SOURCE, turnNote: TURN_NOTE_V2, openingNote: OPENING_NOTE_V3, levelLines: LEVEL_LINES_V3 },
+  v4: { system: PROMPT_V4, turnNote: TURN_NOTE_V4, openingNote: OPENING_NOTE_V4, levelLines: LEVEL_LINES_V4, leadNotes: LEAD_NOTES_V4, openingACardNote: OPENING_A_CARD_NOTE_V4 },
+  v4FindSource: { system: PROMPT_V4_FIND_SOURCE, turnNote: TURN_NOTE_V4, openingNote: OPENING_NOTE_V4, levelLines: LEVEL_LINES_V4, leadNotes: LEAD_NOTES_V4, openingACardNote: OPENING_A_CARD_NOTE_V4 },
 } as const satisfies Record<string, TutorPrompt>;
 
 export type PromptVersion = keyof typeof PROMPT_VERSIONS;
 
-export const CURRENT_PROMPT: PromptVersion = 'v3';
+export const CURRENT_PROMPT: PromptVersion = 'v4';
 
 export const TUTOR_PROMPT: TutorPrompt = PROMPT_VERSIONS[CURRENT_PROMPT];
 

@@ -3,7 +3,7 @@ import { initializeLogger, tts } from '@livekit/agents';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { askMoreSteps } from '../src/lesson-plan/ask-planner.ts';
 import { asksToBeTaught, createLessonPlanner } from '../src/lesson-plan/lesson-planner.ts';
-import { getLessonWordsProblem, withoutNextSignpost } from '../src/lesson-plan/lesson-rules.ts';
+import { getLessonWordsProblem } from '../src/lesson-plan/lesson-rules.ts';
 import { createLiveSession, type LiveSession } from '../src/live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../src/live/reactions.ts';
 import { getLead, LEAD_TIMINGS, LEAD_WORDS } from '../src/live/tutor-lead.ts';
@@ -24,7 +24,7 @@ initializeLogger({ pretty: false, level: 'silent' });
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const STAMP = { clockId: 'c', browserMs: 1, startedMsAgo: 0 };
-const FAST = { ...LEAD_TIMINGS, firstWordAfterMs: 20, slowFirstWordAfterMs: 400, afterQuestionMs: 150, afterQuestionAgainMs: 100, afterTaskMs: 200, afterTaskAgainMs: 150, afterTaskTriedMs: 50, afterKeyMs: 250 };
+const FAST = { ...LEAD_TIMINGS, firstWordAfterMs: 20, afterStudentSignMs: 20, slowFirstWordAfterMs: 400, afterQuestionMs: 150, afterQuestionAgainMs: 100, afterTaskMs: 200, afterTaskAgainMs: 150, afterTaskTriedMs: 50, afterKeyMs: 250 };
 const QUICK = { firstTextMs: 300, betweenTextMs: 200, finishGraceMs: 20, reportWaitMs: 5, safetyReadWaitMs: 40 };
 const USAGE = { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
@@ -435,6 +435,7 @@ describe('a steered exercise', () => {
     const planner = makePlanner();
     planner.noteCardLesson({ topic: 'Momentum', kind: 'teachFirst', steps: [{ teach: 'Momentum', exercise: 'A 60 kg skater throws a 20 kg ball at 5 m/s, how fast does she slide?', material: ['Momentum is mass times speed.'] }] });
     for (let index = 0; index < 7; index += 1) planner.noteReplyEnded({ wasSafety: false, wasLead: true, spoken: '' });
+    planner.noteExampleShown();
     const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner });
     const said = await say(brain, LEAD_WORDS.next, 'next');
     expect(asked).toHaveLength(2);
@@ -552,14 +553,13 @@ describe('small things a long lesson says', () => {
     expect(getLessonWordsProblem('Their plan to reach orbit failed in 1957.')).toBeNull();
   });
 
-  it('sends back a reply that announces a fix, and takes "Next up:" off a sentence', async () => {
+  it('sends back a reply that announces a fix', async () => {
     expect(getLessonWordsProblem('One small fix to something I said earlier.')).not.toBeNull();
     expect(getLessonWordsProblem('Slight fix: drag points down on the way up.')).not.toBeNull();
     expect(getLessonWordsProblem('I need to correct something: the Moon is smaller.')).not.toBeNull();
     expect(getLessonWordsProblem('Careful, "slowest" isn\'t quite right. It is still moving fast.')).not.toBeNull();
     expect(getLessonWordsProblem('That isn\'t quite right, so look at the sign.')).toBeNull();
     expect(getLessonWordsProblem('A slight fix to the orbit needs little fuel.')).toBeNull();
-    expect(withoutNextSignpost('It is about five. Next up: what fights a rocket.')).toBe('It is about five. What fights a rocket.');
   });
 
   it('sends back a lead that sounds like the end while the lesson goes on, and lets the last reply say so', async () => {

@@ -3,18 +3,12 @@ import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem
 import { type AttemptReport, parseAttemptReport } from './attempts.ts';
 import { parseToolCall, type ToolCall } from './tools/tool-call.ts';
 
-/** A turn wraps up at the next sentence end past this, which is Abel's limit, and the prompt asks for far fewer. */
-export const TURN_WORDS_TO_WRAP = 45;
-/** A stretch of speech takes a breath at the next sentence end past this, because long stretches are what sound like a machine. */
-const STRETCH_WORDS_TO_BREATHE = 25;
-/** A stretch breathes at its next beat past this even with no sentence end in sight, because Abel's limit is 45 words and a long sentence must not pass it. */
-const STRETCH_WORDS_TO_BREATHE_AT_ANY_BEAT = 35;
-/** A stretch with no comma or sentence end still gets its breath here, so no words but a safety reply's pass the limit. */
-const MOST_WORDS_IN_A_STRETCH = 42;
+/** A turn wraps up at the next sentence end past this. The prompt asks for 40 to 80, and this only stops a reply that runs away. */
+export const TURN_WORDS_TO_WRAP = 100;
 /** A line break after fewer words than this is only a new beat, because a pause after "Okay, look." sounds odd. */
 const FEWEST_WORDS_BEFORE_A_BREATH = 6;
 /** A sentence that never ends stops here, so a run-on cannot speak for a minute. */
-const TURN_WORDS_TO_CUT = 90;
+const TURN_WORDS_TO_CUT = 140;
 const WORDS_FOR_A_LATE_TASK = 'Over to you.';
 const WORDS_FOR_A_LATE_DRAWING = 'Have a look.';
 /** B2 gives a turn's first drawing 1 s from its first word, which is about three words. */
@@ -36,8 +30,6 @@ const ENDS_IN_SENTENCE = /[.!]["')]*\s*$/;
 const ENDS_IN_CLAUSE = /[,;:]\s*$/;
 const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|(?:[a-z]\.)+[a-z])\.["')]*\s*$/i;
 const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
-/** A sentence can end inside a beat, when the words after a comma were too few to stand alone. */
-const HOLDS_SENTENCE_END = /[a-z][.!]["')]*\s+\S/i;
 export const CLAIMS_A_DRAWING = /\b(here you go|there you go|here it is|here they are|here'?s|here is|here are|take a look|have a look|look at|see (?:the|this)|on the board|i'?ve (?:drawn|put|written|added)|i (?:drew|put|wrote)|this (?:table|timeline|diagram|picture|drawing|graph|plot|code|painting))\b/i;
 export const KINDS_A_STUDENT_LOOKS_FOR: ReadonlySet<string> = new Set(['table', 'timeline', 'code', 'image', 'drawing', 'diagram', 'plot', 'text', 'simulate']);
 const WRITTEN_KIND = /"kind"\s*:\s*"([A-Za-z]+)"/;
@@ -73,7 +65,7 @@ export interface BeatTextReaderOptions {
   onToolCall?(call: ToolCall): void;
   onAttemptReport?(report: AttemptReport): void;
   checkCommand?(command: SceneCommand): CommandVerdict;
-  checkWords?(text: string): string | null;
+  checkWords?(text: string, isOpenQuestion: boolean): string | null;
   onWrongWords?(problem: string): void;
   /** A retry that says these words again would repeat what the student heard, so they are dropped. */
   isAlreadySaid?(text: string): boolean;
@@ -151,6 +143,7 @@ export class BeatTextReader {
   #isHalted = false;
   #isTurnOver = false;
   #isQuestionHeld = false;
+  #isQuestionAnsweredHere = false;
   #keptAfterQuestion: string[] = [];
   #wasCutShort = false;
   #textAfterTurn = '';
@@ -181,7 +174,7 @@ export class BeatTextReader {
     return this.#textAfterTurn;
   }
 
-  /** The model's text as the student got it, without the words dropped after its question. */
+  /** The model's text as the student got it, without the words dropped past its limit. */
   getKeptText(raw: string): string {
     if (this.#textAfterTurn === '') return raw;
     const questionEnd = Math.max(0, raw.length - this.#textAfterTurn.length - this.#keptAfterQuestion.join('').length);
@@ -325,15 +318,25 @@ export class BeatTextReader {
     this.push(held);
   }
 
-  // Help written after a held question must be spoken too, so it lets the question go.
+  // Words after a question mean the tutor is asking itself, as in "So why doesn't it fall? Well, it does.", and only a question that ends the reply waits for the student.
   #addAfterHeldQuestion(character: string): void {
-    this.#textAfterTurn += character;
-    if (!SAFETY_REPLY.test(this.#textAfterTurn)) return;
-    const held = this.#textAfterTurn;
-    this.#textAfterTurn = '';
+    if (/\s/.test(character)) return;
+    this.#endQuestionAnsweredHere();
+    if (!this.#isHalted) this.#speak(character);
+  }
+
+  // A drawing written after the question belongs to the words about to come, so it moves to the next beat.
+  #endQuestionAnsweredHere(): void {
+    const firstLateCommand = this.#script.findLastIndex((part) => typeof part === 'string') + 1;
+    const lateCommands = this.#script.splice(firstLateCommand) as SceneCommand[];
     this.#isQuestionHeld = false;
-    this.#isSafetyReply = true;
-    this.push(held);
+    this.#isQuestionAnsweredHere = true;
+    this.#keptAfterQuestion = [];
+    this.#endBeat();
+    this.#script = lateCommands;
+    this.#cuesAwaitingWord = [...lateCommands];
+    this.#commandCount = lateCommands.length;
+    for (const command of lateCommands) if ('id' in command) this.#createdIds.add(command.id);
   }
 
   #isPastWordCut(): boolean {
@@ -421,7 +424,7 @@ export class BeatTextReader {
       if (isSpace) return;
       this.#endBeat();
     }
-    if (!isSpace && this.#isAfterSpace && (this.#wordCount === BEAT_LIMITS.words || this.#isPastWordCut() || this.#isStretchFull())) this.#endBeat();
+    if (!isSpace && this.#isAfterSpace && (this.#wordCount === BEAT_LIMITS.words || this.#isPastWordCut())) this.#endBeat();
     if (this.#isTurnOver) return this.#addAfterTurn(character);
     if (!isSpace) this.#startOrContinueWord();
     this.#isAfterSpace = isSpace;
@@ -656,27 +659,20 @@ export class BeatTextReader {
     this.#refuse(written, said);
   }
 
-  #isStretchFull(): boolean {
-    return !this.#isSafetyReply && this.#wordsThisStretch >= MOST_WORDS_IN_A_STRETCH;
-  }
-
-  #isStretchLongEnough(endsSentence: boolean): boolean {
-    if (this.#wordsThisStretch >= STRETCH_WORDS_TO_BREATHE_AT_ANY_BEAT) return true;
-    return this.#wordsThisStretch >= STRETCH_WORDS_TO_BREATHE && (endsSentence || HOLDS_SENTENCE_END.test(this.#text));
-  }
-
   #endBeat(): void {
     if (this.#wordCount === 0) return;
     if (this.#options.isAlreadySaid?.(this.#text)) return this.#dropWordsKeepingCommands();
     this.#clearCuesAwaitingWord();
     this.#isQuestionHeld = false;
-    const wordsProblem = this.#options.checkWords?.(this.#text) ?? null;
+    const endsInQuestion = ENDS_IN_QUESTION.test(this.#text);
+    const expectsReply = endsInQuestion && !this.#isQuestionAnsweredHere;
+    this.#isQuestionAnsweredHere = false;
+    const wordsProblem = this.#options.checkWords?.(this.#text, expectsReply) ?? null;
     if (wordsProblem !== null) {
       this.#isHalted = true;
       this.#startBeat();
       return this.#options.onWrongWords?.(wordsProblem);
     }
-    const expectsReply = ENDS_IN_QUESTION.test(this.#text);
     const endsSentence = isSentenceEnd(this.#text);
     const script = withWordsApart(this.#script).map((part) => (typeof part === 'string' ? part.normalize('NFC') : part));
     this.#isSafetyReply ||= SAFETY_REPLY.test(this.#text);
@@ -688,8 +684,7 @@ export class BeatTextReader {
     const isAtCut = this.#isPastWordCut();
     this.#isTurnOver = (expectsReply && !this.#isSafetyReply) || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP && !this.#isSafetyReply) || isAtCut;
     this.#wasCutShort = isAtCut && !expectsReply && !endsSentence;
-    this.#didLastBeatEndSentence = endsSentence || expectsReply;
-    if (this.#isStretchLongEnough(endsSentence) && !this.#isSafetyReply) this.#isBreathDue = true;
+    this.#didLastBeatEndSentence = endsSentence || endsInQuestion;
     this.#startBeat();
   }
 }

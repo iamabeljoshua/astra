@@ -124,12 +124,14 @@ const describeTask = (task: Task, spoken: string, hasMathOnBoard: boolean): stri
 
 function readCardMaterial(title: string): CardMaterial {
   const store = createSceneStore(getSceneStoreRoot());
-  const library = JSON.parse(readFileSync(join(API_FOLDER, 'library.json'), 'utf8')) as { topics: { id: string; title: string }[] };
+  const library = JSON.parse(readFileSync(join(API_FOLDER, 'library.json'), 'utf8')) as { topics: { id: string; title: string; subject: string }[] };
   const deeper = JSON.parse(readFileSync(join(API_FOLDER, 'deeper-scenes.json'), 'utf8')) as { deeper: { topicId: string; titles: string[] }[] };
-  const topicId = library.topics.find((topic) => topic.title === title)?.id;
+  const topic = library.topics.find((one) => one.title === title);
+  const topicId = topic?.id;
   const titles = [title, ...(deeper.deeper.find((entry) => entry.topicId === topicId)?.titles ?? [])];
   return {
     title,
+    ...(topic ? { subject: topic.subject } : {}),
     ideas: titles.map((idea) => {
       const saved = store.find(getSceneKey(idea));
       const lines = saved ? [...saved.plan.opening, ...(saved.plan.more ?? [])].map(({ say }) => say) : [];
@@ -220,6 +222,7 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
       queue?.noteSafetyReply();
     },
     getSpendLimit: () => (ledger.isOverModelLimit() ? 'sessionLimit' : null),
+    onPreparedLeadDropped: (usd) => ledger.charge({ anthropicUsd: usd }),
     onCompacted({ costUsd, turnsBefore, turnsAfter }) {
       compactions += 1;
       ledger.charge({ anthropicUsd: costUsd });
