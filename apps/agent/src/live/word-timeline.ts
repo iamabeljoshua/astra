@@ -49,7 +49,6 @@ export function createWordTimeline(beats: readonly Beat[] = []) {
     return sent;
   };
 
-  /** Where the first sentence after one ends starts, at or after `positionMs`, or null while the voice has not timed it. */
   const getSentenceStartFrom = (positionMs: number): number | null => {
     for (const [index, { startMs }] of expected.entries()) {
       if (startMs === null) return null;

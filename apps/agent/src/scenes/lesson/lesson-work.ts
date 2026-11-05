@@ -101,7 +101,6 @@ export function createLessonWork({ router, runs, kitRuns, fitReader, store, requ
     return isCard ? asked.catch(() => NO_ROUTE) : asked;
   };
 
-  // A read that failed has not said that nothing fits, so it must not start a paid write.
   const findFit = async (topic: string): Promise<StoredScene | 'unread' | null> => {
     if (!fitReader || isCard || !writesKit) return null;
     const titles = (await store.listShared()).map((scene) => scene.topic);

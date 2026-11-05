@@ -37,11 +37,9 @@ export interface FastSceneHooks {
   isInBreath(): boolean;
   /** The reply has said nothing yet, so a picture ready now can be the lesson's first teaching and no sentence is cut. */
   isBeforeFirstWord?(): boolean;
-  /** The reply ends now only when nothing of it has been heard, and otherwise at the end of the sentence it is on. */
   cutIn(beats: readonly TutorBeat[], replyEnds: ReplyEnd): boolean;
   mostAsks: number;
   askLimitMs: number;
-  /** A drawing is paid by the token, so one the student has moved on from stops. */
   drawsFresh?: boolean;
 }
 

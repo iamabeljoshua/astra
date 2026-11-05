@@ -36,7 +36,6 @@ function makeBeat(id: string, text: string): Beat {
 
 type Source = 'full' | 'justInTime';
 
-// A source that a fast voice keeps full holds 200 ms nobody has heard yet. One fed just in time holds next to nothing, so what was sent is what was heard.
 function hearTurn(source: Source, onFrame: (turn: SpokenTurn) => void = () => {}) {
   let sentMs = 0;
   let isPlayedOut = false;

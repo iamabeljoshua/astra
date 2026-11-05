@@ -59,7 +59,7 @@ export interface SpokenTurn {
   /** Settles once the turn is off the line, and never rejects, because one bad turn must not end a session. */
   finished: Promise<void>;
   stop(): void;
-  /** Sends no audio past the end of the sentence playing now, and stops once that audio has played. */
+  /** Sends no audio past the end of the sentence it is sending, and stops once that audio has played. */
   endAtSentence(): void;
   getWordMismatches(): { ours: string; theirs: string }[];
   /** Words were sent to the voice that have not come back, so a silence now is the voice's and not the writer's. */
@@ -205,7 +205,6 @@ async function readVoice(work: TurnWork): Promise<void> {
   work.frames.finish();
 }
 
-// Decides on audio that has really left, so no word of the next sentence goes out, whatever the source still holds.
 const reachesNextSentence = ({ firstSound, timeline }: TurnWork, sentMs: number, frameMs: number) => {
   const nextSentenceMs = timeline.getSentenceStartFrom(firstSound.toTimeline(sentMs));
   return nextSentenceMs !== null && firstSound.toTimeline(sentMs + frameMs) + SENTENCE_END_MARGIN_MS > nextSentenceMs;

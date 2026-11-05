@@ -255,7 +255,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let audioRunning = false;
   let reaction: Speaking | null = null;
   let reply: Speaking | null = null;
-  /** The reply a scene cut in on, saying the rest of its sentence while the scene waits on the line. */
   let endingReply: Speaking | null = null;
   let cut: Speaking | null = null;
   let thought: Thought | null = null;
