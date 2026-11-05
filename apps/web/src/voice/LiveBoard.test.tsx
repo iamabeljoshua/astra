@@ -51,6 +51,12 @@ describe('the live board', () => {
     });
   };
 
+  it('puts no note on an empty board, because the tutor is about to draw on it', async () => {
+    const { voice } = makeVoiceWithBoard(['Look here.']);
+    await showBoard(voice);
+    expect(screen.queryByTestId('board-empty')).toBeNull();
+  });
+
   it('tells the session when a picture cannot show', async () => {
     const { voice, reportBoardProblem } = makeVoiceWithBoard([{ kind: 'image', id: 'pic', fileId: 'file-1', alt: 'A wave' }, 'Look here.']);
     await showBoard(voice);

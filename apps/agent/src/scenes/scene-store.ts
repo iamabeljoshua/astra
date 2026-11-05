@@ -38,6 +38,23 @@ export interface SceneStore {
   listShared(): Promise<StoredScene[]>;
 }
 
+interface KitSceneRecord {
+  sceneId?: string;
+  topic?: string;
+  reviewed?: boolean;
+}
+
+/** The person-run store holds a topic's 3D scene beside its 2D take, under `kit/<topicId>`. */
+function hasReviewedKitScene(root: string, { id, topic }: StoredScene): boolean {
+  const kitRoot = join(root, 'kit');
+  if (!existsSync(kitRoot)) return false;
+  return readdirSync(kitRoot).some((folder) => {
+    if (!existsSync(join(kitRoot, folder, 'scene.js'))) return false;
+    const record = readJsonFile<KitSceneRecord>(join(kitRoot, folder, 'scene.json'));
+    return record?.reviewed === true && (record.sceneId === id || (record.sceneId === undefined && normalize(record.topic ?? '') === normalize(topic)));
+  });
+}
+
 const isKeyMatch = (key: SceneKey, found: { topic?: string; ownerId?: string | null }) => normalize(found.topic ?? '') === normalize(key.topic) && (found.ownerId ?? null) === key.ownerId;
 
 function requireServerId(id: string): string {
@@ -80,7 +97,8 @@ export function createSceneStore(root: string): SceneStore {
   return {
     find(key) {
       const scene = isFlaggedId(key.id) ? null : readChecked(key.id);
-      return scene && isKeyMatch(key, scene) ? scene : null;
+      if (!scene || !isKeyMatch(key, scene)) return null;
+      return hasReviewedKitScene(root, scene) ? { ...scene, engine: 'kit' } : scene;
     },
     isFlagged: (key) => isFlaggedId(key.id),
     findRefusal(key) {

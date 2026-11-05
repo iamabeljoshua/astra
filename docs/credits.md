@@ -72,6 +72,14 @@ We made these drawings for this product.
 - `apps/web/src/ui/dots/planetDots.ts` and `apps/web/src/ui/dots/chartBackdrop.ts` draw the planet and the star chart on sign-in and onboarding.
 - `apps/web/src/home/lineDrawings.tsx` holds `balance`, `bars`, `binary`, `braking`, `branches`, `circuit`, `clock`, `curve`, `frames`, `grid`, `lock`, `parabola`, `piston`, `pitch`, `prism`, `route`, `string`, `table`, `tangent`, `terrain`, `triangle`, and `waveform`.
 
+## Scene textures
+
+`apps/web/public/scene-kit/textures/` holds the planet maps for 3D scenes, `2k_*.jpg` and `2k_saturn_ring_alpha.png`, from [Solar System Scope](https://www.solarsystemscope.com/textures/), downloaded on 3 November 2026, under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Attribution: Textures by Solar System Scope (INOVE), based on NASA elevation and imagery data.
+
+## 3D scenes
+
+`apps/web/public/scene-kit/0.1.0/kit.js` is built from `packages/board/src/scene3d/` and bundles [Three.js](https://threejs.org) 0.170.0, under its MIT license.
+
 ## Scene engine
 
 `apps/web/public/scene-engine/0.1.1/` holds the player from [ManimGX](https://github.com/academa-labs/manimgx) 0.1.1, under its MIT license, with the third-party notices in `NOTICES.txt`. `apps/scene-worker/` installs the same version on the server. Its Linux wheels include x264 and so are GPL-3.0-or-later as a whole, and the lawyer checks this before real students. `apps/scene-worker/fonts/` holds Barlow and Newsreader under the licenses above, and each take carries the glyphs it draws.

@@ -28,6 +28,10 @@
     "./tex-fuzz": {
       "types": "./src/math/tex-fuzz.ts",
       "default": "./src/math/tex-fuzz.ts"
+    },
+    "./scene3d": {
+      "types": "./src/scene3d/index.ts",
+      "default": "./src/scene3d/index.ts"
     }
   },
   "scripts": {
@@ -40,6 +44,7 @@
     "katex": "0.19.1"
   },
   "devDependencies": {
+    "three": "0.170.0",
     "typescript": "catalog:",
     "vitest": "^5.1.0"
   }
