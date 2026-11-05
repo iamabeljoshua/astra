@@ -67,6 +67,12 @@ describe('plain teaching', () => {
     expect(TUTOR_PROMPT.levelLines?.[level]).toMatch(/^Start plain/);
   });
 
+  it('shows a high schooler the formula after the picture, one at a time', () => {
+    expect(TUTOR_PROMPT.levelLines?.high_school).toContain('formula on the board');
+    expect(TUTOR_PROMPT.system).toContain('One formula per idea');
+    expect(TUTOR_PROMPT.system).toContain('never in place of it');
+  });
+
   it('asks for no proper terms at the start, at any level', () => {
     expect(TUTOR_PROMPT.system).not.toMatch(/proper terms straight away|never a childhood picture|proper term and the mechanism in every reply/);
     expect(TUTOR_PROMPT.system).toContain('Everyone starts plain.');
