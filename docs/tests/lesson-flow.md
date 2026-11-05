@@ -105,10 +105,19 @@ Abel: "why lessons are so short and only teach for like 1 minute or 30 seconds? 
 - **A student who has gone stops costing.** The second unanswered ask in a row, with no sign of them, gets one gentle check, and then it holds until they come back. The quiet limit closes the room from there, and while the tutor is talking that limit never runs out on a student only listening.
 - **After a safety reply nothing goes on by itself**, until the student asks to be taught again.
 - **A card's plan comes from the server.** `getCardMaterial` in `scene-library.ts` gives the card's idea and its deeper titles, each with its `opening` and `more` lines and whether a saved scene may play. The brief carries it, so nothing is read from disk during a turn, and the queue above takes those titles without asking a model. A card with no deeper titles keeps its first step and takes the rest from the planner.
-- **A plan runs on.** Near its end the planner writes the next ideas, seeing the titles so far and what the tutor really said, up to 14. Past that the tutor asks what they want next.
+- **A plan runs on.** Near its end the planner writes the next ideas, seeing the titles so far and what the tutor really said, up to 16. Past that the tutor asks what they want next.
 - **Their words beat the count.** "go on", "teach me more", "what's next", and the like end `exercise_due`, and move on once the idea has been taught. In any other language the tutor reads it itself, and the planner's `wants` carries it a turn later.
 - **Saved scenes.** A card's lesson can play all six, and they count toward `ASTRA_SHARED_PLAYS_A_DAY`, now 18 a student, about three whole lessons. Each play is spoken again through the live voice, because this path keeps no voice. A play measured about 422 characters, so 94 credits at 22 credits per 99 characters. 18 plays cost one student up to about 1,700 credits a day, about $0.30. The project's own daily credit limit, 1,500 by default, is lower than that and stops first. Setting it for real use is a hosting decision.
 - **Exercises.** A student listening hears 7 replies on a card's idea, or 6 on a planned one, before the exercise. One who is talking gets there after 3 or 2. In a reply that sets the exercise, a line that shows its own answer, such as `100 - 30 = 70`, is stopped before the student sees it, and elsewhere a task on such a line is refused.
+
+One lesson on the rocket card, real Sonnet and Haiku, the fake voice in real time, in Node, with a student who answers tasks and says nothing else:
+
+| Run | Ideas | Scenes | Exercises | Taught for | Longest quiet, nothing open | First text p50, early and late | Cost | Voice |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 12 ideas at most | 12 | 6 | 8 number problems, 3 place, 1 pick | 16.8 min | 3.1 s | 2174, 2037 ms | $0.027 a minute | 620 characters a minute |
+| 14 ideas at most, compaction forced at 30,000 tokens | 14 | 6 | 1 number problem, 9 written, 1 own words, 3 place | 17.9 min | 3.5 s while teaching | 2317, 1474 ms | $0.021 a minute | 610 characters a minute |
+
+The 16 ideas now allowed should reach about 20 minutes, an estimate from about 75 s an idea, and no run has measured it. 610 characters a minute is about 136 credits a minute, about 2,700 credits for 20 minutes, on the fake voice's pace. The first run's prompt reached 59,041 tokens, about 450 a reply, so the real trigger of 60,000 fires at about 20 minutes. The second run compacted twice, at 577 s and 935 s, and the lesson carried on with nothing said word for word again.
 
 ## Run it
 

@@ -20,7 +20,7 @@ export const LEAD_NOTES = {
   next: 'Nobody spoke, and they are listening. Say the next beat of the idea yourself as a statement, one that moves on and repeats nothing. Save questions for the exercise. Any example is true of the real world, never a scene made up to fit.',
   taskTried: 'They have had their go at the exercise and you have answered it, so it is closed now. If they missed it, show the right answer in a line. Then {"kind":"boardMode","mode":"teach"} and on to the next idea. Do not call it skipped.',
   checkIn: 'They have not answered twice now, and may have stepped away. Check once, gently, in a few words, and say they can jump back in whenever they like. Teach nothing new.',
-  exercise: 'Nobody spoke, and this idea has been taught. Set the exercise in this reply: a few words, the problem on the board with its numbers if it has any, then its task command. Put only the problem on the board, never its answer. Settle the numbers before you speak, simple enough to work in their head, so you never correct yourself aloud.',
+  exercise: 'Nobody spoke, and this idea has been taught. Set the exercise in this reply: a few words, then a real problem with its numbers on the board if the idea has any numbers at all, never its answer, then its task command. Settle the numbers before you speak, simple enough to work in their head, so you never correct yourself aloud.',
   noAnswer: 'They did not answer. Say the answer yourself in a line, with no fuss, and teach on, asking nothing in this reply.',
   taskLeft: 'They did not try it, and it is closed now. Show how it goes in a line, then {"kind":"boardMode","mode":"teach"} and on to the next idea.',
 } as const;

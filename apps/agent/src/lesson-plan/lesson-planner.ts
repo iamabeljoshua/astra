@@ -58,7 +58,7 @@ const WANTS_TEACHING = /\b(?:go on|keep going|keep teaching|carry on|go ahead|te
 export const asksToBeTaught = (words: string) => WANTS_TEACHING.test(words) || ASKS_TO_BE_TAUGHT.test(words);
 
 const FEWEST_STEPS_ON_A_CARD = 3;
-const MOST_STEPS_IN_A_LESSON = 14;
+const MOST_STEPS_IN_A_LESSON = 16;
 const MOST_CHARACTERS_OF_WHAT_WAS_SAID = 6000;
 const MOST_TIMES_ASKED_FOR_MORE = 6;
 
