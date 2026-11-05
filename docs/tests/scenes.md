@@ -114,10 +114,29 @@ A topic's 3D scene is a second take of the same scene. It has the same id, narra
 - **Never a black box.** The sandbox reads its own pixels before it says ready, at two points past the opening fade, and reports a scene that drew nothing. It reports a lost graphics context. A frame on screen must say it drew within 2 s. Any of these drops the frame, the 2D take takes over at the same second, and a live scene with no 2D take leaves the board or the card's picture.
 - **Replay.** A replay loads the scene its board has reached, on the same stage and the same moments as the live lesson, on either engine, and shows it only once loaded. This replaces the rule from PR 112, and its test "plays a lesson that had a scene with no scene in it", on purpose. A scene that will not load leaves the plain board or the card's picture.
 - **An empty board.** Live and on a replay, a board with nothing on it says so, because an empty panel on the dark theme reads as a broken black screen.
-- **Memory.** A stage holds at most 2 kit frames and disposes the rest, and never the one on screen. The prototype measured about 180 MB a scene.
+- **Memory.** A stage holds at most 2 kit frames, the one on screen and the next one the queue prepares, and disposes the rest. The table below has what one costs.
 - **The session's limits.** The default `ASTRA_SHARED_PLAYS_A_DAY` of 5 stops a shared scene silently for that student. `ASTRA_SPEND_LIMIT_CREDITS` counts the characters of a tone voice too, and past it the tutor closes the session, so a long proof with a tone voice needs it raised.
 
 `node scripts/check-kit-scene.ts --scene <folder> --out <folder>` is the check for a person-run review step. It fails a scene that does not build, draws nothing at a moment, is not the same frame when drawn again, or flashes more than 3 times a second by `apps/web/src/lab/deck/flashes.ts`, on 50 ms frames, read from the canvas itself across a 32 by 18 grid.
+
+What a real session measured on 4 and 5 November 2026, on real Chrome with a real GPU, headed unless it says otherwise, with the tone voice, on Abel's Mac with load 13 to 26 on 12 cores, on the rocket card. `apps/agent/src/scenes/proof/tutor-scene-proof.ts` drives it.
+
+| Check | Result |
+| --- | --- |
+| Word cues | Each moment landed on its word: "climbs." at 3.4 s, "slows." at 7.4 s, "second." at 11.067 s, "distance." at 14.067 s, 1 run |
+| The frame's clock | The sandbox's drawn second against the board's second, p50 0 ms and p95 19 ms, 3 runs |
+| Same frame | 5 seek points gave the same pixel hash forward and backward, and across 4 separate sessions, one of them after a reload and one in the dark theme. The hash reads the canvas and not the labels, which are DOM |
+| Press to scene | 5.9 to 7.8 s with the kit on 3 runs, 6.6 to 7.8 s on the 2D take on 4 runs, which is not a difference these few runs can show. The page says it is ready on the 2D take alone |
+| A slow first load | With the kit file held back 8 s, first words at 3.56 s and the scene at 5.97 s, against 3.53 s and 5.92 s, and the kit took over when it came |
+| A stall | A regular expression spun inside the frame mid-play. The page's largest frame gap was 142 ms, the 2D take took over at the same second, and the scene played to its end |
+| Phone width, no WebGL, reduced motion, a kit take answering 500 | The 2D take played to its end, with no frame made and no message |
+| Hands-on | The scene went to 30% of the right side, 12 px from its top and right edges, in about 520 ms by samples. A click brought it back big, and a second click put it back |
+| A crisis 8 s after first words | The scene's words stopped mid-sentence and never came back, the scene held its second, and the glide started on the help line's first words |
+| A reload | The scene came back about 2.4 s after the reload on the kit, held at its moment, and its words did not resume |
+| End and leaving | The frame stays through the recap and is gone on leaving the page |
+| Memory, 2x display | With the kit on screen the GPU process held 995 MB and all of Chrome 1612 MB. On the 2D take it held 458 MB and 938 MB. After leaving it held 251 MB. So a kit scene costs about 670 MB here, far above the prototype's 180 MB, one run each, and two held frames would be about 1.3 GB by inference |
+| Bundle | The first page's JavaScript grew 143 bytes, 57 gzipped, for the two lines in `strings.ts`, and its CSS did not change. Three.js is in no chunk. `kit.js` is 785 KB and 206 KB gzipped, and the frame's code with its parser is a 124 KB chunk, both fetched only when a kit scene is about to play |
+| Flash | All 17 stored scenes passed, at most 2 flashes a second, on seasons. A planted 12 Hz strobe read 6 and failed, and a planted scene that drifts between draws failed |
 
 What the layout check cannot see inside a WebGL canvas. `scripts/check-layout.ts` measures DOM boxes, and a canvas is one box. So it cannot see a part that hides another, a subject that leaves the frame, a camera inside a solid, text drawn in the scene's own textures, a wrong color, or a wrong fact in a shape. The labels and instruments are DOM inside the sandbox, which that check does not enter. `check-kit-scene.ts` sees only whether something was drawn, and a person's review is the only check on what.
 

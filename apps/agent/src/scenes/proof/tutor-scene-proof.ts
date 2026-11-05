@@ -30,6 +30,7 @@ const { values: args } = parseArgs({
     kitStallsAfterFrames: { type: 'string' },
     seekTimes: { type: 'string' },
     replay: { type: 'boolean', default: false },
+    replayNoScene: { type: 'boolean', default: false },
   },
 });
 
@@ -125,7 +126,6 @@ page.on('console', (message) => {
 if (args.noGpu) await page.addInitScript(() => Object.defineProperty(Navigator.prototype, 'gpu', { get: () => undefined }));
 if (args.damageTake) await page.route('**/api/scene-takes/**', (route) => route.fulfill({ status: 200, contentType: 'application/octet-stream', body: Buffer.from(Array.from({ length: 4096 }, (_, index) => (index * 37) % 256)) }));
 
-// A rich read of the clock, so the board's seconds, the frame's own drawn seconds, and the words can be lined up after the run.
 await page.addInitScript(() => {
   if (window.top !== window) return;
   const samples: unknown[][] = [];
@@ -153,7 +153,6 @@ if (args.kitSlowMs) {
   });
 }
 if (args.kitStallsAfterFrames) {
-  // No loop guard can stop a regular expression, so only the page's watch on the frame can. It counts frames, so the sandbox's own read of its pixels at load passes.
   await page.route('**/api/scene-takes/*/kit', async (route) => {
     const reply = await route.fetch();
     const take = (await reply.json()) as { code: string };
@@ -323,6 +322,13 @@ await delay(1500);
 summary.framesAfterLeaving = await page.evaluate(() => document.querySelectorAll('iframe').length);
 
 async function watchReplay() {
+  if (args.replayNoScene) {
+    await page.route('**/api/scene-takes/**', (route) => route.fulfill({ status: 404, body: '{}' }));
+    await page.route('**/api/sessions/*', async (route) => {
+      const reply = await route.fetch();
+      await route.fulfill({ response: reply, json: { ...((await reply.json()) as object), artwork: null } });
+    });
+  }
   await page.goto(sessionPath);
   await page.locator('[data-testid="replay-transport"]').waitFor({ timeout: 45_000 });
   const seek = page.getByRole('slider', { name: 'Lesson timeline' });

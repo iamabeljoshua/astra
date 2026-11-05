@@ -44,7 +44,7 @@ interface KitSceneRecord {
   reviewed?: boolean;
 }
 
-/** The person-run store holds a topic's 3D scene beside its 2D take, under `kit/<topicId>`. Only a reviewed one may play, and it plays on the 2D take's moments. */
+/** The person-run store holds a topic's 3D scene beside its 2D take, under `kit/<topicId>`. */
 function hasReviewedKitScene(root: string, { id, topic }: StoredScene): boolean {
   const kitRoot = join(root, 'kit');
   if (!existsSync(kitRoot)) return false;

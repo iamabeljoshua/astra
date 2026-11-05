@@ -22,7 +22,7 @@ function getGuardInserts(node: SyntaxNode, guardCall: string): [number, string][
   return inserts;
 }
 
-/** Removing an iframe does not stop a spinning script, so every loop calls a time check before the code runs. A syntax error throws here. */
+/** Removing an iframe does not stop a spinning script, so every loop calls a time check before the code runs. */
 export function guardLoops(code: string, guardName: string): string {
   const program = parse(code, { ecmaVersion: 'latest', sourceType: 'script' }) as unknown as SyntaxNode;
   const inserts = getGuardInserts(program, `${guardName}();`).sort(([first], [second]) => second - first);

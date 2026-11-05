@@ -1,19 +1,16 @@
 export type KitTheme = 'light' | 'dark';
 
-/** What a scene is given and all it is given. Saved scenes and live scenes reach the page in this one shape. */
 export interface KitTake {
   code: string;
   timing: { moments: Record<string, number>; duration: number };
 }
 
-/** The page's only ways in. No student data goes through any of them. */
 export type KitFrameCommand =
   | { type: 'load'; timing: KitTake['timing']; textures: Record<string, Blob>; quality?: 'high' | 'med' | 'low'; theme: KitTheme }
   | { type: 'render'; seconds: number }
   | { type: 'resize' }
   | { type: 'dispose' }
   | { type: 'ping'; id: number }
-  /** Reads the frame back, for the checks. A session never sends these. */
   | { type: 'gate'; times: number[] }
   | { type: 'snapshot'; times: number[] }
   | { type: 'audit'; times: number[] }

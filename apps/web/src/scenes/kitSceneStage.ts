@@ -8,7 +8,6 @@ import { createSceneStage, type SceneStage } from './sceneStage';
 
 const PHONE_WIDTH = 860;
 const MOST_HELD_FRAMES = 2;
-/** A late kit scene costs nothing, because the 2D take is already playing under it. */
 const KIT_LOAD_LIMIT_MS = 15_000;
 const CROSS_FADE_MS = 300;
 
@@ -20,7 +19,6 @@ interface KitEntry {
 
 const hasWebGl = () => document.createElement('canvas').getContext('webgl2') !== null;
 
-/** Laptop first, by Abel's word. Everywhere else plays the 2D take with nothing said. */
 export const getCanPlayKit = () => isKitSceneEnabled() && window.innerWidth > PHONE_WIDTH && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && hasWebGl();
 
 function createLayer(parent: HTMLElement): HTMLElement {
@@ -63,7 +61,7 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
         take,
         theme: getAppliedTheme(),
         limitMs: KIT_LOAD_LIMIT_MS,
-        onStall: () => {
+        onLost: () => {
           drop(sceneId);
           onChange();
         },
@@ -78,7 +76,6 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
       onChange();
       return true;
     } catch (error) {
-      // The student never hears of this, and a person reading the page can.
       container.dataset.kitProblem = String(error);
       entries.delete(sceneId);
       layer.remove();
@@ -98,7 +95,6 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
     return entry.opening;
   };
 
-  // The kit's layer is in place but clear while it proves it can draw, so a frame that never does is never seen.
   const show = (sceneId: string, isKitOn: boolean, isKitSeen: boolean) => {
     for (const [heldId, { layer }] of entries) {
       const isThisScene = isKitOn && heldId === sceneId;
@@ -120,16 +116,14 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
         onChange();
         return isLoaded;
       }
-      const kit = open(sceneId);
-      // The words and the board never wait on the kit, so the 2D take alone can say the page is ready. A live scene has no 2D take.
+      const kitOpening = open(sceneId);
       const hasFlat = await flat.load(sceneId, durationSeconds);
       onChange();
-      return hasFlat || kit;
+      return hasFlat || kitOpening;
     },
-    // The next scene waits off screen beside the one playing, up to the two frames a page may hold.
     async prepare(sceneId, engine?: SceneEngine) {
-      const kit = engine === 'kit' && getCanPlayKit() ? open(sceneId) : Promise.resolve(false);
-      return (await flat.prepare(sceneId)) || kit;
+      const kitOpening = engine === 'kit' && getCanPlayKit() ? open(sceneId) : Promise.resolve(false);
+      return (await flat.prepare(sceneId)) || kitOpening;
     },
     draw(sceneId, seconds) {
       lastDrawnId = sceneId;

@@ -198,7 +198,7 @@ const RING_FS = /* glsl */ `
     } else {
       float ang=atan(vLocal.z,vLocal.x)+uT*uSpin*(1.6/(.25+k*k+.25));
       vec3 p=vec3(cos(ang)*(1.+k*2.)*2.,k*16.,sin(ang)*(1.+k*2.)*2.);
-      float s=fbm(p)*1.5; float streak=smoothstep(.25,.95,s);
+      float a0=.5,s=0.; vec3 q0=p; for(int i=0;i<3;i++){ s+=a0*vnoise(q0); q0=q0*2.03+vec3(1.7,9.2,3.1); a0*=.5; } s*=1.72; float streak=smoothstep(.25,.95,s);
       float fall=pow(1.-k,1.6);
       c=mix(uColor,uHot,pow(1.-k,3.))*(.22+streak*1.05)*fall*(.62+1.2*pow(1.-k,4.));
       float dop=1.+uDoppler*dot(normalize(vTan),normalize(vW-cameraPosition));
@@ -332,6 +332,12 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
   composer.setPixelRatio(Q.dpr);
   composer.setSize(W(), H());
   composer.addPass(new RenderPass(scene, camera));
+  // One bad pixel from a degenerate normal would spread through the bloom blur into a black block, so bad values stop here.
+  composer.addPass(new ShaderPass({
+    uniforms: { tDiffuse: { value: null } },
+    vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }',
+    fragmentShader: 'uniform sampler2D tDiffuse; varying vec2 vUv; void main(){ vec4 c=texture2D(tDiffuse,vUv); if(any(isnan(c))||any(isinf(c))) c=vec4(0.,0.,0.,1.); gl_FragColor=min(c,vec4(64.)); }',
+  }));
   const bloomPass = new UnrealBloomPass(new THREE.Vector2(W() * Q.bloomScale, H() * Q.bloomScale), 0.42, 0.72, 1.05);
   composer.addPass(bloomPass);
   const grade = new ShaderPass(GRADE_SHADER);
