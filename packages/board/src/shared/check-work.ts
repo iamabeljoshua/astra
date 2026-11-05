@@ -1,5 +1,5 @@
 import { evaluatePlotExpression, type ElementId, type LineReading, parsePlotExpression, type StudentWork, type Task, type WorkVerdict } from '@astra/contracts';
-import { checkAgainstGuess, checkStep, isFinishedAnswer } from './check-step.ts';
+import { checkAgainstGuess, checkStep, isBareAnswer, isFinishedAnswer } from './check-step.ts';
 import { getMathPickParts } from './pick-parts.ts';
 import { getLineTex, readLine } from './read-line.ts';
 
@@ -56,7 +56,7 @@ function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTe
   const problemTex = problemLine === undefined ? boardProblemTex : getTex(problemLine);
   const verdict = problemLine === undefined ? checkAgainstGuess({ tex, problemTex, previousTex }) : checkStep({ tex, problemTex, previousTex });
   const answered = task?.way === 'write' || task?.way === 'pick' ? task : null;
-  return { verdict, ...closes(answered, verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex)) };
+  return { verdict, ...closes(answered, verdict.status === 'right' && problemTex !== null && (isFinishedAnswer(tex) || isBareAnswer(tex))) };
 }
 
 // An old words question must not hold later math as words, and a line that is only math is math.

@@ -1,7 +1,7 @@
 import type { ElementId, StudentWork, Task } from '@astra/contracts';
 import type { BoardElement, BoardState } from '../player/board-state.ts';
 import { checkWork, type CheckedWork, FEWEST_WITHIN_X, getCurveOf, wantsSomethingElse, type WorkContext } from './check-work.ts';
-import { isFinishedAnswer, isSingleLetterEquation } from './check-step.ts';
+import { isBareAnswer, isFinishedAnswer, isSingleLetterEquation } from './check-step.ts';
 import { getDragStep } from './drag-point.ts';
 
 function getOpenTask(board: BoardState, id: ElementId | undefined): Task | null {
@@ -16,7 +16,7 @@ function getProblemOnBoard(board: BoardState): { problemTex: string; lastLineTex
     if (progress?.hasLeft) return null;
     if (content.kind === 'studentLine' && content.reading.kind === 'words' && wantsSomethingElse(content.text)) return null;
     if (content.kind === 'studentLine' && math) {
-      if (content.verdict.status === 'right' && isFinishedAnswer(math.tex)) return null;
+      if (content.verdict.status === 'right' && (isFinishedAnswer(math.tex) || isBareAnswer(math.tex))) return null;
       lastLineTex ??= math.tex;
     }
     if (content.kind !== 'writeMath' || !math || content.claim === 'shown') continue;

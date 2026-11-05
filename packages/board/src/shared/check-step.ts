@@ -114,6 +114,9 @@ export function isFinishedAnswer(tex: string): boolean {
   return (/^[A-Za-z]$/.test(left) && BARE_ANSWER.test(right)) || (/^[A-Za-z]$/.test(right) && BARE_ANSWER.test(left));
 }
 
+/** A number on its own line is the student's answer. It closes the task only when code reads it right, and a step on the way to one always has a letter or a sum beside it. */
+export const isBareAnswer = (tex: string) => BARE_ANSWER.test(compact(tex));
+
 export function getLinearAnswer(tex: string): { letter: string; value: number } | null {
   const sides = tex.split('=');
   if (sides.length !== 2) return null;

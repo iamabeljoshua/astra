@@ -1,5 +1,5 @@
 import type { StudentWork } from '@astra/contracts';
-import { type CheckedWork, getLineTex, getNod, getPointFacts, isFinishedAnswer, wantsSomethingElse, type WorkContext } from '@astra/board/shared';
+import { type CheckedWork, getLineTex, getNod, getPointFacts, isBareAnswer, isFinishedAnswer, wantsSomethingElse, type WorkContext } from '@astra/board/shared';
 
 function getLineFacts(work: StudentWork & { way: 'write' }, { reading }: CheckedWork) {
   const math = reading?.parts.flatMap((part) => (part.type === 'math' ? [part.tex] : [])) ?? [];
@@ -31,7 +31,7 @@ const isLeaving = (work: StudentWork) => work.way === 'leave' || (work.way === '
 
 function isFinishedLine({ reading, verdict }: CheckedWork): boolean {
   const tex = reading ? getLineTex(reading) : null;
-  return verdict.status === 'right' && tex !== null && isFinishedAnswer(tex);
+  return verdict.status === 'right' && tex !== null && (isFinishedAnswer(tex) || isBareAnswer(tex));
 }
 
 export function getWorkNote(work: StudentWork, checked: CheckedWork, context: WorkContext) {

@@ -11,6 +11,7 @@ import { getLead, LEAD_TIMINGS, LEAD_WORDS } from '../src/live/tutor-lead.ts';
 import { createVoiceLine } from '../src/live/voice-line.ts';
 import { renderTone } from '../src/providers/fakes.ts';
 import { makeRenderedVoice } from '../src/providers/rendered-voice.ts';
+import { TRY_NEXT_FROM_CODE } from '../src/recap/recap-rules.ts';
 import { writeLessonRecap } from '../src/recap/write-recap.ts';
 import type { StudentReading } from '../src/safety/student-reading.ts';
 import type { SafetyWatch } from '../src/safety/safety-watch.ts';
@@ -444,6 +445,33 @@ describe('a steered exercise', () => {
   });
 });
 
+describe('a typed answer', () => {
+  const askFor = (tex: string) => `Try this. {"kind":"writeMath","id":"p1","tex":${JSON.stringify(tex)},"claim":"new"}Work that out. {"kind":"task","id":"a1","way":"write","on":"p1"}Have a go.`;
+
+  it.each([
+    ['\\\\frac{11.2}{2.4}', '4.67'],
+    ['\\\\frac{59.5}{11.1}', '5.36'],
+    ['100 - 30', '70'],
+    ['2x = 4', 'x = 2'],
+    ['60 \\\\cdot v = 20 \\\\cdot 5', '1.67'],
+  ])('on %s gets a reply at once when it is %s', async (tex, answer) => {
+    const { session, type, asked } = startLesson({ answer: (words, index) => (index === 0 ? askFor(JSON.parse(`"${tex}"`) as string) : `You said ${words}.`), leadTimings: { ...FAST, afterTaskMs: 60_000, afterQuestionMs: 60_000 } });
+    type('give me one');
+    await vi.waitFor(() => expect(asked).toHaveLength(1), { timeout: 1000 });
+    await delay(60);
+    session.onBrowser({ type: 'worked', work: { way: 'write', id: 's1', text: answer, task: 'a1' }, ...STAMP } as never);
+    await vi.waitFor(() => expect(asked.map(({ words }) => words)).toContain(answer), { timeout: 500 });
+  });
+
+  it('closes the task on a right number with no letter', async () => {
+    const { model } = makeModel(() => askFor('\\frac{11.2}{2.4}'));
+    const brain = createTutorBrain({ model, timeouts: QUICK });
+    await say(brain, 'give me one');
+    expect(brain.noteWork({ way: 'write', id: 's1', text: '4.67', task: 'a1' } as never)?.checked.closesTask).toBe('a1');
+    expect(brain.getBoard().openTask).toBeNull();
+  });
+});
+
 describe('a lesson remembers what it said', () => {
   it('carries a compact note of what has been said, once each time it changes', async () => {
     const askClaims = vi.fn(async ({ said }: { said: string }) => ({ claims: [`Said: ${said.split(' ').slice(0, 3).join(' ')}`], costUsd: 0.0001 }));
@@ -556,6 +584,14 @@ describe('small things a long lesson says', () => {
     const reader = { read: async (ask: { system: string }) => ((system = ask.system), { answer: { steps: [] }, costUsd: 0 }) };
     await askMoreSteps(reader as never, { topic: 'Rockets', taught: [], said: '', most: 2 });
     expect(system).toMatch(/digits/);
+  });
+
+  it('keeps the recap when only its try-next line fails twice', async () => {
+    const lines = ['{"needsCare":false,"covered":"We covered escape speed.","tryNext":"Try this: if a rocket has less mass, what happens?"}', '{"needsCare":false,"covered":"We covered escape speed.","tryNext":"Try this alone: a rocket of eighty tonnes drops thirty tonnes of tanks, so work out what it weighs now and then say why that helps it."}'];
+    let index = 0;
+    const model = { getCostUsd: () => 0, stream: async function* () { yield { type: 'text' as const, text: lines[index++] as string, isNewBlock: false }; yield { type: 'finished' as const, stopReason: 'finished' as const, usage: USAGE }; } };
+    const { recap } = await writeLessonRecap(model as never, { opening: 'rockets', movedTo: null, tutorWords: 'escape speed is about eleven kilometres a second'.split(' '), studentLines: [], work: [] });
+    expect(recap).toMatchObject({ kind: 'lesson', covered: 'We covered escape speed.', tryNext: TRY_NEXT_FROM_CODE });
   });
 
   it('gives the recap words from the whole lesson, not only its end', async () => {

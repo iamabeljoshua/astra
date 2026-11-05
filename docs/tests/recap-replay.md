@@ -67,6 +67,15 @@ The recap is an ordinary turn on the voice line, so it reaches the log and plays
 
 The last run's 17 rows of a 41 s lesson took about 8 KB as JSON, so a 30 minute lesson would be about 350 KB. That is an estimate from one short lesson.
 
+**How often it holds, and how true it is.** Measured on 5 November with real Haiku, on the words of two 20 minute lessons and one demo take, cut at several points.
+
+| Prompt | Recaps | Lines sent back | Why |
+| --- | --- | --- | --- |
+| Before | 12 of 32 | 49 | All `tryNext`: 36 asked a question, 13 ran past 22 words. The model wrote word problems, as "Try this: if a rocket has less mass, what happens?", because the prompt asked for something answered in one typed line |
+| Now | 44 of 44, and `eval:recap` 42 of 42 | 0 | The prompt asks for an instruction of at most 12 words that holds what it needs. If `tryNext` still fails twice, code's own line stands in |
+
+`covered` now names topics, because a short summary of how things depend on each other is easy to get wrong. One take said "We covered how escape speed depends on launch speed, and why it drops with distance", which is false. In the 44 now, read by eye, no line is false in that way, and 4 are loose, all on the demo take: "how a rocket pushes against nothing in space" 3 times, and "why a rocket doesn't need to be heavy to escape Earth" once. 2 of the 44 `tryNext` lines cannot be done with what they hold, such as "Try finding the rocket's speed from momentum: five kilograms times four meters per second." These reads share 13 cut points in 3 lessons, so they are not independent. A model still writes this line, so expect a low rate and not none.
+
 ## Proof
 
 `apps/agent/src/lab/proof/recap-replay-proof.ts` holds a lesson on the real tutor with the fake voice, ends it, opens it from Sessions, and scrubs. It fails if a board reached by seeking back differs by one byte of its screenshot from the same moment reached going forward, if pause does not hold, or if another student gets anything but a 404. `--goal gentle` and `--goal nothing` prove the two other endings. A real voice has not read a recap, because one recap is about 125 credits and this lane had 50. It goes down the same `speak` path as every turn.

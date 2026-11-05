@@ -127,7 +127,8 @@ Abel: "why lessons are so short and only teach for like 1 minute or 30 seconds? 
 - **Numbers.** On a problem nobody tried, the lead note carries `code_worked_it`, the value `compute` gets for the line. The tutor is told to use it to at most three figures. What it says aloud is still not checked.
 - **Words.** A reply that opens on "Next,", "Time for a quick one.", "Fair enough.", or "Fine, skip it." has them taken off in code, with no wait, and "Next," or "Next up:" goes from the start of any sentence. A reply that announces a correction, or talks about the plan or "the student", goes back once.
 - **What it has said.** About every 120 spoken words, Haiku writes a list of the claims so far, at most 14, in `said_so_far`, which reaches the next turn once each time it changes. That is about 25 reads in 20 minutes, about a cent, an estimate from what a planner read costs. The history holds every word, and still "a rocket is much heavier than its gas" stood twenty lines before "most of a rocket is fuel". What this moved is under the table below.
-- **The recap** reads 600 words from all through a long lesson, in six parts, in place of its last 600.
+- **A right answer never sits.** A number on its own line, such as `4.67` on a problem with no letter, is the student's answer. If code reads it right, the task closes, and either way the tutor replies at once. It used to wait about 33 s for the watcher, because only `v = 2` counted as finished.
+- **The recap** reads 600 words from all through a long lesson, in six parts, in place of its last 600. `docs/tests/recap-replay.md` holds what it measured.
 
 One lesson on the rocket card, real Sonnet and Haiku, the fake voice in real time, in Node, with a student who answers tasks and says nothing else:
 

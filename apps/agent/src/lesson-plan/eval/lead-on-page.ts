@@ -66,7 +66,7 @@ async function stopThenGoOnThenCrisis() {
   await delay(holdMs);
   await student.page.screenshot({ path: join(out, 'crisis.png') });
   const rows = readTrace(student.sessionId);
-  const result = { leadsBefore, leadsInHold, leadsBack, leadsAfterCrisis: countLeads(student.sessionId) - atCrisis, isHelpShown, flags: rows.filter((row) => row.name === 'safetyFlag').map((row) => row.kind), said: rows.filter((row) => row.name === 'turnWritten').map((row) => row.text).slice(-6), sessionId: student.sessionId };
+  const result = { leadsBefore, leadsInHold, leadsBack, leadsAfterCrisis: countLeads(student.sessionId) - atCrisis, isHelpShown, flags: rows.filter((row) => row.name === 'safetyFlag').map((row) => row.kind), said: rows.filter((row) => row.name === 'replyDecided').map((row) => row.text).slice(-6), sessionId: student.sessionId };
   await student.context.close();
   return result;
 }
