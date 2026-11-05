@@ -10,12 +10,13 @@ import { readKey } from '../../keys.ts';
 import { createLiveSession } from '../../live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../../live/reactions.ts';
 import { createVoiceLine, type VoiceOutput } from '../../live/voice-line.ts';
-import { makeAnthropicAsker, makeAnthropicJsonReader, makeAnthropicTutorModel } from '../../providers/anthropic.ts';
+import { makeAnthropicAsker, makeAnthropicJsonReader, makeAnthropicOneWordReader, makeAnthropicTutorModel } from '../../providers/anthropic.ts';
 import { renderTone } from '../../providers/fakes.ts';
 import { makeRenderedVoice } from '../../providers/rendered-voice.ts';
 import { getSceneStoreRoot } from '../../scenes/scene-settings.ts';
 import { createSceneStore, getSceneKey } from '../../scenes/scene-store.ts';
 import { createTutorBrain, type StudentProfile, type TurnSummary } from '../../tutor/brain.ts';
+import { createLineReaders } from '../../tutor/line-read/read-line.ts';
 import { TUTOR_PROMPT, withScenes } from '../../tutor/prompt.ts';
 import { createSpendLedger } from '../../tutor/spend-ledger.ts';
 import { createTutorScenes } from '../../tutor/tutor-scenes.ts';
@@ -206,6 +207,7 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
     model: makeAnthropicTutorModel({ name: 'sonnet-5-5', apiKey: readerKey }),
     prompt: withScenes(TUTOR_PROMPT),
     lessonPlanner: planner,
+    readers: createLineReaders(makeAnthropicOneWordReader({ apiKey: readerKey, onCost: (usd) => ledger.charge({ anthropicUsd: usd }) })),
     ...(args['compact-at'] ? { compactAtTokens: Number(args['compact-at']) } : {}),
     loadProfile: async () => {
       setTimeout(() => scenes?.noteCard(script.card ?? null), 0);

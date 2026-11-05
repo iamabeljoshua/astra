@@ -3,7 +3,7 @@ import { readKey } from '../keys.ts';
 import { askClaims, askMoreSteps, askPlanner } from '../lesson-plan/ask-planner.ts';
 import { createLessonPlanner, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
 import type { LessonEvent, LessonState } from '../lesson-plan/plan-progress.ts';
-import { makeAnthropicJsonReader, makeAnthropicPictureReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
+import { makeAnthropicJsonReader, makeAnthropicOneWordReader, makeAnthropicPictureReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
 import { getMemoryNote } from '../learner-record/memory-note.ts';
 import { createSessionDigest } from '../learner-record/session-digest.ts';
 import { writeRecordOfRoom } from '../learner-record/write-record.ts';
@@ -17,6 +17,7 @@ import { writeLessonRecap } from '../recap/write-recap.ts';
 import { type ApiLink, createApiLink } from './api-link.ts';
 import { createTutorBrain, type SpendLimit, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
 import { PROMPT_VERSIONS, TUTOR_PROMPT, type TutorPrompt, withScenes } from './prompt.ts';
+import { createLineReaders, type LineReaders } from './line-read/read-line.ts';
 import { createSpendLedger } from './spend-ledger.ts';
 import { readInk } from './ink/read-ink.ts';
 import { rasterizeInk } from './ink/rasterize-ink.ts';
@@ -171,7 +172,7 @@ export interface SceneHooks {
   onSafetyReply?(): void;
   /** The brief has come, or will not, so a card's title is known or there is none. */
   onCardKnown?(title: string | null): void;
-  onTurnWritten?(turn: { firstTextMs: number | null; spokenText: string; refusalCategory: string | null }): void;
+  onTurnWritten?(turn: { wasLead: boolean; firstTextMs: number | null; spokenText: string; refusalCategory: string | null }): void;
 }
 
 // A plan changes the session's title only when the student moves to another topic, and a failed save keeps the page's title and the session running.
@@ -212,16 +213,18 @@ export function makeTutorBrain({ roomName, jobId, trace, showSafetyHelp, onSessi
     digest.addTurn(summary);
     reportTurn(summary);
   };
-  const reportTurn = ({ firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, beats, spokenText }: TurnSummary) => {
+  const reportTurn = ({ wasLead, firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, beats, spokenText }: TurnSummary) => {
     trace('turnWritten', { firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, words: spokenText.split(/\s+/).length });
     caps.addTurn({ usd: costUsd + checkUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
     checkUsd = 0;
-    sceneHooks?.onTurnWritten?.({ firstTextMs, spokenText, refusalCategory });
+    sceneHooks?.onTurnWritten?.({ wasLead, firstTextMs, spokenText, refusalCategory });
   };
   const safety = makeSafetyWatch({ name, link, showHelp: showSafetyHelp, trace, onCost: (usd) => (checkUsd += usd) });
   const flushSpend = async () => {
     await Promise.all([caps.flush(), safety?.flush()]);
   };
+  const readOneWord = name === RECORDED ? null : makeAnthropicOneWordReader({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost: (usd) => (checkUsd += usd) });
+  const readers: LineReaders | undefined = readOneWord ? createLineReaders(async (system, text) => (caps.getSpendLimit() ? null : readOneWord(system, text))) : undefined;
   let movedTo: string | null = null;
   const lessonPlanner = name === RECORDED ? undefined : makeLessonPlanner({ link, caps, trace, onSessionTitle(title) {
     movedTo = title;
@@ -242,7 +245,7 @@ export function makeTutorBrain({ roomName, jobId, trace, showSafetyHelp, onSessi
       }
     : undefined;
   if (!loadProfile) queueMicrotask(() => sceneHooks?.onCardKnown?.(null));
-  const brain = createTutorBrain({ model, prompt: sceneHooks ? withScenes(getLivePrompt()) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(safety ? { safety } : {}), ...(lessonPlanner ? { lessonPlanner } : {}), ...(sceneHooks ? { onAskScene: sceneHooks.onAskScene } : {}), ...(sceneHooks?.onSafetyReply ? { onSafetyReply: sceneHooks.onSafetyReply } : {}), ...(sceneHooks?.onStudentWords ? { onStudentWords: sceneHooks.onStudentWords } : {}) });
+  const brain = createTutorBrain({ model, prompt: sceneHooks ? withScenes(getLivePrompt()) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(safety ? { safety } : {}), ...(readers ? { readers } : {}), ...(lessonPlanner ? { lessonPlanner } : {}), ...(sceneHooks ? { onAskScene: sceneHooks.onAskScene } : {}), ...(sceneHooks?.onSafetyReply ? { onSafetyReply: sceneHooks.onSafetyReply } : {}), ...(sceneHooks?.onStudentWords ? { onStudentWords: sceneHooks.onStudentWords } : {}) });
   if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, flushSpend };
   const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const readMeaning = async (words: string) => {
@@ -266,8 +269,9 @@ export function makeTutorBrain({ roomName, jobId, trace, showSafetyHelp, onSessi
     caps.addTurn({ usd: reading.costUsd, voiceCharacters: 0 });
     return reading;
   };
+  // One small read as the room ends, so a student who taught right up to the session's limit still gets their recap. A day that is spent gets none.
   const writeRecap = async (facts: RecapFacts) => {
-    if (caps.getSpendLimit()) return null;
+    if (caps.getSpendLimit() === 'dailyLimit') return null;
     const { recap, costUsd } = await writeLessonRecap(wordsModel, { ...facts, movedTo });
     caps.addTurn({ usd: costUsd, voiceCharacters: recap ? getRecapLines(recap).join(' ').length : 0 });
     return recap;

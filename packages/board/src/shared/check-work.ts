@@ -1,5 +1,5 @@
 import { evaluatePlotExpression, type ElementId, type LineReading, parsePlotExpression, type StudentWork, type Task, type WorkVerdict } from '@astra/contracts';
-import { checkAgainstGuess, checkStep, isBareAnswer, isFinishedAnswer } from './check-step.ts';
+import { checkAgainstGuess, checkStep, getWorkedSumAnswer, isBareAnswer, isFinishedAnswer } from './check-step.ts';
 import { getMathPickParts } from './pick-parts.ts';
 import { getLineTex, readLine } from './read-line.ts';
 
@@ -7,6 +7,8 @@ export interface CheckedWork {
   reading?: LineReading;
   verdict: WorkVerdict;
   closesTask?: ElementId;
+  /** A sum worked through to a number that does not contradict the problem, so the student has said their answer. */
+  isWorkedThrough?: boolean;
 }
 
 export interface WorkContext {
@@ -56,7 +58,9 @@ function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTe
   const problemTex = problemLine === undefined ? boardProblemTex : getTex(problemLine);
   const verdict = problemLine === undefined ? checkAgainstGuess({ tex, problemTex, previousTex }) : checkStep({ tex, problemTex, previousTex });
   const answered = task?.way === 'write' || task?.way === 'pick' ? task : null;
-  return { verdict, ...closes(answered, verdict.status === 'right' && problemTex !== null && (isFinishedAnswer(tex) || isBareAnswer(tex))) };
+  const sumAnswer = verdict.status === 'right' && problemLine !== undefined ? getWorkedSumAnswer(tex) : null;
+  const sumVerdict = sumAnswer === null ? null : checkStep({ tex: sumAnswer, problemTex, previousTex }).status;
+  return { verdict, ...(sumVerdict !== null && sumVerdict !== 'wrong' ? { isWorkedThrough: true } : {}), ...closes(answered, verdict.status === 'right' && problemTex !== null && (isFinishedAnswer(tex) || isBareAnswer(tex) || sumVerdict === 'right')) };
 }
 
 // An old words question must not hold later math as words, and a line that is only math is math.

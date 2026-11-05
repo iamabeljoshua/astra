@@ -6,10 +6,11 @@ import type { SpokenReading } from './read-spoken.ts';
 import { decideSpoken, type SpokenDecision, type SpokenExpected, type SpokenPart } from './spoken-answer.ts';
 import { MAY_BE_ABOUT_SAFETY } from '../safety-words.ts';
 import type { TutorBrain } from '../brain.ts';
-import { decideOnReading, decideOnWork, decideWatch, getGate, getWorkWords, type WatchDecision, type WatchSituation, type WordMeaning, decideOnSpokenWork } from './watch-rule.ts';
+import { getPlainWish, isHoldWish } from '../../lesson-plan/student-wish.ts';
+import { decideOnReading, decideOnWork, decideWatch, getGate, getWorkWords, HOLDS_WORDS, type WatchDecision, type WatchSituation, type WordMeaning, decideOnSpokenWork } from './watch-rule.ts';
 
 export interface BoardWorkOptions {
-  tutor: Pick<TutorBrain, 'noteWork' | 'noteWatcher' | 'getBoard'>;
+  tutor: Pick<TutorBrain, 'noteWork' | 'noteWatcher' | 'getBoard' | 'holdLeads'>;
   writeLog(message: BrowserMessage & { type: 'worked' }, checked: CheckedWork): void;
   speakUp(words: string): void;
   speakUpAsCode?(words: string): void;
@@ -33,7 +34,8 @@ interface Unanswered {
 const MOST_STROKES_HELD = 400;
 const MOST_INK_READS = 300;
 const MOST_DRAFT_READS = 60;
-const HOLDS_WORDS = /[a-z]{3,}/i;
+/** A draft left this long with no change was forgotten, or is being thought over, and either way the lesson goes on. A key stops it again. */
+const DRAFT_HOLDS_FOR_MS = 60_000;
 const HOLD_WHILE_TYPING_MS = 1200;
 const HOLD_LOOKS_EVERY_MS = 50;
 const LONGEST_HOLD_MS = 8000;
@@ -60,6 +62,8 @@ export function createBoardWork({ tutor, writeLog, speakUp, speakUpAsCode = spea
 
   let lastKeyAtMs = Number.NEGATIVE_INFINITY;
   let hasDraft = false;
+  let draftNow: string | undefined;
+  let draftChangedAtMs = Number.NEGATIVE_INFINITY;
   let draftReads = 0;
   let latestDraftRead: { text: string; meaning: Promise<WordMeaning | null> } | null = null;
   let draftSpokenFor: string | null = null;
@@ -70,6 +74,8 @@ export function createBoardWork({ tutor, writeLog, speakUp, speakUpAsCode = spea
   };
 
   const noteDraft = (draft: string | undefined) => {
+    if (draft !== draftNow) draftChangedAtMs = getNowMs();
+    draftNow = draft;
     hasDraft = Boolean(draft);
   };
 
@@ -77,9 +83,10 @@ export function createBoardWork({ tutor, writeLog, speakUp, speakUpAsCode = spea
     typedAtMs = null;
     lastKeyAtMs = Number.NEGATIVE_INFINITY;
     hasDraft = false;
+    draftNow = undefined;
   };
 
-  const isWriting = (afterKeyMs: number) => hasDraft || getNowMs() - lastKeyAtMs < afterKeyMs;
+  const isWriting = (afterKeyMs: number) => (hasDraft && getNowMs() - draftChangedAtMs < DRAFT_HOLDS_FOR_MS) || getNowMs() - lastKeyAtMs < afterKeyMs;
 
   const waitWhileTyping = async () => {
     const startedMs = getNowMs();
@@ -132,10 +139,12 @@ export function createBoardWork({ tutor, writeLog, speakUp, speakUpAsCode = spea
       isAnsweringJudgedWork = checked.verdict.status !== 'unknown';
       // "Hm." in front of a line that turns out right sounds like doubt, so a line code cannot judge gets a sound that says nothing.
       nodDue = getNod(message.work, checked) ?? (checked.verdict.status === 'unknown' && checked.reading?.kind === 'math' ? NODS.neutral : null);
-      if (message.work.way === 'write') speakUp(message.work.text);
+      if (message.work.way === 'write' && message.work.text !== NOT_READ) speakUp(message.work.text);
       else speakUpAsCode(getWorkWords(message.work));
     } else {
       unanswered = { checked, keys: wrongKeys };
+      // "wait" or "let me think" in the box asks for quiet and needs no answer.
+      if (message.work.way === 'write' && isHoldWish(getPlainWish(message.work.text))) tutor.holdLeads?.();
     }
   };
 

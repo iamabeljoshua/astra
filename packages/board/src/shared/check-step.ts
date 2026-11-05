@@ -107,6 +107,23 @@ export function checkAgainstGuess({ tex, problemTex, previousTex }: StepInput): 
   return isOutOfStep && !isOnlySlips ? { status: 'unknown', offProblem: problemTex } : UNKNOWN;
 }
 
+/** One bare letter is left out, because `2x` is algebra far more often than it is a unit. */
+const NUMBER_WITH_UNIT = /^-?\d+(?:\.\d+)?(?:[a-zA-Z]{2,}|[a-zA-Z]+\/[a-zA-Z]+)(?:\/[a-zA-Z]+)*(?:\^\{?-?\d+\}?)?$/;
+
+/** `20 m/s²` or `a = 20 m/s²`, an answer whatever code makes of its unit. */
+export function isAnswerWithUnit(tex: string): boolean {
+  const sides = tex.split('=').map(compact);
+  return (sides.length === 1 || (sides.length === 2 && /^[A-Za-z]$/.test(sides[0] as string))) && NUMBER_WITH_UNIT.test(sides.at(-1) as string);
+}
+
+/** `11.2/2.4 = 4.67`, a sum with no letter worked through to a number, and the number is the side to judge. */
+export function getWorkedSumAnswer(tex: string): string | null {
+  const sides = tex.split('=').map(compact);
+  if (sides.length < 2) return null;
+  const answer = sides.at(-1) as string;
+  return BARE_ANSWER.test(answer) && !/[A-Za-z]/.test((sides[0] as string).replace(/\\[a-zA-Z]+/g, '')) ? answer : null;
+}
+
 export function isFinishedAnswer(tex: string): boolean {
   const sides = tex.split('=').map(compact);
   if (sides.length < 2) return false;

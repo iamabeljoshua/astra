@@ -31,12 +31,14 @@ export type LeadStopEvent =
   | 'askedToBeTaught'
   | 'saidSomething'
   | 'workedOnBoard'
+  | 'cleanRead'
   | 'replyFailed'
   | 'replyWorked';
 
 export function getLeadStopAfter(stop: LeadStop, event: LeadStopEvent): LeadStop {
   if (event === 'crisis') return 'crisis';
-  if (stop === 'crisis') return event === 'askedToBeTaught' ? 'none' : 'crisis';
+  if (stop === 'crisis') return event === 'askedToBeTaught' || event === 'cleanRead' ? 'none' : 'crisis';
+  if (event === 'cleanRead') return stop;
   if (event === 'hold') return 'held';
   if (event === 'replyFailed') return stop === 'none' ? 'replyFailed' : stop;
   if (event === 'replyWorked') return stop === 'replyFailed' ? 'none' : stop;

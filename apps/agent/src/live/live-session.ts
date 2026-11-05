@@ -248,6 +248,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let isPictureInDoubt = false;
   let voiceStartedAtMs: number | null = null;
   let openingLine: string | null = null;
+  let pageLine: string | null = null;
   let isEnding = false;
   let leadTimer: ReturnType<typeof setTimeout> | undefined;
   let unansweredInARow = 0;
@@ -800,7 +801,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         // A closed tutor has nothing new to say, and the limit line a hold cut may be the only help this student hears.
         if (cut && tutor.getClosedReason?.()) return void resume();
         if ((action.via === 'final' || action.via === 'partial') && (boardWork.hasOpenTask() || wantsSomethingElse(action.text))) return void answerSpokenWords({ text: action.text, carried: action.carried });
-        return startReply({ text: action.text, carried: action.carried, ...(action.via === 'code' ? { isFromCode: true } : {}) });
+        return startReply({ text: action.text, carried: action.carried, ...(action.via === 'code' ? { isFromCode: true } : {}), ...(action.text === pageLine ? { isOpening: true } : {}) });
       case 'startTimer':
         return startNamedTimer(action.name, action.ms);
       case 'cancelTimer':
@@ -857,6 +858,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const dispatchAll = (events: TurnEvent[]) => events.forEach(dispatch);
 
   tutor.onLeadStopped?.(stopRunningLead);
+  tutor.onLineRead?.(() => armLead(0));
 
   const onHoldStarted = (clockId: string) => {
     hasEverHeld = true;
@@ -953,8 +955,12 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (message.type === 'typed') {
         noteSomethingHappened();
         boardWork.noteLineSent();
-        if (message.isOpening) openingLine ??= message.text;
-        else log.write(message);
+        if (message.isOpening) {
+          openingLine ??= message.text;
+          // A reload sends this line again, and it is the page's own: it must not end a stop or start a reply over one.
+          if (tutor.isLeadStopped?.()) return messenger.send({ type: 'heard' });
+          pageLine = message.text;
+        } else log.write(message);
         return typedGate.offer(message.text);
       }
       if (message.type === 'played') return onReport(message);
@@ -980,8 +986,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (message.type === 'worked') boardWork.onWorked(message);
       if (message.type === 'paused') {
         boardWork.noteDraft(message.draft);
-        if (message.draft) stopRunningLead();
-        else armLead(0);
+        if (!message.draft) armLead(0);
+        else if (boardWork.isWriting(leadTimings.afterKeyMs)) stopRunningLead();
       }
       const isStudentQuiet = !state.isVoiceOn;
       if (message.type === 'paused' && isStudentQuiet) void boardWork.onPaused(message);

@@ -2,7 +2,7 @@ import { type CheckedWork, readLine, wantsSomethingElse } from '@astra/board/sha
 import type { SceneCommand, StudentWork } from '@astra/contracts';
 import type { ClaimsAnswer, ClaimsAsk, MoreAnswer, MoreAsk, PlanAnswer, PlanAsk, PlanWants } from './ask-planner.ts';
 import { getTrustedMove, isSensitive, type LessonPlan, type PlanMove } from './lesson-plan.ts';
-import { readStudentWish } from './student-wish.ts';
+import { getPlainWish } from './student-wish.ts';
 import { getShelvedTopics, getStateAfterEvent, getStateAfterMove, getStateWithMoreSteps, getExercisesSet, getStepCount, getStepsTaught, getStepNote, isNearTheEnd, type LessonEvent, type LessonState, NO_LESSON, type StepNote } from './plan-progress.ts';
 
 export interface HeardWords {
@@ -23,7 +23,8 @@ export interface LessonPlanner {
   tellTitleAgain(): void;
   getStepNote(): StepNote | null;
   moveToNextStep(): void;
-  onAskedToHold(listener: () => void): void;
+  /** A read of their line says they want to be taught on, in whatever words or language. */
+  noteTeachingWanted(): void;
   takeNewClaims(): readonly string[] | null;
   /** Settles when no plan is on its way, for an evaluation that reads the next step straight after. */
   whenSettled(): Promise<void>;
@@ -57,7 +58,7 @@ export const IS_ONLY_A_NOD = /^(?:ok(?:ay)?|k|yes|yeah|yep|yup|sure|cool|right|g
 const DECLINES_EXERCISES = /\bdon'?t want to try\b|\b(?:no|without|skip|stop)\s+(?:the\s+|more\s+|any\s+)?(?:exercises?|tasks?|problems?|practice|quiz(?:zes)?)\b|\bjust\s+(?:explain|teach|tell)\b|\bjust\s+(?:want\s+to\s+)?listen\b/i;
 const WANTS_AN_EXERCISE = /\b(?:let\s+me|can\s+i|i(?:'ll|\s+will|\s+want\s+to)|i\s+wanna)\s+try\b|\b(?:give|set)\s+me\s+(?:a|an|one|another)\b(?!\s+lesson)/i;
 
-export const asksToBeTaught = (words: string) => readStudentWish(words) === 'teach' || ASKS_TO_BE_TAUGHT.test(words);
+export const asksToBeTaught = (words: string) => getPlainWish(words) === 'go_on' || ASKS_TO_BE_TAUGHT.test(words);
 
 const FEWEST_STEPS_ON_A_CARD = 3;
 const MOST_STEPS_IN_A_LESSON = 16;
@@ -93,10 +94,10 @@ const getMoveEvent = (words: string): LessonEvent | null => {
 const getWordsEvent = (words: string): LessonEvent | null => {
   if (WANTS_AN_EXERCISE.test(words)) return 'exerciseWanted';
   if (DECLINES_EXERCISES.test(words)) return 'exerciseDeclined';
-  return readStudentWish(words) === 'teach' ? 'teachingWanted' : null;
+  return getPlainWish(words) === 'go_on' ? 'teachingWanted' : null;
 };
 
-const WANTS_EVENTS: Readonly<Record<Exclude<PlanWants, 'hold' | null>, LessonEvent>> = { teaching: 'teachingWanted', exercise: 'exerciseWanted', no_exercise: 'exerciseDeclined' };
+const WANTS_EVENTS: Readonly<Record<Exclude<PlanWants, null>, LessonEvent>> = { teaching: 'teachingWanted', exercise: 'exerciseWanted', no_exercise: 'exerciseDeclined' };
 
 const toEvent = (command: SceneCommand): LessonEvent | null => {
   if (command.kind === 'task') return 'exerciseSet';
@@ -117,7 +118,6 @@ export function createLessonPlanner({ ask, askMore, askClaims, canSpend, charge,
 
   let toldTitle: string | null = null;
   let card: LessonPlan | null = null;
-  let onHold = () => {};
   let claimsSaid: readonly string[] = [];
   let hasNewClaims = false;
   let wordsSinceClaims = '';
@@ -152,8 +152,7 @@ export function createLessonPlanner({ ask, askMore, askClaims, canSpend, charge,
       charge(costUsd);
       trace('planAnswered', { move: move?.move ?? null, ms: Math.round(getNowMs() - startedAtMs), costUsd });
       if (move) adopt(move, heard);
-      if (wants === 'hold') onHold();
-      else if (wants && readStudentWish(said) !== 'hold' && !getMoveEvent(said) && !getWordsEvent(said)) noteEvent(WANTS_EVENTS[wants]);
+      if (wants && !getMoveEvent(said) && !getWordsEvent(said)) noteEvent(WANTS_EVENTS[wants]);
     } catch (error) {
       trace('planFailed', { problem: String(error), ms: Math.round(getNowMs() - startedAtMs) });
     }
@@ -246,9 +245,7 @@ export function createLessonPlanner({ ask, askMore, askClaims, canSpend, charge,
       return note && picture && 'step' in note ? { ...note, picture_topic: picture } : note;
     },
     moveToNextStep: () => noteEvent('movedOn'),
-    onAskedToHold(listener) {
-      onHold = listener;
-    },
+    noteTeachingWanted: () => noteEvent('teachingWanted'),
     takeNewClaims() {
       if (!hasNewClaims) return null;
       hasNewClaims = false;

@@ -105,12 +105,13 @@ Abel: "why lessons are so short and only teach for like 1 minute or 30 seconds? 
 
 | Stop | What sets it | What ends it | What never ends it |
 | --- | --- | --- | --- |
-| `crisis` | A safety reply, a read at any moment, a line on the word list, or an unsent draft read as `needsAPerson`. A read that lands during a lead also stops that lead at once | Their own words asking to be taught, in more than one word | A lead, "next", "ok", a cough, a key, a reload, board work |
-| `held` | "stop", "wait", "hold on", "please stop talking", "dont go on", "dont move on yet", the stop button, a spoken "let me think", a stored "Take your time.", a reply that says "take your time" or "I'll stop" with no task open, and the planner's `wants: hold` in any language, which also stops a lead already running | Anything real they say, or work on the board | A lead, "ok", a cough, a key, Still here, a reload |
+| `crisis` | A read of danger at any moment, a safety reply to a line that read as anything but ordinary, or an unsent draft read as `needsAPerson` that the safety check does not then read clean. A read that lands during a lead also stops that lead at once | Their own words asking to be taught, in more than one word | A lead, "next", "ok", a cough, a key, a reload, board work |
+| `held` | A line read as `stop`, `leave`, or `lost`, in any language, the stop button, a spoken or typed "let me think", a stored "Take your time.", a reply that tells them it is stopping or says goodbye, with no task open, a reply with safety words beside a line that read as ordinary, or a word from the danger list when the read failed, which also says so aloud | Anything real they say, or work on the board | A lead, "ok", "thanks", a stray word, a cough, a key, Still here, a reload |
 | `replyFailed` | A reply that stalled, failed, or had no words, so another would likely do the same and spend for nothing | A reply that works, or anything they say | |
 
-- **A student writing holds it.** A key holds the next lead for 8 s, and a draft on the line holds it until the draft is sent or cleared. A lead running at that moment stops at once, from its thinking gap to its last word, and the next request says what was not heard. One key every 2.5 s for 20 s used to get 7 replies, and now gets the one already running.
-- **Unsent words are read for danger whoever is talking.** Each wording is read once, at most 60 reads a session. A read of `needsAPerson` speaks up at once, cuts anything running, and sends those words to the safety check. If the read fails, the word list decides.
+- **Nothing goes on until their last line has been read.** See "Reading a student's line" below. The tutor's own line in a lead, such as "with an adult you trust", sets no stop, and a refused lead says nothing about asking or about help.
+- **A student writing holds it.** A key holds the next lead for 8 s, and a draft on the line holds it until the draft is sent or cleared, or for a minute if it just sits there, because a forgotten draft used to hold the tutor with no cue until the room closed. A lead running at that moment stops at once, from its thinking gap to its last word, and the next request says what was not heard. One key every 2.5 s for 20 s used to get 7 replies, and now gets the one already running.
+- **Unsent words are read for danger whoever is talking,** in any script, since a test on Latin letters left Arabic, Hindi, Chinese, and Russian with 0 reads. Each wording is read once, at most 60 reads a session. A read of `needsAPerson` speaks up at once, cuts anything running, and sends those words to the safety check. If the read fails, the word list decides.
 - **While a stop holds, nothing lands by itself.** No scene, no invitation to talk, and no lean-in from the watcher, except for danger in an unsent draft.
 - **"Slow down" changes the pace.** The tutor leaves 4 s before its next first word, in place of 1.2 s, and is told to say one short sentence at a time. The voice's own speed stays as it is, because Abel tried a slower setting on real lessons and rejected it when one word stretched. "Speed up" undoes it.
 - **A lost student hears it again.** "dont move on yet i dont get it" moves nothing, and the tutor says the idea again in simpler words, then waits.
@@ -120,14 +121,14 @@ Abel: "why lessons are so short and only teach for like 1 minute or 30 seconds? 
 - **After a safety reply nothing goes on by itself**, until the student asks to be taught again.
 - **A card's plan comes from the server.** `getCardMaterial` in `scene-library.ts` gives the card's idea and its deeper titles, each with its `opening` and `more` lines and whether a saved scene may play. The brief carries it, so nothing is read from disk during a turn, and the queue above takes those titles without asking a model. A card with no deeper titles keeps its first step and takes the rest from the planner.
 - **A plan runs on.** Near its end the planner writes the next ideas, seeing the titles so far and what the tutor really said, up to 16. Past that the tutor asks what they want next, and nothing goes on by itself.
-- **Their words beat the count.** "go on", "teach me more", "what's next", and the like end `exercise_due`, and move on once the idea has been taught. `readStudentWish` in `student-wish.ts` reads a negative first, so "please dont go on" and "dont teach me more" are a stop, while "i dont know, go on" and "dont stop, keep going" still go on. "i cant go on" is read as possible danger and never as a wish. In any other language the tutor reads it itself, and the planner's `wants` carries it a turn later.
+- **Their words beat the count.** A line read as `go_on`, in any language, ends `exercise_due`, and moves on once the idea has been taught. The planner's `wants` also carries it.
 - **Saved scenes.** The shelf is read again for each batch of ideas the planner adds, so a later idea or a typed topic gets a saved scene if one fits. A saved scene no longer counts toward the 6 asks in a session, because those stop new writes. They count toward `ASTRA_SHARED_PLAYS_A_DAY`, now 18 a student, about three whole lessons. Each play is spoken again through the live voice, because this path keeps no voice. A play measured about 422 characters, so 94 credits at 22 credits per 99 characters. 18 plays cost one student up to about 1,700 credits a day, about $0.30. The project's own daily credit limit, 1,500 by default, is lower than that and stops first. Setting it for real use is a hosting decision.
 - **Exercises.** A student listening hears 7 replies on a card's idea, or 6 on a planned one, before the exercise. A reply with an exercise due holds back whatever it draws until its task command has passed, so a try that is sent back leaves nothing on the board and no words about it. That can delay the words from its first drawing on by a few seconds, on that reply only. One who is talking gets there after 3 or 2. In a reply that sets the exercise, a line that shows its own answer, such as `100 - 30 = 70`, is stopped before the student sees it, and elsewhere a task on such a line is refused.
 - **Code picks the kind.** `hasWorkingToDo` reads a card's lines for a number or a quantity, and a planned step's exercise for a digit, and the note then says `exercise_kind`. `problem` means a write task on a math line with numbers, or a pick. `board` means anything but a second written answer in a row. Any other task, or a bare question with no task, goes back once, and no filler plays. The second try stands, so a student always has something to do. Words already spoken stay spoken, so a reply that had started on another kind can sound like two starts.
 - **Numbers.** On a problem nobody tried, the lead note carries `code_worked_it`, the value `compute` gets for the line. The tutor is told to use it to at most three figures. What it says aloud is still not checked.
 - **Words.** A reply that opens on "Next,", "Time for a quick one.", "Fair enough.", or "Fine, skip it." has them taken off in code, with no wait, and "Next," or "Next up:" goes from the start of any sentence. A reply that announces a correction, or talks about the plan or "the student", goes back once.
 - **What it has said.** About every 120 spoken words, Haiku writes a list of the claims so far, at most 14, in `said_so_far`, which reaches the next turn once each time it changes. That is about 25 reads in 20 minutes, about a cent, an estimate from what a planner read costs. The history holds every word, and still "a rocket is much heavier than its gas" stood twenty lines before "most of a rocket is fuel". What this moved is in the section on contradictions below the table.
-- **A right answer never sits.** A number on its own line, such as `4.67` on a problem with no letter, is the student's answer. If code reads it right, the task closes, and either way the tutor replies at once. It used to wait about 33 s for the watcher, because only `v = 2` counted as finished.
+- **A right answer never sits.** A number on its own line, such as `4.67` on a problem with no letter, is the student's answer, and so is a sum worked through to a number, such as `11.2/2.4 = 4.67`, or a number with its unit, such as `20 m/s²`. If code reads it right, the task closes, and either way the tutor replies at once. These used to wait 30 to 48 s for the watcher, because only `v = 2` counted as finished.
 - **The recap** reads 600 words from all through a long lesson, in six parts, in place of its last 600. `docs/tests/recap-replay.md` holds what it measured.
 
 One lesson on the rocket card, real Sonnet and Haiku, the fake voice in real time, in Node, with a student who answers tasks and says nothing else:
@@ -162,6 +163,41 @@ Two claims were false with nothing to contradict them. "one kilogram saved at la
 
 Ideas still come back. The shingle count finds 0, 0, and 2 replies that repeat, but the rocket card again taught specific impulse twice and fuel types twice, and set the same order of flight three times. The planner now sees the exercises already set. In 3 real asks after that, none of 10 added steps set the order of flight again, and 9 of the 10 held digits. No long run has measured that.
 
+## Reading a student's line
+
+Two rounds on this work failed the same gate on one idea: code can read what a student wants from word lists. The lists missed real stops, invented false ones, and barely worked in other languages. So the idea was tested before another fix assumed it, on 198 labelled lines: stops, leaves, ordinary answers, questions, negations, Igbo, Yoruba, Hausa, pidgin, Spanish, French, and crisis lines. They are in `evals/tutor-turns/student-lines.json`, with 118 more in `student-lines-held-out.json` that the read's prompt was not written against until they had run. The labels are one reader's, and no speaker of Igbo, Yoruba, or Hausa has checked them.
+
+| Reader, on 5 November | Right | Holds missed | False holds | Igbo, Yoruba, Hausa | p50, p95 | Cost a line |
+| --- | --- | --- | --- | --- | --- | --- |
+| The word lists at `1b56435` | 112 of 198 | 41 of 74 | 21 of 124 | 0 of 16 | none | none |
+| A tag on the tutor's own reply, Sonnet | 177 of 198 | 8 of 74 | 11 of 124 | 9 of 16 | 1482, 2257 ms | $0.00187 for those few tokens, and a change to every reply |
+| A Haiku read, first prompt, 2 reads a line | 364 of 396 | 21 of 148 | 7 of 248 | 15 of 32 | 833, 1376 ms | $0.00007 |
+| The same read, final prompt, which took examples from these lines | 192 of 198 | 1 of 74 | 2 of 124 | 16 of 16 | 964, 1641 ms | $0.00008 |
+| The read on the held-out lines, before they joined the prompt | 109 of 118 | 8 of 53 | 0 of 65 | 7 of 15 | 1083, 1857 ms | $0.00008 |
+
+| Danger | Caught | False |
+| --- | --- | --- |
+| The word list, on the same 198 | 8 of 20 | 15 of 178 |
+| The safety check, on the same 198 | 20 of 20 | See `run-line-reads` |
+| The word list, on the held-out lines | 2 of 10 | 4 of 108 |
+| The safety check, on the held-out lines | 10 of 10 | See `run-line-reads` |
+
+| The tutor's own reply, 33 lines | Wrong |
+| --- | --- |
+| `promisesToWait`, a word list | 16 of 33 |
+| A Haiku read | 1 of 33 |
+
+So the read won on every count but speed, and speed does not matter here: a student's line has already cut the voice, and the model's first text is slower than the read. The tag on the reply loses to it on false holds, cost, and time, and would change the prompt that crisis replies depend on.
+
+- **What it reads.** `tutor/line-read/read-line.ts` asks Haiku one word about each student line, with the tutor's last line beside it: `stop`, `leave`, `lost`, `go_on`, `slower`, `faster`, `filler`, or `talk`. It runs beside the reply and beside the safety check, so it adds no wait.
+- **What code still reads.** `getPlainWish` in `student-wish.ts` answers a whole line on its list, such as `stop` or `ok thanks`, or a line of pure math. It answered 48 of the 198 and got all 48 right, and a test holds it to the labelled set. It also carries a line when the read fails.
+- **No lead until it is back.** `canLead` is false while either read of the last line is out. A reply's words wait for the read too, for 2.5 s at most, and the model's first text is usually slower anyway.
+- **A stop the list did not catch.** The reply so far is dropped unheard, and the model is asked again with the note to hold. A line that reads as `filler` during a `held` stop drops the reply and says nothing.
+- **Danger comes first.** A hold or a stray word only counts once the safety check has answered, so "please stop talking i want to die" gets help, and a read of danger ends any wish in the same line.
+- **The danger list holds nothing now.** It no longer sets a stop by itself. A clean read lets the lesson go on, so "so when it hits 11.2 km/s it escapes?" gets its answer and the next idea. A read that fails on a line with a word from the list stays `held`, and the tutor says it will wait and names help, so the student is not left in silence.
+- **The tutor keeps its word.** After each reply to a student, with no task open, code checks `promisesToWait`, and Haiku reads what the tutor said. If the tutor told them it was stopping, or said goodbye, nothing goes on, however their line was read.
+- **What the page writes is not the student.** A page that reloads sends "I'm back to carry on with this: ..." with `isOpening`. That line is read for danger and for nothing else. During a stop it starts no reply at all.
+
 ## Run it
 
 Beside what `docs/tests/scenes.md` lists, with your own store and LiveKit agent name:
@@ -174,6 +210,7 @@ pnpm --filter @astra/agent eval:whole-lessons --out <folder> --spend <new ledger
 pnpm --filter @astra/agent eval:whole-lessons --out <folder> --spend <new ledger> --only rocket --students tasks --replies 9999 --minutes 22
 node apps/agent/src/lesson-plan/eval/whole-lesson-page.ts --web <your stack> --out <folder> --trace <ASTRA_VOICE_TRACE folder> --says "6:teach me more" --replies 12
 node apps/agent/src/lesson-plan/eval/whole-lesson-page.ts --web <your stack> --out <folder> --trace <ASTRA_VOICE_TRACE folder> --hide-after 3 --hide-for 40 --replies 7
+node apps/agent/src/tutor/eval/run-line-reads.ts --reps 2 --with-tutor --spend <new ledger>   # the table above, about $0.45 with the tag and $0.10 without
 node apps/agent/src/lesson-plan/eval/lead-on-page.ts --out <folder>   # a stop, a crisis, an unsent crisis draft, a typed answer, and the recap, on a real page
 ```
 

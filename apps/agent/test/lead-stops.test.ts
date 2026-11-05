@@ -1,10 +1,9 @@
 import { getBeatText } from '@astra/contracts';
 import { initializeLogger, tts } from '@livekit/agents';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { askMoreSteps, askPlanner } from '../src/lesson-plan/ask-planner.ts';
+import { askMoreSteps } from '../src/lesson-plan/ask-planner.ts';
 import { asksToBeTaught, createLessonPlanner } from '../src/lesson-plan/lesson-planner.ts';
 import { getLessonWordsProblem, withoutNextSignpost } from '../src/lesson-plan/lesson-rules.ts';
-import { readStudentWish } from '../src/lesson-plan/student-wish.ts';
 import { createLiveSession, type LiveSession } from '../src/live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../src/live/reactions.ts';
 import { getLead, LEAD_TIMINGS, LEAD_WORDS } from '../src/live/tutor-lead.ts';
@@ -16,6 +15,7 @@ import { writeLessonRecap } from '../src/recap/write-recap.ts';
 import type { StudentReading } from '../src/safety/student-reading.ts';
 import type { SafetyWatch } from '../src/safety/safety-watch.ts';
 import { createTutorBrain } from '../src/tutor/brain.ts';
+import type { LineWish } from '../src/tutor/line-read/read-line.ts';
 import { MAY_BE_ABOUT_SAFETY } from '../src/tutor/safety-words.ts';
 import { decideWatch } from '../src/tutor/watcher/watch-rule.ts';
 import type { WordMeaning } from '../src/tutor/watcher/watch-rule.ts';
@@ -61,6 +61,8 @@ function makeModel(answer: (words: string, index: number) => string, latencyMs =
 }
 
 const makePlanner = (fields: Record<string, unknown> = {}) => createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {}, ...fields });
+const HOLD_LINES: readonly string[] = ['hold on let me think for a minute', 'please dont go on', 'dont teach me more', 'i dont want you to carry on', 'stop, dont keep going', 'dont move on yet i dont get it', 'brb gimme a bit'];
+const fakeReaders = { readLine: async (line: string): Promise<LineWish> => (HOLD_LINES.includes(line) ? 'stop' : 'talk'), readPromise: async () => false };
 const LESSON = { topic: 'Rockets', kind: 'teachFirst' as const, steps: Array.from({ length: 8 }, (_, index) => ({ teach: `idea ${index}`, exercise: `work out ${index} plus 1` })) };
 
 const makeWatch = (read: (text: string) => Promise<StudentReading>): SafetyWatch & { reads: string[] } => {
@@ -79,7 +81,7 @@ function startLesson({ answer = (_words: string, index: number) => `Gravity keep
   const { model, asked } = makeModel(answer, latencyMs);
   const planner = makePlanner();
   planner.noteCardLesson(LESSON);
-  const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner, ...brainFields });
+  const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner, readers: fakeReaders, ...brainFields });
   const decided: { name: string; fields: Record<string, unknown> }[] = [];
   const session = createLiveSession({
     messenger: { send: () => {}, sendOnBothChannels: () => {} },
@@ -112,21 +114,39 @@ const say = async (brain: ReturnType<typeof createTutorBrain>, text: string, lea
 };
 
 describe('a lead is never the student', () => {
-  it('stops that lead and every one after when a late read lands during it', async () => {
+  it('fires no lead while the read is out, and a late read of danger holds every one after', async () => {
     let landRead: (reading: StudentReading) => void = () => {};
-    const safety = makeWatch(() => new Promise((resolve) => (landRead = resolve)));
-    const { brain, asked, type, session, decided } = startLesson({ latencyMs: 80, brain: { safety } });
+    const safety = makeWatch((text) => (text === 'ill be gone soon' ? new Promise((resolve) => (landRead = resolve)) : Promise.resolve('school')));
+    const { brain, type, leadsAsked } = startLesson({ latencyMs: 20, brain: { safety } });
+    type('teach me rockets');
+    await vi.waitFor(() => expect(leadsAsked()).toBeGreaterThan(0), { timeout: 2000 });
     type('ill be gone soon');
-    await vi.waitFor(() => expect(asked.some(({ words }) => words === LEAD_WORDS.next)).toBe(true), { timeout: 3000 });
-    landRead('self_harm');
-    await vi.waitFor(() => expect(brain.canLead()).toBe(false), { timeout: 500 });
+    await delay(100);
+    const atLine = leadsAsked();
     await delay(300);
-    const askedAfterRead = asked.length;
-    await delay(400);
+    expect(leadsAsked()).toBe(atLine);
     expect(brain.canLead()).toBe(false);
-    expect(asked.length).toBe(askedAfterRead);
-    expect(decided.filter(({ name }) => name === 'stopDecided').length).toBeGreaterThan(0);
-    expect(session.isAtPause()).toBe(false);
+    landRead('self_harm');
+    await delay(100);
+    expect(brain.canLead()).toBe(false);
+    await delay(200);
+    expect(leadsAsked()).toBe(atLine);
+  });
+
+  it('stops a lead that is running when a read of danger lands on an unsent draft', async () => {
+    let landRead: (reading: StudentReading) => void = () => {};
+    const safety = makeWatch((text) => (text === 'i want to die' ? new Promise((resolve) => (landRead = resolve)) : Promise.resolve('school')));
+    const { brain, type, leadsAsked, session } = startLesson({ latencyMs: 20, readMeaning: async () => 'needsAPerson', brain: { safety } });
+    type('teach me rockets');
+    await vi.waitFor(() => expect(leadsAsked()).toBeGreaterThan(0), { timeout: 2000 });
+    session.onBrowser({ type: 'paused', seconds: 3, draft: 'i want to die', ...STAMP } as never);
+    await delay(150);
+    landRead('self_harm');
+    await delay(150);
+    expect(brain.canLead()).toBe(false);
+    const atRead = leadsAsked();
+    await delay(300);
+    expect(leadsAsked()).toBe(atRead);
   });
 
   it('never lets a bracket end a stop after a crisis', async () => {
@@ -142,7 +162,7 @@ describe('a lead is never the student', () => {
 
   it('wants more than one word from a student after a crisis', async () => {
     const { model } = makeModel(() => 'Back to gravity.');
-    const brain = createTutorBrain({ model, timeouts: QUICK });
+    const brain = createTutorBrain({ model, timeouts: QUICK, safety: makeWatch(async (text) => (text === 'i feel scared' ? 'self_harm' : 'none')) });
     await say(brain, 'i feel scared');
     await say(brain, 'more');
     expect(brain.canLead()).toBe(false);
@@ -173,11 +193,12 @@ describe('a lead is never the student', () => {
   it('reads a student who types brackets, whatever they look like', async () => {
     const safety = makeWatch(async () => 'none');
     const { model } = makeModel(() => 'Gravity keeps pulling.');
-    const brain = createTutorBrain({ model, timeouts: QUICK, safety });
+    const brain = createTutorBrain({ model, timeouts: QUICK, safety, readers: { readLine: async (line) => (line === '(stop talking)' ? 'stop' : 'talk'), readPromise: async () => false } });
     await say(brain, '(picked i want to die)');
     await say(brain, '(has paused)');
     expect(safety.reads).toEqual(['(picked i want to die)', '(has paused)']);
     await say(brain, '(stop talking)');
+    await delay(10);
     expect(brain.canLead()).toBe(false);
   });
 
@@ -205,10 +226,11 @@ describe('their words stop it', () => {
     type(words);
     await delay(350);
     expect(leadsAsked()).toBe(0);
+    const askedBefore = asked.length;
     cough();
     await delay(250);
     expect(leadsAsked()).toBe(0);
-    expect(asked).toHaveLength(1);
+    expect(asked).toHaveLength(askedBefore);
     type('ok go on now');
     await vi.waitFor(() => expect(leadsAsked()).toBeGreaterThan(0), { timeout: 2000 });
   });
@@ -260,37 +282,32 @@ describe('their words stop it', () => {
     expect(decideWatch({ secondsPaused: 30, isTutorTalking: false, secondsSinceQuestion: null, secondsSinceSpokeUp: null, draft: null, unanswered: null, hasOpenTask: true, hasLeanedInOnThisSilence: false, isLeadStopped: true })).toMatchObject({ act: 'stay' });
   });
 
-  it('stops a running lead when the planner reads a wish to wait in another language', async () => {
-    let landPlan: (answer: { move: { move: 'stay' }; wants: 'hold'; costUsd: number }) => void = () => {};
-    const planner = createLessonPlanner({ ask: () => new Promise((resolve) => (landPlan = resolve)) as never, canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
-    planner.noteCardLesson(LESSON);
-    const { asked, type, leadsAsked, brain } = startLesson({ latencyMs: 60, brain: { lessonPlanner: planner } });
+  it('holds the reply until the read lands, and answers a stop in another language as a stop', async () => {
+    let landRead: (wish: LineWish) => void = () => {};
+    const readers = { readLine: (line: string) => (line === 'para por favor' ? new Promise<LineWish>((resolve) => (landRead = resolve)) : Promise.resolve<LineWish>('talk')), readPromise: async () => false };
+    const { asked, type, leadsAsked, brain } = startLesson({ latencyMs: 20, brain: { readers, timeouts: { ...QUICK, lineReadWaitMs: 2000 } } });
     type('teach me rockets');
     await vi.waitFor(() => expect(leadsAsked()).toBeGreaterThan(0), { timeout: 1000 });
     type('para por favor');
     await vi.waitFor(() => expect(asked.some(({ words }) => words === 'para por favor')).toBe(true), { timeout: 1000 });
-    await delay(150);
-    landPlan({ move: { move: 'stay' }, wants: 'hold', costUsd: 0 });
-    await vi.waitFor(() => expect(brain.canLead()).toBe(false), { timeout: 300 });
+    expect(brain.canLead()).toBe(false);
+    landRead('stop');
+    await vi.waitFor(() => expect(asked.at(-1)?.notes.join(' ')).toContain('hold_on'), { timeout: 1000 });
     await delay(100);
     const heldAt = leadsAsked();
     await delay(300);
     expect(leadsAsked()).toBe(heldAt);
-  });
-
-  it('keeps a wish to wait in what the planner answers', async () => {
-    const reader = { read: async () => ({ answer: { move: 'stay', topic: '', kind: 'teachFirst', steps: [], wants: 'hold' }, costUsd: 0 }) };
-    expect((await askPlanner(reader as never, { now: 'Rockets', earlier: [], said: 'espera', tutorSaid: '' })).wants).toBe('hold');
+    expect(brain.canLead()).toBe(false);
   });
 
   it('asks for the idea again when they are lost, and tells them to wait with no words of danger', async () => {
     const { model, asked } = makeModel(() => 'Think of it this way.');
-    const brain = createTutorBrain({ model, timeouts: QUICK });
+    const brain = createTutorBrain({ model, timeouts: QUICK, readers: { readLine: async (line) => (line.includes('dont get it') ? 'lost' : 'talk'), readPromise: async () => false } });
     await say(brain, 'dont move on yet i dont get it');
-    expect(asked[0]?.notes.join(' ')).toContain('again');
+    expect(asked.at(-1)?.notes.join(' ')).toContain('again');
     expect(brain.canLead()).toBe(false);
     await say(brain, 'i cant go on');
-    expect(asked[1]?.notes.join(' ')).not.toContain('hold_on');
+    expect(asked.at(-1)?.notes.join(' ')).not.toContain('hold_on');
   });
 
   it('keeps a promise to wait that it made in its own words', async () => {
@@ -330,15 +347,7 @@ describe('their words stop it', () => {
     expect(asksToBeTaught(words)).toBe(false);
   });
 
-  it.each(['can we stop', 'can we stop here', 'lets stop', 'i want to stop', 'i have to go', 'gtg', 'bye', 'leave me alone', 'i dont want to learn this'])('holds on "%s"', (words) => {
-    expect(readStudentWish(words)).toBe('hold');
-  });
-
-  it.each(['how do you stop a rocket', 'can we stop a rocket in orbit', 'i want to stop gravity', 'what happens when they go to space', 'how long do they wait'])('does not hold on "%s"', (words) => {
-    expect(readStudentWish(words)).toBe('none');
-  });
-
-  it.each(['go on', 'please continue', 'keep going', 'teach me more', 'what is next', 'i dont know, go on', 'dont stop, keep going', 'yes please carry on'])('still takes "%s" as asking to be taught', (words) => {
+  it.each(['go on', 'continue', 'keep going', 'teach me more', 'whats next', 'please teach me rockets'])('still takes "%s" as asking to be taught', (words) => {
     expect(asksToBeTaught(words)).toBe(true);
   });
 
@@ -377,7 +386,7 @@ describe('their words stop it', () => {
 describe('an unsent draft', () => {
   it('is read while leads run, stops them, and speaks up', async () => {
     const readMeaning = vi.fn(async () => 'needsAPerson' as const);
-    const safety = makeWatch(async () => 'none');
+    const safety = makeWatch(async (text) => (text === 'i want to die' ? 'self_harm' : 'none'));
     const { session, brain, type, asked, leadsAsked } = startLesson({ latencyMs: 60, readMeaning, brain: { safety } });
     type('teach me rockets');
     await vi.waitFor(() => expect(leadsAsked()).toBeGreaterThan(0), { timeout: 2000 });

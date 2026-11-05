@@ -21,31 +21,31 @@ export const LEAD_NOTES = {
   taskTried: 'They have had their go at the exercise and you have answered it, so it is closed now. If they missed it, show the right answer in a line. Then {"kind":"boardMode","mode":"teach"} and on to the next idea. Do not call it skipped.',
   exercise: 'Nobody spoke, and this idea has been taught. Set the exercise in this reply, of the exercise_kind in the plan note: a few words, what it needs on the board, never its answer, then its task command. A new problem, never one they have already had in this lesson. Settle the numbers before you speak, simple enough to work in their head, so you never correct yourself aloud.',
   noAnswer: 'They did not answer. Say the answer yourself in a line, with no fuss, and teach on, asking nothing in this reply.',
-  taskLeft: 'Nobody tried it, so work it yourself now in a line or two, ending on the answer. code_worked_it, when it is here, is the true number for that problem: use it, to at most three figures, and never a looser one. Never say skip, fine, or that they left it. Then {"kind":"boardMode","mode":"teach"} and on to the next idea.',
+  taskLeft: 'They have not finished it, so finish it yourself now in a line or two, building on any line they wrote and ending on the answer. code_worked_it, when it is here, is the true number for that problem: use it, to at most three figures, and never a looser one. Never say skip, fine, or that they left it. Then {"kind":"boardMode","mode":"teach"} and on to the next idea.',
 } as const;
 
 export const OPENING_A_CARD_NOTE = { opening_a_card: 'Open on the idea itself, in a reply that ends with no question. Their level is in the student note, so never ask what they have done or know.' };
 
 const NAMES_THE_PLAN = /\b(?:(?:whole|lesson|my|our|your) plan|plan (?:is |was )?(?:covered|done|finished|stale|out of date)|the student\b|(?:last|final) (?:idea|exercise|problem|one for this idea))\b/i;
 
-const ANNOUNCES_A_CORRECTION = /\b(?:quick|small|one) correction\b|\bcorrection on my\b|\bcorrect(?:ing)? myself\b|\bI misspoke\b|\bmy last line\b|^\s*slight fix\b|\bi need to correct\b|\bfix to something i said\b|^\s*careful\b[^.]*\bisn'?t quite right\b/i;
+const ANNOUNCES_A_CORRECTION = /\b(?:quick|small|one) correction\b|\bcorrection on my\b|\bcorrect(?:ing)? myself\b|\bI misspoke\b|\bmy last line\b|^\s*slight fix\b|\bi need to correct\b|\bfix to something i said\b|^\s*careful\b[^.]*\bisn'?t quite right\b|\bsomething is off with what i\b|^\s*careful,? that line\b|\bthat line was muddled\b/i;
 
 export function getLessonWordsProblem(text: string): string | null {
   if (NAMES_THE_PLAN.test(text)) return 'Never tell them about a plan, or how much of the lesson is left. Carry straight on, and say it without that.';
   return ANNOUNCES_A_CORRECTION.test(text) ? 'Never announce a correction. If something you said was really false, say what is true as your next line, as a plain statement. If it was true, carry on to something new.' : null;
 }
 
-const SOUNDS_LIKE_THE_END = /\bthat'?s (?:the )?(?:whole|full) (?:story|picture|path)\b|\bthat'?s the whole trick\b|\bthe lesson done\b|\bwrap up\b|\bgood place to stop\b|\bsay the word\b|\bwhat you want next\b|\bwhere to next\b/i;
+const SOUNDS_LIKE_THE_END = /\bthat'?s (?:the )?(?:whole|full) (?:story|picture|path)\b|^\s*last (?:piece|sum|one|bit)\b|\bone last\b|\bthat'?s the whole trick\b|\bthe lesson done\b|\bwrap up\b|\bgood place to stop\b|\bsay the word\b|\bwhat you want next\b|\bwhere to next\b/i;
 
 export const getLeadWordsProblem = (text: string) => (SOUNDS_LIKE_THE_END.test(text) ? 'The lesson carries on after this by itself, so never sound as if it is ending, and never offer to stop or ask where to go next. Say the next idea as a plain line.' : null);
 
-const PROMISES_TO_WAIT = /\bi(?:'ll| will| am going to|'m going to)\s+(?:stop\b(?! there)|wait\b|pause\b|hold\b|be quiet\b|leave you\b|give you (?:a (?:sec|second|minute|moment|bit)|some time|time|space)\b)|\btake your time\b|\bno rush\b|\bwhen(?:ever)? you(?:'re| are) ready\b|\blet me know when\b/i;
+const PROMISES_TO_WAIT = /\bi(?:'ll| will| am going to|'m going to)\s+(?:stop\b(?! there)|wait\b|pause\b|hold\b|be quiet\b|leave you\b|give you (?:a (?:sec|second|minute|moment|bit)|some time|time|space)\b)|\bi won'?t (?:continue|go on)\b|\btake your time\b|\bno rush\b|\bwhen(?:ever)? you(?:'re| are) ready\b|\blet me know when\b/i;
 
 export const promisesToWait = (text: string) => PROMISES_TO_WAIT.test(text);
 
 export const HOLD_NOTE = { hold_on: 'They asked you to stop or wait. Say so in two or three words, then stop. Ask nothing, set nothing, and teach nothing in this reply. You stay quiet until they do something.' };
 
-export const STAY_NOTE = { hold_on: 'They asked you not to move on, because they are lost. Say this idea again in a line or two, simpler, with one everyday picture and no new term. Set nothing, and then you stay quiet until they do something.' };
+export const STAY_NOTE = { hold_on: 'They asked you not to move on, because they are lost. Say this idea again in a line or two, simpler, with one everyday picture and no new term. Set nothing, say in a few words that you will wait for them, and then you stay quiet until they do something.' };
 
 export const SLOW_NOTE = { pace: 'They asked you to slow down. One short sentence, plain words, and one small step at a time.' };
 

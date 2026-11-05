@@ -17,6 +17,8 @@ export const SPOKEN_LINES = {
   refusedPlain: ["I can't go into that one here, and you haven't done anything wrong by asking. What else are you working on?", "That one's not something I can help with here, and that's down to me, not you. What else are you working on?"],
   refusedPlainAfterWords: ["I have to stop there on that one, and that's down to me, not you. What else are you working on?"],
   askedHowDeclined: ["Let's come at that a different way. Which part do you want to go through first?"],
+  waitingAfterFailedRead: [`${IF_WORRIED} I'll wait here. Tell me when you want to carry on.`],
+  lostPlace: ["Sorry, I've lost my place. Tell me what you'd like to do next."],
   cutShort: ["That's a lot at once, so I'll stop there. What do you make of it so far?"],
   noToolAnswer: [`I couldn't work that out just now. ${IF_WORRIED} Could you ask me that another way?`],
   notHeard: ["I didn't catch any words in that. Could you try again?"],

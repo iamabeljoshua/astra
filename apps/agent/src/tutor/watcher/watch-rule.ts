@@ -1,5 +1,5 @@
 import type { LineReading, StudentWork, WorkVerdict } from '@astra/contracts';
-import { type CheckedWork, getLineTex, isBareAnswer, isFinishedAnswer, isThinkingAloud } from '@astra/board/shared';
+import { type CheckedWork, getLineTex, isAnswerWithUnit, isBareAnswer, isFinishedAnswer, isThinkingAloud } from '@astra/board/shared';
 
 export interface WatchSituation {
   secondsPaused: number;
@@ -18,7 +18,8 @@ export type WatchDecision = { act: 'stay'; why: string } | { act: 'speak'; why: 
 export const WATCH_SECONDS = { afterQuestion: 8, afterSpeakingUp: 20, askingForHelp: 3, wordsToRead: 3, builtOnWrongLine: 5, sameWrongLineTwice: 5, wrongLineSat: 10, unjudgedWorkSat: 10, nothingChanged: 30 } as const;
 
 const ASKING_FOR_HELP = /\b(help|stuck|don'?t (know|get)|no idea|confused|lost|is (this|that|it) (right|ok|correct))\b|\?\s*$/i;
-const HOLDS_WORDS = /[a-z]{3,}/i;
+/** Three Latin letters, so a stray unit stays math, or two of any other script, because a student may write in Arabic, Hindi, Chinese, or Russian. */
+export const HOLDS_WORDS = /[a-z]{3,}|[^\P{L}\p{Script=Latin}]{2,}/iu;
 
 const stay = (why: string): WatchDecision => ({ act: 'stay', why });
 const speak = (why: string): WatchDecision => ({ act: 'speak', why });
@@ -79,9 +80,9 @@ function decideOnLine(text: string, reading: LineReading | undefined, checked: C
   const { status } = checked.verdict;
   if (status === 'wrong') return reply('code is certain the line is wrong');
   const tex = reading ? getLineTex(reading) : null;
-  if (status === 'right') return checked.closesTask || (tex !== null && isFinishedAnswer(tex)) ? reply('the student finished') : wait('a right line, and the student is working');
+  if (status === 'right') return checked.closesTask || checked.isWorkedThrough || (tex !== null && isFinishedAnswer(tex)) ? reply('the student finished') : wait('a right line, and the student is working');
   if (status === 'unknown' && checked.verdict.offProblem !== undefined) return reply('the line does not follow from the problem on the board');
-  return tex !== null && (isFinishedAnswer(tex) || isBareAnswer(tex)) ? reply('the student gave an answer code cannot judge') : wait('code cannot judge this line, so the tutor looks at a pause');
+  return tex !== null && (isFinishedAnswer(tex) || isBareAnswer(tex) || isAnswerWithUnit(tex)) ? reply('the student gave an answer code cannot judge') : wait('code cannot judge this line, so the tutor looks at a pause');
 }
 
 export function decideOnWork(work: StudentWork, checked: CheckedWork, hasTask: boolean): WorkDecision {

@@ -19,6 +19,8 @@ export interface SafetyWatch {
   readStudent(text: string, tutorSaid: string): Promise<StudentReading>;
   noteTurnEnd(turn: { spoken: string; safetyRead: Promise<void>; getKind(): SafetyKind | null }): void;
   showHelp(): void;
+  /** A reloaded page lost the note, so it goes up again if this room raised it. */
+  showHelpAgain?(): void;
   readSession(): Promise<SessionReading>;
   flush(): Promise<void>;
 }
@@ -85,6 +87,9 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace, flagRetryWa
 
   return {
     showHelp: showHelpOnce,
+    showHelpAgain() {
+      if (isHelpShown) showHelp();
+    },
     readStudent(text, tutorSaid) {
       const before = { studentSaid, tutorSaid };
       const read = check.readStudent(text, before).then(async (firstReading) => {

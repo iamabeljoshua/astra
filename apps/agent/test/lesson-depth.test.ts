@@ -113,7 +113,7 @@ describe('asking to be taught', () => {
     return planner;
   }
 
-  it.each(['So, what\'s next? Teach me more', 'go on', 'Go on please', 'teach me more', 'keep going', 'tell me more', 'tell me more about stages', "what's next", 'what is next?', 'and then what', 'what else', 'carry on', 'continue', 'next', 'more', 'ok move on', 'show me more', 'keep teaching me'])('reads "%s" as a wish to be taught', (words) => {
+  it.each(['go on', 'Go on please', 'teach me more', 'keep going', 'tell me more', "what's next", 'what is next?', 'and then what', 'what else', 'carry on', 'continue', 'next', 'more', 'ok move on', 'show me more', 'keep teaching me'])('reads "%s" as a wish to be taught', (words) => {
     const planner = plannerAtDue();
     planner.noteStudentWords({ words, isOpening: false, tutorSaid: 'Weaker gravity, so a lower speed.' });
     expect(planner.getStepNote()).not.toHaveProperty('exercise_due');
@@ -133,7 +133,6 @@ describe('asking to be taught', () => {
   });
 
   it('holds this reply to teaching, with nothing set', () => {
-    expect(getTeachFirstNote("So, what's next? Teach me more", false)).toMatchObject({ teach_first_now: expect.any(String) });
     expect(getTeachFirstNote('go on', false)).toMatchObject({ teach_first_now: expect.any(String) });
   });
 });

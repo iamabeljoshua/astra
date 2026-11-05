@@ -41,7 +41,7 @@ export interface SceneQueue {
   onTutorAsk(topic: string): void;
   noteAhead(request: string, state: AheadNews): void;
   noteStudentWords(words: string): void;
-  noteTutorReply(reply: { spokenText: string; refusalCategory: string | null }): void;
+  noteTutorReply(reply: { wasLead?: boolean; spokenText: string; refusalCategory: string | null }): void;
   noteSafetyReply(): void;
   getPictureTopic(): string | null;
   getEntries(): readonly QueueEntry[];
@@ -247,9 +247,11 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       if (wasHeld && !isHeld && !isStopped) fillAhead();
     },
     noteSafetyReply: () => stopForGood(),
-    noteTutorReply({ spokenText, refusalCategory }) {
+    noteTutorReply({ wasLead = false, spokenText, refusalCategory }) {
       isReplying = false;
-      if (getFacts().isOverLimit || SAFETY_REPLY.test(spokenText) || (refusalCategory !== null && !PLAIN_REFUSALS.has(refusalCategory))) return stopForGood();
+      // Nobody spoke before a lead, so "an adult you trust" there is the lesson's own line.
+      const wasAboutSafety = !wasLead && (SAFETY_REPLY.test(spokenText) || (refusalCategory !== null && !PLAIN_REFUSALS.has(refusalCategory)));
+      if (getFacts().isOverLimit || wasAboutSafety) return stopForGood();
       if (isStopped || isHeld) return;
       askDue();
       fillAhead();
