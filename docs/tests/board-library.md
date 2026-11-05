@@ -24,7 +24,7 @@ Tables, timelines, code blocks, labelled drawings, layered diagrams, and picture
 - A code block holds at most 40 lines, and each long line wraps, because a board never scrolls.
 - Every word field refuses raw math, so math goes in `writeMath`: a TeX command, `\(` and `\[`, a braced power or subscript, and math between dollars. It also refuses the tab, newline, and other characters JSON makes of a lone backslash. Money such as `$5 grows to $25` stays words, and a code block keeps what it holds. A Windows path, or `\frac` in a lesson about LaTeX, belongs in a code block.
 
-The deck in `packages/board/test-deck/` has 119 scenes across math, physics, languages, history, biology, code, music, mixed lessons, and hostile input. Each command in it goes through the same parser and board check as a tutor's. The deck holds right-to-left text, Devanagari, Chinese, Korean, Thai, Burmese, Yoruba, and Igbo.
+The deck in `packages/board/test-deck/` has 125 scenes across math, physics, languages, history, biology, code, music, mixed lessons, and hostile input. Each command in it goes through the same parser and board check as a tutor's. The deck holds right-to-left text, Devanagari, Chinese, Korean, Thai, Burmese, Yoruba, and Igbo.
 
 ## The check
 
@@ -173,7 +173,7 @@ A live tutor now draws every kind here. `DRAWN_KINDS` holds `table`, `timeline`,
 - Tables, timelines, code, drawings, and diagrams took the 30 px of a math line. They now take the 21 px and the font of a row of words, as the prototype sets words.
 - A `hoop-side` drawing, which only ever sits under a flight, took an empty row.
 
-The full sweep on rows at this head, at a load average near 20, gave 24,912 renders, 509,730 text boxes, and 0 defects. 132 labels had no room, on narrow plots and the hostile scenes, and went to the tutor. The 3 strobe scenes in both themes gave 358 frames and 0 flashes in any second. The flash check's own result is under "Scrolling and flashes" below.
+The full sweep on rows at this head, at a load average of 13 to 27, gave 25,038 renders, 511,110 text boxes, and 0 defects. 132 labels had no room, on narrow plots and the hostile scenes, and went to the tutor. The 3 strobe scenes in both themes gave 358 frames and 0 flashes in any second. The flash check's own result is under "Scrolling and flashes" below.
 
 `--surface rows` plants, 92 in all: 68 in the page, 23 in the library, and 1 flash. 16 of the page plants and 8 of the library plants are new and aim at what only rows have: a row pulled onto its neighbour, gutter words laid on a row, a note from the overlay on a row, a row cut by its own box or a clip path, a table too wide for the column, a row pushed past the edge or above the top, a board that stops scrolling, and a row shrunk past reading. 5 page plants and 4 library plants stay on `--surface view`, because they break what only `BoardView` does: placing by transform, shrinking to fit, or a file only it reads.
 
@@ -183,7 +183,7 @@ The full sweep on rows at this head, at a load average near 20, gave 24,912 rend
 
 So the check now counts flashes on a stepped clock with the scroll instant, and plays 8 long boards on the real clock with the real scroll in both themes. On the real clock the smooth scroll did reach 4 in `hostile-widest-diagram` in light, which moved 2,270 px in a second, so a real student could have met it. The board now glides for a move of up to a screen and jumps past that, so an ordinary lesson looks as it did.
 
-On those 8 boards and the scene the row work added, at this code with a load average near 18: 1,295 real-clock frames at 13 a second gave at most 2 flashes in a second, in `hostile-many-at-once` in light, which moved 176 px in its fastest second. The stepped clock gave at most 1, on 1,022 frames, and the sweep on them 3,618 renders and 0 defects. Full run: FULL_FLASH_PENDING.
+The full `--flash` at this code, run alone at a load average of 13 to 27, exited 0. On the stepped clock it read 7,358 frames across 125 scenes in both themes, with at most 1 flash in a second, in `mixed-every-kind` in dark. On the real clock it read 1,258 frames at 13 a second, with at most 2, in `hostile-many-at-once` in light, which moved 176 px in its fastest second. 13 frames a second can tell up to 6 changes a second apart, so 3 flashes a second would show. The planted picture still reads 4, so the check still sees one.
 
 **A row with no width.** A figure's size is its row's column width, and a column of 0 gave 0 over 0 in `sizeWrapper`, so a plot painted `NaN`. The check showed it when it repainted its last scene after the viewport grew under a phone-sized stage, and only if that scene had a plot. A student can reach a column of 0 in a window of 861 to 920 px with a scene in the corner, where the 240 px gutter and the corner's room leave the row nothing. That width is computed from the grid, and the `NaN` was reproduced at a column of 0. A figure on a row with no width now keeps a scale of 1 and paints at no width. A board under 400 px of content puts the gutter under the row, as a phone does. At 870 to 1,114 px with the corner's room held, rows measured 219 to 390 px wide and painted no `NaN`. This changes what a student sees only under about 1,114 px with a scene in the corner, where a row was under 136 px wide.
 
