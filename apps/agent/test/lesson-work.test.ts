@@ -332,8 +332,9 @@ describe('a saved scene that fits a typed question', () => {
     const fitReader = { find: vi.fn(async (topic: string, titles: readonly string[]) => find(topic, titles)) };
     const route = vi.fn(async () => ({ engine: 'kit' as const, kind: 'biology', topic: 'how a heart beats', ...USAGE }));
     const runs = createTopicRuns({ planner: { plan }, writers: [{ name: 'writer', write }], reviewer: { review: async () => ({ isPass: true, errors: [], ...USAGE }) }, worker, store });
-    const makeWork = (isCard = false) => createLessonWork({ router: { route }, runs, kitRuns: runs, fitReader, store, request: 'how does a heart beat', isCard, studentId: 'ada', getNowMs: () => 0, isOnlyForScene: true });
-    return { store, plan, write, fitReader, makeWork };
+    const trace = vi.fn();
+    const makeWork = (isCard = false) => createLessonWork({ router: { route }, runs, kitRuns: runs, fitReader, store, request: 'how does a heart beat', isCard, studentId: 'ada', getNowMs: () => 0, isOnlyForScene: true, trace });
+    return { store, plan, write, fitReader, makeWork, trace };
   }
 
   it('lands the saved scene with no plan and no write', async () => {
@@ -350,7 +351,6 @@ describe('a saved scene that fits a typed question', () => {
 
   it.each([
     ['says none fits', async () => null],
-    ['fails', async () => { throw new Error('the reader is down'); }],
     ['names a scene the store does not have', async () => 'How the heart pumps blood, again'],
   ])('writes fresh when the reader %s', async (_name, find) => {
     const { store, write, makeWork } = setUpFit(find);
@@ -360,6 +360,19 @@ describe('a saved scene that fits a typed question', () => {
     await vi.waitFor(() => expect(work.desk.getState().kind).toBe('ready'));
     expect(write).toHaveBeenCalledOnce();
     expect(work.desk.getState()).toMatchObject({ scene: { topic: 'how a heart beats', ownerId: 'ada' } });
+  });
+
+  it('pays for no write when the reader fails, because a failed read does not say none fits', async () => {
+    const { store, plan, write, makeWork, trace } = setUpFit(async () => {
+      throw new Error('the model ran out of tokens');
+    });
+    await store.saveChecked(saved('How the heart pumps blood'), TAKES, []);
+    const work = makeWork();
+    work.desk.ask(work.request);
+    await vi.waitFor(() => expect(work.desk.getState().kind).toBe('declined'));
+    expect(plan).not.toHaveBeenCalled();
+    expect(write).not.toHaveBeenCalled();
+    expect(trace).toHaveBeenCalledWith('sceneFitFailed', { problem: 'Error: the model ran out of tokens' });
   });
 
   it('never offers a student\'s own scene as a fit for anyone', async () => {

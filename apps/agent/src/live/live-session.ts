@@ -11,13 +11,14 @@ import { getResumeBeats } from './resume-plan.ts';
 import { createMessageGate } from './message-gate.ts';
 import { createSessionLog, isFurtherReport } from './session-log.ts';
 import { createTypedGate } from './typed-gate.ts';
-import { type SentenceBreaks, type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
+import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
 import { isAboutSafety } from '../tutor/beat-text-reader.ts';
 import type { RecapFacts } from '../recap/recap-facts.ts';
 import { getRecapBeats } from '../recap/recap-rules.ts';
 import { getSessionEnding } from '../recap/write-recap.ts';
 import type { SessionReading } from '../safety/safety-watch.ts';
 import type { TutorBeat, TutorBrain, TutorRequest } from '../tutor/brain.ts';
+import type { ReplyEnd } from '../tutor/tutor-scenes.ts';
 import { createBoardWork, WATCHER_WORDS } from '../tutor/watcher/board-work.ts';
 import type { HeardTurn, RecordTurn } from './heard-recorder.ts';
 import type { SpokenReading } from '../tutor/watcher/read-spoken.ts';
@@ -92,7 +93,6 @@ export interface LiveSessionOptions {
   readSafety?(): Promise<SessionReading>;
   /** A recap has been written. Memory can note here that a `gentle` ending needs a person, and a model's `lesson` lines are not for its notes. */
   onRecap?(recap: SessionRecap): void;
-  sentenceBreaks?: SentenceBreaks;
   onSceneCut?(heard: SceneHeard): void;
   takeOwedCommands?(): readonly SceneCommand[];
   /** The student pressed End, so whatever was going to teach next has lost its moment. */
@@ -114,8 +114,8 @@ export interface LiveSession {
   isInBreath(): boolean;
   /** A reply is under way and none of its sound has reached the line. */
   isBeforeFirstWord(): boolean;
-  /** Ends the reply here and says a scene's words in its place. False, and nothing changes, unless `canCutInScene` holds. */
-  cutInScene(beats: readonly TutorBeat[]): boolean;
+  /** Ends the reply now or at the end of the sentence it is on, and says a scene's words after it. False, and nothing changes, unless `canCutInScene` holds. */
+  cutInScene(beats: readonly TutorBeat[], replyEnds: ReplyEnd): boolean;
   close(): Promise<void>;
 }
 
@@ -234,7 +234,7 @@ function recordingTo(heard: HeardTurn, messenger: TurnMessenger): TurnMessenger 
   };
 }
 
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, endLine = () => {}, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn, onPause, onReactionOver, holdFirstWord, onStudentTurn, getOpeningScene, onLinkChange, waitForPicture = async () => true, onLogWritten, writeRecap = async () => null, readSafety, onRecap = () => {}, onEnding, onEndingOver = () => {}, leadTimings = LEAD_TIMINGS, sentenceBreaks, onSceneCut, takeOwedCommands }: LiveSessionOptions): LiveSession {
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, endLine = () => {}, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn, onPause, onReactionOver, holdFirstWord, onStudentTurn, getOpeningScene, onLinkChange, waitForPicture = async () => true, onLogWritten, writeRecap = async () => null, readSafety, onRecap = () => {}, onEnding, onEndingOver = () => {}, leadTimings = LEAD_TIMINGS, onSceneCut, takeOwedCommands }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   // A new job in the same room restarts this count, and a page ignores a turn it has seen, so each job's turns carry their own name.
   const jobTag = randomUUID().slice(0, 8);
@@ -255,6 +255,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let audioRunning = false;
   let reaction: Speaking | null = null;
   let reply: Speaking | null = null;
+  /** The reply a scene cut in on, saying the rest of its sentence while the scene waits on the line. */
+  let endingReply: Speaking | null = null;
   let cut: Speaking | null = null;
   let thought: Thought | null = null;
   let resumeTicket = 0;
@@ -367,7 +369,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     isDispatching = false;
   };
 
-  const getAudibleTurn = () => reaction?.turnId ?? reply?.turnId ?? null;
+  const getAudibleTurn = () => reaction?.turnId ?? endingReply?.turnId ?? reply?.turnId ?? null;
 
   const sendYield = (isYielding: boolean) => {
     const turnId = getAudibleTurn();
@@ -502,7 +504,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         turnId,
         beats,
         getNowMs,
-        ...(sentenceBreaks && isReply && canResume ? { sentenceBreaks } : {}),
         // The voice cannot be late before it has words, so a slow model is never read as a failed voice.
         onBeatUnspoken: (beat) => void ownThought?.unspoken.unshift(beat),
         onBeatStarted(beat) {
@@ -659,6 +660,11 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     if (speaking) tutor.noteCut?.(speaking.spoken.getWordsSent());
   };
 
+  const stopEndingReply = () => {
+    endingReply?.spoken.stop();
+    endingReply = null;
+  };
+
   const answerSpokenWords = async (request: TutorRequest) => {
     const ticket = (spokenTicket += 1);
     setThinking(true);
@@ -718,6 +724,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     const replaced = reply && !reply.isOver ? reply : cut;
     if (thought?.isScene && replaced) onSceneCut?.({ reports: replaced.reports, wordsSent: replaced.spoken.getWordsSent() });
     noteCutForBrain(replaced);
+    stopEndingReply();
     reply?.spoken.stop();
     cut = null;
     lastStretch = null;
@@ -742,6 +749,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     resumeTicket += 1;
     reaction?.spoken.stop();
     reaction = null;
+    stopEndingReply();
     if (reply) {
       if (!action.keepsThought && thought?.isScene) onSceneCut?.({ reports: reply.reports, wordsSent: reply.spoken.getWordsSent() });
       if (!action.keepsThought) noteCutForBrain(reply);
@@ -1104,13 +1112,23 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       return true;
     },
     canCutInScene,
-    cutInScene(beats) {
+    cutInScene(beats, replyEnds) {
       if (!canCutInScene()) return false;
       tutor.dropPreparedLead?.();
       spokenTicket += 1;
       resumeTicket += 1;
-      if (reply) noteCutForBrain(reply);
-      reply?.spoken.stop();
+      const ending = reply;
+      noteCutForBrain(ending);
+      if (ending && replyEnds === 'now') ending.spoken.stop();
+      if (ending && replyEnds === 'atSentenceEnd') {
+        endingReply = ending;
+        ending.spoken.endAtSentence();
+        void ending.spoken.finished.then(() => {
+          if (endingReply !== ending) return;
+          endingReply = null;
+          noteCutForBrain(ending);
+        });
+      }
       lastStretch = null;
       dropThought();
       startSceneThought(beats);
@@ -1130,9 +1148,11 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       typedGate.close();
       timers.forEach((timer) => clearTimeout(timer));
       reaction?.spoken.stop();
+      const ending = endingReply;
+      stopEndingReply();
       reply?.spoken.stop();
       dropThought();
-      await Promise.allSettled([reaction?.spoken.finished, reply?.spoken.finished]);
+      await Promise.allSettled([reaction?.spoken.finished, ending?.spoken.finished, reply?.spoken.finished]);
       // After the wait, because a turn ending starts the quiet count again.
       clearTimeout(quietWarning);
       clearTimeout(quietLimit);

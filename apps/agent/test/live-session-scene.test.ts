@@ -25,7 +25,8 @@ function makeTake(id: string, use: StoredTake['use'], phrase: string): StoredTak
 
 const TAKES = [makeTake('hm', 'reaction', 'Hm.'), makeTake('okay', 'reaction', 'Okay.'), makeTake('greet', 'greeting', 'Hi there.')];
 
-function makeOutput(failAfter = Infinity): VoiceOutput {
+// A real source takes a frame only while it holds less than its queue, so `queueMs` paces the voice like one.
+function makeOutput(failAfter = Infinity, queueMs = Infinity): VoiceOutput {
   let queuedUntilMs = 0;
   let framesTaken = 0;
   return {
@@ -33,6 +34,7 @@ function makeOutput(failAfter = Infinity): VoiceOutput {
     async captureFrame(frame: { samplesPerChannel: number; sampleRate: number }) {
       framesTaken += 1;
       if (framesTaken > failAfter) throw new Error('InvalidState - failed to capture frame');
+      await delay(Math.max(0, queuedUntilMs - performance.now() - queueMs));
       const nowMs = performance.now();
       queuedUntilMs = Math.max(queuedUntilMs, nowMs) + (frame.samplesPerChannel / frame.sampleRate) * 1000;
     },
@@ -50,24 +52,26 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.close()));
 });
 
-function start({ failAfter = Infinity, reply = makeBeat('reply-1', 'one two three four five'), recap = null as SessionRecap | null } = {}) {
+function start({ failAfter = Infinity, queueMs = Infinity, reply = makeBeat('reply-1', 'one two three four five'), recap = null as SessionRecap | null } = {}) {
   const messages: AgentMessage[] = [];
   const onPause = vi.fn();
   const onEnding = vi.fn();
   const onEndingOver = vi.fn();
   const said: string[] = [];
+  const noteCut = vi.fn<NonNullable<TutorBrain['noteCut']>>();
   const tutor: TutorBrain = {
     async *reply({ text }) {
       said.push(text);
       yield reply;
     },
+    noteCut,
   };
   const send = (message: AgentMessage) => void messages.push(message);
   const voice: tts.TTS = makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts();
-  const session = createLiveSession({ messenger: { send, sendOnBothChannels: send }, line: createVoiceLine(makeOutput(failAfter)), voice, tutor, takes: createTakePicker(TAKES), allTakes: TAKES, setTurnCap: () => {}, onPause, onEnding, onEndingOver, writeRecap: async () => recap });
+  const session = createLiveSession({ messenger: { send, sendOnBothChannels: send }, line: createVoiceLine(makeOutput(failAfter, queueMs)), voice, tutor, takes: createTakePicker(TAKES), allTakes: TAKES, setTurnCap: () => {}, onPause, onEnding, onEndingOver, writeRecap: async () => recap });
   sessions.push(session);
   const beatsSent = () => [...new Set(messages.flatMap((message) => (message.type === 'words' ? [message.beatId as string] : [])))];
-  return { session, messages, onPause, onEnding, onEndingOver, said, beatsSent };
+  return { session, messages, onPause, onEnding, onEndingOver, said, beatsSent, noteCut };
 }
 
 const untilSent = async (read: () => string[], id: string) => {
@@ -134,6 +138,33 @@ describe('a scene turn in a live session', () => {
     expect(cues).toHaveLength(1);
     const words = messages.flatMap((message) => (message.type === 'words' && message.beatId === resumed ? message.words.map(({ text }) => text) : []));
     expect(words[0]).toBe('three');
+  });
+
+  it('lets the reply finish its sentence before a scene that cuts in, and the brain hears where it ended', async () => {
+    const { session, messages, beatsSent, noteCut } = start({ queueMs: 200, reply: makeBeat('reply-1', 'one two three. four five six seven eight nine.') });
+    session.onBrowser({ type: 'typed', text: 'why does it fall' } as never);
+    await untilSent(beatsSent, 'reply-1');
+    for (let tries = 0; tries < 200 && !session.canCutInScene(); tries += 1) await delay(10);
+    expect(session.cutInScene([makeBeat('scene-a', 'watch the line')], 'atSentenceEnd')).toBe(true);
+    await untilSent(beatsSent, 'scene-a');
+    const replyTurn = messages.find((message) => message.type === 'words' && message.beatId === 'reply-1');
+    const replyStop = messages.findIndex((message) => message.type === 'stop' && replyTurn?.type === 'words' && message.turnId === replyTurn.turnId);
+    const sceneWords = messages.findIndex((message) => message.type === 'words' && message.beatId === 'scene-a');
+    expect(replyStop).toBeGreaterThan(-1);
+    expect(replyStop).toBeLessThan(sceneWords);
+    expect(noteCut.mock.calls.at(-1)?.[0]).toEqual(new Map([['reply-1', 3]]));
+  });
+
+  it('stops the end of a sentence at once when the student talks over it', async () => {
+    const { session, messages, beatsSent } = start({ queueMs: 200, reply: makeBeat('reply-1', 'one two three four five six seven eight nine ten eleven twelve. thirteen.') });
+    session.onBrowser({ type: 'typed', text: 'why does it fall' } as never);
+    await untilSent(beatsSent, 'reply-1');
+    for (let tries = 0; tries < 200 && !session.canCutInScene(); tries += 1) await delay(10);
+    expect(session.cutInScene([makeBeat('scene-a', 'watch the line')], 'atSentenceEnd')).toBe(true);
+    const talkedAtMs = performance.now();
+    session.onEars({ type: 'voiceStarted' });
+    for (let tries = 0; tries < 300 && !messages.some((message) => message.type === 'stop'); tries += 1) await delay(10);
+    expect(performance.now() - talkedAtMs).toBeLessThan(1000);
   });
 
   it('survives a voice that fails, with a stored line, and the session goes on', async () => {

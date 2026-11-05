@@ -19,7 +19,7 @@ import { createLiveSceneWords, type LiveSceneWords } from '../scenes/live-words/
 import type { StudentFacts } from '../scenes/live-words/write-speech.ts';
 import type { SpendCaps } from './make-brain.ts';
 import type { TutorBeat } from './brain.ts';
-import { createTutorScenes, type FastSceneHooks, type TutorScenes, type TutorScenesOptions } from './tutor-scenes.ts';
+import { createTutorScenes, type FastSceneHooks, type ReplyEnd, type TutorScenes, type TutorScenesOptions } from './tutor-scenes.ts';
 
 /** About four fresh scenes. A saved scene costs nothing, so this only stops a session that keeps asking for new ones. */
 const DEFAULT_SCENE_LIMIT_USD = 0.8;
@@ -60,7 +60,7 @@ const hasScenesAhead = () => process.env.ASTRA_SCENES_AHEAD !== '0';
 
 const getLoadPerCore = () => (loadavg()[0] ?? 0) / Math.max(cpus().length, 1);
 
-type MakeOptions = SessionHooks & { isTutorClosed?(): boolean; caps: Pick<SpendCaps, 'addScene' | 'addTurn' | 'getSceneUsd' | 'getSpendLimit' | 'getLeftTodayUsd' | 'getSharedPlaysToday'>; moveToNextStep(): void; getLastFirstTextMs(): number | null; canCutIn?(): boolean; isInBreath?(): boolean; isBeforeFirstWord?(): boolean; cutIn?(beats: readonly TutorBeat[]): boolean; getLevel?(): string | null; getStudentFacts?(): Promise<StudentFacts>; isReplyStarting?(): boolean };
+type MakeOptions = SessionHooks & { isTutorClosed?(): boolean; caps: Pick<SpendCaps, 'addScene' | 'addTurn' | 'getSceneUsd' | 'getSpendLimit' | 'getLeftTodayUsd' | 'getSharedPlaysToday'>; moveToNextStep(): void; getLastFirstTextMs(): number | null; canCutIn?(): boolean; isInBreath?(): boolean; isBeforeFirstWord?(): boolean; cutIn?(beats: readonly TutorBeat[], replyEnds: ReplyEnd): boolean; getLevel?(): string | null; getStudentFacts?(): Promise<StudentFacts>; isReplyStarting?(): boolean };
 
 // A scene's spending lands on the student's day through the same caps as the tutor's, and a scene past the limit is simply not written.
 export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canCutIn, isInBreath, isBeforeFirstWord, cutIn, getLevel, getStudentFacts, isReplyStarting, ...hooks }: MakeOptions): SessionScenes {
