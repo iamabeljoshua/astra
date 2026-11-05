@@ -266,9 +266,9 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, isHe
 
   const readDraftOnce = (text: string): Promise<WordMeaning | null> => {
     if (latestDraftRead?.text === text) return latestDraftRead.meaning;
-    if (draftReads >= MOST_DRAFT_READS) return Promise.resolve(null);
     draftReads += 1;
-    const meaning = readMeaning(text).then((read) => read ?? (MAY_BE_ABOUT_SAFETY.test(text) ? 'needsAPerson' : null));
+    const read = draftReads > MOST_DRAFT_READS ? Promise.resolve(null) : readMeaning(text);
+    const meaning = read.then((reading) => reading ?? (MAY_BE_ABOUT_SAFETY.test(text) ? 'needsAPerson' : null));
     latestDraftRead = { text, meaning };
     return meaning;
   };

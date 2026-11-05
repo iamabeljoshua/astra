@@ -165,7 +165,6 @@ type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stall
 
 interface TurnWork {
   sceneAside?: 'due' | 'moved';
-  speaker: Speaker;
   isLead: boolean;
   /** The words the safety check read, which on a watcher's turn are their unsent draft. */
   wordsRead: string;
@@ -549,7 +548,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const memoryAtStart = memory;
     const wordsRead = speaker === 'code' ? (draftToRead ?? studentText) : studentText;
     const turn: TurnWork = {
-      speaker,
       wordsRead,
       canBeSteered: wantedExercise !== null,
       isHoldingBeats: false,
@@ -1214,7 +1212,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     if (wasSafetyReply) noteLeadStopEvent('crisis');
     if (ENDS_THAT_STOP_A_LEAD.has(turn.endedAs)) noteLeadStopEvent('replyFailed');
     else if (turn.endedAs === 'ended') noteLeadStopEvent('replyWorked');
-    if (!turn.isLead && !memory.openTask && !getOpenTaskOnBoard(getBoardNow()) && promisesToWait(lastSpokenText)) noteLeadStopEvent('askedToStop');
+    if (!turn.isLead && !getOpenTaskOnBoard(getBoardNow()) && promisesToWait(lastSpokenText)) noteLeadStopEvent('askedToStop');
     onTurnEnd?.({
       studentText: turn.studentText,
       spokenText: getWordsSaid(turn),

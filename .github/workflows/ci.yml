@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  # Each job has its own 2 threads and its own limit, and they run at once. A job stopped at its limit can take over a minute to end, and that answer came at 324 s.
+  # Each job has its own threads and its own limit, and they run at once. A job stopped at its limit can take over a minute to end, and that answer came at 324 s.
   typecheck-and-web:
     runs-on: ubuntu-latest
     timeout-minutes: 4
@@ -51,6 +51,9 @@ jobs:
       POSTGRES_DIGEST: sha256:82a04ba6c05f60950a74ae46be3726abb18d06ee44da936276fd782e72e36855
     steps:
       - uses: actions/checkout@v7
+      # How many workers the agent tests can use depends on this, and the log is the only place it shows.
+      - name: Show how many threads this runner has
+        run: nproc
       - id: postgres-image
         run: .github/scripts/postgres-image.sh key >> "$GITHUB_OUTPUT"
       # The action allows 10 minutes per download segment, so a stalled download would use up the job's limit.

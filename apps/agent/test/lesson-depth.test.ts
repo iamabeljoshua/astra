@@ -276,27 +276,6 @@ function makeTake(id: string, use: StoredTake['use'], phrase: string): StoredTak
 
 const TAKES = [makeTake('hm', 'reaction', 'Hm.'), makeTake('prompt', 'prompt', 'Take your time.')];
 
-function makeOutput(): VoiceOutput {
-  let queuedUntilMs = 0;
-  let wake = () => {};
-  return {
-    sampleRate: 24000,
-    async captureFrame(frame) {
-      queuedUntilMs = Math.max(queuedUntilMs, performance.now()) + (frame.samplesPerChannel / frame.sampleRate) * 1000;
-    },
-    clearQueue() {
-      queuedUntilMs = 0;
-      wake();
-    },
-    async waitForPlayout() {
-      await new Promise<void>((resolve) => {
-        wake = resolve;
-        setTimeout(resolve, Math.max(0, queuedUntilMs - performance.now()));
-      });
-    },
-  };
-}
-
 const makeInstantOutput = (): VoiceOutput => ({ sampleRate: 24000, captureFrame: async () => {}, clearQueue: () => {}, waitForPlayout: async () => {} });
 
 const sessions: LiveSession[] = [];
