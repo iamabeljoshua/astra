@@ -779,6 +779,12 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     wasLastCutWordless = false;
   };
 
+  const takesPageLine = (text: string) => {
+    const isPageLine = text === pageLine;
+    if (isPageLine) pageLine = null;
+    return isPageLine;
+  };
+
   function runAction(action: TurnAction): void {
     switch (action.do) {
       case 'yield':
@@ -801,7 +807,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         // A closed tutor has nothing new to say, and the limit line a hold cut may be the only help this student hears.
         if (cut && tutor.getClosedReason?.()) return void resume();
         if ((action.via === 'final' || action.via === 'partial') && (boardWork.hasOpenTask() || wantsSomethingElse(action.text))) return void answerSpokenWords({ text: action.text, carried: action.carried });
-        return startReply({ text: action.text, carried: action.carried, ...(action.via === 'code' ? { isFromCode: true } : {}), ...(action.text === pageLine ? { isOpening: true } : {}) });
+        return startReply({ text: action.text, carried: action.carried, ...(action.via === 'code' ? { isFromCode: true } : {}), ...(takesPageLine(action.text) ? { isOpening: true } : {}) });
       case 'startTimer':
         return startNamedTimer(action.name, action.ms);
       case 'cancelTimer':

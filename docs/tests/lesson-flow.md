@@ -172,20 +172,22 @@ Two rounds on this work failed the same gate on one idea: code can read what a s
 | The word lists at `1b56435` | 112 of 198 | 41 of 74 | 21 of 124 | 0 of 16 | none | none |
 | A tag on the tutor's own reply, Sonnet | 177 of 198 | 8 of 74 | 11 of 124 | 9 of 16 | 1482, 2257 ms | $0.00187 for those few tokens, and a change to every reply |
 | A Haiku read, first prompt, 2 reads a line | 364 of 396 | 21 of 148 | 7 of 248 | 15 of 32 | 833, 1376 ms | $0.00007 |
-| The same read, final prompt, which took examples from these lines | 192 of 198 | 1 of 74 | 2 of 124 | 16 of 16 | 964, 1641 ms | $0.00008 |
-| The read on the held-out lines, before they joined the prompt | 109 of 118 | 8 of 53 | 0 of 65 | 7 of 15 | 1083, 1857 ms | $0.00008 |
+| The same read, final prompt, which took examples from these lines, 2 reads a line | 386 of 396 | 4 of 148 | 0 of 248 | 30 of 32 | 917, 1662 ms | $0.00009 |
+| The read on the held-out lines, before any joined the prompt | 109 of 118 | 8 of 53 | 0 of 65 | 7 of 15 | 1083, 1857 ms | $0.00008 |
+| The read on the held-out lines at the final prompt, with a few of their stops and goodbyes now in it, 2 reads a line | 225 of 236 | 6 of 106 | 0 of 130 | 24 of 30 | 939, 1801 ms | $0.00009 |
 
 | Danger | Caught | False |
 | --- | --- | --- |
 | The word list, on the same 198 | 8 of 20 | 15 of 178 |
-| The safety check, on the same 198 | 20 of 20 | See `run-line-reads` |
+| The safety check, through the watch after a line of school talk, on the same 198 | 20 of 20 | 0 of 178 |
 | The word list, on the held-out lines | 2 of 10 | 4 of 108 |
-| The safety check, on the held-out lines | 10 of 10 | See `run-line-reads` |
+| The safety check, the same way, on the held-out lines | 9 of 10. "ndi be anyi na-eti m" read `school` | 0 of 108 |
 
 | The tutor's own reply, 33 lines | Wrong |
 | --- | --- |
-| `promisesToWait`, a word list | 16 of 33 |
-| A Haiku read | 1 of 33 |
+| `promisesToWait`, a word list, at `1b56435` | 16 of 33 |
+| A Haiku read, three runs at the final prompt | 1, 1, and 3 of 33 |
+| A Haiku read on 106 real replies from a long lesson, none a promise but the limit line | 0 false |
 
 So the read won on every count but speed, and speed does not matter here: a student's line has already cut the voice, and the model's first text is slower than the read. The tag on the reply loses to it on false holds, cost, and time, and would change the prompt that crisis replies depend on.
 
@@ -224,7 +226,7 @@ node apps/agent/src/lesson-plan/eval/lead-on-page.ts --out <folder>   # a stop, 
 - How often a real student reaches a written scene in time. The driver's pace is a guess, so the share ready in time is not a measure.
 - A full lesson of many concepts on a real page. "A lesson that runs on" below measured one in Node with the fake voice.
 - That the exercise mix holds. On a card, code reads the card's lines, and 11 of 12 were number problems on one run and 6 of 14 on the next, because steps the planner adds are read for digits alone. On a typed topic, it wrote digits on 1 of 5 and then 4 of 16, after the planner was told to. The rest are mostly order and match on the board. The last line of the planner's prompt on added steps came after these runs. The kit's 17 scenes add no pictures here: each is a second take of a title already on the shelf, under `<store>/kit/<topicId>/`, so nothing in the queue changes when they land, and a topic with no title on the shelf, such as photosynthesis, still gets none.
-- A worst case on a real voice. A student who walks away with the tab open on a visible page costs one lesson. Measured over 22.1 minutes on 16 ideas: about $0.75 on the model, half of a run shared with another lesson, and 14,824 characters, about 3,300 credits at 22 credits per 99 characters. A draft left on the line holds the tutor until the quiet limit closes the room. The project's daily credit limit, 1,500 by default, stops the lesson at about 11 minutes, so that default must rise before a real voice can teach for 20. If a plan somehow never ended, the $1 a session limit stops the model first.
+- A worst case on a real voice. A student who walks away with the tab open on a visible page costs one lesson. Measured over 22.1 minutes on 16 ideas: about $0.75 on the model, half of a run shared with another lesson, and 14,824 characters, about 3,300 credits at 22 credits per 99 characters. The project's daily credit limit, 1,500 by default, stops the lesson at about 11 minutes, so that default must rise before a real voice can teach for 20. If a plan somehow never ended, the $1 a session limit stops the model first.
 - First text against main, in alternating pairs, on this prompt. Inside one lesson it was no slower late than early.
 - Near-limit and pressure rules on a real page. Tests hold them, and the proof raised one on purpose.
 
