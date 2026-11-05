@@ -43,5 +43,7 @@
 {"text":"What do you think happens next?","promises":false},
 {"text":"So what stops the rocket from falling back?","promises":false},
 {"text":"Good, that works. Is it clear why the tank drops away?","promises":false},
-{"text":"The crew were not hurt when the seal failed.","promises":false}
+{"text":"The crew were not hurt when the seal failed.","promises":false},
+{"text":"Not sure what \"mo fe ku\" means. Did you mean to type something else?","promises":true},
+{"text":"Sorry, that didn't come through. Try again?","promises":true}
 ]

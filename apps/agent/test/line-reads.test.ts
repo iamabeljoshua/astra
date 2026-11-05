@@ -606,7 +606,7 @@ describe('the reads fail', () => {
 });
 
 describe('a reply that asks after them, or cannot read them', () => {
-  it.each(["That looks like Igbo, and I can't read it well enough to be sure. Is someone hurting you?", "I can't read that one. Try other words?"])('"%s" holds until they speak and names help', async (reply) => {
+  it.each(["That looks like Igbo, and I can't read it well enough to be sure. Is someone hurting you?", "I can't read that one. Try other words?", 'Sorry, that didn\'t come through. Try again?', 'Not sure what "mo fe ku" means. Did you mean to type something else?'])('"%s" holds until they speak and names help', async (reply) => {
     const line = 'mo fe ku';
     const run = startLesson({ safety: makeWatch(async () => 'school'), answer: (words, index) => (words === line ? reply : `Gravity keeps pulling, beat ${index}.`) });
     run.type('teach me rockets');
