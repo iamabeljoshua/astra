@@ -3,7 +3,7 @@ import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem
 import { type AttemptReport, parseAttemptReport } from './attempts.ts';
 import { parseToolCall, type ToolCall } from './tools/tool-call.ts';
 
-/** A turn wraps up at the next sentence end past this. The prompt asks for 40 to 70, and this only stops a reply that runs away. */
+/** A turn wraps up at the next sentence end past this, which only stops a runaway, because the prompt asks for 40 to 70. */
 export const TURN_WORDS_TO_WRAP = 100;
 /** A line break after fewer words than this is only a new beat, because a pause after "Okay, look." sounds odd. */
 const FEWEST_WORDS_BEFORE_A_BREATH = 6;
@@ -318,7 +318,7 @@ export class BeatTextReader {
     this.push(held);
   }
 
-  // Words after a question mean the tutor is asking itself, as in "So why doesn't it fall? Well, it does.", and only a question that ends the reply waits for the student.
+  // Words after a question mean the tutor is asking itself, so only a question that ends the reply waits for the student.
   #addAfterHeldQuestion(character: string): void {
     if (/\s/.test(character)) return;
     this.#endQuestionAnsweredHere();

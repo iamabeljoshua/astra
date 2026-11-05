@@ -130,7 +130,6 @@ const toWordsOfALine = (text: string) => new Set(text.toLowerCase().match(/\p{L}
 const FEWEST_WORDS_THAT_MAKE_A_LINE = 3;
 const SHARE_THAT_IS_THE_SAME_LINE = 0.75;
 
-/** A blank in a sentence the tutor has just said tests memory, and readers counted 6 of 16 such exercises. */
 export function getRepeatedLineProblem(command: SceneCommand, saidRecently: string): string | null {
   if (command.kind !== 'text' || !command.text.includes('___')) return null;
   const line = toWordsOfALine(command.text);

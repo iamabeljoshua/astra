@@ -7,7 +7,6 @@ interface ActivePlan {
   /** How many replies had ended when this step began. */
   stepStartReply: number;
   hasHadExercise?: boolean;
-  /** The tutor has worked one on the board, so the exercise can follow it. */
   hasWorkedExample?: boolean;
   leadsOnStep?: number;
   teachingAskedAtReply?: number;
@@ -25,9 +24,7 @@ export interface LessonState {
 export type LessonEvent =
   /** The tutor set something for the student to do. */
   | 'exerciseSet'
-  /** The tutor worked one on the board. */
   | 'exampleShown'
-  /** The student cut across most of it, so it has not been seen. */
   | 'exampleCut'
   /** Code saw the student finish it. */
   | 'exerciseDone'
@@ -58,7 +55,7 @@ const MOST_SHELVED = 8;
 const REPLIES_BEFORE_THE_EXERCISE: Record<LessonKind, number> = { handsOn: 1, teachFirst: 2 };
 const MOST_REPLIES_ON_A_STEP = 12;
 const REPLIES_ON_A_CARD_STEP = 3;
-/** A teaching reply runs 40 to 70 words, so three of them hold about what seven short ones did. */
+/** A teaching reply runs 40 to 70 words, so three of them are enough to teach one idea. */
 const REPLIES_WHILE_LISTENING: Record<LessonKind, number> = { handsOn: 1, teachFirst: 3 };
 const REPLIES_WHILE_LISTENING_ON_A_CARD = 3;
 
@@ -131,9 +128,9 @@ export function getStateAfterEvent(state: LessonState, event: LessonEvent): Less
 
 const isExerciseDue = ({ active, repliesEnded, isExerciseDeclined }: LessonState) => active !== null && !isExerciseDeclined && !active.isExerciseOpen && isCountReached(active, repliesEnded - Math.max(active.stepStartReply, active.teachingAskedAtReply ?? 0));
 
-// A direct question is their own problem, so it goes straight to them. A first exercise on anything with working has one worked for them before it.
 const hasWorkToShow = ({ plan }: ActivePlan, step: LessonStep) => plan.isQuizOnly !== true && hasWorkingToDo(step);
 
+// A first exercise on anything with working has one worked before it, and a direct question goes straight to them.
 const isExampleOwed = (active: ActivePlan, step: LessonStep) => active.plan.kind === 'teachFirst' && hasWorkToShow(active, step) && active.hasWorkedExample !== true && active.hasHadExercise !== true;
 
 const getDueNote = (active: ActivePlan, step: LessonStep) => (isExampleOwed(active, step) ? { worked_example_due: true as const } : { exercise_due: true as const, exercise_kind: hasWorkToShow(active, step) ? ('problem' as const) : ('board' as const) });

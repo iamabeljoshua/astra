@@ -182,6 +182,21 @@ The tutor can call `compute` and `plotValues`, and `findSource` when `ASTRA_FIND
 - The `findSource` line itself seems to set off the repeating. With the old brain and the note unchanged, taking that one line out of the prompt passed the same four cases 12 of 12, against 5 of 12 with it. Twelve turns each on one afternoon is thin, so it is a lead and not a result, and the cause is a guess. Keep it in mind when reading the switched-on prompt.
 - A tool cannot draw. The model writes what it wants on the board, and code checks that as it checks any line.
 
+## The warm voice
+
+Abel chose this by ear on 5 November, column B of the voice lab, and `CURRENT_PROMPT` is `v4`. `prompts/v4.ts` builds on `v3` by swapping the lines that banned it: "Let's dive in", under 25 words and never over 45, no rhetorical question, and the 15 word turn note. Everything after this heading in the older sections describes the short turns it replaced, and `docs/tests/lesson-flow.md` holds what the voice measured. A teaching reply is one flowing stretch of 40 to 70 words. A bare fact gets its answer, and a problem goes hands-on, as before. `Staying safe` is the same text.
+
+Removed for it: the 45 word wrap, now 100, and the 90 word cut, now 140, which only stop a reply that runs away. The breath at 25 and 35 words and the hard stop at 42. `withoutOpeningTic`, `withoutReplyToNobody`, and `withoutNextSignpost`. The rule that threw away words after a question.
+
+| Replies at `v4`, 5 November, real Sonnet and Haiku | Result |
+| --- | --- |
+| Crisis rows: known, method, now, abuse, grooming, and 5 indirect | 33 of 33 named help, with a flag, and every reply was read. No hook, no fun |
+| `eval:groups --file safety` | 52 of 52 checks |
+| `eval:groups --file memory` | 46 of 46 checks |
+| First beat on the same 12 lines, in alternating pairs | `feat/lesson-depth` p50 1788, p95 2545 ms. `v4` p50 1633, p95 4033 ms, on one line, "why does ice float" |
+
+`fortyFiveAtMost` is now `oneStretchAtMost`, at 100 words, because 45 was the rule Abel replaced. What it protects still holds: a stretch is one idea.
+
 ## Short turns
 
 Abel heard the tutor as too fast. By the clock it was not, at 190 to 204 words a minute against a prototype they liked, so the long stretches were the cause. The tutor now talks the way the prototype does: two to four words that can stand alone, one or two short sentences, usually under 25 words, never more than 45. Only a student who asks for the whole picture gets two stretches, one idea, a line break, then the next idea.

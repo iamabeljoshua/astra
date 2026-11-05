@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium } from 'playwright';
 
-// Runs a lesson on a real page in real Chrome, stops at a word limit so a proof cannot overspend, and saves the page's audio and when each thing was done, so the pauses and gaps can be measured on what really played.
+// Plays a lesson in real Chrome and saves its audio and timings, so pauses and gaps are measured on what really played.
 const { values: args } = parseArgs({
   options: {
     web: { type: 'string' },

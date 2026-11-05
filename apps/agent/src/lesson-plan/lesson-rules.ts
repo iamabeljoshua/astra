@@ -69,7 +69,6 @@ const OPENS_ON_HERES = /(^\s*|[.!?]\s+)(?:(?:now|so|okay|ok|and|but),?\s+)?here(
 
 const toNextWord = (_whole: string, before: string, next: string) => `${before}${next.toUpperCase()}`;
 
-/** "Here's the thing" is the habit that sounds most like a chatbot, and Sonnet writes it whatever the prompt says, so the opener comes off in code and the sentence starts on what it was going to say. "Actually, let me say it plainly" is how a retry sounds. */
 export const withoutFillerOpener = (text: string) => text.replace(OPENS_ON_HERES, toNextWord).replace(OPENS_ON_LET_ME_START_OVER, toNextWord);
 
 /** Goes with the short turn, so a reply can stay short and still set an exercise. */

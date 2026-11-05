@@ -132,7 +132,6 @@ interface Thought {
   /** These words belong to a picture, and never play without it. */
   isScene: boolean;
   isLead: boolean;
-  /** The brain has written all of it, so what it will say next can be asked for. */
   isWritten: boolean;
 }
 
@@ -173,7 +172,7 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const SCENE_GOES_FIRST_BY_MS = 1000;
 const ROOM_TO_ANSWER_MS = LEAD_TIMINGS.afterQuestionMs - SCENE_GOES_FIRST_BY_MS;
 const LEAD_RECHECK_MS = 250;
-/** The model's first words come in about 2 s, and about 3 s when it is slow, so asking this long before the reply ends has them ready. Sooner spends more on a student who cuts in. */
+/** The model's first words come in about 2 s, and about 3 s when it is slow, so asking this long before the reply ends has them ready. */
 const LEAD_AHEAD_OF_THE_END_MS = 4000;
 const AHEAD_RECHECK_MS = 250;
 
@@ -423,7 +422,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     return lead?.kind === 'next';
   };
 
-  // Writes the next teaching reply while this one plays, so one flows into the next. The lead itself still comes only through `checkLead`, and any sign of the student throws this away.
+  // Writes the next teaching reply while this one plays, and the lead itself still comes only through `checkLead`.
   function checkAhead(): void {
     clearTimeout(aheadTimer);
     if (isEnding || !reply) return;

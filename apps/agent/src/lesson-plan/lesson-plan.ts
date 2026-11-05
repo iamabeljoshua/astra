@@ -16,7 +16,6 @@ export interface LessonStep {
 export interface LessonPlan {
   topic: string;
   kind: LessonKind;
-  /** Nothing in this subject is calculated, so nothing is worked on the board and each exercise is a quiz. */
   isQuizOnly?: boolean;
   steps: readonly LessonStep[];
 }
@@ -30,7 +29,7 @@ const NAMES_A_QUANTITY = /\d|\b(?:hundred|thousand|million|billion|percent|speed
 
 const A_YEAR = /\b(?:1\d{3}|20\d{2})\b/g;
 
-/** A card's lines say what the idea holds. The planner writes numbers into an exercise where it sees working, and it knows a sonnet's fourteen lines are not working, and a date is not working either. */
+/** A card's lines say what the idea holds, the planner writes digits into an exercise only where it sees working, and a year counts as neither. */
 export const hasWorkingToDo = ({ teach, exercise, material }: LessonStep) => (material || exercise.includes(ASKS_FOR_NUMBERS) ? NAMES_A_QUANTITY.test([teach ?? '', ...(material ?? [])].join(' ').replace(A_YEAR, '')) : /\d/.test(exercise.replace(A_YEAR, '')));
 
 const MOST_TOPIC_CHARACTERS = 80;

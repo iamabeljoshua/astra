@@ -18,7 +18,6 @@ const MOST_LINE_CHARACTERS = 160;
 const MOST_TITLE_CHARACTERS = 80;
 const AN_EXERCISE_ON_THIS_IDEA = 'One short problem on this idea, with its numbers on the board if it has any.';
 const A_QUIZ_ON_THIS_IDEA = 'A quiz on the board about this idea: a pick, a match, events to put in order, or a blank to fill.';
-/** Subjects where a lesson is quizzed on the board and nothing is calculated, whatever numbers its lines happen to hold. */
 const SUBJECTS_WITH_NOTHING_TO_WORK_OUT: ReadonlySet<string> = new Set(['History', 'Philosophy', 'Art', 'Music', 'Literature']);
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;

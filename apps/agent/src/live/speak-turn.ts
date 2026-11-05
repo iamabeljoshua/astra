@@ -11,7 +11,7 @@ const MS_PER_SECOND = 1000;
 const STILL_ARRIVING_MS = 300;
 /** The first words go to the voice as soon as no more are waiting behind them, so the first sound stays fast. */
 const FIRST_WORDS_WAIT_MS = 30;
-/** Chris speaks about 2.9 words a second, pauses and all, and leaning fast here would run the audio dry. */
+/** Chris speaks about 2.9 words a second, pauses and all, and this leans short of that so the next stretch goes before the audio runs dry. */
 const MS_A_WORD_LASTS = 300;
 /** Later words wait as long as the audio already sent can cover them, because the voice only keeps its natural pauses inside one synthesis. This much is left for the voice's first audio, which is about 300 to 500 ms. */
 const VOICE_NEEDS_MS = 800;
@@ -61,7 +61,7 @@ export interface SpokenTurn {
   isVoiceOwing(): boolean;
   /** How many words of each beat have left the agent, the only record if the browser's report is lost. */
   getWordsSent(): Map<BeatId, number>;
-  /** Audio the voice has made and the line has not played. Infinity while the voice may still make more. */
+  /** Audio made and not yet played, and Infinity while the voice may still make more. */
   getAudioLeftMs(): number;
 }
 
@@ -73,7 +73,7 @@ interface VoiceFeed {
   close(): void;
 }
 
-// Sends the voice long stretches. A flush every few words gave every comma and full stop the same pause, 275 ms at the median against 472 ms for the same words sent whole.
+// Sends the voice long stretches, because a flush every few words gives every comma and full stop the same pause.
 function createVoiceFeed(stream: tts.SynthesizeStream, getNowMs: () => number): VoiceFeed {
   let wordsHeld = 0;
   let sentAudioEndsAtMs: number | null = null;
