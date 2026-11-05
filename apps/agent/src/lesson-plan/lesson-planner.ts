@@ -60,6 +60,7 @@ export const asksToBeTaught = (words: string) => WANTS_TEACHING.test(words) || A
 const FEWEST_STEPS_ON_A_CARD = 3;
 const MOST_STEPS_IN_A_LESSON = 14;
 const MOST_CHARACTERS_OF_WHAT_WAS_SAID = 6000;
+const MOST_TIMES_ASKED_FOR_MORE = 6;
 
 const NAMES_A_PROBLEM = /\d\s*[-+*/×÷=^%]|=|->|_{2,}|\bm\/s\b|\b(?:solve|balance|simplify|calculate|work out|factori[sz]e|derivative of|integral of|slope of|which came first)\b/i;
 const ASKS_TO_BE_TAUGHT = /^\s*(?:please\s+)?(?:teach|explain|help me (?:understand|get)|give me a lesson|i(?:'d like| would like| want| wanna)(?: to)? (?:learn|understand))\b/i;
@@ -159,12 +160,14 @@ export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleCha
   };
 
   let isAskingMore = false;
+  let timesAskedForMore = 0;
   let saidSoFar = '';
 
   const askForMoreIfNear = () => {
     const topic = state.active?.plan.topic;
-    if (!askMore || !topic || isAskingMore || !isNearTheEnd(state) || getStepCount(state) >= MOST_STEPS_IN_A_LESSON || !canSpend()) return;
+    if (!askMore || !topic || isAskingMore || !isNearTheEnd(state) || getStepCount(state) >= MOST_STEPS_IN_A_LESSON || timesAskedForMore >= MOST_TIMES_ASKED_FOR_MORE || !canSpend()) return;
     isAskingMore = true;
+    timesAskedForMore += 1;
     void askMore({ topic, taught: getStepsTaught(state), said: saidSoFar, most: MOST_STEPS_IN_A_LESSON - getStepCount(state) })
       .then(({ steps, costUsd }) => {
         charge(costUsd);

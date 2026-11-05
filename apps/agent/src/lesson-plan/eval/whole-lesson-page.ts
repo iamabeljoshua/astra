@@ -39,7 +39,9 @@ const readPage = (page: Page) =>
 function readTrace(startedAtWallMs: number) {
   return readdirSync(TRACE)
     .filter((name) => name.endsWith('.jsonl') && statSync(join(TRACE, name)).mtimeMs >= startedAtWallMs)
-    .flatMap((name) => readFileSync(join(TRACE, name), 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line) as { name: string; atMs: number } & Record<string, unknown>));
+    .map((name) => readFileSync(join(TRACE, name), 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line) as { name: string; atMs: number } & Record<string, unknown>))
+    .filter((lines) => (lines[0]?.atMs ?? 0) >= startedAtWallMs)
+    .flat();
 }
 
 const browser = await chromium.launch({ headless: true, args: FLAGS });

@@ -7,6 +7,7 @@ import { getStateAfterEvent, getStateAfterMove, getStepNote, NO_LESSON } from '.
 import { createLiveSession, type LiveSession } from '../src/live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../src/live/reactions.ts';
 import { getLead, LEAD_TIMINGS, LEAD_WORDS, type LeadKind } from '../src/live/tutor-lead.ts';
+import { dropRepeatedIdeas } from '../src/lesson-plan/ask-planner.ts';
 import { getPlanWordsProblem } from '../src/lesson-plan/lesson-rules.ts';
 import { showsItsAnswer } from '../src/tutor/board-memory.ts';
 import { createVoiceLine, type VoiceOutput } from '../src/live/voice-line.ts';
@@ -187,6 +188,24 @@ describe('what a student never hears or sees', () => {
     const brain = createTutorBrain({ model: reply(["That's the whole plan covered.", 'Now, thrust.']), timeouts: { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 } });
     for await (const beat of brain.reply({ text: 'ok' }, new AbortController().signal)) said.push(getBeatText(beat));
     expect(said.join(' ')).toBe('Now, thrust.');
+  });
+});
+
+describe('ideas the planner adds', () => {
+  const TOPIC = 'How a rocket escapes Earth';
+  const TAUGHT = ['Why rockets launch toward the east', 'Why rockets drop their empty stages', 'Why rockets throw mass backward to go forward', 'What escape velocity really means'];
+  const step = (teach: string) => ({ teach, exercise: 'One short problem' });
+
+  it.each(['Launch sites near the equator get a free boost, because the spin carries you east', 'How multistage rockets improve that ratio by dropping empty tanks'])('drops "%s", which has been taught', (teach) => {
+    expect(dropRepeatedIdeas([step(teach)], TAUGHT, TOPIC)).toEqual([]);
+  });
+
+  it.each(['The rocket equation links fuel burned to final speed through the mass ratio', 'Thrust must beat weight for a rocket to lift', 'Drag and gravity losses eat into the ideal speed'])('keeps "%s", which is new', (teach) => {
+    expect(dropRepeatedIdeas([step(teach)], TAUGHT, TOPIC)).toHaveLength(1);
+  });
+
+  it('drops one that repeats another added with it', () => {
+    expect(dropRepeatedIdeas([step('Thrust must beat weight at liftoff'), step('Thrust against weight at liftoff')], [], TOPIC)).toHaveLength(1);
   });
 });
 

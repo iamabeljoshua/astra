@@ -96,6 +96,19 @@ That is too few turns on too loaded a machine to call equal or to call a cost. T
 Pictures: `next-scene-proof --out` saves `scene-N-landed.png`, `after-skip.png`, and `after-reload.png`.
 
 
+## A lesson that runs on
+
+Abel: "why lessons are so short and only teach for like 1 minute or 30 seconds? when i say rockets how they escape, shouldnt it be able to tech me for like 20 minutes on that subject and give me exercises and teach me more and more?? without me having to ask for it to continue". Short turns stay, so depth comes from many of them.
+
+- **The tutor goes on by itself.** `apps/agent/src/live/tutor-lead.ts` decides. A reply that asks nothing is followed by the next, and the model starts as the last reply ends, so a student hears about 2 s of quiet. Any speech, typing, or work holds it or cuts it, as for any reply, and the stop button holds it until the student does something.
+- **It waits only on a real ask.** After a question it waits 15 s, says the answer itself, and goes on. After a task it waits 60 s. About 5 s after the tutor has answered a try at a task, it moves on.
+- **A student who has gone stops costing.** The second unanswered ask in a row, with no sign of them, gets one gentle check, and then it holds until they come back. The quiet limit closes the room from there, and while the tutor is talking that limit never runs out on a student only listening.
+- **After a safety reply nothing goes on by itself**, until the student asks to be taught again.
+- **A card's plan comes from the server.** `getCardMaterial` in `scene-library.ts` gives the card's idea and its deeper titles, each with its `opening` and `more` lines and whether a saved scene may play. The brief carries it, so nothing is read from disk during a turn, and the queue above takes those titles without asking a model. A card with no deeper titles keeps its first step and takes the rest from the planner.
+- **A plan runs on.** Near its end the planner writes the next ideas, seeing the titles so far and what the tutor really said, up to 14. Past that the tutor asks what they want next.
+- **Their words beat the count.** "go on", "teach me more", "what's next", and the like end `exercise_due`, and move on once the idea has been taught. In any other language the tutor reads it itself, and the planner's `wants` carries it a turn later.
+- **Exercises.** A student listening hears 7 replies on a card's idea, or 6 on a planned one, before the exercise. One who is talking gets there after 3 or 2. In a reply that sets the exercise, a line that shows its own answer, such as `100 - 30 = 70`, is stopped before the student sees it, and elsewhere a task on such a line is refused.
+
 ## Run it
 
 Beside what `docs/tests/scenes.md` lists, with your own store and LiveKit agent name:
@@ -104,6 +117,9 @@ Beside what `docs/tests/scenes.md` lists, with your own store and LiveKit agent 
 ASTRA_TUTOR_SCENES=1 SCENE_STORE_DIR=<your store> pnpm agent
 pnpm --filter @astra/agent next-scene-proof --web <your stack> --out <folder> --trace <ASTRA_VOICE_TRACE folder> --ask "Teach me about Saturn's rings"
 pnpm --filter @astra/agent eval:library-match
+pnpm --filter @astra/agent eval:whole-lessons --out <folder> --spend <new ledger> --students quiet,nudging --replies 13
+pnpm --filter @astra/agent eval:whole-lessons --out <folder> --spend <new ledger> --only rocket --students tasks --replies 9999 --minutes 22
+node apps/agent/src/lesson-plan/eval/whole-lesson-page.ts --web <your stack> --out <folder> --trace <ASTRA_VOICE_TRACE folder> --says "6:teach me more" --replies 12
 ```
 
 `ASTRA_SCENES_AHEAD=0` turns the queue off, so a session asks for what it asks for and nothing more. The proof takes `--event skip@1`, `reload@1`, `switch@1:<words>`, `crisisWhenReady`, or `endWhenReady`, and saves each landing as a picture.
@@ -114,7 +130,7 @@ pnpm --filter @astra/agent eval:library-match
 - Spoken student words. The driver typed.
 - The real voice. A real voice would change how long a reply takes, and the cue to scene wait with it.
 - How often a real student reaches a written scene in time. The driver's pace is a guess, so the share ready in time is not a measure.
-- A full lesson of many concepts. The longest run was 190 s.
+- A full lesson of many concepts on a real page. "A lesson that runs on" below measured one in Node with the fake voice.
 - Near-limit and pressure rules on a real page. Tests hold them, and the proof raised one on purpose.
 
 Known and not fixed here. A scene's first frame is empty on most takes, because a take starts from nothing at second 0, so the box stays blank through the setup line, about 2 to 3 s, while the tutor says "Watch". That is the seam M3.14 built, and it needs its own change. A tutor told `picture_topic` does not always ask for it, so a scene can sit ready until a student asks what is next or code sees an exercise end. A due scene lost to a task the tutor set in the same reply is dropped, by the window.
