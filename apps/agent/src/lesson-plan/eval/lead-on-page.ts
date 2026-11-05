@@ -4,7 +4,7 @@ import { parseArgs } from 'node:util';
 import { startVoiceStack } from '../../lab/proof/voice/stack.ts';
 import { launchProofBrowser, openStudentPage, type StudentPage } from '../../lab/proof/voice/student-page.ts';
 
-const { values: args } = parseArgs({ options: { out: { type: 'string', default: '/tmp/lead-on-page' }, email: { type: 'string', default: 'maya@astra.test' }, title: { type: 'string', default: 'rockets how they escape' }, 'hold-seconds': { type: 'string', default: '40' } } });
+const { values: args } = parseArgs({ options: { out: { type: 'string', default: '/tmp/lead-on-page' }, email: { type: 'string', default: 'maya@astra.test' }, title: { type: 'string', default: 'rockets how they escape' }, 'hold-seconds': { type: 'string', default: '40' }, answer: { type: 'boolean', default: false } } });
 
 const HELP_NOTE = 'Please tell an adult you trust now.';
 const LOOK_EVERY_MS = 500;
@@ -86,10 +86,34 @@ async function unsentCrisisDraft() {
   return result;
 }
 
+async function typedAnswerThenEnd() {
+  const student = await open();
+  await delay(5000);
+  await send(student, 'give me this one to do: 11.2 divided by 2.4, just the problem please');
+  const deadline = Date.now() + 60_000;
+  while (!readTrace(student.sessionId).some((row) => row.name === 'turnFinished') && Date.now() < deadline) await delay(LOOK_EVERY_MS);
+  await delay(12_000);
+  const repliesBefore = readTrace(student.sessionId).filter((row) => row.name === 'replyDecided').length;
+  const sentAtMs = Date.now();
+  await student.page.getByRole('textbox').first().fill('4.67');
+  await student.page.getByRole('textbox').first().press('Enter');
+  while (readTrace(student.sessionId).filter((row) => row.name === 'replyDecided').length === repliesBefore && Date.now() - sentAtMs < 40_000) await delay(100);
+  const replyAfterMs = Date.now() - sentAtMs;
+  await delay(8000);
+  await student.page.screenshot({ path: join(out, 'answered.png') });
+  await student.page.getByRole('button', { name: 'End session' }).click();
+  await delay(20_000);
+  await student.page.screenshot({ path: join(out, 'recap.png') });
+  const rows = readTrace(student.sessionId);
+  const result = { replyAfterMs, decided: rows.filter((row) => row.name === 'workDecided').map((row) => `${String((row as { status?: string }).status)} ${String((row as { act?: string }).act)}: ${String(row.why)}`), said: rows.filter((row) => row.name === 'replyDecided').map((row) => row.text).slice(-4), recap: rows.find((row) => row.name === 'recapDecided')?.kind ?? null, recapShown: await student.page.locator('main').innerText().then((text) => text.slice(0, 400)), sessionId: student.sessionId };
+  await student.context.close();
+  return result;
+}
+
 try {
   await stack.stopAgent();
   await stack.startAgent({ ASTRA_VOICE: 'fake', ASTRA_TUTOR_MODEL: 'sonnet-5-5' });
-  const results = { stop: await stopThenGoOnThenCrisis(), draft: await unsentCrisisDraft() };
+  const results = args.answer ? { answer: await typedAnswerThenEnd() } : { stop: await stopThenGoOnThenCrisis(), draft: await unsentCrisisDraft(), answer: await typedAnswerThenEnd() };
   console.log(JSON.stringify(results, null, 1));
   writeFileSync(join(out, 'result.json'), `${JSON.stringify(results, null, 1)}\n`);
 } finally {

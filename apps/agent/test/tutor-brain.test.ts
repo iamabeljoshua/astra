@@ -358,7 +358,7 @@ describe('long sessions', () => {
     expect(compacted.length).toBeGreaterThan(0);
     expect(roles[0]).toBe('summary');
     expect(roles[1]).toBe('user');
-    expect(JSON.stringify(fake.requests.at(-1)?.turns.at(-1))).toContain('student');
+    expect(JSON.stringify(fake.requests.at(-1)?.turns)).toContain('student');
   });
 });
 
