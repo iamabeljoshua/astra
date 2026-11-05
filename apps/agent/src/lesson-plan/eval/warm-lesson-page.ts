@@ -26,7 +26,7 @@ const TRACE = args.trace;
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
 mkdirSync(OUT, { recursive: true });
 
-const browser = await chromium.launch({ channel: 'chrome', headless: false, args: ['--use-mock-keychain', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist'] });
+const browser = await chromium.launch({ channel: 'chrome', headless: false, args: ['--use-mock-keychain', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream', '--disable-backgrounding-occluded-windows', '--disable-renderer-backgrounding', '--disable-features=CalculateNativeWinOcclusion', '--enable-unsafe-webgpu', '--use-angle=metal', '--ignore-gpu-blocklist'] });
 
 const tapOutput = () => {
   const connect = AudioNode.prototype.connect as (...values: unknown[]) => unknown;
@@ -77,7 +77,7 @@ await page.screenshot({ path: join(OUT, 'start.png') });
 const readRows = () =>
   readdirSync(TRACE)
     .filter((name) => name.endsWith('.jsonl') && statSync(join(TRACE, name)).mtimeMs >= startedAtEpochMs)
-    .flatMap((name) => readFileSync(join(TRACE, name), 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line) as { name: string; words?: number }));
+    .flatMap((name) => readFileSync(join(TRACE, name), 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line) as { name: string; words?: number; kind?: string }));
 
 const getOpenTask = () =>
   page.evaluate(() => {
@@ -90,6 +90,21 @@ const getOpenTask = () =>
 const typeLine = async (words: string) => {
   await page.getByRole('textbox').first().fill(words).catch(() => {});
   await page.getByRole('textbox').first().press('Enter').catch(() => {});
+};
+
+// A hidden page lets the tutor finish its sentence and start nothing new, so a proof never pays for a reply nobody measures.
+const hideThePage = () =>
+  page.evaluate(() => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' });
+    document.dispatchEvent(new Event('visibilitychange'));
+  });
+
+const isReplyFinished = (row: { name: string; kind?: string }) => row.name === 'turnFinished' && row.kind === 'reply';
+
+const waitForTheReplyToEnd = async (finishedBefore: number) => {
+  const giveUpAtMs = Date.now() + 40_000;
+  while (Date.now() < giveUpAtMs && readRows().filter(isReplyFinished).length <= finishedBefore) await delay(200);
+  await delay(1500);
 };
 
 const said: { atEpochMs: number; words: string; why: string }[] = [];
@@ -123,7 +138,8 @@ while (Date.now() < limitAtMs) {
   const words = rows.filter((row) => row.name === 'turnWritten').reduce((sum, row) => sum + (row.words ?? 0), 0);
   if (words >= targetWords) {
     stoppedBecause = `words ${words}`;
-    await delay(25_000);
+    await hideThePage();
+    await waitForTheReplyToEnd(rows.filter(isReplyFinished).length);
     break;
   }
 }
@@ -138,8 +154,6 @@ const recording = await page.evaluate(() => {
 });
 writeFileSync(join(OUT, 'page-output.pcm'), Buffer.from(recording.base64, 'base64'));
 writeFileSync(join(OUT, 'page-facts.json'), JSON.stringify({ startedAtEpochMs, stoppedBecause, tapStartedAtEpochMs: recording.startedAtEpochMs, tapSampleRate: recording.sampleRate ? recording.sampleRate / 2 : 0, said, problems }));
-await page.getByRole('button', { name: 'End session' }).click({ timeout: 5000 }).catch(() => {});
-await delay(12_000);
 await browser.close();
 console.log('WARM_LESSON_DONE', stoppedBecause);
 process.exit(0);

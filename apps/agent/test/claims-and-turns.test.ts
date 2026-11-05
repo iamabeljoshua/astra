@@ -305,7 +305,7 @@ describe('a turn that talks like a person', () => {
   });
 
   it('teaches one flowing stretch, a short answer to a student, and not to ask a question every time', () => {
-    expect(TUTOR_SYSTEM).toMatch(/one flowing stretch of about 40 to 80 words/);
+    expect(TUTOR_SYSTEM).toMatch(/one flowing stretch of about 40 to 70 words/);
     expect(TUTOR_SYSTEM).toMatch(/in as few words as it takes/);
     expect(TUTOR_SYSTEM).toMatch(/line break/);
     expect(TUTOR_SYSTEM).not.toMatch(/usually under 25 words/);

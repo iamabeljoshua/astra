@@ -11,8 +11,10 @@ const MS_PER_SECOND = 1000;
 const STILL_ARRIVING_MS = 300;
 /** The first words go to the voice as soon as no more are waiting behind them, so the first sound stays fast. */
 const FIRST_WORDS_WAIT_MS = 30;
-/** Later words wait for their sentence to end and for more to pile up, because the voice only keeps its natural pauses inside one synthesis. Past this they go, so the audio never runs dry. */
-const LATER_WORDS_WAIT_MS = 700;
+/** Chris speaks about 2.9 words a second, pauses and all, and leaning fast here would run the audio dry. */
+const MS_A_WORD_LASTS = 300;
+/** Later words wait as long as the audio already sent can cover them, because the voice only keeps its natural pauses inside one synthesis. This much is left for the voice's first audio, which is about 300 to 500 ms. */
+const VOICE_NEEDS_MS = 800;
 
 export interface TurnMessenger {
   send(message: AgentMessage): void;
@@ -66,31 +68,28 @@ export interface SpokenTurn {
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 interface VoiceFeed {
-  noteBeatWritten(endsSentence: boolean): void;
+  noteBeatWritten(wordCount: number): void;
   flush(): void;
   close(): void;
 }
 
 // Sends the voice long stretches. A flush every few words gave every comma and full stop the same pause, 275 ms at the median against 472 ms for the same words sent whole.
 function createVoiceFeed(stream: tts.SynthesizeStream, getNowMs: () => number): VoiceFeed {
-  let heldSinceMs = getNowMs();
-  let hasWordsHeld = false;
-  let hasFlushed = false;
+  let wordsHeld = 0;
+  let sentAudioEndsAtMs: number | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   const flush = () => {
     clearTimeout(timer);
-    if (!hasWordsHeld) return;
-    hasWordsHeld = false;
-    hasFlushed = true;
+    if (wordsHeld === 0) return;
+    sentAudioEndsAtMs = Math.max(sentAudioEndsAtMs ?? 0, getNowMs()) + wordsHeld * MS_A_WORD_LASTS;
+    wordsHeld = 0;
     stream.flush();
   };
   return {
-    noteBeatWritten(endsSentence) {
+    noteBeatWritten(wordCount) {
       clearTimeout(timer);
-      if (!hasWordsHeld) heldSinceMs = getNowMs();
-      hasWordsHeld = true;
-      if (endsSentence && hasFlushed && getNowMs() - heldSinceMs >= LATER_WORDS_WAIT_MS) return flush();
-      timer = setTimeout(flush, hasFlushed ? LATER_WORDS_WAIT_MS : FIRST_WORDS_WAIT_MS);
+      wordsHeld += wordCount;
+      timer = setTimeout(flush, sentAudioEndsAtMs === null ? FIRST_WORDS_WAIT_MS : Math.max(0, sentAudioEndsAtMs - VOICE_NEEDS_MS - getNowMs()));
     },
     flush,
     close: () => clearTimeout(timer),
@@ -130,8 +129,6 @@ function createHeldMessenger(messenger: TurnMessenger) {
   };
 }
 
-const ENDS_A_SENTENCE = /[.!?]["')]*\s*$/;
-
 async function writeBeat({ options: { messenger, turnId, textPace }, stream, feed, isStopped }: TurnWork, beat: Beat): Promise<void> {
   const words = getSpokenWords(getBeatText(beat));
   const cues = getCues(beat);
@@ -144,7 +141,7 @@ async function writeBeat({ options: { messenger, turnId, textPace }, stream, fee
     if (textPace) await delay(textPace.msPerWord);
   }
   if (isStopped()) return;
-  feed.noteBeatWritten(ENDS_A_SENTENCE.test(getBeatText(beat)));
+  feed.noteBeatWritten(words.length);
   messenger.send({ type: 'beatClosed', turnId, beatId: beat.id, wordCount: words.length, expectsReply: beat.expectsReply });
 }
 
