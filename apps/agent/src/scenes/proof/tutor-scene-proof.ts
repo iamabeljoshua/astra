@@ -119,7 +119,8 @@ await page.addInitScript(() => {
   (window as unknown as { kitSamples: unknown[][] }).kitSamples = samples;
   let drawnSeconds: number | null = null;
   addEventListener('message', (event) => {
-    if ((event.data as { type?: string } | null)?.type === 'drawn') drawnSeconds = (event.data as { seconds: number }).seconds;
+    const shown = [...document.querySelectorAll('iframe')].find((frame) => getComputedStyle(frame).visibility === 'visible');
+    if ((event.data as { type?: string } | null)?.type === 'drawn' && event.source === shown?.contentWindow) drawnSeconds = (event.data as { seconds: number }).seconds;
   });
   const sample = () => {
     const seconds = document.querySelector<HTMLElement>('[data-testid="scene-layer"]')?.dataset.seconds;
@@ -209,7 +210,7 @@ async function readSeekPoints() {
   return page.evaluate(
     (times) =>
       new Promise((resolve) => {
-        const frame = document.querySelector<HTMLIFrameElement>('[data-testid="scene-take"] iframe');
+        const frame = [...document.querySelectorAll('iframe')].find((candidate) => getComputedStyle(candidate).visibility === 'visible');
         if (!frame?.contentWindow) return resolve({ noFrame: true });
         const limit = setTimeout(() => resolve({ timedOut: true }), 30_000);
         addEventListener('message', function onReply(event) {

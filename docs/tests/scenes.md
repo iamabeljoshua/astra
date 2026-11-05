@@ -124,9 +124,9 @@ What a real session measured on 4 and 5 November 2026, on real Chrome with a rea
 | Check | Result |
 | --- | --- |
 | Word cues | Each moment landed on its word: "climbs." at 3.4 s, "slows." at 7.4 s, "second." at 11.067 s, "distance." at 14.067 s, 1 run |
-| The frame's clock | The sandbox's drawn second against the board's second, p50 0 ms and p95 19 ms, 3 runs |
-| Same frame | 5 seek points gave the same pixel hash forward and backward, and across 4 separate sessions, one of them after a reload and one in the dark theme. The hash reads the canvas and not the labels, which are DOM |
-| Press to scene | 5.9 to 7.8 s with the kit on 3 runs, 6.6 to 7.8 s on the 2D take on 4 runs, which is not a difference these few runs can show. The page says it is ready on the 2D take alone |
+| The frame's clock | The sandbox's drawn second against the board's second, p50 0 ms and p95 18 to 37 ms, 3 runs |
+| Same frame | 5 seek points gave the same pixel hash forward and backward in every session, and the same hash across two separate dark sessions on the final kit. A light session's hashes differ, because a scene reads the theme. The hash reads the canvas and not the labels, which are DOM |
+| Press to scene | 5.7 to 9.1 s with the kit on 5 runs, 6.6 to 7.8 s on the 2D take on 4 runs, which is not a difference these few runs can show. The page says it is ready on the 2D take alone |
 | A slow first load | With the kit file held back 8 s, first words at 3.56 s and the scene at 5.97 s, against 3.53 s and 5.92 s, and the kit took over when it came |
 | A stall | A regular expression spun inside the frame mid-play. The page's largest frame gap was 142 ms, the 2D take took over at the same second, and the scene played to its end |
 | Phone width, no WebGL, reduced motion, a kit take answering 500 | The 2D take played to its end, with no frame made and no message |
@@ -134,7 +134,7 @@ What a real session measured on 4 and 5 November 2026, on real Chrome with a rea
 | A crisis 8 s after first words | The scene's words stopped mid-sentence and never came back, the scene held its second, and the glide started on the help line's first words |
 | A reload | The scene came back about 2.4 s after the reload on the kit, held at its moment, and its words did not resume |
 | End and leaving | The frame stays through the recap and is gone on leaving the page |
-| Memory, 2x display | With the kit on screen the GPU process held 995 MB and all of Chrome 1612 MB. On the 2D take it held 458 MB and 938 MB. After leaving it held 251 MB. So a kit scene costs about 670 MB here, far above the prototype's 180 MB, one run each, and two held frames would be about 1.3 GB by inference |
+| Memory, 2x display | Home: GPU process 339 MB, all of Chrome 688 MB. The 2D take on screen: 458 MB and 938 MB. One kit frame: 904 MB and 1561 MB. Two held frames: 1323 MB and 2076 MB. After leaving: 252 MB and 931 MB, with no frame left. So one frame costs about 620 MB over the 2D take here, and the next about 515 MB, far above the prototype's 180 MB, one run each |
 | Bundle | The first page's JavaScript grew 143 bytes, 57 gzipped, for the two lines in `strings.ts`, and its CSS did not change. Three.js is in no chunk. `kit.js` is 785 KB and 206 KB gzipped, and the frame's code with its parser is a 124 KB chunk, both fetched only when a kit scene is about to play |
 | Flash | All 17 stored scenes passed, at most 2 flashes a second, on seasons. A planted 12 Hz strobe read 6 and failed, and a planted scene that drifts between draws failed |
 
