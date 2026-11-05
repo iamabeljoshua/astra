@@ -45,7 +45,7 @@ A second ask by the same student is near instant, in the same words or in others
 
 The drawing's cost goes through the tutor's caps and counts toward `ASTRA_SCENE_SESSION_LIMIT_USD`. A lesson makes at most 6 fresh drawings, counted when written, so one stopped early does not count. A saved copy does not count.
 
-Tokens are the limiter, because Sonnet writes about 160 a second. The prompt asks for 20 short lines and the kit's short forms, `kit.shape`, `kit.bar`, `kit.disc`, `kit.flow`, and `kit.place`, and `show` and `hide` on a label or arrow take the place of writing out a fade. A drawing was about 1,700 tokens and is now about 1,000. The call has thinking off, because adaptive thinking held the first words of one drawing to 7.5 s and let another run out of tokens on "Introduction to calculus". The limit is 5,000 tokens, which is room to spare, because a reply cut at the limit cannot run.
+Tokens are the limiter, because Sonnet writes about 160 a second. The prompt asks for 20 short lines and the kit's short forms, `kit.shape`, `kit.bar`, `kit.disc`, `kit.flow`, and `kit.place`, and `show` and `hide` on a label or arrow take the place of writing out a fade. A drawing was about 1,700 tokens and is now about 1,000. The call has thinking off, because adaptive thinking held the first words of the sewing machine's drawing to 7.5 s, against 1.3 s with it off, on one run each. The limit is 5,000 tokens, which is room to spare, because a reply cut at the limit cannot run. No saved trace shows a drawing reaching that limit. The "ran out of tokens" on "Introduction to calculus" was the matcher, as below.
 
 ## Run it
 
@@ -94,11 +94,35 @@ Six topics with no tutor and no lesson, timed from the call to the last token. "
 | `gpt-5.4-mini` | 4.1 to 7.2 s | 2 of 6 | Helicopter a grey blob on three legs. Comet a red ball with no tail. Bees a house and then an empty field. Sewing machine a shapeless mass |
 | `gpt-6-luna` | 6.1 to 9.8 s, and 14.9 s on the helicopter | 2 of 6 | Helicopter and comet were syntax errors, so no picture. Bees a blob. Rainbow's colours gone by its last line |
 
-Sonnet with thinking off took 7.4 to 9.0 s on the helicopter, the sewing machine, and calculus. Those 3 drew whole objects, and the helicopter and submarine lessons above ran on it. The fastest that can do it right is still Sonnet. "Introduction to calculus" drew a bike on a hill at 1,127 tokens.
+The 5 of 6 was read with Sonnet's thinking on, and thinking off is what shipped, so nobody has scored what ships. Sonnet with thinking off took 7.4 to 9.0 s on the helicopter, the sewing machine, and calculus, one run each. Those runs saved code and spoken lines and no frames, so none of the 3 was read as a picture. "Introduction to calculus" came to 1,127 tokens, and "a bike on a hill" comes from its spoken lines only.
+
+The only thinking-off frames anyone read are from the helicopter and submarine lessons above, one frame of each. The helicopter is a whole machine, with body, main rotor, tail rotor, and skids. The submarine is a whole hull on the water, with its tower and two tanks. On the 5 of 6, Sonnet is still the fastest that drew them right.
 
 ### Painting as it arrives
 
 Not built. The whole object's lines arrive about 2 s before the last line, at 4.7 to 5.7 s of 6.6 to 8.3 s, so it would bring the first picture about 2 s sooner. Canvas code can do it only with a new frame for each step, because the worker's CSP refuses `eval`, and `check-kit-sandbox.ts` holds it to that. A frame took 90 to 130 ms to open. The data form needs no new frame, and it scored 5 of 10 right in the lab against 8 of 10 for code. A frame per step is the one to try if 9 s is still too slow.
+
+### The saved-scene matcher
+
+A saved scene is the fastest picture there is, and the matcher is how a line in other words finds one. Session 580058a0 asked for "Introduction to calculus" and got no picture, with the reasons `it does not fit any part` and `the model ran out of tokens`. The reasons follow the order of the `Promise.any` in `getFirstPicture`, so the first is the parts and the second is the matcher. No drawing was involved, because that session had `ASTRA_FRESH_DRAW` off and its trace has no `freshStarted`. The recipe call was not it either, because `recipeWritten` fired and its Haiku setting has thinking off. Session 188cbfdb lost a picture the same way on "how a rocket engine works", with the same two reasons and no `freshStarted`.
+
+Sonnet 5.5 thinks unless told not to, and thinking counts against `max_tokens`. The matcher had a limit of 200 tokens on a setting that left thinking on. These are real calls through the real matcher, with that topic and that session's 148 saved titles, at 2,289 input tokens.
+
+| Setting | Calls | `stop_reason` | Thinking tokens | Output tokens | Time |
+| --- | --- | --- | --- | --- | --- |
+| Thinking left on | 6 | `end_turn` | 0 | 17 | 1.3 to 2.3 s |
+| Thinking left on | 1 | `max_tokens` | 200 | 200, and no text | 3.2 s |
+| Thinking off | 2 | `end_turn` | 0 | 16 | 2.1 and 2.7 s |
+
+The matcher now runs with thinking off, and a test on the real SDK holds it there. It is not faster on an ordinary call, and 2 calls could not show that it was. A clean answer streams in under 0.2 s, and the rest is the wait for the first byte, 1.3 to 2.6 s here, so thinking off does not touch the limiter. A small shelf did not help either, with 1.8 to 4.8 s to the first byte on 3 shelves of 2 to 8 titles. What goes away is the failed call, where 200 tokens of thinking took 1.5 s and then returned nothing.
+
+Those 3 small-shelf calls also read the judgment with thinking off. It gave an empty title for "what a black hole looks like" and "why the Moon has phases" against near titles, and found "What really causes the seasons" for "what causes the seasons". That is 3 calls, so it shows the setting did not break the judgment, and not that the rate held.
+
+A failed match is not tried again, and `getFirstPicture` goes on waiting for the drawing. With `ASTRA_FRESH_DRAW` on, the student waits for a drawing and the lesson pays for one, in place of a saved scene. With it off, there is no picture. A failed match used to leave no trace unless the drawing failed too, and it now writes `sceneMatchFailed`.
+
+This does not bring back that session's picture by itself. On all 8 calls that answered, the matcher named "What a derivative really measures", and `isSameTopic` refuses that title because it shares no word with "Introduction to calculus". With the switch off, that session would still end with no picture, now for `no saved scene fits`. With it on, a drawing lands.
+
+`fitReader`, which runs before a live 3D write, has the same setting and the same limit of 200 tokens, and `.catch(() => null)` hides its failures, so a failure there would start a paid write. It was not run here, so it is unchanged. The reads behind a picture have the same setting at 800 tokens, and none of the 28 logged reads ran out.
 
 ## What this does not prove
 

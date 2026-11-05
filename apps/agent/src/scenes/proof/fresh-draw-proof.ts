@@ -7,7 +7,7 @@ const { values: args } = parseArgs({ options: { web: { type: 'string' }, plan: {
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
 const POLL_MS = 150;
 const AFTER_LANDING_S = 26;
-const TRACED = new Set(['sceneAskFromLine', 'sceneAsked', 'sceneCue', 'recipeWritten', 'sceneMatched', 'sceneRouted', 'freshStarted', 'freshWritten', 'scenePageHas', 'freshOnPage', 'sceneEnded', 'recipeReviewed', 'recipeNoPicture', 'sceneOffTopic', 'sceneAskPassed']);
+const TRACED = new Set(['sceneAskFromLine', 'sceneAsked', 'sceneCue', 'recipeWritten', 'sceneMatched', 'sceneMatchFailed', 'sceneRouted', 'freshStarted', 'freshWritten', 'scenePageHas', 'freshOnPage', 'sceneEnded', 'recipeReviewed', 'recipeNoPicture', 'sceneOffTopic', 'sceneAskPassed']);
 
 /** One lesson: `ask` starts it from Home, and `say`, when given, is typed once the tutor has started talking, and is what the clock runs from. */
 interface PlannedLesson {

@@ -23,9 +23,10 @@ const DRAWING = [FITS, LOOK, SPIN, '```js', CODE, '```'].join('\n');
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 120));
 
-function setUp({ recipeText = NO_FIT, drawingText = DRAWING, isGood = true, canDrawRecipes = true, mostDrawings = 6, writesDrawingAfterMs = 0, matchedTitle = '' }: { recipeText?: string; drawingText?: string; isGood?: boolean; canDrawRecipes?: boolean; mostDrawings?: number; writesDrawingAfterMs?: number; matchedTitle?: string } = {}) {
+function setUp({ recipeText = NO_FIT, drawingText = DRAWING, isGood = true, canDrawRecipes = true, mostDrawings = 6, writesDrawingAfterMs = 0, matchedTitle = '', match = async () => matchedTitle }: { recipeText?: string; drawingText?: string; isGood?: boolean; canDrawRecipes?: boolean; mostDrawings?: number; writesDrawingAfterMs?: number; matchedTitle?: string; match?: () => Promise<string> } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'fresh-draw-'));
   const store = createSceneStore(root);
+  const trace = vi.fn();
   const write = vi.fn<RecipeWriter['write']>(async () => ({ text: recipeText, ...USAGE }));
   const writeDrawing = vi.fn<FreshTools['writer']['write']>(
     (_ask, signal) =>
@@ -53,13 +54,13 @@ function setUp({ recipeText = NO_FIT, drawingText = DRAWING, isGood = true, canD
       writer: { write },
       reviewer: { read: vi.fn(async () => ({ isGood: true, reasons: [], ...USAGE })) },
       nameReader: { clear: async () => new Set() },
-      matcher: { match: async () => matchedTitle },
+      matcher: { match },
       store,
       storeRoot: root,
       getParts: () => getPartCatalogue(),
       getCore: getCoreSource,
       getLevel: () => null,
-      trace: () => {},
+      trace,
       fresh,
       request: 'how helicopters fly',
       isCard: false,
@@ -69,7 +70,7 @@ function setUp({ recipeText = NO_FIT, drawingText = DRAWING, isGood = true, canD
       getNowMs: () => performance.now(),
       onChange: () => {},
     });
-  return { root, store, write, writeDrawing, read, noteDrawn, makeWork };
+  return { root, store, write, writeDrawing, read, noteDrawn, makeWork, trace };
 }
 
 describe('reading a drawing', () => {
@@ -186,6 +187,25 @@ describe('the chain', () => {
   it('falls back to words when the writer cannot draw it', async () => {
     const { makeWork } = setUp({ drawingText: NO_FIT });
     expect((await runToPicture(makeWork())).kind).toBe('failed');
+  });
+});
+
+describe('a match that fails', () => {
+  it('says why in the trace, because the drawing that lands instead would hide it', async () => {
+    const { store, makeWork, trace } = setUp({
+      match: async () => {
+        throw new Error('the model ran out of tokens');
+      },
+    });
+    const read = readFreshDrawing(DRAWING);
+    if (!read.isOk) throw new Error('the drawing should read');
+    await store.saveChecked(toFreshScene({ drawing: read.drawing, key: getSceneKey('helicopters', { ownerId: STUDENT }), costUsd: 0, writeMs: 1 }), [], []);
+    const work = makeWork();
+    work.desk.ask(work.request);
+    await flush();
+    await flush();
+    expect(work.desk.getState().kind).toBe('ready');
+    expect(trace).toHaveBeenCalledWith('sceneMatchFailed', expect.objectContaining({ problem: 'Error: the model ran out of tokens' }));
   });
 });
 

@@ -216,7 +216,10 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     const shelf = [...(await store.listShared()), ...(fresh ? await store.listOwned(studentId) : [])];
     const titles = [...new Set(shelf.map(({ topic }) => topic))];
     if (titles.length === 0) throw new Error('nothing saved');
-    const title = await matcher.match(request, titles, AbortSignal.any([AbortSignal.timeout(MATCH_LIMIT_MS), leaving.signal]));
+    const title = await matcher.match(request, titles, AbortSignal.any([AbortSignal.timeout(MATCH_LIMIT_MS), leaving.signal])).catch((error: unknown) => {
+      noteTime('sceneMatchFailed', { problem: String(error) });
+      throw error;
+    });
     const found = titles.includes(title) && isSameTopic(request, title) ? findPlayable(title) : null;
     noteTime('sceneMatched', { title: found ? title : '' });
     if (!found) throw new Error('no saved scene fits');
