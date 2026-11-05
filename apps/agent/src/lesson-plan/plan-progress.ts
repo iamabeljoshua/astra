@@ -83,7 +83,7 @@ export function getStateAfterMove(state: LessonState, move: PlanMove, startReply
 }
 
 function getActiveAfterEvent(active: ActivePlan, event: LessonEvent, repliesEnded: number): ActivePlan {
-  const nextStep = { ...active, stepIndex: active.stepIndex + 1, isExerciseOpen: false, stepStartReply: repliesEnded, hasHadExercise: false, teachingAskedAtReply: 0, leadsOnStep: 0 };
+  const nextStep = { ...active, stepIndex: Math.min(active.stepIndex + 1, active.plan.steps.length), isExerciseOpen: false, stepStartReply: repliesEnded, hasHadExercise: false, teachingAskedAtReply: 0, leadsOnStep: 0 };
   switch (event) {
     case 'exerciseSet':
       return { ...active, isExerciseOpen: true, hasHadExercise: true };

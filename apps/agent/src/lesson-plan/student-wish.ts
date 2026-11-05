@@ -8,7 +8,7 @@ const WHOLE_LINES: Readonly<Partial<Record<LineWish, readonly string[]>>> = {
   go_on: ['go on', 'go on please', 'please go on', 'keep going', 'keep teaching', 'keep teaching me', 'continue', 'please continue', 'lets continue', 'next', 'next please', 'more', 'more please', 'move on', 'carry on', 'teach me more', 'tell me more', 'show me more', 'whats next', 'what is next', 'and then what', 'what else', 'dont stop'],
   slower: ['slow down', 'slow down please', 'please slow down', 'too fast', 'go slower'],
   faster: ['speed up', 'go faster'],
-  filler: ['ok', 'okay', 'k', 'thanks', 'thank you', 'ok thanks', 'cool', 'hmm', 'hm', 'mm', 'mhm', 'um', 'uh', 'er', 'ah', 'oh'],
+  filler: ['ok', 'okay', 'k', 'thanks', 'thank you', 'ok thanks', 'cool', 'hmm', 'hm', 'mm', 'mhm', 'um', 'uh', 'er', 'ah', 'oh', 'the', 'and'],
 };
 
 const WISH_OF_LINE: ReadonlyMap<string, LineWish> = new Map(Object.entries(WHOLE_LINES).flatMap(([wish, lines]) => lines.map((line) => [line, wish as LineWish] as const)));

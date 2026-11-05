@@ -20,7 +20,7 @@ initializeLogger({ pretty: false, level: 'silent' });
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const STAMP = { clockId: 'c', browserMs: 1, startedMsAgo: 0 };
 const FAST = { ...LEAD_TIMINGS, firstWordAfterMs: 20, slowFirstWordAfterMs: 400, afterQuestionMs: 150, afterQuestionAgainMs: 100, afterTaskMs: 200, afterTaskAgainMs: 150, afterTaskTriedMs: 50, afterKeyMs: 250 };
-const QUICK = { firstTextMs: 300, betweenTextMs: 200, finishGraceMs: 20, reportWaitMs: 5, safetyReadWaitMs: 200, lineReadWaitMs: 150 };
+const QUICK = { firstTextMs: 300, betweenTextMs: 200, finishGraceMs: 20, reportWaitMs: 5, safetyReadWaitMs: 200, lineReadWaitMs: 150, readLimitMs: 300 };
 const USAGE = { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 };
 const STILL_MS = 400;
 
@@ -73,22 +73,28 @@ afterEach(async () => {
 
 type Wishes = Record<string, string>;
 
-function startLesson({ answer = (_words: string, index: number) => `Gravity keeps pulling, beat ${index}.`, wishes = {}, safety, promises = () => false, readMeaning, getNowMs }: { getNowMs?: () => number; answer?: (words: string, index: number) => string | null; wishes?: Wishes; safety?: SafetyWatch; promises?: (spoken: string) => boolean; readMeaning?: (words: string) => Promise<'needsAPerson' | null> } = {}) {
+function startLesson({ answer = (_words: string, index: number) => `Gravity keeps pulling, beat ${index}.`, wishes = {}, safety, promises = () => false, readMeaning, getNowMs, swapReaders }: { getNowMs?: () => number; answer?: (words: string, index: number) => string | null; wishes?: Wishes; safety?: SafetyWatch; promises?: (spoken: string) => boolean | 'asks'; readMeaning?: (words: string) => Promise<'needsAPerson' | null>; swapReaders?: Record<string, unknown> } = {}) {
   const { model, asked } = makeModel(answer);
   const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
   planner.noteCardLesson(LESSON);
   const lineReads: string[] = [];
+  const lineFacts: unknown[] = [];
   const readers = {
-    readLine: async (line: string) => {
+    readLine: async (line: string, facts: unknown) => {
       lineReads.push(line);
+      lineFacts.push(facts);
       return (wishes[line] ?? 'talk') as never;
     },
-    readPromise: async (spoken: string) => (promises(spoken) ? ('waits' as const) : ('continues' as const)),
+    readPromise: async (spoken: string) => {
+      const promise = promises(spoken);
+      return promise === 'asks' ? ('asks' as const) : promise ? ('waits' as const) : ('continues' as const);
+    },
+    ...swapReaders,
   };
   const decided: { name: string; fields: Record<string, unknown> }[] = [];
   const trace = (name: string, fields: Record<string, unknown> = {}) => void decided.push({ name, fields });
-  const turns: { studentText: string; spokenText: string }[] = [];
-  const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner, readers, trace, onTurnEnd: (turn: { studentText: string; spokenText: string }) => turns.push(turn), ...(safety ? { safety } : {}) } as never);
+  const turns: { studentText: string; spokenText: string; attempts: number; firstBeatMs: number | null }[] = [];
+  const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner, readers, trace, onTurnEnd: (turn: (typeof turns)[number]) => turns.push(turn), ...(safety ? { safety } : {}) } as never);
   const session = createLiveSession({
     messenger: { send: () => {}, sendOnBothChannels: () => {} },
     line: createVoiceLine(makeSilentOutput()),
@@ -114,7 +120,7 @@ function startLesson({ answer = (_words: string, index: number) => `Gravity keep
   };
   const leadsAsked = () => asked.filter(({ words }) => Object.values(LEAD_WORDS).includes(words as never)).length;
   const waitForLead = () => vi.waitFor(() => expect(leadsAsked()).toBeGreaterThan(0), { timeout: 3000 });
-  return { session, brain, asked, type, typeInBox, leadsAsked, waitForLead, lineReads, decided, turns };
+  return { session, brain, asked, type, typeInBox, leadsAsked, waitForLead, lineReads, lineFacts, decided, turns };
 }
 
 const leadsAfter = async (run: { leadsAsked(): number }, act: () => void) => {
@@ -148,7 +154,6 @@ describe('a line typed in the box, as the page sends it', () => {
     run.type('teach me rockets');
     await run.waitForLead();
     expect(await leadsAfter(run, () => run.typeInBox('biko kwusi'))).toBe(0);
-    expect(run.asked.at(-1)?.notes.join(' ')).toContain('hold_on');
     expect(run.brain.isLeadStopped()).toBe(true);
   });
 });
@@ -190,7 +195,7 @@ describe('a line with a word from the danger list', () => {
   });
 
   it('a failed read stays stopped, names help, and says what to do', async () => {
-    const safety = makeWatch(async () => 'unread');
+    const safety = makeWatch(async (text) => (text === 'i want to die' ? 'unread' : 'school'));
     const run = startLesson({ safety });
     run.type('teach me rockets');
     await run.waitForLead();
@@ -276,12 +281,12 @@ describe('the tutor keeps its word', () => {
     expect(run.brain.isLeadStopped()).toBe(true);
   });
 
-  it('a line read as leaving gets the hold note and no teaching after it', async () => {
+  it('a line read as leaving has no teaching after it', async () => {
     const run = startLesson({ wishes: { 'im done for today': 'leave', 'gotta go': 'leave' } });
     run.type('teach me rockets');
     await run.waitForLead();
     expect(await leadsAfter(run, () => run.typeInBox('im done for today'))).toBe(0);
-    expect(run.asked.at(-1)?.notes.join(' ')).toContain('hold_on');
+    expect(run.brain.isLeadStopped()).toBe(true);
   });
 });
 
@@ -455,3 +460,222 @@ describe('the code path for whole lines', () => {
   });
 });
 
+const HELP_REPLY = 'What do you mean by that? If anything is worrying you, tell an adult you trust now.';
+const spokenTo = (run: { turns: { studentText: string; spokenText: string }[] }, line: string) => run.turns.filter(({ studentText }) => studentText === line).map(({ spokenText }) => spokenText);
+const asksFor = (run: { asked: Asked[] }, line: string) => run.asked.filter(({ words }) => words === line);
+
+describe('a read decides what comes next, and the reply stays the tutor\'s own', () => {
+  it.each(['im done with all of it', 'make it stop', 'je veux que ca sarrete', 'ike agwula m', 'я больше не могу', 'no me importa, ya no quiero estar aqui'])('%s read as leave keeps the reply that names help, with one model call and no note to hold', async (line) => {
+    const safety = makeWatch(async () => 'school');
+    const run = startLesson({ safety, wishes: { [line]: 'leave' }, answer: (words, index) => (words === line ? HELP_REPLY : `Gravity keeps pulling, beat ${index}.`) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    expect(await leadsAfter(run, () => run.typeInBox(line))).toBe(0);
+    expect(asksFor(run, line).map(({ notes }) => notes.join(' ').includes('hold_on'))).toEqual([false]);
+    expect(spokenTo(run, line)).toEqual([HELP_REPLY]);
+    expect(run.brain.isLeadStopped()).toBe(true);
+  });
+
+  it('a read of a stop while the model is still writing does not cut what the model writes', async () => {
+    const line = 'stop i cant breathe';
+    const run = startLesson({ wishes: { [line]: 'stop' }, answer: (words, index) => (words === line ? HELP_REPLY : `Gravity keeps pulling, beat ${index}.`) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox(line);
+    await delay(STILL_MS);
+    expect(run.turns.find(({ studentText }) => studentText === line)?.attempts).toBe(1);
+  });
+});
+
+describe('a student who comes back to a held lesson', () => {
+  it.each(['im back', 'hey', 'yes please', 'sorry', 'im still here', 'got it'])('%s read as filler still gets the reply, and the stop stays', async (line) => {
+    const run = startLesson({ wishes: { [line]: 'filler' }, answer: (words, index) => (words === line ? 'Still here.' : words === 'brb' ? 'Sure, take your time.' : `Gravity keeps pulling, beat ${index}.`), promises: (spoken) => spoken.includes('take your time') });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox('brb');
+    await delay(STILL_MS);
+    expect(await leadsAfter(run, () => run.typeInBox(line))).toBe(0);
+    expect(spokenTo(run, line)).toEqual(['Still here.']);
+    expect(run.brain.isLeadStopped()).toBe(true);
+  });
+
+  it('the read is told the tutor is waiting and what it last said', async () => {
+    const run = startLesson({ wishes: { brb: 'leave' }, answer: (words, index) => (words === 'brb' ? 'Sure, tell me when you are back.' : `Gravity keeps pulling, beat ${index}.`) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox('brb');
+    await delay(STILL_MS);
+    run.typeInBox('yes');
+    await delay(STILL_MS);
+    expect(run.lineFacts.at(-1)).toMatchObject({ tutorSaid: 'Sure, tell me when you are back.', isTutorWaiting: true });
+  });
+
+  it.each(['im back', 'lets go'])('%s read as go on brings the lesson back', async (line) => {
+    const run = startLesson({ wishes: { brb: 'leave', [line]: 'go_on' } });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox('brb');
+    await delay(STILL_MS);
+    const before = run.leadsAsked();
+    run.typeInBox(line);
+    await vi.waitFor(() => expect(run.leadsAsked()).toBeGreaterThan(before), { timeout: 3000 });
+    expect(spokenTo(run, line)[0]).not.toBe('');
+  });
+
+  it.each(['ok', 'k', 'thanks'])('%s after a stop is truly nothing: no model call, and it stays stopped', async (line) => {
+    const run = startLesson();
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox('please stop talking');
+    await delay(STILL_MS);
+    const asked = run.asked.length;
+    run.typeInBox(line);
+    await delay(STILL_MS);
+    expect(run.asked.length).toBe(asked);
+    expect(run.brain.isLeadStopped()).toBe(true);
+  });
+});
+
+describe('a student who says they finished an exercise', () => {
+  it('the read is told an exercise is open', async () => {
+    const run = startLesson({ answer: (_words, index) => (index === 0 ? TASK('11.2 / 2.4') : 'What did you get?') });
+    run.type('give me one');
+    await vi.waitFor(() => expect(run.brain.getBoard().openTask).not.toBeNull(), { timeout: 2000 });
+    await delay(50);
+    run.typeInBox('done');
+    await delay(STILL_MS);
+    expect(run.lineFacts.at(-1)).toMatchObject({ isTaskOpen: true });
+  });
+});
+
+describe('the tutor said it would stop', () => {
+  it.each(['Okay, stopping.', 'Okay, stopping. What part do you think is wrong?', 'Okay, stopping there. Just say when.', 'Sure, pausing here.'])('"%s" holds with the reads down', async (reply) => {
+    const run = startLesson({ answer: (words, index) => (words === 'anyway' ? reply : `Gravity keeps pulling, beat ${index}.`), swapReaders: { readPromise: async () => 'unread' } });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    expect(await leadsAfter(run, () => run.typeInBox('anyway'))).toBe(0);
+    expect(run.brain.isLeadStopped()).toBe(true);
+  });
+
+  it.each(['The rocket is stopping its engines now.', 'Stopping the burn early costs speed.'])('"%s" is about the lesson and holds nothing', async (reply) => {
+    const { promisesToWait } = await import('../src/lesson-plan/lesson-rules.ts');
+    expect(promisesToWait(reply)).toBe(false);
+  });
+});
+
+describe('the reads fail', () => {
+  it.each(['lemme think', 'gimme a min', 'hold up', 'shh', 'abeg wait', 'so how fast is that'])('%s with nothing read holds the lesson, gets a reply, and says it will wait', async (line) => {
+    const run = startLesson({ swapReaders: { readLine: async () => 'unread', readPromise: async () => 'unread' } });
+    run.type('hello');
+    await delay(STILL_MS);
+    expect(await leadsAfter(run, () => run.typeInBox(line))).toBe(0);
+    expect(run.brain.isLeadStopped()).toBe(true);
+    expect(spokenTo(run, line)[0]).toContain('Tell me when you want to carry on');
+  });
+
+  it('a failed read does not stop a lesson nobody spoke into', async () => {
+    const run = startLesson({ swapReaders: { readPromise: async () => 'unread' } });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    expect(run.brain.isLeadStopped()).toBe(false);
+  });
+
+  it('go on still works with the reads down', async () => {
+    const run = startLesson({ swapReaders: { readLine: async () => 'unread', readPromise: async () => 'unread' } });
+    run.type('hello');
+    await delay(STILL_MS);
+    run.typeInBox('wait what');
+    await delay(STILL_MS);
+    const before = run.leadsAsked();
+    run.typeInBox('keep going');
+    await vi.waitFor(() => expect(run.leadsAsked()).toBeGreaterThan(before), { timeout: 3000 });
+  });
+});
+
+describe('a reply that asks after them, or cannot read them', () => {
+  it.each(["That looks like Igbo, and I can't read it well enough to be sure. Is someone hurting you?", "I can't read that one. Try other words?"])('"%s" holds until they speak and names help', async (reply) => {
+    const line = 'mo fe ku';
+    const run = startLesson({ safety: makeWatch(async () => 'school'), answer: (words, index) => (words === line ? reply : `Gravity keeps pulling, beat ${index}.`) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    expect(await leadsAfter(run, () => run.typeInBox(line))).toBe(0);
+    expect(run.brain.isLeadStopped()).toBe(true);
+    expect(spokenTo(run, line)[0]).toMatch(/adult you trust/);
+  });
+
+  it('a reply read as asking after them holds, even with an exercise open', async () => {
+    const line = 'ndi be anyi na-eti m';
+    const asksAfter = 'Onye na-eti gi?';
+    const run = startLesson({ safety: makeWatch(async () => 'school'), promises: (spoken) => (spoken === asksAfter ? 'asks' : false), answer: (words, index) => (index === 0 ? TASK('11.2 / 2.4') : words === line ? asksAfter : `Gravity keeps pulling, beat ${index}.`) });
+    run.type('give me one');
+    await vi.waitFor(() => expect(run.brain.getBoard().openTask).not.toBeNull(), { timeout: 2000 });
+    await delay(50);
+    run.type(line);
+    await delay(STILL_MS);
+    expect(run.brain.isLeadStopped()).toBe(true);
+  });
+
+  it('take your time with an exercise open holds nothing', async () => {
+    const run = startLesson({ promises: (spoken) => spoken === 'Take your time.', answer: (words, index) => (index === 0 ? TASK('11.2 / 2.4') : words === 'let me try' ? 'Take your time.' : `Gravity keeps pulling, beat ${index}.`) });
+    run.type('give me one');
+    await vi.waitFor(() => expect(run.brain.getBoard().openTask).not.toBeNull(), { timeout: 2000 });
+    await delay(50);
+    run.type('let me try');
+    await delay(STILL_MS);
+    expect(run.brain.canLead()).toBe(true);
+  });
+});
+
+describe('a read that never lands or throws', () => {
+  it('a line read that never resolves holds for its limit and then the lesson is not silent for good', async () => {
+    const run = startLesson({ swapReaders: { readLine: () => new Promise(() => {}) } });
+    run.type('hello');
+    await delay(STILL_MS + 100);
+    run.typeInBox('keep going');
+    await delay(STILL_MS);
+    expect(run.brain.isLeadStopped()).toBe(false);
+    expect(run.brain.canLead()).toBe(true);
+  });
+
+  it('a promise read that never resolves does not stop every lead for good', async () => {
+    const run = startLesson({ swapReaders: { readPromise: () => new Promise(() => {}) } });
+    run.type('teach me rockets');
+    await delay(STILL_MS);
+    expect(run.brain.canLead()).toBe(true);
+  });
+
+  it.each(['readLine', 'readPromise'])('a %s that rejects raises nothing unhandled', async (name) => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    const run = startLesson({ swapReaders: { [name]: () => Promise.reject(new Error('read down')) } });
+    run.type('hello');
+    await delay(STILL_MS);
+    run.typeInBox('so how fast is it');
+    await delay(STILL_MS);
+    process.off('unhandledRejection', onUnhandled);
+    expect(unhandled).toEqual([]);
+    expect(spokenTo(run, 'so how fast is it')[0]).not.toBe('');
+  });
+
+  it('a safety read that rejects holds the lesson and raises nothing unhandled', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => unhandled.push(reason);
+    process.on('unhandledRejection', onUnhandled);
+    const run = startLesson({ safety: makeWatch(() => Promise.reject(new Error('read down'))) });
+    run.type('hello');
+    await delay(STILL_MS);
+    run.typeInBox('so how fast is it');
+    await delay(STILL_MS);
+    process.off('unhandledRejection', onUnhandled);
+    expect(unhandled).toEqual([]);
+    expect(run.brain.isLeadStopped()).toBe(true);
+  });
+
+  it('a hung read does not hold the words of a reply', async () => {
+    const run = startLesson({ swapReaders: { readLine: () => new Promise(() => {}) } });
+    run.typeInBox('so how fast is it');
+    await vi.waitFor(() => expect(run.turns.length).toBeGreaterThan(0), { timeout: 2000 });
+    expect(run.turns[0]?.firstBeatMs).toBeLessThan(100);
+  });
+});

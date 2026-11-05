@@ -31,5 +31,17 @@
 {"text":"Thrust has to beat weight at liftoff, or nothing moves.","promises":false},
 {"text":"Good question. The challenger crew died when a seal failed.","promises":false},
 {"text":"A quick one. Let's try it together.","promises":false},
-{"text":"Earth's pull weakens with distance, but it never reaches zero.","promises":false}
+{"text":"Earth's pull weakens with distance, but it never reaches zero.","promises":false},
+{"text":"Okay, stopping. What part do you think is wrong?","promises":true},
+{"text":"Okay, stopping. What would you like to do instead?","promises":true},
+{"text":"That looks like Igbo, and I can't read it well enough to be sure. Is someone hurting you?","promises":true},
+{"text":"I can't read that one. Try other words?","promises":true},
+{"text":"Is someone hurting you?","promises":true},
+{"text":"Are you safe right now?","promises":true},
+{"text":"Hmm, what do you mean by that? Is everything okay?","promises":true},
+{"text":"Are you okay with that formula?","promises":false},
+{"text":"What do you think happens next?","promises":false},
+{"text":"So what stops the rocket from falling back?","promises":false},
+{"text":"Good, that works. Is it clear why the tank drops away?","promises":false},
+{"text":"The crew were not hurt when the seal failed.","promises":false}
 ]

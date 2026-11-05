@@ -8,7 +8,7 @@ import { getStateAfterEvent, getStateAfterMove, getStepNote, NO_LESSON } from '.
 import { createLiveSession, type LiveSession } from '../src/live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../src/live/reactions.ts';
 import { getLead, LEAD_TIMINGS, LEAD_WORDS, type LeadKind } from '../src/live/tutor-lead.ts';
-import { dropRepeatedIdeas } from '../src/lesson-plan/ask-planner.ts';
+import { askMoreSteps, dropRepeatedIdeas, type MoreAsk } from '../src/lesson-plan/ask-planner.ts';
 import { getLessonWordsProblem } from '../src/lesson-plan/lesson-rules.ts';
 import { showsItsAnswer } from '../src/tutor/board-memory.ts';
 import { createVoiceLine, type VoiceOutput } from '../src/live/voice-line.ts';
@@ -232,6 +232,78 @@ describe('a lesson that runs on', () => {
     planner.noteCardLesson({ ...PLAN, steps: PLAN.steps.slice(0, 1) });
     planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
     expect(askMore).not.toHaveBeenCalled();
+  });
+});
+
+describe('where a lesson ends', () => {
+  const stepsOf = (count: number, from = 0) => Array.from({ length: count }, (_, index) => ({ teach: `Idea number ${from + index}`, exercise: `Work out ${from + index} plus 1` }));
+  const startPlanned = (first: number, more: (ask: MoreAsk) => { teach: string; exercise: string }[]) => {
+    const askMore = vi.fn(async (ask: MoreAsk) => ({ steps: more(ask), costUsd: 0 }));
+    const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), askMore, canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
+    planner.noteCardLesson({ topic: 'Rockets', kind: 'teachFirst', steps: stepsOf(first) });
+    return { planner, askMore };
+  };
+  const reachLastStep = (planner: ReturnType<typeof createLessonPlanner>) => {
+    for (let step = planner.getStepNote(); step && 'step' in step && !step.step.startsWith(step.step.split(' of ')[1] ?? ''); step = planner.getStepNote()) planner.moveToNextStep();
+  };
+
+  it('asks for no more than 12 ideas by itself', async () => {
+    const { planner, askMore } = startPlanned(11, ({ most }) => stepsOf(most, 11));
+    reachLastStep(planner);
+    await vi.waitFor(() => expect(askMore).toHaveBeenCalledOnce());
+    expect(askMore.mock.calls[0]?.[0].most).toBe(1);
+    await delay(20);
+    planner.moveToNextStep();
+    await delay(20);
+    planner.moveToNextStep();
+    await delay(20);
+    expect(askMore).toHaveBeenCalledOnce();
+    expect(planner.getStepNote()).toMatchObject({ is_finished: true });
+  });
+
+  it('stops asking once the planner says the material has run out', async () => {
+    const { planner, askMore } = startPlanned(6, () => []);
+    reachLastStep(planner);
+    await vi.waitFor(() => expect(askMore).toHaveBeenCalled());
+    await delay(20);
+    planner.moveToNextStep();
+    await delay(20);
+    expect(askMore).toHaveBeenCalledOnce();
+  });
+
+  it('teach me more goes past the 12, with no idea skipped', async () => {
+    const { planner, askMore } = startPlanned(12, ({ most }) => stepsOf(most, 12));
+    reachLastStep(planner);
+    planner.moveToNextStep();
+    expect(planner.getStepNote()).toMatchObject({ is_finished: true });
+    expect(askMore).not.toHaveBeenCalled();
+    planner.noteTeachingWanted();
+    await vi.waitFor(() => expect(askMore).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(planner.getStepNote()).toMatchObject({ teach_first: 'Idea number 12', step: expect.stringMatching(/^13 of/) }));
+  });
+});
+
+describe('words that read as a plan', () => {
+  it.each(['How the air itself thins as you climb.', 'How engineers score an engine with one number.', 'Why the second stage is smaller.'])('%s goes back', (line) => expect(getLessonWordsProblem(line)).not.toBeNull());
+  it.each(['How far does it go?', 'When it launches, that ice cracks and falls off.', 'How far it goes, then, depends on the burn.'])('%s stays', (line) => expect(getLessonWordsProblem(line)).toBeNull());
+});
+
+describe('a step made from an exercise', () => {
+  it('is dropped', async () => {
+    const reader = { read: async () => ({ answer: { steps: [{ teach: 'Three stages at three kilometres per second each sum to nine kilometres per second.', exercise: 'Pick one' }] }, costUsd: 0 }) };
+    const { steps } = await askMoreSteps(reader as never, { topic: 'How a rocket escapes Earth', taught: [], exercises: ['Three stages, each adding three kilometres per second: what is the total?'], said: '', most: 4 });
+    expect(steps).toEqual([]);
+  });
+});
+
+describe('a beat with a command between two sentences', () => {
+  it('keeps the words apart', async () => {
+    const { BeatTextReader } = await import('../src/tutor/beat-text-reader.ts');
+    const written: string[] = [];
+    const reader = new BeatTextReader({ board: new Map(), onBeatEnd: ({ script }: { script: unknown[] }) => written.push(script.filter((part) => typeof part === 'string').join('|')), checkCommand: () => ({ ok: true }) } as never);
+    reader.push('It falls by about twenty.{"kind":"writeMath","id":"p1","tex":"3 \\\\times 4.5","claim":"new"}Roughly the log of twenty is three.');
+    reader.finish();
+    expect(written.join(' ')).not.toMatch(/twenty\.\|?Roughly/);
   });
 });
 

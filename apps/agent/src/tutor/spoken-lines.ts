@@ -22,6 +22,7 @@ export const SPOKEN_LINES = {
   cutShort: ["That's a lot at once, so I'll stop there. What do you make of it so far?"],
   noToolAnswer: [`I couldn't work that out just now. ${IF_WORRIED} Could you ask me that another way?`],
   notHeard: ["I didn't catch any words in that. Could you try again?"],
+  ifWorried: [IF_WORRIED],
   safetyHelp: ['Please tell an adult you trust now, or call your local emergency number if you are in danger.'],
   safetyStop: ['That sounds serious. Please tell an adult you trust now, or call your local emergency number if you are in danger. Are you safe right now?'],
   safetyStopHurt: ['That sounds serious, and it is not your fault. Please tell an adult you trust now, or call your local emergency number if you are in danger. Are you safe right now?'],

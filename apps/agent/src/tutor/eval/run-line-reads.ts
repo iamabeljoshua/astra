@@ -20,6 +20,8 @@ interface Line {
   label: string;
   text: string;
   tutorSaid: string;
+  isTutorWaiting?: boolean;
+  isTaskOpen?: boolean;
   danger: boolean;
 }
 
@@ -46,13 +48,13 @@ const inParallel = async <T>(items: T[], work: (item: T) => Promise<void>) => {
 };
 
 const getIsHold = (label: string) => HOLDS.has(label) || label === 'hold';
-const isRight = (read: string, label: string) => (getIsHold(label) ? getIsHold(read) : read === label);
+const isRight = (read: string, label: string, isTutorWaiting = false) => (getIsHold(label) ? getIsHold(read) : read === label || (isTutorWaiting && label === 'go_on' && read === 'talk'));
 
 interface Row { line: Line; read: string; ms: number; rep: number }
 const haikuRows: Row[] = [];
 await inParallel(lines.flatMap((line) => Array.from({ length: Number(args.reps) }, (_, rep) => ({ line, rep }))), async ({ line, rep }) => {
   const startedAt = performance.now();
-  const answer = await readWord(LINE_READ_RULES, toLineReadMessage(line.text, line.tutorSaid));
+  const answer = await readWord(LINE_READ_RULES, toLineReadMessage(line.text, line));
   haikuRows.push({ line, rep, ms: performance.now() - startedAt, read: toLineRead(answer) });
 });
 const safetyRows: { line: Line; read: string; ms: number }[] = [];
@@ -102,15 +104,15 @@ const score = (name: string, rows: { line: Line; read: string }[]) => {
   const missed = stops.filter(({ read }) => !getIsHold(read));
   const falseStops = others.filter(({ read }) => getIsHold(read));
   const goOns = rows.filter(({ line }) => line.label === 'go_on');
-  const right = rows.filter(({ line, read }) => isRight(read, line.label));
+  const right = rows.filter(({ line, read }) => isRight(read, line.label, line.isTutorWaiting));
   const byLanguage = ['igbo', 'yoruba', 'hausa', 'pidgin', 'spanish', 'french'].map((group) => {
     const inGroup = rows.filter(({ line }) => line.group === group);
-    return `${group} ${inGroup.filter(({ line, read }) => isRight(read, line.label)).length}/${inGroup.length}`;
+    return `${group} ${inGroup.filter(({ line, read }) => isRight(read, line.label, line.isTutorWaiting)).length}/${inGroup.length}`;
   });
   console.log(`\n${name}: right ${right.length} of ${rows.length}; holds missed ${missed.length} of ${stops.length}; false holds ${falseStops.length} of ${others.length}; go on read ${goOns.filter(({ read }) => read === 'go_on').length} of ${goOns.length}`);
   console.log(`  ${byLanguage.join(', ')}`);
   for (const { line, read } of [...missed, ...falseStops]) console.log(`  ${getIsHold(line.label) ? 'MISS' : 'FALSE'} [${line.group}] ${JSON.stringify(line.text)} read ${read}`);
-  const others2 = rows.filter(({ line, read }) => !isRight(read, line.label) && !missed.some((row) => row.line === line) && !falseStops.some((row) => row.line === line));
+  const others2 = rows.filter(({ line, read }) => !isRight(read, line.label, line.isTutorWaiting) && !missed.some((row) => row.line === line) && !falseStops.some((row) => row.line === line));
   for (const { line, read } of others2) console.log(`  OTHER [${line.group}] ${JSON.stringify(line.text)} label ${line.label} read ${read}`);
 };
 
@@ -142,7 +144,7 @@ for (const { line, read } of readMissed) console.log(`  MISS ${JSON.stringify(li
 for (const { line, read } of readFalse) console.log(`  FALSE ${JSON.stringify(line.text)} read ${read}`);
 
 const listPromises = promises.filter((row) => promisesToWait(row.text) !== row.promises);
-const readPromises = promiseRows.filter(({ row, read }) => read !== (row.promises ? 'waits' : 'continues'));
+const readPromises = promiseRows.filter(({ row, read }) => (read === 'continues') === row.promises || read === 'unread');
 console.log(`\nTutor promises: word list wrong on ${listPromises.length} of ${promises.length}, Haiku wrong on ${readPromises.length} of ${promises.length}, p50 ${Math.round(getPercentile(promiseRows.map(({ ms }) => ms), 0.5))} ms`);
 for (const { text, promises: says } of listPromises) console.log(`  LIST ${says ? 'MISS' : 'FALSE'} ${JSON.stringify(text)}`);
 for (const { row, read } of readPromises) console.log(`  READ ${row.promises ? 'MISS' : 'FALSE'} ${JSON.stringify(row.text)} read ${read}`);

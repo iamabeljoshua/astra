@@ -151,7 +151,7 @@ describe('a lead is never the student', () => {
 
   it('never lets a bracket end a stop after a crisis', async () => {
     const { model } = makeModel(() => 'Back to gravity.');
-    const brain = createTutorBrain({ model, timeouts: QUICK });
+    const brain = createTutorBrain({ model, timeouts: QUICK, safety: makeWatch(async () => 'unread') });
     await say(brain, 'i feel scared');
     expect(brain.canLead()).toBe(false);
     await say(brain, LEAD_WORDS.next, 'next');
@@ -282,7 +282,7 @@ describe('their words stop it', () => {
     expect(decideWatch({ secondsPaused: 30, isTutorTalking: false, secondsSinceQuestion: null, secondsSinceSpokeUp: null, draft: null, unanswered: null, hasOpenTask: true, hasLeanedInOnThisSilence: false, isLeadStopped: true })).toMatchObject({ act: 'stay' });
   });
 
-  it('holds the reply until the read lands, and answers a stop in another language as a stop', async () => {
+  it('no lead runs until the read lands, the reply stays its own, and a stop in another language holds', async () => {
     let landRead: (wish: LineWish) => void = () => {};
     const readers = { readLine: (line: string) => (line === 'para por favor' ? new Promise<LineWish>((resolve) => (landRead = resolve)) : Promise.resolve<LineWish>('talk')), readPromise: async () => 'continues' as const };
     const { asked, type, leadsAsked, brain } = startLesson({ latencyMs: 20, brain: { readers, timeouts: { ...QUICK, lineReadWaitMs: 2000 } } });
@@ -291,23 +291,22 @@ describe('their words stop it', () => {
     type('para por favor');
     await vi.waitFor(() => expect(asked.some(({ words }) => words === 'para por favor')).toBe(true), { timeout: 1000 });
     expect(brain.canLead()).toBe(false);
-    landRead('stop');
-    await vi.waitFor(() => expect(asked.at(-1)?.notes.join(' ')).toContain('hold_on'), { timeout: 1000 });
-    await delay(100);
     const heldAt = leadsAsked();
+    await delay(200);
+    expect(leadsAsked()).toBe(heldAt);
+    landRead('stop');
     await delay(300);
     expect(leadsAsked()).toBe(heldAt);
+    expect(asked.filter(({ words }) => words === 'para por favor')).toHaveLength(1);
     expect(brain.canLead()).toBe(false);
   });
 
-  it('asks for the idea again when they are lost, and tells them to wait with no words of danger', async () => {
+  it('a lost student gets the reply the model wrote, and the lesson waits', async () => {
     const { model, asked } = makeModel(() => 'Think of it this way.');
     const brain = createTutorBrain({ model, timeouts: QUICK, readers: { readLine: async (line) => (line.includes('dont get it') ? 'lost' : 'talk'), readPromise: async () => 'continues' as const } });
     await say(brain, 'dont move on yet i dont get it');
-    expect(asked.at(-1)?.notes.join(' ')).toContain('again');
+    expect(asked.filter(({ words }) => words === 'dont move on yet i dont get it')).toHaveLength(1);
     expect(brain.canLead()).toBe(false);
-    await say(brain, 'i cant go on');
-    expect(asked.at(-1)?.notes.join(' ')).not.toContain('hold_on');
   });
 
   it('keeps a promise to wait that it made in its own words', async () => {
@@ -355,7 +354,7 @@ describe('their words stop it', () => {
     expect(MAY_BE_ABOUT_SAFETY.test('i cant go on')).toBe(true);
     expect(MAY_BE_ABOUT_SAFETY.test("i can't go on anymore")).toBe(true);
     const { model } = makeModel(() => 'What do you mean?');
-    const brain = createTutorBrain({ model, timeouts: QUICK });
+    const brain = createTutorBrain({ model, timeouts: QUICK, safety: makeWatch(async () => 'unread') });
     await say(brain, 'i cant go on');
     expect(brain.canLead()).toBe(false);
     await say(brain, 'ok');
