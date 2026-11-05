@@ -120,6 +120,25 @@ export function makeAnthropicTutorModel({ name = 'sonnet-5-5', apiKey, thinking 
   };
 }
 
+const ONE_WORD_READ_LIMIT_MS = 3000;
+const MOST_ONE_WORD_TOKENS = 8;
+
+// Answers null rather than throw, because a failed read must not touch the turn it sits beside.
+export function makeAnthropicOneWordReader({ apiKey, onCost }: { apiKey: string; onCost?(usd: number): void }): (system: string, text: string) => Promise<string | null> {
+  const { id, prices } = MODEL_SETTINGS['haiku-5-5'];
+  const client = new Anthropic({ apiKey, maxRetries: 1, timeout: ONE_WORD_READ_LIMIT_MS });
+  return async (system, text) => {
+    try {
+      const reply = await client.messages.create({ model: id, max_tokens: MOST_ONE_WORD_TOKENS, system, messages: [{ role: 'user', content: text }], thinking: { type: 'disabled' } });
+      onCost?.((reply.usage.input_tokens * prices.input + reply.usage.output_tokens * prices.output) / TOKENS_PER_MILLION);
+      const [first] = reply.content;
+      return first?.type === 'text' ? first.text : null;
+    } catch {
+      return null;
+    }
+  };
+}
+
 export interface PictureReader {
   read(request: { png: Buffer; prompt: string; schema: Record<string, unknown>; timeoutMs: number }): Promise<{ answer: unknown; costUsd: number }>;
 }

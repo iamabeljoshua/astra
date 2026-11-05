@@ -20,6 +20,7 @@ const REACTION = "Let's take a look.";
 const NO_LESSON_WORDS: Record<NoLesson, { id: string; words: string }> = {
   nothing: { id: 'no-lesson', words: "I don't have a lesson for that one. Go back to Home and ask me something else, or pick a suggested lesson." },
   unsafe: { id: 'unsafe', words: "I can't go into that here, and you haven't done anything wrong by asking. If anything is worrying you, or you don't feel safe, please tell an adult you trust, or call your local emergency number. You can go back to Home and pick something else to learn." },
+  askNeed: { id: 'ask-need', words: "Tell me what you need help with, and I'll start from there. Go back to Home and ask me in a few words. If anything is worrying you, or you don't feel safe, please tell an adult you trust." },
   declined: { id: 'declined', words: "That's one I won't walk through here, because the details could hurt someone. A teacher or a parent can help if you need it for something real. You can go back to Home and ask me something else." },
 };
 const TROUBLE_LINE = "Something went wrong on my side, so let's carry on with what is on the board.";

@@ -249,6 +249,7 @@ export const VOICE_LABELS = {
   dailyLimit: `That is all your tutor time for now. It resets once a day, so please try again later. Your sessions are kept. ${IF_WORRIED}`,
   broken: `Your tutor has stopped working in this session. Start a new one to carry on. ${IF_WORRIED}`,
   sessionFinished: 'This session has finished.',
+  safetyHelp: 'Please tell an adult you trust now. If you are in danger, call your local emergency number.',
   tutorLost: `Your tutor stopped responding. Your microphone is off. Try again and a tutor will start fresh, without what was said so far. ${IF_WORRIED}`,
   startedFresh: 'Your tutor had to start fresh, without what was said so far.',
   micDenied: 'Your browser did not allow the microphone. You can type instead.',
@@ -557,7 +558,44 @@ export interface LegalDocument {
 // With lessons off, the legal pages stay exactly as they are without them.
 const inTestLessons = (...lines: string[]) => (hasScenes() ? lines : []);
 
-export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
+export const BOARD_PICTURE_CREDITS = [
+  { file: 'great-wave.jpg', work: 'Katsushika Hokusai, Under the Wave off Kanagawa, about 1830 to 1832' },
+  { file: 'school-of-athens.jpg', work: 'Raphael, The School of Athens, 1509 to 1511' },
+  { file: 'saturn.jpg', work: 'The Day the Earth Smiled, Cassini, 19 July 2013. Credit NASA/JPL-Caltech/SSI.' },
+  { file: 'storming-of-the-bastille.jpg', work: 'Charles Thévenin, The Storming of the Bastille on 14 July 1789, 1790' },
+  { file: 'death-of-socrates.jpg', work: 'Jacques Louis David, The Death of Socrates, 1787' },
+  { file: 'great-pyramid.jpg', work: 'Francis Frith, The Great Pyramid and The Great Sphinx, 1858' },
+  { file: 'melencolia.jpg', work: 'Albrecht Dürer, Melencolia I, 1514' },
+  { file: 'sunflowers.jpg', work: 'Vincent van Gogh, Sunflowers, 1887' },
+  { file: 'earthrise.jpg', work: 'Earth over the Moon, Apollo 8, 24 December 1968. Credit NASA.' },
+  { file: 'whole-earth.jpg', work: 'The whole Earth, Apollo 17, 7 December 1972. Credit NASA.' },
+];
+
+export const PICTURE_CREDITS = [
+  { file: 'wave.jpg', work: 'Katsushika Hokusai, Under the Wave off Kanagawa, about 1830 to 1832' },
+  { file: 'saturn.jpg', work: 'The Day the Earth Smiled, taken by the Cassini spacecraft on 19 July 2013. Credit NASA/JPL-Caltech/SSI.' },
+  { file: 'athens.jpg', work: 'Raphael, The School of Athens, 1509 to 1511' },
+  { file: 'alchemist.jpg', work: 'Pieter Bruegel the Elder, The Alchemist, after 1558' },
+  { file: 'bastille.jpg', work: 'Charles Thévenin, The Storming of the Bastille on 14 July 1789, 1790' },
+  { file: 'cake.jpg', work: 'Raphaelle Peale, Still Life with Cake, 1818' },
+  { file: 'draughtsman.jpg', work: 'Albrecht Dürer, The Draughtsman of the Lute' },
+  { file: 'ham.jpg', work: 'Philippe Rousseau, Still Life with Ham, 1870s' },
+  { file: 'indigo.jpg', work: 'Piece, blue-resist textile, about 1725 to 1775' },
+  { file: 'loom.jpg', work: 'Didier, Petit et Cie, Joseph Marie Jacquard, woven silk, 1839' },
+  { file: 'lute.jpg', work: 'Johannes Vermeer, Young Woman with a Lute, about 1662 to 1663' },
+  { file: 'melencolia.jpg', work: 'Albrecht Dürer, Melencolia I, 1514' },
+  { file: 'pyramid.jpg', work: 'Francis Frith, The Great Pyramid and The Great Sphinx, 1858' },
+  { file: 'socrates.jpg', work: 'Jacques Louis David, The Death of Socrates, 1787' },
+  { file: 'sunflowers.jpg', work: 'Vincent van Gogh, Sunflowers, 1887' },
+  { file: 'wheat.jpg', work: 'Vincent van Gogh, Wheat Field with Cypresses, 1889' },
+  { file: 'blackhole.jpg', work: "Black Hole With Jet (Artist's Concept), 2017. Credit NASA/JPL-Caltech." },
+  { file: 'earth.jpg', work: 'The whole Earth, taken from Apollo 17 on 7 December 1972. Credit NASA.' },
+  { file: 'earthrise.jpg', work: 'Earth over the Moon, taken from Apollo 8 on 24 December 1968. Credit NASA.' },
+  { file: 'launch.jpg', work: 'The Saturn V launch of Apollo 11 on 16 July 1969. Credit NASA.' },
+  { file: 'nebula.jpg', work: 'The Eagle Nebula Observed by WISE, 2022. Credit NASA/JPL-Caltech.' },
+];
+
+export const LEGAL_PAGES: Record<'terms' | 'privacy' | 'credits', LegalDocument> = {
   terms: {
     title: 'Terms',
     intro: `These terms apply when you use ${PRODUCT_NAME}. A line marked planned describes something the app does not offer yet.`,
@@ -575,8 +613,8 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       {
         heading: `Who ${PRODUCT_NAME} is for`,
         today: [
-          `${PRODUCT_NAME} is for students aged 13 and up. After you first sign in, we ask for your date of birth. Give your real date. The first date you confirm stands, and the app has no way to change it.`,
-          'If that date shows you are under 13 in every time zone, the account closes and stays closed on every later sign-in. The Privacy Policy says what we keep.',
+          `${PRODUCT_NAME} is for students aged 13 and up. After you first sign in, we ask for your date of birth. Give your real date. The first date you confirm stands, and the app has no way to change it. The only exception is a date we could not save, where the page shows an error and you can answer again.`,
+          'If that date shows you are under 13 in every time zone, the account closes and we delete its sign-in. That email address is refused from then on, even on a new sign-up or after someone changes their email to it. The Privacy Policy says what we keep.',
           'If you are under 18, these terms apply to you as they do to any other student. We do not ask a parent or guardian to approve your account.',
         ],
         planned: [],
@@ -586,6 +624,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           'You sign in with a code sent to your email address, and you do not set a password. Use an address that belongs to you.',
           "Do not try to reach another student's account or data, get around the date of birth question, or interfere with the service.",
+          'You can delete your data at any time with Delete my data, under Your notes. That also deletes your account and signs you out.',
         ],
         planned: ['Sign-in with Google.'],
       },
@@ -636,6 +675,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           "If you write with the pen, your strokes go to our tutor service, which stores them in that session's log so a replay can draw them again. It makes a picture of what you wrote and sends that picture to Anthropic to read it. We do not store the picture.",
           'Words you type into the search box on the Sessions page go to our server, which uses them to find your sessions. We do not store them.',
           'A running total of what the tutor cost for you each day, with no words in it. We use it to stop tutor time for the day at a limit.',
+          "If what a student says or what the tutor replies looks like a safety concern, we record that a flag happened, with the account ID, session, kind, whether it came from the student's words or the tutor's, the time, and who reviewed it and when. A flag holds none of the words, and people named by us can read the list. Nothing is sent to a parent.",
         ],
         planned: [],
       },
@@ -651,12 +691,12 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         heading: 'If you are under 13',
         today: [
           'If the date you confirm shows you are under 13 in every time zone, the account closes and we do not store that date or the name you gave.',
-          'We keep a record holding only the account ID and the time, so the account stays closed on every later sign-in.',
-          "Your email address is not deleted. It stays in Supabase Auth, in its user and identity records and in its logs, and nothing in the app removes it. We keep it for now because deleting it would let the same address sign up and answer again. The times you signed in, your IP address, and your browser's description of itself stay in Supabase Auth too.",
+          'We delete the account from Supabase Auth, our sign-in service, with its email address, identity record, sessions, and audit log rows.',
+          'We keep only a keyed hash of the address, a code made with a secret key that cannot be turned back into the address. It refuses that address from then on, on a new sign-up or when someone changes their email to it. If that address signs in again, Supabase Auth makes a new account for it, and we delete that one the same way.',
+          'If Supabase Auth cannot be reached when the account closes, we keep a record holding only the account ID and the time until the delete finishes, the next time the app opens that account. Until then, Supabase Auth still holds the account.',
+          "Supabase's own service logs, which the app cannot reach, can hold the address, the IP address, and the browser's description of itself until Supabase removes them.",
         ],
-        planned: [
-          'Before any real student joins, deleting the address from Supabase Auth, including its logs, and refusing that address from then on by keeping only a keyed hash of it.',
-        ],
+        planned: [],
       },
       {
         heading: 'If you are under 18',
@@ -675,6 +715,7 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
           'When a session opens, your browser joins LiveKit Cloud, even before you press Talk, so LiveKit receives your IP address and your student ID, a random code that does not include your name. During the session, LiveKit Cloud carries your voice, the tutor\'s voice, and the messages between your browser and the tutor, including your words as text. We do not ask it to record any of this. We do not send LiveKit your name, your date of birth, your email address, your level, your interests, or your goal, though it carries anything you say or type yourself.',
           "While your microphone is on, Meta's Muse Voice Transcribe receives your voice and turns it into text. Meta's terms let it keep what it receives for safety checks and human review.",
           "Anthropic, whose Claude model writes the tutor's replies, receives what you say and type in a session, including lines on the board, a line you paused on without sending, a picture of anything you write with the pen, and a question you type on Home to start one, the tutor's earlier words, your level, interests, and goal, and your tutor's notes from earlier sessions, without the lines of work behind them. When a session ends, it also receives that session's words and lines of work again, so it can propose notes, with lines a code check has set aside left out. We do not send it your name, your date of birth, your email address, or an account ID, though it receives anything you say or type yourself. Anthropic's terms say it does not train on this by default, and that it keeps it for a limited time.",
+          "A second Claude model at Anthropic reads each thing you say or type, and each tutor reply, to look for a safety concern. It reads words only, never your voice, and the same terms apply to it.",
           "ElevenLabs receives the tutor's words and turns them into its voice. Those words can repeat what you said or typed.",
           ...inTestLessons("While spoken lessons are in testing, a test lesson sends Anthropic's Claude models the title of the suggested lesson, or the whole question you typed, whatever it says, which they use to choose and write a drawing and the tutor's words. A model then writes the drawing from a short topic it takes from your question, and it can get that wrong, so a personal detail in your question can reach those models and the words a tutor says to you. ElevenLabs receives the tutor's words and turns them into its voice, and the audio travels through a LiveKit server. Please leave your name, school, and other personal details out of your questions."),
           'No other outside service receives student data today. The app serves its own fonts and pictures.',
@@ -690,9 +731,12 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
         today: [
           "We have no retention schedule, and nothing deletes data on a timer. A session's log, recap, and your answer stay for as long as your account has that session, unless you delete them. Anyone signed in to your account can open them, and no other student can.",
           "To delete a session's log, recap, and answer, open the session from Sessions and choose Delete this replay. That removes them from our database at once. The session's title, subject, length, and date stay in your list.",
-          'What else we store stays until we remove it by hand, except that a change under Your notes replaces the answer it changes, and a note you remove under Your notes is deleted from our database at once. The app has no button yet to delete your whole account. When we delete an account, its notes go with it.',
+          'What else we store stays until you delete it or we remove it by hand, except that a change under Your notes replaces the answer it changes, and a note you remove under Your notes is deleted from our database at once. When we delete an account, its notes go with it.',
+          "Delete my data, under Your notes, removes your account, your notes, your tutor's notes about you, your sessions with their logs, recaps, and answers, your cost totals, and any flags about you from our database, and your email address, identity record, sessions, and audit log rows from Supabase Auth.",
+          ...inTestLessons('It also removes the drawings, recordings, and cost records a test lesson saved for you on our server.'),
+          "Supabase's own service logs, which the app cannot reach, can hold your address, your IP address, and your browser's description of itself until Supabase removes them.",
         ],
-        planned: ['A way for you to delete the rest of your data from the app.'],
+        planned: [],
       },
       {
         heading: 'What we do not do',
@@ -715,4 +759,55 @@ export const LEGAL_PAGES: Record<'terms' | 'privacy', LegalDocument> = {
       },
     ],
   },
+  credits: {
+    title: 'Credits',
+    intro: `Every picture in ${PRODUCT_NAME} is public domain or our own.`,
+    sections: [
+      {
+        heading: 'Pictures',
+        today: [
+          ...new Set([...PICTURE_CREDITS, ...BOARD_PICTURE_CREDITS].map(({ work }) => work)),
+          `NASA did not make ${PRODUCT_NAME} and does not endorse it.`,
+        ],
+        planned: [],
+      },
+    ],
+  },
+};
+
+export const REVIEW_LABELS = {
+  pageTitle: 'Safety flags',
+  about: 'A flag holds no words. It records that a safety check fired, with the student ID, session, kind, source, and time. A person reads each flag within 24 hours.',
+  empty: 'No flags yet.',
+  failed: 'That did not work. Try again.',
+  kinds: {
+    self_harm: 'Self-harm',
+    abuse: 'Abuse',
+    danger: 'Danger',
+    grooming: 'Grooming',
+    vague: 'Vague words',
+    tutor_slip: 'Tutor slip',
+  },
+  sources: {
+    student: 'The student',
+    tutor: 'The tutor',
+  },
+  from: 'From',
+  student: 'Student ID',
+  session: 'Session ID',
+  noSession: 'Session removed',
+  markReviewed: 'Mark reviewed',
+  reviewedAt: (time: string) => `Reviewed ${time}.`,
+  waitingInTime: (waitedHours: number, leftHours: number) => `Waiting ${waitedHours} h. ${leftHours} h left of the 24 hour promise.`,
+  waitingTooLong: (waitedHours: number, overHours: number) => `Waiting ${waitedHours} h. ${overHours} h past the 24 hour promise.`,
+};
+
+export const DELETE_DATA_LABELS = {
+  title: 'Delete my data',
+  about: 'This removes your account, your notes, your sessions, and your saved lessons.',
+  confirm: 'This cannot be undone. Your account, your notes, your sessions, and your saved lessons all go, and you will be signed out. Close any lesson you have open first.',
+  yes: 'Delete everything',
+  no: 'Keep my data',
+  deleting: 'Deleting.',
+  failed: 'That did not finish. Try again.',
 };

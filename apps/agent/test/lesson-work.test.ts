@@ -144,6 +144,13 @@ describe('what the router and the code check decide for a typed question', () =>
     expect(route).not.toHaveBeenCalled();
   });
 
+  it.each(['help', 'can you help me', 'im scared'])('asks what they need on a bare %s, before any model hears it', async (request) => {
+    const { work, route } = setUp({ request });
+    work.planWithoutScene();
+    expect(await work.plan).toBe('askNeed');
+    expect(route).not.toHaveBeenCalled();
+  });
+
   it("gives the router's safety kind the help line, and not the no-lesson line", async () => {
     const { work } = setRoute({ kind: 'safety' }, 'i want to go to sleep and not wake up');
     work.planWithoutScene();

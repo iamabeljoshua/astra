@@ -147,6 +147,16 @@ describe('when the tutor closes', () => {
     expect(voice.getView().isThinking).toBe(false);
   });
 
+  it('keeps the help on the view once a turn may be about safety, whatever the voice does', async () => {
+    const { room } = await openVoice();
+    expect(voice.getView().showsSafetyHelp).toBe(false);
+
+    fromAgent(room, { type: 'safetyHelp' });
+    fromAgent(room, { type: 'thinking', isThinking: true });
+
+    expect(voice.getView().showsSafetyHelp).toBe(true);
+  });
+
   it('starts with no reason, so an open room does not read as closed', async () => {
     await openVoice();
 

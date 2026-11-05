@@ -1,4 +1,4 @@
-import { isAboutBeingUnsafe, showsDanger } from '../content-check.ts';
+import { isAboutBeingUnsafe, isOnlyAskingForHelp, showsDanger } from '../content-check.ts';
 import { canTryAfterRefusal, canTryNow } from '../make-scene.ts';
 import { DANGEROUS_KIND, SAFETY_KIND } from '../model-replies.ts';
 import { createSceneDesk, type SceneDesk, type SceneState } from '../scene-desk.ts';
@@ -96,6 +96,10 @@ export function createLessonWork({ router, runs, store, request, isCard, student
   };
 
   const getRoute = async (): Promise<SceneRoute> => {
+    if (!isCard && isOnlyAskingForHelp(request)) {
+      settlePlan('askNeed');
+      return { ...NO_ROUTE, kind: SAFETY_KIND };
+    }
     if (!isCard && isAboutBeingUnsafe(request)) {
       settlePlan('unsafe');
       return { ...NO_ROUTE, kind: SAFETY_KIND };

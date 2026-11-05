@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { DataSource } from 'typeorm';
-import { createTestApp, OLD_ENOUGH_BIRTH_DATE } from '../../test/test-database';
+import { createTestApp, OLD_ENOUGH_BIRTH_DATE, signInAs } from '../../test/test-database';
 import type { TestApp } from '../../test/test-database';
 import { ClosedAccountEntity } from '../infrastructure/orm/entities/closed-account.entity';
 import type { SaveStudentProfileBodyDto } from './student-profile.dto';
@@ -30,12 +30,12 @@ describe('StudentsService', () => {
 
   async function createStudent() {
     const authUserId = randomUUID();
-    const { student } = await studentsService.answerBirthDate(authUserId, { birthDate: OLD_ENOUGH_BIRTH_DATE });
+    const { student } = await studentsService.answerBirthDate(signInAs(authUserId), { birthDate: OLD_ENOUGH_BIRTH_DATE });
     return { authUserId, id: student?.id as string };
   }
 
   async function readProfile(authUserId: string) {
-    return (await studentsService.getAccount(authUserId)).student?.profile;
+    return (await studentsService.getAccount(signInAs(authUserId))).student?.profile;
   }
 
   it('saves a profile with its interests and reads the profile back', async () => {
@@ -88,7 +88,7 @@ describe('StudentsService', () => {
   it('stores only the user ID and the time for a closed account, and no student', async () => {
     const authUserId = randomUUID();
 
-    await studentsService.answerBirthDate(authUserId, { birthDate: YOUNG_BIRTH_DATE });
+    await studentsService.answerBirthDate(signInAs(authUserId), { birthDate: YOUNG_BIRTH_DATE });
 
     const dataSource = testApp.app.get(DataSource);
     const [storedRow] = await dataSource.query('SELECT * FROM "closed_accounts" WHERE "auth_user_id" = $1', [authUserId]);
@@ -123,7 +123,7 @@ describe('StudentsService', () => {
     await testApp.app.get(DataSource).getRepository(ClosedAccountEntity).insert({ authUserId });
 
     expect(await studentsService.findStudentId(authUserId)).toBeNull();
-    expect(await studentsService.getAccount(authUserId)).toEqual({ status: 'closed', student: null });
+    expect(await studentsService.getAccount(signInAs(authUserId))).toEqual({ status: 'closed', student: null });
   });
 
   it('finds no student for an unknown user, and the student for a known one', async () => {

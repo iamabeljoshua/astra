@@ -54,6 +54,7 @@ export interface LiveVoiceView {
   isTutorSpeaking: boolean;
   /** Why the tutor will not speak again in this room, or null while it can. */
   closedBecause: TutorClosedReason | null;
+  showsSafetyHelp: boolean;
   firstWord: string | null;
   isStopped: boolean;
   typingNoteCount: number;
@@ -174,7 +175,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   const listeners = new Set<() => void>();
   const outbox: BrowserMessage[] = [];
   let typingNotedAtMs = -Infinity;
-  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isRoomNoisy: false, isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false };
+  let view: LiveVoiceView = { phase: 'connecting', mic: 'off', isRoomNoisy: false, showsSafetyHelp: false, isSoundBlocked: audioContext.state !== 'running', isQuietWarning: false, isThinking: false, isHeard: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false };
   let lastAgentPulseEpochMs: number | null = null;
   let isClosed = false;
   let hasHeardFirstOnset = false;
@@ -271,6 +272,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     clearTimeout(tutorWait);
     if (view.phase === 'connecting') setView({ phase: 'live' });
     if (message.type === 'tutorClosed') return closeTutor(message.reason);
+    if (message.type === 'safetyHelp') return setView({ showsSafetyHelp: true });
     if (message.type === 'workRead') return onWorkRead(message.work);
     if (message.type === 'pulse') {
       lastAgentPulseEpochMs = getEpochMs();

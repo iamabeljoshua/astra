@@ -50,6 +50,11 @@ function usedOnlyAcceptedMethods(amr: unknown, acceptedMethods: ReadonlySet<stri
   );
 }
 
+export interface SignedInUser {
+  authUserId: string;
+  email: string | null;
+}
+
 export class TokenVerifier {
   private readonly keys: JWTVerifyGetKey;
   private readonly issuer: string;
@@ -62,7 +67,7 @@ export class TokenVerifier {
     this.issuer = `${supabaseUrl}${ISSUER_PATH}`;
   }
 
-  async getAuthUserId(token: string): Promise<string> {
+  async getSignedInUser(token: string): Promise<SignedInUser> {
     const { payload } = await jwtVerify(token, this.keys, {
       algorithms: ACCEPTED_ALGORITHMS,
       issuer: this.issuer,
@@ -75,6 +80,6 @@ export class TokenVerifier {
     if (!usedOnlyAcceptedMethods(payload.amr, this.acceptedSignInMethods)) {
       throw new errors.JWTClaimValidationFailed('The token came from a sign-in method that is not accepted.', payload, 'amr');
     }
-    return payload.sub as string;
+    return { authUserId: payload.sub as string, email: typeof payload.email === 'string' && payload.email ? payload.email : null };
   }
 }

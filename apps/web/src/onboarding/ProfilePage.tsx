@@ -3,6 +3,7 @@ import { useAccount, useSaveProfile } from '../auth/useAccount';
 import { RecordSection } from '../record/RecordSection';
 import { API_ERROR_LABELS, PROFILE_LABELS, STUDENT_GOAL_LABELS, STUDENT_LEVEL_LABELS, TUTOR_NOTES_LABELS } from '../strings';
 import { type Answers, getInitialAnswers, type StudentGoal, type StudentLevel, STUDENT_GOALS, STUDENT_LEVELS, toProfileBody } from './answers';
+import { DeleteMyData } from './DeleteMyData';
 import { isStorableName, MAX_NAME_LENGTH } from './fieldLimits';
 import { InterestsField } from './InterestsField';
 import { OptionRows } from './OptionRows';
@@ -15,6 +16,7 @@ export function ProfilePage() {
     <div className="flex flex-col gap-5.5">
       <ProfileForm student={account.student} />
       <RecordSection />
+      <DeleteMyData />
     </div>
   );
 }

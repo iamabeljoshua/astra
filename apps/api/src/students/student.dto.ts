@@ -45,3 +45,7 @@ export class NoteTalkInvitationBodyDto {
   heard!: true;
 }
 
+export class DeletedAccountResponseDto {
+  /** Always true. Anything less answers with an error, and pressing delete again finishes the job. */
+  deleted!: true;
+}
