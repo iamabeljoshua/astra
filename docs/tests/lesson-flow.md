@@ -141,6 +141,8 @@ node apps/agent/src/lesson-plan/eval/whole-lesson-page.ts --web <your stack> --o
 - The real voice. A real voice would change how long a reply takes, and the cue to scene wait with it.
 - How often a real student reaches a written scene in time. The driver's pace is a guess, so the share ready in time is not a measure.
 - A full lesson of many concepts on a real page. "A lesson that runs on" below measured one in Node with the fake voice.
+- That a lesson reaches 20 minutes by itself. The longest measured taught for 17.9 minutes on 14 ideas, and 16 ideas is an estimate.
+- First text against main, in alternating pairs, on this prompt. Inside one lesson it was no slower late than early.
 - Near-limit and pressure rules on a real page. Tests hold them, and the proof raised one on purpose.
 
 Known and not fixed here. A scene's first frame is empty on most takes, because a take starts from nothing at second 0, so the box stays blank through the setup line, about 2 to 3 s, while the tutor says "Watch". That is the seam M3.14 built, and it needs its own change. A tutor told `picture_topic` does not always ask for it, so a scene can sit ready until a student asks what is next or code sees an exercise end. A due scene lost to a task the tutor set in the same reply is dropped, by the window.
