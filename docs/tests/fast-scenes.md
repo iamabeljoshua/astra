@@ -56,7 +56,7 @@ The press to the ask costs more than everything after it, about 8 to 11 s from H
 
 ## The chain with everything on
 
-A student's own ask tries, in order: a saved scene, parts, fresh drawing once `feat/draw-on-the-fly` lands, live 3D, then words and the board. `createRecipeWork` holds the order. It reaches live 3D only on a typed question the router read as a solid thing, after no saved scene matched and no part fit, and with `ASTRA_KIT_LIVE=1`. The queue and a card never reach it. A live scene runs its frame check and page in PR 127's worker, and a review that passes sets `reviewed` on its record, which the take route asks for.
+A student's own ask tries, in order: a saved scene, parts, a fresh drawing, live 3D, then words and the board. `createRecipeWork` holds the order. It reaches live 3D only on a typed question the router read as a solid thing, after no saved scene matched, no part fit, and no fresh drawing came, and with `ASTRA_KIT_LIVE=1`. The queue and a card never reach it. A live scene runs its frame check and page in PR 127's worker, and a review that passes sets `reviewed` on its record, which the take route asks for.
 
 ## The starter library
 
