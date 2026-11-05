@@ -105,10 +105,10 @@ export const TUTOR_TIMEOUTS = {
   helpDueMs: 3000,
   /** Longer than one retried read, which runs 3 s, a short backoff, and 3 s more. */
   safetyReadWaitMs: 7000,
-  /** Past this from the line, the end of a reply stops waiting for a read of it, so a failed read can still be said on that turn. */
   lineReadWaitMs: 2500,
-  /** Longer than one retried read, so a read gone this long has failed. */
   readLimitMs: 8000,
+  /** A danger read can take a second read after it, each with its retry, and a late one must still stop the lesson. */
+  safetyReadLimitMs: 16_000,
 };
 
 export type TutorTimeouts = typeof TUTOR_TIMEOUTS;
@@ -236,7 +236,6 @@ interface TurnWork {
   lineRead: Promise<void>;
   replyRead: PromiseRead | null;
   hasPlainWish: boolean;
-  /** A nod or a sound during a stop, which nothing should answer. */
   isNothingToAnswer: boolean;
   hasStoppedForSafety: boolean;
   isFinished: boolean;
@@ -503,12 +502,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     tellReadSettled();
   };
 
-  // Nothing read means nobody knows what this line asked, so the lesson waits for them rather than racing on.
   const wasLineUnread = (turn: TurnWork) => !turn.hasPlainWish && ((readers !== undefined && turn.speaker === 'student' && turn.lineWish === 'unread') || (safety !== undefined && !didNobodySpeak(turn) && turn.safetyReading === 'unread'));
 
-  const withinReadLimit = <T>(read: Promise<T>, unread: T): Promise<T> =>
+  const withinReadLimit = <T>(read: Promise<T>, unread: T, limitMs = timeouts.readLimitMs): Promise<T> =>
     new Promise((resolve) => {
-      const giveUp = setTimeout(() => resolve(unread), timeouts.readLimitMs);
+      const giveUp = setTimeout(() => resolve(unread), limitMs);
       const land = (value: T) => {
         clearTimeout(giveUp);
         resolve(value);
@@ -786,7 +784,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       draftToRead = null;
       turn.safetyReading = 'pending';
       turn.safetyAnswered = new Promise((resolve) => {
-        turn.safetyRead = withinReadLimit<StudentReading>(safety.readStudent(wordsForSafetyCheck, lastSpokenText), 'unread').then((reading) => {
+        turn.safetyRead = withinReadLimit<StudentReading>(safety.readStudent(wordsForSafetyCheck, lastSpokenText), 'unread', timeouts.safetyReadLimitMs).then((reading) => {
           turn.safetyReading = reading;
           resolve(SAFETY_ANSWERED);
           if (isAboutSafety(reading)) {
@@ -1294,7 +1292,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       });
   };
 
-  // With an exercise open, "take your time" is about the exercise, whose own wait goes on. A reply that asks after them, or cannot read them, needs their answer whatever is open.
+  // An open exercise has its own wait, but a reply that asks after them needs their answer whatever is open.
   const readTheReply = (turn: TurnWork, words: string) => {
     if (!readers) return Promise.resolve();
     linesBeingRead += 1;
@@ -1306,7 +1304,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     });
   };
 
-  // Comes after the reply's words, so they never wait for the read. A line it cannot read may be a child in danger, in words nobody here knows.
+  // Comes after the reply's words, so they never wait for this read.
   async function* nameHelpIfItAsks(turn: TurnWork): AsyncGenerator<Beat> {
     const words = getWordsSaid(turn);
     if (turn.isLead || words === '') return;
@@ -1348,7 +1346,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     attempts.endTurn({ askedAQuestion: turn.beats.at(-1)?.expectsReply ?? false, wasCut: turn.endedAs === 'aborted' });
     lastBeats = turn.beats;
     const spoken = getWordsSaid(turn);
-    // A nod during a stop says nothing, and the next line still answers what the tutor last said.
     if (spoken !== '') lastSpokenText = spoken;
     hasHadAReply = true;
     turn.isFinished = true;

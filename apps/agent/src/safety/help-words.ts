@@ -3,7 +3,7 @@ const NAMES_HELP = /\b(?:adults?|grown-?ups?|emergency|parent|teacher|counsell?o
 /** How a reply about real danger opens and closes, unlike a first aid lesson that mentions an emergency number or an everyday "tell an adult". */
 const SOUNDS_LIKE_CRISIS_REPLY = /\bthat sounds[^.?!]*serious\b|\bright thing telling me\b|\bare you safe\b/i;
 
-const CANNOT_READ_IT = /(?:^|[.!?]\s*|\bi\s+)(?:can'?t|cannot|couldn'?t)\s+(?:quite\s+)?(?:read|make (?:\S+\s+){0,4}out|understand)\b|\bisn'?t something i can read\b|\bdidn'?t catch\b|\bgarbled\b|\bnot sure (?:i (?:read|caught)|what you mean)\b/i;
+const CANNOT_READ_IT = /(?:^|[.!?]\s*|\bi\s+)(?:can'?t|cannot|couldn'?t)\s+(?:quite\s+)?(?:read|make (?:\S+\s+){0,4}out|understand)\b|\bisn'?t something i can read\b|\bdidn'?t (?:catch|come through)\b|\bgarbled\b|\bnot sure (?:i (?:read|caught)|what you mean)\b/i;
 
 const ASKS_TO_MAKE_A_WEAPON = /\b(?:make|build|print|mix|cook|synthes\w+)\b.*\b(?:bombs?|explosives?|guns?|thermite|napalm|meth|poisons?|nerve agents?|chlorine gas)\b/i;
 

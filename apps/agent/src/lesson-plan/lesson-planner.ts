@@ -60,7 +60,6 @@ const WANTS_AN_EXERCISE = /\b(?:let\s+me|can\s+i|i(?:'ll|\s+will|\s+want\s+to)|i
 export const asksToBeTaught = (words: string) => getPlainWish(words) === 'go_on' || ASKS_TO_BE_TAUGHT.test(words);
 
 const FEWEST_STEPS_ON_A_CARD = 3;
-/** About 12 ideas fill 20 minutes, and past that the plan ran out of real ones: at 16, the last third was padding and false physics. */
 const MOST_STEPS_BY_ITSELF = 12;
 const MORE_STEPS_WHEN_ASKED = 4;
 const MOST_CHARACTERS_OF_WHAT_WAS_SAID = 6000;

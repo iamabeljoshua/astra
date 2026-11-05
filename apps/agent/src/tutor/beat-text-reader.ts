@@ -103,7 +103,6 @@ function getWithTransformOfWordsAsNewLine(command: SceneCommand, board: BoardKin
   return { kind: 'writeMath', id: target, tex, ...(overWords === undefined ? {} : { overWords }), ...(claim === undefined ? {} : { claim: claim === 'step' ? 'new' : claim }) };
 }
 
-/** "twenty.{command}Roughly" would reach the voice and the captions as one word. */
 const withWordsApart = (script: Beat['script']): Beat['script'] => {
   let wordsBefore = '';
   return script.map((part) => {
