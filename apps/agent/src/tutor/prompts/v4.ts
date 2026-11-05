@@ -44,14 +44,14 @@ const PART_SWAPS: readonly (readonly [string, string])[] = [
   ['exercise_due means now is the time: set then_exercise in this reply, with its task command.', 'worked_example_due means this idea has something to work through and they have not seen one worked: work one yourself on the board now, step by step, saying why each step works, with no task and no question in the reply. If a showed note covers this idea, skip the example and set one a notch harder. If a struggled note bears on it, go slower, with smaller steps. exercise_due means now is the time: set then_exercise in this reply, with its task command, on a new case and never the example you just worked.'],
 ];
 
-function swapWholeLine(prompt: string, [start, line]: readonly [string, string]): string {
+export function swapWholeLine(prompt: string, [start, line]: readonly [string, string]): string {
   const at = prompt.startsWith(start) ? 0 : prompt.indexOf(`\n${start}`) + 1;
   if (at === 0 && !prompt.startsWith(start)) throw new Error(`The older prompt has no line starting "${start}"`);
   const end = prompt.indexOf('\n', at);
   return `${prompt.slice(0, at)}${line}${prompt.slice(end)}`;
 }
 
-function swapPart(prompt: string, [part, words]: readonly [string, string]): string {
+export function swapPart(prompt: string, [part, words]: readonly [string, string]): string {
   if (!prompt.includes(part)) throw new Error(`The older prompt does not say "${part}"`);
   return prompt.replace(part, words);
 }

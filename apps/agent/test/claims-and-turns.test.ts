@@ -274,9 +274,9 @@ describe('a turn that talks like a person', () => {
   });
 
   it('caps a reply at its next sentence end, and throws away the rest', async () => {
-    const { brain } = setup(() => reply(`${sentence(50, 'a')} ${sentence(50, 'b')} ${sentence(30, 'c')}`));
+    const { brain } = setup(() => reply(`${sentence(25, 'a')} ${sentence(25, 'b')} ${sentence(30, 'c')}`));
     const said = say(await collect(brain, 'tell me'));
-    expect(countWords(said)).toBe(100);
+    expect(countWords(said)).toBe(50);
     expect(said).toMatch(/end\.$/);
     expect(said).not.toContain('c0');
   });
@@ -304,8 +304,8 @@ describe('a turn that talks like a person', () => {
     expect(SPOKEN_LINES.couldNotReply as readonly string[]).toContain(said);
   });
 
-  it('teaches one flowing stretch, a short answer to a student, and not to ask a question every time', () => {
-    expect(TUTOR_SYSTEM).toMatch(/one flowing stretch of about 40 to 70 words/);
+  it('teaches in about 30 words, a short answer to a student, and not to ask a question every time', () => {
+    expect(TUTOR_SYSTEM).toMatch(/two or three short sentences, about 30 words/);
     expect(TUTOR_SYSTEM).toMatch(/in as few words as it takes/);
     expect(TUTOR_SYSTEM).toMatch(/line break/);
     expect(TUTOR_SYSTEM).not.toMatch(/usually under 25 words/);

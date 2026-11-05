@@ -58,7 +58,7 @@ function alignWords(words: string[], startMs: number): Alignment {
   return alignment;
 }
 
-function speakContext({ socket, context, text, leadingSilenceMs, sampleRate, onSentAfterClose }: { socket: WebSocket; context: ContextState; text: string; leadingSilenceMs: number; sampleRate: number; onSentAfterClose: () => void }): void {
+function speakContext({ socket, context, text, leadingSilenceMs, sampleRate, isDialogue, onSentAfterClose }: { socket: WebSocket; context: ContextState; text: string; leadingSilenceMs: number; sampleRate: number; isDialogue: boolean; onSentAfterClose: () => void }): void {
   const words = text.split(/\s+/).filter(Boolean);
   for (let offset = 0; offset < words.length; offset += WORDS_PER_MESSAGE) {
     const piece = words.slice(offset, offset + WORDS_PER_MESSAGE);
@@ -70,7 +70,9 @@ function speakContext({ socket, context, text, leadingSilenceMs, sampleRate, onS
       const startMs = context.cursorMs;
       context.isStarted = true;
       context.cursorMs += lead + piece.length * WORD_MS;
-      socket.send(JSON.stringify({ contextId: context.id, audio: audio.toString('base64'), alignment: alignWords(piece, startMs), normalizedAlignment: alignWords(piece, startMs) }));
+      // eleven_v4_turbo on this socket restarts its times with each message, as a real run on 5 November showed.
+      const fromZero = alignWords(piece, 0);
+      socket.send(JSON.stringify(isDialogue ? { context_id: context.id, audio: audio.toString('base64'), alignment: { chars: fromZero.chars, char_start_times_ms: fromZero.charStartTimesMs, char_durations_ms: fromZero.charDurationsMs } } : { contextId: context.id, audio: audio.toString('base64'), alignment: alignWords(piece, startMs), normalizedAlignment: alignWords(piece, startMs) }));
       if (context.isClosed) onSentAfterClose();
     });
   }
@@ -89,17 +91,19 @@ export async function startFakeElevenLabsWire({ leadingSilenceMs = 0 }: FakeWire
     outputFormats.push(outputFormat);
     const sampleRate = Number(outputFormat.split('_')[1]);
     const contexts = new Map<string, ContextState>();
+    const isDialogue = (request.url ?? '').includes('/text-to-dialogue/');
     socket.on('message', (raw) => {
-      const packet = JSON.parse(String(raw)) as { context_id: string; text?: string; close_context?: boolean };
+      const packet = JSON.parse(String(raw)) as { context_id: string; text?: string; inputs?: readonly { text: string }[]; close_context?: boolean };
+      const text = packet.inputs?.[0]?.text ?? packet.text;
       const context = contexts.get(packet.context_id) ?? { id: packet.context_id, cursorMs: 0, isStarted: false, isClosed: false, queue: Promise.resolve() };
       contexts.set(packet.context_id, context);
       if (packet.close_context) {
         context.isClosed = true;
         context.queue = context.queue.then(() => {
-          if (socket.readyState === socket.OPEN) socket.send(JSON.stringify({ contextId: context.id, isFinal: true }));
+          if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(isDialogue ? { context_id: context.id, is_final: true } : { contextId: context.id, isFinal: true }));
         });
-      } else if (packet.text?.trim()) {
-        speakContext({ socket, context, text: packet.text, leadingSilenceMs, sampleRate, onSentAfterClose: () => (messagesAfterClose += 1) });
+      } else if (text?.trim()) {
+        speakContext({ socket, context, text, leadingSilenceMs, sampleRate, isDialogue, onSentAfterClose: () => (messagesAfterClose += 1) });
       }
     });
   });

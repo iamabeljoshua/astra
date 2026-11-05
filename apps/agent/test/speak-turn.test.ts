@@ -308,6 +308,33 @@ describe('speakTurn', () => {
     expect(run.getFramesAfterStop()).toBe(0);
   });
 
+  it('gives the voice its tag, and leaves the tag out of the word times, so a cue stays on its word', async () => {
+    const chunkOf = (text: string, startTime: number) => ({ requestId: 'r', segmentId: 's', final: false, frame: new RealAudioFrame(Int16Array.from({ length: 240 }, () => 12000), FAKE_SAMPLE_RATE, 1, 240), timedTranscripts: [agentsVoice.createTimedString({ text, startTime, endTime: startTime + 0.2 })] });
+    const pushed: string[] = [];
+    const stream = {
+      pushText: (text: string) => pushed.push(text),
+      flush: () => {},
+      endInput: () => {},
+      close: () => {},
+      async *[Symbol.asyncIterator]() {
+        for (const chunk of [chunkOf('[laughs] ', 0), chunkOf('Look ', 0.5), chunkOf('at ', 0.7)]) {
+          await delay(5);
+          yield chunk;
+        }
+        yield tts.SynthesizeStream.END_OF_STREAM;
+      },
+    };
+    const sent: AgentMessage[] = [];
+    const line = createVoiceLine({ sampleRate: FAKE_SAMPLE_RATE, captureFrame: async () => {}, clearQueue: () => {}, waitForPlayout: async () => {} });
+    const beat: Beat = { id: 'b1' as Beat['id'], script: ['Look at this.'], expectsReply: false, voiceTags: [{ beforeWord: 0, tag: '[laughs]' }] };
+    const spoken = speakTurn({ voice: { stream: () => stream } as unknown as tts.TTS, line, turnId: TURN, beats: [beat], messenger: { send: (message) => sent.push(message), sendOnBothChannels: (message) => sent.push(message) } });
+    await spoken.finished;
+    expect(pushed.join('')).toMatch(/^\[laughs\] Look at this\./);
+    const heard = sent.flatMap((message) => (message.type === 'words' ? message.words.map(({ text }) => text) : []));
+    expect(heard.slice(0, 2)).toEqual(['Look', 'at']);
+    expect(JSON.stringify(sent)).not.toContain('laughs');
+  });
+
   it('sends no words after a stop, from a voice that keeps sending after it is closed, as the real one does', async () => {
     const chunkOf = (text: string, startTime: number) => ({ requestId: 'r', segmentId: 's', final: false, frame: new RealAudioFrame(Int16Array.from({ length: 240 }, () => 12000), FAKE_SAMPLE_RATE, 1, 240), timedTranscripts: [agentsVoice.createTimedString({ text: `${text} `, startTime })] });
     const chunks = [chunkOf('Look', 0), chunkOf('at', 0.2), chunkOf('this.', 0.4)];

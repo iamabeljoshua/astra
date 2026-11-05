@@ -67,7 +67,7 @@ export const SLOW_NOTE = { pace: 'They asked you to slow down. One short sentenc
 
 const OPENS_ON_LET_ME_START_OVER = /(^\s*|[.!?]\s+)actually,?\s+let me\b[^.!?{]*[.!?]\s*(\S?)/giu;
 
-const OPENS_ON_HERES = /(^\s*|[.!?]\s+)(?:(?:now|so|okay|ok|and|but),?\s+)?here(?:'|’)?s\b[^.!?:,{]*[.!?:,]\s*(\S?)/giu;
+const OPENS_ON_HERES = /(^\s*|[.!?]\s+)(?:(?:now|so|okay|ok|and|but),?\s+)?here(?:(?:'|’)?s| is)\b[^.!?:,{]*[.!?:,]\s*(\S?)/giu;
 
 const toNextWord = (_whole: string, before: string, next: string) => `${before}${next.toUpperCase()}`;
 
