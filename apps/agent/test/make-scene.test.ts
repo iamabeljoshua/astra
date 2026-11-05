@@ -313,7 +313,7 @@ describe('a kit scene the review refuses', () => {
   it('saves a passing scene as a kit scene with no take, marked unchecked by a person', async () => {
     const maker = kitMaker(passing, []);
     const made = await makeScene(maker, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
-    expect(made).toMatchObject({ isOk: true, scene: { engine: 'kit', engineVersion: '0.1.0', ownerId: 'ada', parts: ['ball'], isCheckedByPerson: false } });
+    expect(made).toMatchObject({ isOk: true, scene: { engine: 'kit', engineVersion: '0.1.0', ownerId: 'ada', parts: ['ball'], reviewed: true, isCheckedByPerson: false } });
   });
 
   it('keeps the word check whatever a maker adds to the code check', async () => {
