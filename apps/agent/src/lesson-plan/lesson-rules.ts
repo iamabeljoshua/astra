@@ -43,6 +43,8 @@ export const promisesToWait = (text: string) => PROMISES_TO_WAIT.test(text);
 /** Said beside their words, so a stop gets a word or two and nothing to do. */
 export const HOLD_NOTE = { hold_on: 'They asked you to stop or wait. Say so in two or three words, then stop. Ask nothing, set nothing, and teach nothing in this reply. You stay quiet until they do something.' };
 
+export const STAY_NOTE = { hold_on: 'They asked you not to move on, because they are lost. Say this idea again in a line or two, simpler, with one everyday picture and no new term. Set nothing, and then you stay quiet until they do something.' };
+
 export const SLOW_NOTE = { pace: 'They asked you to slow down. One short sentence, plain words, and one small step at a time.' };
 
 const OPENING_TIC = /^\s*(?:(?:fair enough|all good|no problem|no worries|that'?s (?:ok(?:ay)?|fine|all right))[,.!]|(?:and\s+)?next(?:\s+up)?\s*[,:.]|time (?:for|to) (?:a |an |another |one |try |the next )*(?:short|quick|try|one|problem|exercise|practice)\b[^,.:?!]*[,.:]|(?:(?:fine|ok(?:ay)?|alright|all right|right|sure)[,.]\s+)?(?:let'?s\s+)?skip(?:ping)?\s+(?:it|that|this)(?:\s+one)?[.!,]?)\s*/i;

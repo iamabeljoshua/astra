@@ -23,8 +23,8 @@ export interface LessonPlanner {
   tellTitleAgain(): void;
   getStepNote(): StepNote | null;
   moveToNextStep(): void;
-  /** The planner read a wish to stop or wait, in any language, a moment after the reply began. True once. */
-  takeAskedToHold(): boolean;
+  /** The planner read a wish to stop or wait, in any language, a moment after the reply began. */
+  onAskedToHold(listener: () => void): void;
   /** What this lesson has said so far, when it has changed since the last time this was asked. */
   takeNewFacts(): readonly string[] | null;
   /** Settles when no plan is on its way, for an evaluation that reads the next step straight after. */
@@ -120,7 +120,7 @@ export function createLessonPlanner({ ask, askMore, askFacts, canSpend, charge, 
 
   let toldTitle: string | null = null;
   let card: LessonPlan | null = null;
-  let wasAskedToHold = false;
+  let onHold = () => {};
   let factsSaid: readonly string[] = [];
   let hasNewFacts = false;
   let wordsSinceFacts = '';
@@ -155,8 +155,8 @@ export function createLessonPlanner({ ask, askMore, askFacts, canSpend, charge, 
       charge(costUsd);
       trace('planAnswered', { move: move?.move ?? null, ms: Math.round(getNowMs() - startedAtMs), costUsd });
       if (move) adopt(move, heard);
-      if (wants === 'hold' || readStudentWish(said) === 'hold') wasAskedToHold ||= wants === 'hold';
-      else if (wants && !getMoveEvent(said) && !getWordsEvent(said)) noteEvent(WANTS_EVENTS[wants]);
+      if (wants === 'hold') onHold();
+      else if (wants && readStudentWish(said) !== 'hold' && !getMoveEvent(said) && !getWordsEvent(said)) noteEvent(WANTS_EVENTS[wants]);
     } catch (error) {
       trace('planFailed', { problem: String(error), ms: Math.round(getNowMs() - startedAtMs) });
     }
@@ -249,10 +249,8 @@ export function createLessonPlanner({ ask, askMore, askFacts, canSpend, charge, 
       return note && picture && 'step' in note ? { ...note, picture_topic: picture } : note;
     },
     moveToNextStep: () => noteEvent('movedOn'),
-    takeAskedToHold() {
-      const was = wasAskedToHold;
-      wasAskedToHold = false;
-      return was;
+    onAskedToHold(listener) {
+      onHold = listener;
     },
     takeNewFacts() {
       if (!hasNewFacts) return null;

@@ -25,6 +25,10 @@ function asksToHold(words: string): boolean {
   return SAYS_NOT_TO_GO_ON.test(words) || ASKS_TO_HOLD_ANYWHERE.test(words) || (OPENS_ON_HOLD.test(words) && !ASKS_A_QUESTION.test(words));
 }
 
+const SAYS_THEY_ARE_LOST = /\b(?:don'?t|do not|didn'?t) (?:get|understand|follow)\b|\b(?:lost|confused)\b/i;
+
+export const saysTheyAreLost = (words: string) => SAYS_THEY_ARE_LOST.test(words);
+
 export function readStudentWish(words: string): StudentWish {
   if (isCodesWords(words)) return 'none';
   if (asksToHold(words)) return 'hold';

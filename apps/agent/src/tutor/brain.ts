@@ -3,8 +3,8 @@ import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoar
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { toCardPlan, type CardMaterial } from '../lesson-plan/card-lesson.ts';
 import { asksToBeTaught, getProblemNote, getTeachFirstNote, IS_ONLY_A_NOD, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
-import { getLessonWordsProblem, HOLD_NOTE, LEAD_NOTES, OPENING_A_CARD_NOTE, promisesToWait, SLOW_NOTE, withoutNextSignpost, withoutOpeningTic, withoutReplyToNobody } from '../lesson-plan/lesson-rules.ts';
-import { readStudentWish } from '../lesson-plan/student-wish.ts';
+import { getLessonWordsProblem, HOLD_NOTE, LEAD_NOTES, OPENING_A_CARD_NOTE, promisesToWait, SLOW_NOTE, STAY_NOTE, withoutNextSignpost, withoutOpeningTic, withoutReplyToNobody } from '../lesson-plan/lesson-rules.ts';
+import { readStudentWish, saysTheyAreLost } from '../lesson-plan/student-wish.ts';
 import { getLeadStopAfter, type LeadKind, type LeadStop, type LeadStopEvent } from '../live/tutor-lead.ts';
 import { asksToMakeAWeapon, namesHelp, readsAsEnglish, saysItCannotRead, saysNobodyCanBeTold, soundsLikeCrisisReply } from '../safety/help-words.ts';
 import { isSafetyKind, type StudentReading } from '../safety/student-reading.ts';
@@ -383,6 +383,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   let isPaceSlowNow = false;
   let draftToRead: string | null = null;
   const leadStoppedListeners: (() => void)[] = [];
+  lessonPlanner?.onAskedToHold(() => {
+    noteLeadStopEvent('askedToStop');
+    leadStoppedListeners.forEach((listener) => listener());
+  });
   let workedForLead: { problem: string; comes_to: string } | null = null;
   let wasLastExerciseWords = false;
   let isOnACard = Boolean(profile?.cardTitle);
@@ -454,11 +458,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     leadStop = getLeadStopAfter(leadStop, event);
   };
 
-  const getLeadStop = () => {
-    if (lessonPlanner?.takeAskedToHold()) noteLeadStopEvent('askedToStop');
-    return leadStop;
-  };
-
   const readStudentLine = (words: string): LeadStopEvent | null => {
     if (MAY_BE_ABOUT_SAFETY.test(words)) return 'crisis';
     if (readStudentWish(words) === 'hold') return 'askedToStop';
@@ -518,7 +517,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const startTurn = (studentText: string, lead: LeadKind | null, signal: AbortSignal): TurnWork => {
     const speaker: Speaker = lead ? 'lead' : CODES_OWN_WORDS.test(studentText) ? 'code' : 'student';
     const wish = speaker === 'student' ? readStudentWish(studentText) : 'none';
-    const isAskedToHold = wish === 'hold';
+    const isAskedToHold = wish === 'hold' && !MAY_BE_ABOUT_SAFETY.test(studentText);
     if (wish === 'slower') isPaceSlowNow = true;
     if (wish === 'faster') isPaceSlowNow = false;
     const leadStopEvent = speaker === 'student' ? readStudentLine(studentText) : null;
@@ -546,7 +545,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const leadNote = lead ? { lead: LEAD_NOTES[lead === 'next' && isExerciseReply ? 'exercise' : lead], ...(worked ? { code_worked_it: worked } : {}) } : null;
     const facts = lessonPlanner?.takeNewFacts() ?? null;
     if (facts) pendingNotes.push({ said_so_far: facts });
-    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote, isAskedToHold ? HOLD_NOTE : null, leadNote, lead && isPaceSlowNow ? SLOW_NOTE : null, isOnACard && turnCount === 1 ? OPENING_A_CARD_NOTE : null].filter((note) => note !== null);
+    const turnNotes = [attempts.startTurn(studentText), prompt.turnNote, levelLine ? { level: levelLine } : null, shapeNote, openingNote, isAskedToHold ? (saysTheyAreLost(studentText) ? STAY_NOTE : HOLD_NOTE) : null, leadNote, lead && isPaceSlowNow ? SLOW_NOTE : null, isOnACard && turnCount === 1 ? OPENING_A_CARD_NOTE : null].filter((note) => note !== null);
     const memoryAtStart = memory;
     const wordsRead = speaker === 'code' ? (draftToRead ?? studentText) : studentText;
     const turn: TurnWork = {
@@ -1366,8 +1365,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       draftToRead = note.unsent_draft ?? null;
       pendingNotes.push({ watcher: note });
     },
-    canLead: () => hasHadAReply && getLeadStop() === 'none' && closedReason === null && !isLessonOver(),
-    isHeld: () => getLeadStop() === 'asked' || leadStop === 'crisis',
+    canLead: () => hasHadAReply && leadStop === 'none' && closedReason === null && !isLessonOver(),
+    isHeld: () => leadStop === 'asked' || leadStop === 'crisis',
     isPaceSlow: () => isPaceSlowNow,
     noteAskedToHold: () => noteLeadStopEvent('askedToStop'),
     onLeadStopped: (listener) => void leadStoppedListeners.push(listener),

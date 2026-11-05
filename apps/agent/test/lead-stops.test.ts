@@ -237,6 +237,34 @@ describe('their words stop it', () => {
     expect(decideWatch({ secondsPaused: 30, isTutorTalking: false, secondsSinceQuestion: null, secondsSinceSpokeUp: null, draft: null, unanswered: null, hasOpenTask: true, hasLeanedInOnThisSilence: false, isAskedToStop: true })).toMatchObject({ act: 'stay' });
   });
 
+  it('stops a running lead when the planner reads a wish to wait in another language', async () => {
+    let landPlan: (answer: { move: { move: 'stay' }; wants: 'hold'; costUsd: number }) => void = () => {};
+    const planner = createLessonPlanner({ ask: () => new Promise((resolve) => (landPlan = resolve)) as never, canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
+    planner.noteCardLesson(LESSON);
+    const { asked, type, leadsAsked, brain } = startLesson({ latencyMs: 60, brain: { lessonPlanner: planner } });
+    type('teach me rockets');
+    await vi.waitFor(() => expect(leadsAsked()).toBeGreaterThan(0), { timeout: 1000 });
+    type('para por favor');
+    await vi.waitFor(() => expect(asked.some(({ words }) => words === 'para por favor')).toBe(true), { timeout: 1000 });
+    await delay(150);
+    landPlan({ move: { move: 'stay' }, wants: 'hold', costUsd: 0 });
+    await vi.waitFor(() => expect(brain.canLead()).toBe(false), { timeout: 300 });
+    await delay(100);
+    const heldAt = leadsAsked();
+    await delay(300);
+    expect(leadsAsked()).toBe(heldAt);
+  });
+
+  it('asks for the idea again when they are lost, and tells them to wait with no words of danger', async () => {
+    const { model, asked } = makeModel(() => 'Think of it this way.');
+    const brain = createTutorBrain({ model, timeouts: QUICK });
+    await say(brain, 'dont move on yet i dont get it');
+    expect(asked[0]?.notes.join(' ')).toContain('again');
+    expect(brain.canLead()).toBe(false);
+    await say(brain, 'i cant go on');
+    expect(asked[1]?.notes.join(' ')).not.toContain('hold_on');
+  });
+
   it('keeps a promise to wait that it made in its own words', async () => {
     const { brain, type } = startLesson({ answer: () => 'Sure, take your time.' });
     type('brb gimme a bit');
