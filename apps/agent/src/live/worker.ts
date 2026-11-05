@@ -6,7 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { AudioSource, DisconnectReason, LocalAudioTrack, type RemoteParticipant, RoomEvent, TrackPublishOptions, TrackSource } from '@livekit/rtc-node';
 import { type AgentMessage, parseBrowserMessage, parseSceneBrowserMessage, PULSE_EVERY_MS, SCENE_TOPIC, type SceneAgentMessage } from '@astra/contracts';
 import { readKey } from '../keys.ts';
-import { renderTone } from '../providers/fakes.ts';
+import { renderNothing, renderTone } from '../providers/fakes.ts';
 import { makeTutorTranscriber, makeTutorVoice } from '../providers/choose.ts';
 import { makeRenderedVoice, RENDERED_SAMPLE_RATE } from '../providers/rendered-voice.ts';
 import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
@@ -53,6 +53,7 @@ function makeTraceFile(roomName: string) {
 
 function makeVoice() {
   if (process.env.ASTRA_VOICE === 'fake') return makeRenderedVoice({ name: 'fake', render: renderTone }).makeTts();
+  if (process.env.ASTRA_VOICE === 'silent') return makeRenderedVoice({ name: 'silent', render: renderNothing }).makeTts();
   return makeTutorVoice({ apiKey: readKey('ELEVENLABS_API_KEY') }).makeTts();
 }
 
@@ -106,7 +107,7 @@ async function runSession(context: JobContext): Promise<void> {
       scenes?.queue?.noteTutorReply(turn);
     },
   };
-  const { brain, lessonPlanner, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, getSpentUsd, writeRecord, noteNeedsAPerson } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, onSessionTitle(title) {
+  const { brain, lessonPlanner, caps, cardTitle, flushSpend, readMeaning, readStrokes, readSpokenWords, writeRecap, readSafety, getSpentUsd, writeRecord, noteNeedsAPerson } = makeTutorBrain({ roomName: room.name ?? '', jobId: context.job.id, trace, showSafetyHelp: () => publish({ type: 'safetyHelp' }), onSessionTitle(title) {
       publish({ type: 'sessionTitle', title });
       scenes?.noteTopic(title);
     }, ...(hasTutorScenes() ? { sceneHooks } : {}) });
@@ -134,6 +135,7 @@ async function runSession(context: JobContext): Promise<void> {
     ...(readStrokes ? { readStrokes } : {}),
     ...(readSpokenWords ? { readSpokenWords } : {}),
     ...(writeRecap ? { writeRecap } : {}),
+    ...(readSafety ? { readSafety } : {}),
     ...(logSaver ? { onLogWritten: logSaver.note } : {}),
     onRecap(recap) {
       if (recap.kind === 'gentle') noteNeedsAPerson?.();

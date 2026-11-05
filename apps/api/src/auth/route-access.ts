@@ -14,7 +14,15 @@ export const SignedInRoute = () => SetMetadata(ROUTE_ACCESS_KEY, 'signedIn' sati
 export interface SignedInRequest {
   headers: { authorization?: string };
   authUserId?: string;
+  authEmail?: string | null;
+  isAddressClosed?: boolean;
   studentId?: string;
+}
+
+export interface SignIn {
+  authUserId: string;
+  email: string | null;
+  isAddressClosed: boolean;
 }
 
 function readRequest(context: ExecutionContext): SignedInRequest {
@@ -24,6 +32,11 @@ function readRequest(context: ExecutionContext): SignedInRequest {
 export const CurrentAuthUserId = createParamDecorator((_data: unknown, context: ExecutionContext) =>
   readRequest(context).authUserId,
 );
+
+export const CurrentSignIn = createParamDecorator((_data: unknown, context: ExecutionContext): SignIn => {
+  const { authUserId, authEmail, isAddressClosed } = readRequest(context);
+  return { authUserId: authUserId as string, email: authEmail ?? null, isAddressClosed: isAddressClosed ?? false };
+});
 
 export const CurrentStudentId = createParamDecorator((_data: unknown, context: ExecutionContext) =>
   readRequest(context).studentId,

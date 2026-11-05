@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { getRecapFacts, type RecapFacts } from '../src/recap/recap-facts.ts';
 import { checkRecapDraft, GENTLE_LINE, GENTLE_RECAP, getEndingKind, getRecapBeats, TRY_NEXT_FROM_CODE } from '../src/recap/recap-rules.ts';
 import { getSessionEnding, writeLessonRecap } from '../src/recap/write-recap.ts';
+import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 
 const TEACHING = 'We get x alone by taking three from both sides and then dividing both sides by two, so the equation gets simpler at every single step along the way to the answer.';
 const beat = (seq: number, text: string, playedWords = text.split(' ').length) => ({ seq, atMs: seq * 1000, kind: 'beatPlayed', turnId: `t${seq}`, beat: { id: `b${seq}`, script: [text], expectsReply: false }, reportedBy: 'browser', wordStartsMs: text.split(' ').map((_, index) => index * 100), durationMs: 500, playedWords, firedCueMs: [], ending: 'finished', frozen: [] }) as unknown as SessionEvent;
@@ -111,6 +112,51 @@ describe('whether a session gets a recap', () => {
 
   it('lets a failed writer end the session with no recap', async () => {
     await expect(getSessionEnding({ log: [beat(0, TEACHING)], opening: null, writeRecap: async () => { throw new Error('no model'); } })).resolves.toBeNull();
+  });
+});
+
+describe('an ending once the safety check has read the session', () => {
+  const VEILED = 'ill be gone soon so no point learning this';
+  const LIGHT_LINE = 'If anything is worrying you, tell an adult you trust.';
+  const RECAP = { kind: 'lesson', covered: 'We took three from both sides.', gotRight: null, tryNext: 'Try one more on your own.' } as const;
+  const endWith = (log: SessionEvent[], readSafety: () => Promise<'danger' | 'vague' | 'none'>, writeRecap = vi.fn(async () => RECAP as SessionRecap)) => ({ writeRecap, ending: getSessionEnding({ log, opening: null, writeRecap, readSafety }) });
+
+  it('ends gently with no model on a line the word list misses, once the check read danger', async () => {
+    const { writeRecap, ending } = endWith([beat(0, TEACHING), said(1, VEILED)], async () => 'danger');
+    await expect(ending).resolves.toEqual(GENTLE_RECAP);
+    expect(writeRecap).not.toHaveBeenCalled();
+  });
+
+  it('ends gently on a crisis too short to count as a lesson, because silence is no ending for it', async () => {
+    await expect(endWith([said(0, VEILED)], async () => 'danger').ending).resolves.toEqual(GENTLE_RECAP);
+  });
+
+  it('ends gently when vague words were all the session held', async () => {
+    await expect(endWith([said(0, 'i already picked the day')], async () => 'vague').ending).resolves.toEqual(GENTLE_RECAP);
+  });
+
+  it('gives a real lesson its recap after a vague flag, with the student lines going to the model that reads for care', async () => {
+    const { writeRecap, ending } = endWith([beat(0, `What do you mean? ${LIGHT_LINE} ${TEACHING}`), said(1, 'i already picked the day'), said(2, 'for my history talk')], async () => 'vague');
+    await expect(ending).resolves.toEqual(RECAP);
+    expect(writeRecap.mock.calls[0]?.[0 as never]).toMatchObject({ studentLines: ['i already picked the day', 'for my history talk'] });
+  });
+
+  it('gives an ordinary lesson its recap when the check read nothing', async () => {
+    await expect(endWith([beat(0, TEACHING), said(1, 'i have a plan for how to do it')], async () => 'none').ending).resolves.toEqual(RECAP);
+  });
+
+  it('does not hold the ending for a read that will not come, and the word list still stands', async () => {
+    const never = () => new Promise<'none'>(() => {});
+    await expect(getSessionEnding({ log: [beat(0, TEACHING)], opening: null, writeRecap: async () => RECAP, readSafety: never, safetyWaitMs: 10 })).resolves.toEqual(RECAP);
+    await expect(getSessionEnding({ log: [beat(0, TEACHING), said(1, 'i want to kill myself')], opening: null, writeRecap: async () => RECAP, readSafety: never, safetyWaitMs: 10 })).resolves.toEqual(GENTLE_RECAP);
+  });
+
+  it.each(['If anything is worrying you, tell an adult you trust.', 'A doctor or a trusted adult is the one to ask.', "Too much of what? If anything is worrying you, tell an adult you trust now, or call your local emergency number if you're in danger.", 'For a burn like that in first aid, you call your local emergency number.'])('does not take the line "%s" for the crisis reply, because an ordinary lesson can say it', (line) => {
+    expect(getEndingKind({ ...factsWith(), tutorWords: [...TEACHING.split(' '), ...line.split(' ')] })).toBe('lesson');
+  });
+
+  it("ends gently on every line of code's own crisis reply", () => {
+    for (const line of [...SPOKEN_LINES.safetyStop, ...SPOKEN_LINES.safetyStopHurt]) expect(getEndingKind({ ...factsWith(), tutorWords: line.split(' ') })).toBe('gentle');
   });
 });
 

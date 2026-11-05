@@ -104,6 +104,7 @@ const AGENT_MESSAGES: VariantTable<AgentMessage, 'type'> = {
     costSoFar: { keys: ['usd'], read: (fields) => ({ type: 'costSoFar', usd: readNumberInRange(fields.at('usd'), { min: 0, max: MOST_COST_USD }) }) },
     sessionTitle: { keys: ['title'], read: (fields) => ({ type: 'sessionTitle', title: readString(fields.at('title'), SESSION_TITLE_MAX_CHARACTERS) }) },
     tutorClosed: { keys: ['reason'], read: (fields) => ({ type: 'tutorClosed', reason: readOneOf(fields.at('reason'), TUTOR_CLOSED_REASONS) }) },
+    safetyHelp: { keys: [], read: () => ({ type: 'safetyHelp' }) },
     pulse: { keys: [], read: () => ({ type: 'pulse' }) },
     earsOpen: { keys: [], read: () => ({ type: 'earsOpen' }) },
     quietWarning: { keys: ['isOn'], read: (fields) => ({ type: 'quietWarning', isOn: readBoolean(fields.at('isOn')) }) },

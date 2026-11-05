@@ -60,6 +60,7 @@ function AppRoutes() {
       ) : null}
       <Route path={LEGAL_PATHS.terms} element={<LegalPage legalDocument={LEGAL_PAGES.terms} />} />
       <Route path={LEGAL_PATHS.privacy} element={<LegalPage legalDocument={LEGAL_PAGES.privacy} />} />
+      <Route path={LEGAL_PATHS.credits} element={<LegalPage legalDocument={LEGAL_PAGES.credits} />} />
       <Route
         path="*"
         element={

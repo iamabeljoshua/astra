@@ -87,7 +87,7 @@ export interface LessonPlan {
 export type SceneWords = Pick<LessonPlan, 'narration' | 'plan'>;
 
 /** Why a lesson has no words of its own: nothing to teach, a student who may be hurt and needs the help line, or a dangerous question that gets a calm decline. */
-export type NoLesson = 'nothing' | 'unsafe' | 'declined';
+export type NoLesson = 'nothing' | 'unsafe' | 'declined' | 'askNeed';
 
 export interface PlanHooks {
   onFirstLine?(line: OpeningLine): void;

@@ -31,9 +31,7 @@ async function typeAndRead(title: string, line: string) {
   await student.page.waitForFunction(() => window.astraVoice?.getView().isTutorSpeaking === false && window.astraVoice?.getView().isThinking === false, undefined, { timeout: 40_000 });
   await delay(1500);
   const kindsBefore = readTurnKinds(student.sessionId).length;
-  const box = student.page.getByRole('textbox', { name: 'Your reply' });
-  await box.fill(line);
-  await box.press('Enter');
+  await student.page.evaluate((text) => (window.astraVoice as unknown as { sendTyped(words: string): void }).sendTyped(text), line);
   const readView = () =>
     student.page.evaluate(() => {
       const { tutorHeard, tutorComing, studentLines, closedBecause } = window.astraVoice?.getView() as unknown as { tutorHeard: string[]; tutorComing: string[]; studentLines: { text: string }[]; closedBecause: string | null };

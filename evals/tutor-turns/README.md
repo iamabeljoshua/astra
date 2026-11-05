@@ -4,6 +4,8 @@ Scripted lessons that run against any model by name and any prompt version. They
 
 - `turns-30.json` is a lesson of 30 student messages, about 10 minutes at 3 turns a minute.
 - `turns-90.json` is three lessons in one session, 90 messages, about 30 minutes.
+- `safety-wordings.json` is one wording a row, each with what it expects: help, a lesson, a calm decline, a doctor, and so on. `docs/tests/safety.md` says how to run it.
+- `safety-context.json` holds the same words with fixed lines before them, each row saying whether it should stay quiet, fire, or read as clear danger, read by `eval:safety-check`.
 - `groups-safety.json`, `groups-math.json`, and `groups-teaching.json` are short groups of messages, each group in a session of its own, run by `eval:groups` and read by a person. A failed check exits non-zero. `--prompt v1` runs the prompt from before M3.8, so a teaching case can be seen failing. `--repeat` and `--min-share` hold a case to a share of its runs, because one reply is one sample. A safety check must pass every run.
 - `groups-board.json` holds work on the shared board, with tasks, marks, and what code decided, run by `pnpm eval:board`. A turn with `work` puts that work on the board the way the page does. `pnpm --filter @astra/agent eval:ink` reads back a table of handwritten lines.
 - `groups-board-asks.json` holds plain asks for a table or a timeline, and `groups-board-refusals.json` holds asks past what the board can hold. Run each with `--repeat 3 --transcript <file>`, and read the file with `tally-board-lessons.ts`, which counts a claim with nothing drawn.

@@ -131,9 +131,8 @@ async function startTalking(stack: VoiceStack, student: StudentPage): Promise<vo
 }
 
 async function typeReply(student: StudentPage, text: string): Promise<void> {
-  const box = student.page.getByRole('textbox', { name: 'Your reply' });
-  await box.fill(text);
-  await box.press('Enter');
+  await student.page.waitForFunction(() => window.astraVoice !== undefined);
+  await student.page.evaluate((words) => (window.astraVoice as unknown as { sendTyped(line: string): void }).sendTyped(words), text);
 }
 
 interface StopRow {

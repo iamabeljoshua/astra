@@ -7,6 +7,7 @@ import { SessionEntity } from './entities/session.entity';
 import { EXAMPLE_RECAP, EXAMPLE_REPLAY_EVENTS, EXAMPLE_REPLAY_SESSION_TITLE } from './example-replay';
 import { StudentProfileEntity } from './entities/student-profile.entity';
 import { ClosedAccountEntity } from './entities/closed-account.entity';
+import { ClosedAddressHashEntity } from './entities/closed-address-hash.entity';
 import { StudentDailySpendEntity } from './entities/student-daily-spend.entity';
 import { StudentEntity } from './entities/student.entity';
 
@@ -154,6 +155,7 @@ export async function replaceExampleData(dataSource: DataSource): Promise<void> 
   await dataSource.transaction(async (manager) => {
     await manager.delete(StudentEntity, { authUserId: In(LOCAL_AUTH_USER_IDS) });
     await manager.delete(ClosedAccountEntity, { authUserId: In(LOCAL_AUTH_USER_IDS) });
+    await manager.clear(ClosedAddressHashEntity);
     await manager.save(StudentEntity, [EXAMPLE_STUDENT, SECOND_STUDENT]);
     await manager.save(StudentProfileEntity, [EXAMPLE_PROFILE, SECOND_PROFILE]);
     await manager.save(StudentDailySpendEntity, EXAMPLE_SPEND);

@@ -5,6 +5,8 @@ import { exportJWK, generateKeyPair, SignJWT } from 'jose';
 import type { CryptoKey, JWK, JWTPayload } from 'jose';
 
 const KEYS_PATH = '/auth/v1/.well-known/jwks.json';
+const ADMIN_USERS_PATH = '/auth/v1/admin/users/';
+export const TEST_SECRET_KEY = 'secret-key-for-test';
 const ONE_HOUR_SECONDS = 3600;
 
 export interface SigningKey {
@@ -21,6 +23,8 @@ export interface TestToken {
 export interface TestSupabaseAuth {
   url: string;
   keys: SigningKey[];
+  onDeleteUser: (authUserId: string) => Promise<void>;
+  onGetUser: (authUserId: string) => Promise<void>;
   signToken: (authUserId: string, token?: TestToken) => Promise<string>;
   close: () => Promise<void>;
 }
@@ -39,7 +43,33 @@ export function signWithKey(key: SigningKey, claims: JWTPayload): Promise<string
 
 export async function startTestSupabaseAuth(): Promise<TestSupabaseAuth> {
   const keys = [await createSigningKey()];
+  const deletedUserIds = new Set<string>();
+  const answerDeleteUser = async (authUserId: string, authorization: string | undefined) => {
+    if (authorization !== `Bearer ${TEST_SECRET_KEY}`) return 401;
+    return auth.onDeleteUser(authUserId).then(() => {
+      deletedUserIds.add(authUserId);
+      return 200;
+    }, () => 500);
+  };
+  const answerGetUser = async (authUserId: string, authorization: string | undefined) => {
+    if (authorization !== `Bearer ${TEST_SECRET_KEY}`) return 401;
+    return auth.onGetUser(authUserId).then(() => (deletedUserIds.has(authUserId) ? 404 : 200), () => 500);
+  };
   const server = createServer((request, response) => {
+    if (request.method === 'DELETE' && request.url?.startsWith(ADMIN_USERS_PATH)) {
+      void answerDeleteUser(request.url.slice(ADMIN_USERS_PATH.length), request.headers.authorization).then((status) => {
+        response.writeHead(status, { 'content-type': 'application/json' });
+        response.end('{}');
+      });
+      return;
+    }
+    if (request.method === 'GET' && request.url?.startsWith(ADMIN_USERS_PATH)) {
+      void answerGetUser(request.url.slice(ADMIN_USERS_PATH.length), request.headers.authorization).then((status) => {
+        response.writeHead(status, { 'content-type': 'application/json' });
+        response.end('{}');
+      });
+      return;
+    }
     const isKeysRequest = request.url === KEYS_PATH;
     response.writeHead(isKeysRequest ? 200 : 404, { 'content-type': 'application/json' });
     response.end(isKeysRequest ? JSON.stringify({ keys: keys.map((key) => key.publicJwk) }) : '{}');
@@ -47,9 +77,11 @@ export async function startTestSupabaseAuth(): Promise<TestSupabaseAuth> {
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 
-  return {
+  const auth: TestSupabaseAuth = {
     url,
     keys,
+    onDeleteUser: () => Promise.resolve(),
+    onGetUser: () => Promise.resolve(),
     signToken: (authUserId, { claims, key = keys[0] as SigningKey } = {}) =>
       signWithKey(key, {
         iss: `${url}/auth/v1`,
@@ -66,4 +98,5 @@ export async function startTestSupabaseAuth(): Promise<TestSupabaseAuth> {
         server.close((error) => (error ? reject(error) : resolve()));
       }),
   };
+  return auth;
 }
