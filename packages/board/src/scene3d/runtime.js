@@ -1,4 +1,5 @@
 import { createKit, mulberry } from './kit.js';
+import { lockDown } from './lock-down.js';
 import { createOverlayDom } from './overlay-dom.js';
 
 const real = {
@@ -13,9 +14,6 @@ const tell = (message) => real.post(message);
 const MOST_RENDER_ERRORS = 3;
 const BLANK_LIT = 0.002;
 const BLANK_STD = 0.02;
-const FROZEN_DATE_BASE = 1767225600000;
-const HIDDEN_NAMES = ['postMessage', 'fetch', 'XMLHttpRequest', 'WebSocket', 'WebSocketStream', 'WebTransport', 'EventSource', 'Worker', 'SharedWorker', 'BroadcastChannel', 'importScripts', 'FileReaderSync', 'caches', 'indexedDB'];
-const TIME_NAMES = ['requestAnimationFrame', 'setTimeout', 'setInterval'];
 
 let canvas = null;
 let canvasSize = { width: 960, height: 540 };
@@ -24,25 +22,6 @@ let rand = mulberry(1234);
 const issues = [];
 
 const dom = createOverlayDom({ getOverlayWidth: () => canvasSize.width });
-
-function lockDown() {
-  self.document = dom.document;
-  self.window = self;
-  Math.random = () => rand();
-  performance.now = () => sceneSeconds * 1000;
-  const RealDate = Date;
-  class FrozenDate extends RealDate {
-    constructor(...parts) { if (parts.length) super(...parts); else super(FROZEN_DATE_BASE + sceneSeconds * 1000); }
-    static now() { return FROZEN_DATE_BASE + sceneSeconds * 1000; }
-  }
-  self.Date = FrozenDate;
-  // These live on the prototypes of a worker's global as well as on the global, and a scene can walk up to them.
-  for (let holder = self; holder !== Object.prototype; holder = Object.getPrototypeOf(holder)) {
-    for (const name of [...HIDDEN_NAMES, ...TIME_NAMES]) delete holder[name];
-  }
-  for (const name of HIDDEN_NAMES) Object.defineProperty(self, name, { value: undefined });
-  for (const name of TIME_NAMES) Object.defineProperty(self, name, { value: () => { issues.push(`${name} is not available. render(t) is called for you.`); return 0; } });
-}
 
 self.addEventListener('error', (event) => tell({ type: 'error', phase: 'script', message: String(event.message), line: event.lineno, col: event.colno }));
 self.addEventListener('unhandledrejection', (event) => tell({ type: 'error', phase: 'promise', message: String(event.reason) }));
@@ -222,5 +201,5 @@ self.addEventListener('message', (event) => {
   if (typeof command?.type === 'string' && Object.hasOwn(COMMANDS, command.type)) COMMANDS[command.type](command);
 });
 
-lockDown();
+lockDown({ document: dom.document, getSeconds: () => sceneSeconds, getRandom: () => rand(), noteIssue: (issue) => issues.push(issue) });
 real.raf(loop);

@@ -12,11 +12,14 @@ import type { NameReader, SceneRoute, SceneRouter, SceneUsage, StoredScene } fro
 import type { TopicRun, TopicRuns } from '../lesson/topic-runs.ts';
 import type { PartCatalogue } from './catalogue.ts';
 import { addRecipeLine, checkRecipe, compileRecipe, createRecipeDraft, type RecipeLine, type SceneRecipe } from './recipe.ts';
+import { readFreshDrawing, toFreshScene, type FreshDrawing } from './fresh-drawing.ts';
 import { toRecipeScene } from './recipe-scene.ts';
 
 const ROUTER_LIMIT_MS = 6000;
 const MATCH_LIMIT_MS = 6000;
 const RECIPE_LIMIT_MS = 12_000;
+/** Sonnet took 20 s at worst in the lab, on a machine at load 60. */
+const FRESH_LIMIT_MS = 32_000;
 const NAME_LIMIT_MS = 3000;
 const LEVEL_KEYS = ['middle_school', 'high_school', 'university', 'out_of_school'];
 const NO_ROUTE = { engine: 'none', kind: 'none', topic: '', model: 'none', ms: 0, costUsd: 0 } as const;
@@ -43,10 +46,27 @@ export interface RecipeReviewer {
   read(request: { recipe: SceneRecipe; parts: PartCatalogue }, signal: AbortSignal): Promise<RecipeVerdict>;
 }
 
+export interface FreshWriter {
+  write(ask: RecipeAsk, signal: AbortSignal): Promise<{ text: string } & SceneUsage>;
+}
+
+export interface FreshReviewer {
+  read(drawing: FreshDrawing, signal: AbortSignal): Promise<RecipeVerdict>;
+}
+
+export interface FreshTools {
+  writer: FreshWriter;
+  reviewer: FreshReviewer;
+  /** False once this lesson has made all the drawings it may. */
+  claimDrawing(): boolean;
+}
+
 export interface SceneWork {
   request: string;
   desk: SceneDesk;
   leave(): void;
+  /** What the page made of the scene. A fresh drawing is read and shared only once its frame check has passed, and one the check refused is not kept. */
+  notePage?(isDrawn: boolean): void;
 }
 
 export interface SceneWorkInput {
@@ -57,6 +77,7 @@ export interface SceneWorkInput {
   /** The queue never pays for live 3D, so only a student's own ask may reach it. */
   canWriteLive?: boolean;
   onLiveWrite?(): void;
+  canDrawRecipes?: boolean;
   getNowMs(): number;
   onChange(state: SceneState, atMs: number): void;
 }
@@ -75,6 +96,7 @@ export interface RecipeWorkTools {
   getCore(): string;
   getLevel(): string | null;
   trace(name: string, fields?: Record<string, unknown>): void;
+  fresh?: FreshTools | null;
 }
 
 const WORDS_NAMING_NOTHING = new Set(['a', 'about', 'actually', 'am', 'an', 'and', 'are', 'can', 'cause', 'causes', 'did', 'do', 'does', 'explain', 'has', 'have', 'how', 'in', 'is', 'it', 'its', 'me', 'of', 'on', 'really', 'show', 'so', 'tell', 'the', 'to', 'up', 'us', 'was', 'what', 'when', 'where', 'why', 'work', 'works']);
@@ -101,25 +123,28 @@ export async function getCleanLines({ topic, says, nameReader, signal }: { topic
   return { says: clean, problems: [...clean.flatMap(({ text }) => [...getLineProblems(topic, { say: text }, cleared), ...(getClaimProblem(text) ? ['it claims a feeling'] : [])]), ...(refused.length > 0 ? [`names not cleared: ${refused.join(', ')}`] : [])] };
 }
 
-/** An exact saved scene if there is one, else whichever lands first of a matched saved scene and a fresh recipe. */
-export function createRecipeWork({ router, writer, reviewer, nameReader, matcher, liveRuns, store, storeRoot, getParts, getCore, getLevel, trace, request, isCard, studentId, canPlayTakes, canWriteLive = false, onLiveWrite, getNowMs, onChange }: RecipeWorkTools & SceneWorkInput): SceneWork {
+/** An exact saved scene if there is one, else whichever lands first of a matched saved scene and a new picture, from parts when a part fits and drawn fresh when none does. Live 3D comes last, on a student's own ask. */
+export function createRecipeWork({ router, writer, reviewer, nameReader, matcher, liveRuns, store, storeRoot, getParts, getCore, getLevel, trace, fresh = null, request, isCard, studentId, canPlayTakes, canDrawRecipes = true, canWriteLive = false, onLiveWrite, getNowMs, onChange }: RecipeWorkTools & SceneWorkInput): SceneWork {
   const leaving = new AbortController();
   const stopDrawing = new AbortController();
   const askedAtMs = getNowMs();
   const level = getLevel();
   const ownKey = (topic: string) => getSceneKey(topic, { ownerId: studentId });
-  const isPlayableHere = (scene: StoredScene | null) => (scene && (canPlayTakes || scene.engine === 'kit') ? scene : null);
+  const canPlayEngine = ({ engine }: StoredScene) => (engine === 'canvas' ? fresh !== null : engine === 'kit' ? canDrawRecipes : canPlayTakes);
+  const isPlayableHere = (scene: StoredScene | null) => (scene && canPlayEngine(scene) ? scene : null);
   const findPlayable = (topic: string) => isPlayableHere(store.find(getSceneKey(topic))) ?? isPlayableHere(store.find(getSharedKey(topic, level))) ?? isPlayableHere(store.find(ownKey(topic)));
   let drawing: Promise<StoredScene> | null = null;
   let matching: Promise<StoredScene> | null = null;
   let routedTopic = request;
   let routedEngine: SceneRoute['engine'] = 'none';
   let liveRun: TopicRun | null = null;
+  let drawingOnPage: { scene: StoredScene; drawing: FreshDrawing } | null = null;
+  const isStopping = () => leaving.signal.aborted || stopDrawing.signal.aborted;
   const noteTime = (name: string, fields: Record<string, unknown> = {}) => trace(name, { text: request, afterMs: Math.round(getNowMs() - askedAtMs), ...fields });
 
-  const reviewBehind = async (scene: StoredScene, recipe: SceneRecipe) => {
+  const reviewBehind = async (scene: StoredScene, read: () => Promise<RecipeVerdict>) => {
     const startedAt = getNowMs();
-    const verdict = await reviewer.read({ recipe, parts: getParts() }, leaving.signal).catch((error: unknown) => ({ isGood: false, reasons: [`no review: ${String(error)}`], model: 'none', ms: 0, costUsd: 0 }));
+    const verdict = await read().catch((error: unknown) => ({ isGood: false, reasons: [`no review: ${String(error)}`], model: 'none', ms: 0, costUsd: 0 }));
     noteTime('recipeReviewed', { isGood: verdict.isGood, reasons: verdict.reasons, reviewMs: Math.round(getNowMs() - startedAt) });
     appendLine(storeRoot, REVIEWS_FILE, { atIso: new Date().toISOString(), topic: scene.topic, isGood: verdict.isGood, reasons: verdict.reasons, costUsd: verdict.costUsd });
     if (!verdict.isGood || !routedTopic) return;
@@ -127,15 +152,36 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     if (!store.find(key)) await store.saveChecked({ ...scene, id: key.id, topic: key.topic, ownerId: null }, [], []).catch((error: unknown) => noteTime('recipeShareFailed', { problem: String(error) }));
   };
 
-  const draw = async (): Promise<StoredScene> => {
+  const drawFresh = async (tools: FreshTools): Promise<StoredScene> => {
+    if (!tools.claimDrawing()) throw new Error('this lesson has made all its fresh drawings');
+    const signal = AbortSignal.any([AbortSignal.timeout(FRESH_LIMIT_MS), leaving.signal, stopDrawing.signal]);
+    noteTime('freshStarted');
+    const reply = await tools.writer.write({ topic: request, level }, signal);
+    noteTime('freshWritten', { writeMs: Math.round(reply.ms), costUsd: reply.costUsd });
+    const read = readFreshDrawing(reply.text);
+    if (!read.isOk) throw new Error(read.problems.join('; '));
+    const { says, problems } = await getCleanLines({ topic: request, says: read.drawing.says, nameReader, signal });
+    if (problems.length > 0) throw new Error(`the words were refused: ${problems.join('; ')}`);
+    const drawing = { ...read.drawing, says };
+    const scene = await store.saveChecked(toFreshScene({ drawing, key: ownKey(request), costUsd: reply.costUsd, writeMs: reply.ms }), [], []);
+    drawingOnPage = { scene, drawing };
+    return scene;
+  };
+
+  const drawFromParts = async (): Promise<StoredScene | 'noPart'> => {
     const signal = AbortSignal.any([AbortSignal.timeout(RECIPE_LIMIT_MS), leaving.signal, stopDrawing.signal]);
     const parts = getParts();
-    const reply = await writer.write({ topic: request, level }, parts, signal);
+    const reply = await writer.write({ topic: request, level }, parts, signal).catch((error: unknown) => {
+      if (!fresh || isStopping()) throw error;
+      return null;
+    });
+    if (!reply) return 'noPart';
     noteTime('recipeWritten', { writeMs: Math.round(reply.ms), costUsd: reply.costUsd });
     const draft = createRecipeDraft();
     for (const line of reply.text.split('\n')) addRecipeLine(draft, line);
     if (draft.fit.kind === 'noFit') appendLine(storeRoot, MISSES_FILE, { atIso: new Date().toISOString(), topic: request, why: draft.fit.why, level });
     const checked = checkRecipe(draft, parts);
+    if (!checked.isOk && fresh) return 'noPart';
     if (!checked.isOk) throw new Error(checked.problems.join('; '));
     const { says, problems } = await getCleanLines({ topic: request, says: checked.recipe.says, nameReader, signal });
     if (problems.length > 0) throw new Error(`the words were refused: ${problems.join('; ')}`);
@@ -143,12 +189,23 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     noteTime('recipeChecked', { parts: recipe.items.map(({ part }) => part), dropped: checked.dropped, unreadLines: draft.unreadLines });
     const key = ownKey(request);
     const scene = await store.saveChecked(toRecipeScene({ recipe, code: compileRecipe(recipe, { core: getCore(), parts }), key, costUsd: reply.costUsd, writeMs: reply.ms }), [], []);
-    void reviewBehind(scene, recipe);
+    void reviewBehind(scene, () => reviewer.read({ recipe, parts: getParts() }, leaving.signal));
     return scene;
   };
 
+  const draw = async (): Promise<StoredScene> => {
+    const fromParts = canDrawRecipes ? await drawFromParts() : 'noPart';
+    if (fromParts !== 'noPart') return fromParts;
+    if (!fresh) throw new Error('this page cannot draw from parts');
+    // A copy they already have costs nothing, and a drawing is paid for, so it waits for that answer, about 1.5 s from the ask.
+    const hasSavedCopy = await matching?.then(() => true, () => false);
+    if (hasSavedCopy) throw new Error('a saved scene fits');
+    return drawFresh(fresh);
+  };
+
   const match = async (): Promise<StoredScene> => {
-    const titles = [...new Set((await store.listShared()).map(({ topic }) => topic))];
+    const shelf = [...(await store.listShared()), ...(fresh ? await store.listOwned(studentId) : [])];
+    const titles = [...new Set(shelf.map(({ topic }) => topic))];
     if (titles.length === 0) throw new Error('nothing saved');
     const title = await matcher.match(request, titles, AbortSignal.any([AbortSignal.timeout(MATCH_LIMIT_MS), leaving.signal]));
     const found = titles.includes(title) && isSameTopic(request, title) ? findPlayable(title) : null;
@@ -191,8 +248,8 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     if (!isCard && (isOnlyAskingForHelp(request) || isAboutBeingUnsafe(request))) return { ...NO_ROUTE, kind: SAFETY_KIND };
     const saved = findPlayable(request) ?? (await findSavedBySameWords());
     if (saved) return { ...SAVED_ROUTE, topic: saved.topic };
-    drawing = draw();
     matching = match();
+    drawing = draw();
     drawing.catch(() => {});
     matching.catch(() => {});
     const route = await router.route(request, AbortSignal.any([AbortSignal.timeout(ROUTER_LIMIT_MS), leaving.signal]));
@@ -227,6 +284,14 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     leave() {
       leaving.abort();
       liveRun?.leave();
+    },
+    notePage(isDrawn) {
+      const waiting = drawingOnPage;
+      drawingOnPage = null;
+      if (!waiting || !fresh) return;
+      noteTime('freshOnPage', { isDrawn });
+      if (isDrawn) void reviewBehind(waiting.scene, () => fresh.reviewer.read(waiting.drawing, leaving.signal));
+      else void store.forget(ownKey(request));
     },
   };
 }

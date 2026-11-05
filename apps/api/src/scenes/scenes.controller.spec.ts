@@ -66,6 +66,14 @@ describe('the scene routes', () => {
       writeFileSync(join(storeRoot, 'scenes', id, 'scene.json'), JSON.stringify({ status: 'checked', ownerId: null, engine: 'manimgx', topic: 'Rockets', moments: MOMENTS, durationSeconds: 12, ...fields }));
     };
 
+    it('sends a fresh drawing to its owner alone, on its own times', async () => {
+      const owner = await createTestStudent(testApp);
+      saveRecord(SCENE_ID, { engine: 'canvas', recipe: { says: [] }, code: 'function scene(kit) { return { render() {} }; }', ownerId: owner.studentId });
+      const response = await getKitTake(SCENE_ID, owner).expect(200);
+      expect(response.body).toEqual({ code: 'function scene(kit) { return { render() {} }; }', timing: { moments: MOMENTS, duration: 12 } });
+      await getKitTake(SCENE_ID, await createTestStudent(testApp)).expect(404);
+    });
+
     it('sends a reviewed scene on the times of its 2D record, whatever its own file says', async () => {
       saveRecord(SCENE_ID, {});
       saveKitScene('rocket', { sceneId: SCENE_ID, reviewed: true, moments: { start: 0, liftoff: 99 }, durationSeconds: 99 });

@@ -120,8 +120,9 @@ type Opening = { kind: 'briefToCome' } | { kind: 'possible' } | { kind: 'over' }
 
 const sameWords = (first: string, second: string) => first.trim().toLowerCase() === second.trim().toLowerCase();
 
-const getLoadMessage = ({ id, durationSeconds, engine }: StoredScene): SceneAgentMessage => ({ type: 'loadScene', sceneId: id, durationSeconds, ...(engine === 'kit' ? { engine } : {}) });
-const getPrepareMessage = ({ id, engine }: StoredScene): SceneAgentMessage => ({ type: 'prepareScene', sceneId: id, ...(engine === 'kit' ? { engine } : {}) });
+const getEngineField = ({ engine }: StoredScene) => (engine === 'kit' || engine === 'canvas' ? { engine } : {});
+const getLoadMessage = (scene: StoredScene): SceneAgentMessage => ({ type: 'loadScene', sceneId: scene.id, durationSeconds: scene.durationSeconds, ...getEngineField(scene) });
+const getPrepareMessage = (scene: StoredScene): SceneAgentMessage => ({ type: 'prepareScene', sceneId: scene.id, ...getEngineField(scene) });
 
 const getFirstMomentAfterStart = (moments: StoredScene['moments']) => Object.entries(moments).filter(([, seconds]) => seconds > 0).sort(([, first], [, second]) => first - second)[0]?.[0];
 
@@ -142,6 +143,7 @@ export function getTutorSceneBeats({ plan, scene, number, endsOnQuestion = true,
 export function createTutorScenes({ router, runs, kitRuns, fitReader, store, getCardTitle, getNowMs, send, speak, canSpeak, onShown, onAhead, onPageReady, isClosed = () => false, canPlayShared = () => true, trace, fast }: TutorScenesOptions): TutorScenes {
   let device: Device = 'unknown';
   let canPlayTakes = true;
+  let canDrawRecipes = true;
   let screen = EMPTY_SCREEN;
   let wordsLeftRecheck: ReturnType<typeof setTimeout> | null = null;
   let studentId = '';
@@ -303,7 +305,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
     const onChange = (state: SceneState) => onDeskChange(ask, state);
     // A live 3D scene is paid for only when a student is asking, so the queue never starts one.
     const work: SceneWork = fast
-      ? fast.makeWork({ request, isCard, studentId, canPlayTakes, canWriteLive: !isAhead, onLiveWrite: () => keepAskForKit(ask), getNowMs, onChange })
+      ? fast.makeWork({ request, isCard, studentId, canPlayTakes, canDrawRecipes, canWriteLive: !isAhead, onLiveWrite: () => keepAskForKit(ask), getNowMs, onChange })
       : createLessonWork({ router, runs, ...(kitRuns && !isAhead ? { kitRuns } : {}), ...(fitReader && !isAhead ? { fitReader } : {}), store, request, isCard, studentId, getNowMs, isOnlyForScene: true, onChange });
     const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: null, windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isAhead, isOpening: isCard && !isAhead && opening.kind === 'possible', canLandOnSentence: true, isEarly: false, isKit: false };
     works.push(work);
@@ -346,6 +348,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
     for (const ahead of prepared.values()) {
       const state = ahead.work.desk.getState();
       if (state.kind !== 'ready' || state.scene.id !== message.sceneId) continue;
+      ahead.work.notePage?.(message.type === 'scenePrepared');
       if (message.type === 'sceneRefused') forgetPrepared(ahead, 'failed');
       else onAhead?.(ahead.topic, 'ready');
       return true;
@@ -463,6 +466,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
       if (message.type === 'sceneDevice') {
         device = message.canPlay ? 'canPlay' : 'cannotPlay';
         canPlayTakes = message.canPlayTakes ?? message.canPlay;
+        canDrawRecipes = message.canDrawRecipes ?? true;
         studentId = fromStudentId;
         const waiting = waitingForDevice;
         waitingForDevice = null;
@@ -486,6 +490,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
       if (message.type === 'sceneLoaded' && message.sceneId === onScreen?.id) settlePictureWaits(true);
       const pending = current;
       if (pending?.page.kind !== 'loading' || pending.page.scene.id !== message.sceneId) return;
+      pending.work.notePage?.(message.type === 'sceneLoaded');
       if (message.type === 'sceneRefused') return end(pending, 'refusedByPage');
       clearTimeout(pending.page.limit);
       pending.page = { kind: 'loaded', scene: pending.page.scene };

@@ -3,19 +3,18 @@ import { readFileSync } from 'node:fs';
 import { createSocket } from 'node:dgram';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium, type Page } from 'playwright';
-import { getKitSourceHash, SOURCE_HASH_PATH } from '../apps/web/scripts/build-kit.ts';
-import { SCENE_ENGINE_VERSIONS } from '../packages/contracts/src/index.ts';
+import { getSourceHash, getSourceHashPath, SCENE_BUNDLES } from '../apps/web/scripts/build-kit.ts';
 import { buildKitFramePage } from '../packages/board/src/scene3d/index.ts';
 
 const { values: args } = parseArgs({ options: { 'real-chrome': { type: 'boolean', default: false } } });
-const ROOT = join(import.meta.dirname, '..');
-const KIT_BUNDLE = readFileSync(join(ROOT, 'apps/web/public/scene-kit', SCENE_ENGINE_VERSIONS.kit, 'kit.js'), 'utf8');
+const KIT_BUNDLE = readFileSync(SCENE_BUNDLES.kit.out, 'utf8');
+const CANVAS_BUNDLE = readFileSync(SCENE_BUNDLES.canvas.out, 'utf8');
 const TIMING = { moments: { start: 0 }, duration: 10 };
 
-const LOAD_LIMIT_MS = 15_000;
+// A frame stops a spinning build after 32 missed beats, 8 s when its timers run on time, and a loaded runner can stretch those beats past 15 s.
+const LOAD_LIMIT_MS = 30_000;
 const SETTLE_MS = 1200;
 const STOP_LIMIT_MS = 5000;
 const RAW_NETWORK_NAMES = 9;
@@ -39,7 +38,7 @@ const check = (isTrue: boolean, line: string) => {
   if (!isTrue) failures.push(line);
 };
 
-check(readFileSync(SOURCE_HASH_PATH, 'utf8').trim() === getKitSourceHash(), 'the committed kit is built from the source beside it. Run `node scripts/build-kit.ts` from apps/web if not');
+for (const name of ['kit', 'canvas'] as const) check(readFileSync(getSourceHashPath(name), 'utf8').trim() === getSourceHash(name), `the committed ${name} runtime is built from the source beside it. Run \`node scripts/build-kit.ts\` from apps/web if not`);
 
 const hits: string[] = [];
 const server = createServer((request, response) => {
@@ -66,8 +65,8 @@ interface FrameRun {
 const getProbes = ({ replies }: FrameRun): Record<string, string> =>
   Object.fromEntries(replies.flatMap(({ issues }) => issues ?? []).filter((issue) => issue.startsWith('probe|')).map((issue) => issue.split('|').slice(1, 3) as [string, string]));
 
-async function runScene(page: Page, code: string, { renderAfterReady = false, keepRendering = false, askAfterReady = false, settleMs = SETTLE_MS, isRawWorker = false }: { renderAfterReady?: boolean; keepRendering?: boolean; askAfterReady?: boolean; settleMs?: number; isRawWorker?: boolean } = {}): Promise<FrameRun> {
-  const srcdoc = isRawWorker ? buildKitFramePage({ kitBundle: code, code: '' }) : buildKitFramePage({ kitBundle: KIT_BUNDLE, code });
+async function runScene(page: Page, code: string, { bundle = KIT_BUNDLE, renderAfterReady = false, keepRendering = false, askAfterReady = false, settleMs = SETTLE_MS, isRawWorker = false }: { bundle?: string; renderAfterReady?: boolean; keepRendering?: boolean; askAfterReady?: boolean; settleMs?: number; isRawWorker?: boolean } = {}): Promise<FrameRun> {
+  const srcdoc = isRawWorker ? buildKitFramePage({ kitBundle: code, code: '' }) : buildKitFramePage({ kitBundle: bundle, code });
   return page.evaluate(
     ({ srcdoc, timing, renderAfterReady, keepRendering, askAfterReady, settleMs, LOAD_LIMIT_MS, SPIN_SECONDS }) =>
       new Promise<FrameRun>((resolve) => {
@@ -130,7 +129,7 @@ async function runScene(page: Page, code: string, { renderAfterReady = false, ke
 
 const STAGE = 'kit.outdoor();';
 
-const REACH_SCENE = `function scene(kit) {
+const getReachScene = (stage: string, draw = '') => `function scene(kit) {
   const leak = ${JSON.stringify(leakBase)};
   const probes = {};
   const attempt = (name, work) => { try { const value = work(); probes[name] = value === undefined ? 'nothing' : String(value); } catch (error) { probes[name] = 'threw ' + error.name; } console.error('probe|' + name + '|' + probes[name]); };
@@ -174,8 +173,8 @@ const REACH_SCENE = `function scene(kit) {
   attempt('pageUrl', () => document.baseURI + ' ' + document.referrer + ' ' + document.URL + ' ' + location.href);
   attempt('history', () => { for (let turn = 0; turn < 40; turn += 1) history.pushState({}, ''); });
   try { parent.postMessage({ type: 'probes', issues: Object.entries(probes).map(([name, value]) => 'probe|' + name + '|' + value) }, '*'); } catch {}
-  ${STAGE}
-  return { render() {} };
+  ${stage}
+  return { render() { ${draw} } };
 }`;
 
 const RAW_NETWORK_WORKER = `
@@ -320,7 +319,7 @@ check(isStopped(catching), `a spinning scene that catches errors is stopped, at 
 check(isStopped(spinAtTop), `a scene spinning before it is even asked to build is stopped, at ${Math.round(spinAtTop.stoppedAtMs ?? -1)} ms`);
 check(isStopped(regex), `a regular expression that never ends is stopped, at ${Math.round(regex.stoppedAtMs ?? -1)} ms`);
 
-const reach = await runScene(page, REACH_SCENE);
+const reach = await runScene(page, getReachScene(STAGE));
 const probes = getProbes(reach);
 console.log(JSON.stringify(probes));
 for (const name of REACHED_NAMES) check(probes[name] === 'nothing' || probes[name]?.startsWith('threw') === true, `a scene gets nothing from ${name}: ${probes[name]}`);
@@ -330,6 +329,31 @@ check(!Object.values(probes).some((value) => value.includes(SESSION_ID)), `the p
 check((await page.evaluate(() => history.length)) === PAGE_HISTORY_LENGTH, `a scene adds nothing to the page's history, which holds ${await page.evaluate(() => history.length)} entries`);
 
 await runScene(page, NAVIGATE_SCENE);
+
+const CANVAS_STAGE = "kit.paper({}); kit.ctx.fillStyle = '#e8603c'; kit.ctx.fillRect(300, 200, 400, 300);";
+const CANVAS_DRAW = `function scene(kit) { return { render() { ${CANVAS_STAGE} } }; }`;
+const runCanvas = (code: string, options: Parameters<typeof runScene>[2] = {}) => runScene(page, code, { bundle: CANVAS_BUNDLE, ...options });
+const isFrameRefused = ({ replies }: FrameRun, reason: RegExp) => replies.some(({ type, message }) => type === 'error' && reason.test(message ?? ''));
+
+const [canvasGood, canvasBlank, canvasBroken, canvasCut, canvasReach, canvasSpinBuild, canvasSpinFrame] = await Promise.all([
+  runCanvas(CANVAS_DRAW),
+  runCanvas('function scene(kit) { return { render() { kit.paper({}); } }; }'),
+  runCanvas(`function scene(kit) { return { render() { ${CANVAS_STAGE} kit.label(String(0 / 0), { x: 100, y: 100 }); } }; }`),
+  runCanvas(`function scene(kit) { return { render() { ${CANVAS_STAGE} kit.ctx.font = kit.font(40); kit.ctx.fillText('cut by the edge', 1200, 300); } }; }`),
+  runCanvas(getReachScene(CANVAS_STAGE, CANVAS_STAGE)),
+  runCanvas('function scene(kit) { while (true) {} }'),
+  runCanvas(`function scene(kit) { return { render(t) { ${CANVAS_STAGE} if (t === ${SPIN_SECONDS}) for (;;) {} } }; }`, { renderAfterReady: true, settleMs: STOP_LIMIT_MS }),
+]);
+check(canvasGood.replies.some(({ type }) => type === 'ready'), 'a plain Canvas drawing passes the frame check and says ready');
+check(isFrameRefused(canvasBlank, /blank/), 'the frame check refuses a Canvas drawing with nothing on it');
+check(isFrameRefused(canvasBroken, /broken number/), 'the frame check refuses a label that shows a broken number');
+check(isFrameRefused(canvasCut, /cut by the frame/), 'the frame check refuses text cut by the frame');
+check(isStopped(canvasSpinBuild), `a Canvas drawing spinning in its build is stopped, at ${Math.round(canvasSpinBuild.stoppedAtMs ?? -1)} ms`);
+check(isStopped(canvasSpinFrame), `a Canvas drawing spinning in a frame is stopped, at ${Math.round(canvasSpinFrame.stoppedAtMs ?? -1)} ms`);
+const canvasProbes = getProbes(canvasReach);
+for (const name of REACHED_NAMES) check(canvasProbes[name] === 'nothing' || canvasProbes[name]?.startsWith('threw') === true, `a Canvas drawing gets nothing from ${name}: ${canvasProbes[name]}`);
+for (const name of THROWING_NAMES) check(canvasProbes[name]?.startsWith('threw') === true, `a Canvas drawing cannot use ${name}: ${canvasProbes[name]}`);
+check(!Object.values(canvasProbes).some((value) => value.includes(SESSION_ID)), `the page's address does not reach a Canvas drawing: ${canvasProbes.pageUrl}`);
 
 await page.evaluate(() => {
   const box = document.createElement('input');

@@ -208,6 +208,11 @@ export function selfContainedFrameHost(): void {
     worker.postMessage(command);
   });
 
+  // The parent lays this frame out after its script has started, so the first size the worker hears can be zero.
+  window.addEventListener('resize', () => {
+    if (!isStopped) worker.postMessage({ type: 'resize', width: canvas.clientWidth, height: canvas.clientHeight });
+  });
+
   const offscreen = canvas.transferControlToOffscreen();
   worker.postMessage({ type: 'start', canvas: offscreen, width: canvas.clientWidth, height: canvas.clientHeight, pixelRatio: window.devicePixelRatio, fonts }, [offscreen]);
 }

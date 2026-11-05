@@ -1,9 +1,9 @@
 import type { BoardState } from '@astra/board';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { isFastSceneEnabled, isKitSceneEnabled } from '../session/lessonFlag';
+import { isFastSceneEnabled, isFreshDrawEnabled, isKitSceneEnabled } from '../session/lessonFlag';
 import type { LiveVoice } from '../voice/liveVoice';
 import { getCanPlayScenes } from './sceneEngine';
-import { createKitSceneStage, getCanDrawRecipes } from './kitSceneStage';
+import { createKitSceneStage, getCanDrawFresh, getCanDrawRecipes } from './kitSceneStage';
 import { createSceneStage, type SceneStage } from './sceneStage';
 
 const PARKED_WIDTH = 960;
@@ -92,11 +92,14 @@ export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): Tuto
     let isGone = false;
     void getCanPlayScenes().then((canPlayTakes) => {
       if (isGone) return;
-      const isAble = canPlayTakes || (isFastSceneEnabled() && getCanDrawRecipes());
+      const isAble = canPlayTakes || (isFastSceneEnabled() && (getCanDrawRecipes() || getCanDrawFresh()));
       canPlayTakesRef.current = canPlayTakes;
       setCanPlay(isAble);
       if (!isAble) voice.sendScene({ type: 'sceneDevice', canPlay: false });
-      if (isFastSceneEnabled()) void import('./kitFrame').then(({ warmKitFiles }) => warmKitFiles());
+      if (isFastSceneEnabled()) void import('./kitFrame').then(({ warmKitFiles }) => {
+        warmKitFiles();
+        if (getCanDrawFresh()) warmKitFiles('canvas');
+      });
     });
     return () => {
       isGone = true;
@@ -121,7 +124,7 @@ export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): Tuto
         if (!isGone) voice.sendScene({ type: isLoaded ? 'sceneLoaded' : 'sceneRefused', sceneId });
       });
     });
-    voice.sendScene({ type: 'sceneDevice', canPlay: true, ...(isFastSceneEnabled() ? { canPlayTakes: canPlayTakesRef.current } : {}) });
+    voice.sendScene({ type: 'sceneDevice', canPlay: true, ...(isFastSceneEnabled() ? { canPlayTakes: canPlayTakesRef.current } : {}), ...(isFreshDrawEnabled() ? { canDrawRecipes: getCanDrawRecipes() } : {}) });
     return () => {
       isGone = true;
       stopListening();

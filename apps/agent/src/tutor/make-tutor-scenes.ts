@@ -25,8 +25,13 @@ const DEFAULT_SHARED_PLAYS_A_DAY = 18;
 
 const FAST_ASK_LIMIT_MS = 20_000;
 const FAST_MOST_ASKS = 40;
+/** A fresh drawing takes about 12 s after the recipe call, and 20 s at worst in the lab. */
+const FRESH_ASK_LIMIT_MS = 40_000;
+const MOST_FRESH_DRAWINGS = 6;
 
 export const hasFastScenes = () => process.env.ASTRA_FAST_SCENES === '1';
+
+const hasFreshDraw = () => process.env.ASTRA_FRESH_DRAW === '1';
 
 type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'send' | 'speak' | 'canSpeak' | 'onShown' | 'trace'>;
 
@@ -57,6 +62,13 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
   const runs = createTopicRuns({ planner: models.planner, nameReader: models.nameReader, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(process.env.ASTRA_SCENE_CONTAINERS ? { mostAtOnce: Number(process.env.ASTRA_SCENE_CONTAINERS) } : {}), store, warn });
   const kitRuns = hasKitLive() ? createTopicRuns({ engine: 'kit', themes: ['dark'], checkCode: getKitCodeProblems, getLinesToReview: getKitSpokenLines, planner: models.planner, nameReader: models.nameReader, writers: [models.kitWriter, models.kitFallbackWriter], repairWriter: models.kitFallbackWriter, reviewer: models.kitReviewer, worker: createKitWorker(), store, warn }) : undefined;
   let queue: SceneQueue | null = null;
+  let freshDrawings = 0;
+  const claimDrawing = () => {
+    if (freshDrawings >= MOST_FRESH_DRAWINGS) return false;
+    freshDrawings += 1;
+    return true;
+  };
+  const freshTools = hasFreshDraw() ? { writer: models.freshWriter, reviewer: models.freshReviewer, claimDrawing } : null;
   const fast: FastSceneHooks | null = hasFastScenes() && canCutIn && cutIn && isInBreath
     ? {
         canCutIn,
@@ -64,7 +76,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
         ...(isBeforeFirstWord ? { isBeforeFirstWord } : {}),
         cutIn,
         mostAsks: FAST_MOST_ASKS,
-        askLimitMs: FAST_ASK_LIMIT_MS,
+        askLimitMs: freshTools ? FRESH_ASK_LIMIT_MS : FAST_ASK_LIMIT_MS,
         makeWork: (input) =>
           createRecipeWork({
             ...input,
@@ -80,6 +92,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
             getCore: getCoreSource,
             getLevel: () => getLevel?.() ?? null,
             trace: hooks.trace,
+            fresh: freshTools,
           }),
       }
     : null;

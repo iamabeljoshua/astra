@@ -36,6 +36,10 @@ export interface SceneStore {
   isFlagged(key: SceneKey): boolean;
   list(): StoredScene[];
   listShared(): Promise<StoredScene[]>;
+  /** A student's own scenes, so a second ask in other words finds the one they already have. */
+  listOwned(ownerId: string): Promise<StoredScene[]>;
+  /** Takes back a scene the page refused, so asking again draws a new one. */
+  forget(key: SceneKey): Promise<void>;
 }
 
 interface KitSceneRecord {
@@ -94,6 +98,16 @@ export function createSceneStore(root: string): SceneStore {
     return scene?.status === 'checked' ? scene : null;
   };
   const isFlaggedId = (id: string) => existsSync(join(root, 'flags', `${requireServerId(id)}.json`));
+  const listByOwner = async (ownerId: string | null) => {
+    const ids = existsSync(scenesRoot) ? (await readdir(scenesRoot)).filter((id) => SERVER_MADE_ID.test(id) && !isFlaggedId(id)) : [];
+    const scenes: StoredScene[] = [];
+    for (const id of ids) {
+      const scene = await readFile(join(scenesRoot, id, 'scene.json'), 'utf8').then((text) => JSON.parse(text) as StoredScene).catch(() => null);
+      if (scene?.status === 'checked' && scene.ownerId === ownerId) scenes.push(scene);
+    }
+    return scenes;
+  };
+
   return {
     find(key) {
       const scene = isFlaggedId(key.id) ? null : readChecked(key.id);
@@ -106,15 +120,9 @@ export function createSceneStore(root: string): SceneStore {
       return refusal && isKeyMatch(key, refusal.key) ? refusal : null;
     },
     list: () => (existsSync(scenesRoot) ? readdirSync(scenesRoot).filter((id) => SERVER_MADE_ID.test(id) && !isFlaggedId(id)).flatMap((id) => readChecked(id) ?? []) : []),
-    async listShared() {
-      const ids = existsSync(scenesRoot) ? (await readdir(scenesRoot)).filter((id) => SERVER_MADE_ID.test(id) && !isFlaggedId(id)) : [];
-      const scenes: StoredScene[] = [];
-      for (const id of ids) {
-        const scene = await readFile(join(scenesRoot, id, 'scene.json'), 'utf8').then((text) => JSON.parse(text) as StoredScene).catch(() => null);
-        if (scene?.status === 'checked' && scene.ownerId === null) scenes.push(scene);
-      }
-      return scenes;
-    },
+    listShared: () => listByOwner(null),
+    listOwned: listByOwner,
+    forget: (key) => rm(join(scenesRoot, requireServerId(key.id)), { recursive: true, force: true }),
     // The whole folder appears at once, and a rename onto a folder that holds files fails, so the first passing save stays and a take's address never changes what it serves.
     async saveChecked(scene, takes, sheets) {
       const target = join(scenesRoot, requireServerId(scene.id));
