@@ -8,6 +8,7 @@ export function selfContainedFrameHost(): void {
   const MOST_ERRORS = 4;
   const MOST_ERROR_CHARS = 1000;
   const MOST_READY_CHARS = 1_000_000;
+  const MOST_ANSWER_CHARS = 20_000_000;
   const MOST_OPS = 20_000;
   const MOST_NODES = 20_000;
   const MOST_TEXT_CHARS = 1000;
@@ -20,6 +21,7 @@ export function selfContainedFrameHost(): void {
   const ROOT_NAMES = new Set(['theme', 'canvas']);
   const ROOT_VALUES = new Set(['light', 'dark']);
   const SAFE_VALUE = /^[\w\s.,#%()+-]*$/;
+  const ERROR_PHASES = new Set<unknown>(['script', 'promise', 'shader', 'build', 'render']);
   const REPLIES_TO_ASKS = new Set(['gate', 'snapshot', 'audit', 'flash', 'picture']);
 
   const { source, fonts } = JSON.parse((document.getElementById('frame-data') as HTMLElement).textContent as string) as { source: string; fonts: KitFont[] };
@@ -33,6 +35,7 @@ export function selfContainedFrameHost(): void {
   let beatId = 0;
   let answeredBeat = 0;
   let missedBeats = 0;
+  let hasLoaded = false;
   let isReady = false;
   let isStopped = false;
   let hasOpenRender = false;
@@ -41,7 +44,7 @@ export function selfContainedFrameHost(): void {
   const tellError = ({ phase, message, stack, line, col, seconds }: Extract<KitFrameReply, { type: 'error' }>) => {
     errorsTold += 1;
     if (errorsTold > MOST_ERRORS) return;
-    tellPage({ type: 'error', phase, message: String(message).slice(0, MOST_ERROR_CHARS), stack: String(stack ?? '').slice(0, MOST_ERROR_CHARS), line: Number(line), col: Number(col), seconds: Number(seconds) });
+    tellPage({ type: 'error', phase: ERROR_PHASES.has(phase) ? phase : 'script', message: String(message).slice(0, MOST_ERROR_CHARS), stack: String(stack ?? '').slice(0, MOST_ERROR_CHARS), line: Number(line), col: Number(col), seconds: Number(seconds) });
   };
 
   const stop = (message: string) => {
@@ -122,6 +125,13 @@ export function selfContainedFrameHost(): void {
     tellError({ type: 'error', phase: 'script', message: event.message, line: event.lineno, col: event.colno });
   };
 
+  // JSON cannot hold an ArrayBuffer or a Map, so the app gets only the copy that was measured.
+  const tellMeasured = (data: KitWorkerMessage, mostChars: number) => {
+    const copy = JSON.stringify(data);
+    if (copy.length > mostChars) stop('the scene said too much');
+    else tellPage(JSON.parse(copy) as KitFrameReply);
+  };
+
   const passOnWorkerMessage = (data: KitWorkerMessage) => {
     const type = (data as { type?: unknown } | null)?.type;
     if (type === 'beat') {
@@ -133,6 +143,8 @@ export function selfContainedFrameHost(): void {
       return;
     }
     if (type === 'loaded') {
+      if (hasLoaded) return;
+      hasLoaded = true;
       tellPage({ type: 'loaded' });
       return;
     }
@@ -149,19 +161,15 @@ export function selfContainedFrameHost(): void {
     }
     if (type === 'ready') {
       if (isReady) return;
-      if (JSON.stringify(data).length > MOST_READY_CHARS) {
-        stop('the scene said too much');
-        return;
-      }
       isReady = true;
       missedBeats = 0;
-      tellPage(data as KitFrameReply);
+      tellMeasured(data, MOST_READY_CHARS);
       return;
     }
     if (typeof type === 'string' && REPLIES_TO_ASKS.has(type) && (openAsks.get(type) ?? 0) > 0) {
       openAsks.set(type, (openAsks.get(type) as number) - 1);
       missedBeats = 0;
-      tellPage(data as KitFrameReply);
+      tellMeasured(data, MOST_ANSWER_CHARS);
     }
   };
 
