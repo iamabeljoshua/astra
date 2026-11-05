@@ -33,6 +33,8 @@ async function readSharedFiles(): Promise<{ kitBundle: string; fonts: KitFont[] 
   return { kitBundle: new TextDecoder().decode(kit), fonts };
 }
 
+export const warmKitFiles = () => void getSharedFiles().catch(() => {});
+
 function getSharedFiles() {
   sharedFiles ??= readSharedFiles().catch((error: unknown) => {
     sharedFiles = null;
@@ -72,13 +74,14 @@ export interface OpenKitFrameInput {
   take: KitTake;
   theme: KitTheme;
   limitMs: number;
+  drawsFlat?: boolean;
   onLost(): void;
   onFirstDraw(): void;
 }
 
-export async function openKitFrame({ host, take, theme, limitMs, onLost, onFirstDraw }: OpenKitFrameInput): Promise<KitFrame> {
+export async function openKitFrame({ host, take, theme, limitMs, drawsFlat = false, onLost, onFirstDraw }: OpenKitFrameInput): Promise<KitFrame> {
   const [{ kitBundle, fonts }, textures] = await Promise.all([getSharedFiles(), getTextures(take.code)]);
-  const page = buildKitFramePage({ kitBundle, fonts, code: take.code });
+  const page = buildKitFramePage({ kitBundle, fonts, code: take.code, drawsFlat });
   const iframe = createFrameElement(page);
   let currentTheme = theme;
   let wantSeconds = 0;

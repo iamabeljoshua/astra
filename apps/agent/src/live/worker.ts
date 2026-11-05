@@ -11,13 +11,13 @@ import { makeTutorTranscriber, makeTutorVoice } from '../providers/choose.ts';
 import { makeRenderedVoice, RENDERED_SAMPLE_RATE } from '../providers/rendered-voice.ts';
 import { type Ears, startEars, VAD_SETTINGS } from './ears.ts';
 import { createClosingWait } from './closing-wait.ts';
-import { createLiveSession } from './live-session.ts';
+import { createLiveSession, type SceneHeard } from './live-session.ts';
 import { createTakePicker, loadTakes } from './reactions.ts';
 import { readDataMessage } from './read-data-message.ts';
 import type { LessonEvent, LessonState } from '../lesson-plan/plan-progress.ts';
 import type { ApiLink } from '../tutor/api-link.ts';
 import { hasTutorScenes, makeApiLink, makeTutorBrain, warmTutorModel } from '../tutor/make-brain.ts';
-import { makeTutorScenes, type SessionScenes } from '../tutor/make-tutor-scenes.ts';
+import { hasFastScenes, makeTutorScenes, type SessionScenes } from '../tutor/make-tutor-scenes.ts';
 import { getSpokenCharacters } from '../tutor/tutor-scenes.ts';
 import { createHeardRecorder } from './heard-recorder.ts';
 import { createLogSaver, type LogSaver } from './log-saver.ts';
@@ -95,7 +95,10 @@ async function runSession(context: JobContext): Promise<void> {
   const sceneHooks = {
     onAskScene: (topic: string) => scenes?.onTutorAsk(topic),
     onStudentWords: (words: string) => scenes?.queue?.noteStudentWords(words),
-    onLessonChange: (state: LessonState, event: LessonEvent | null) => scenes?.queue?.onLesson(state, event),
+    onLessonChange(state: LessonState, event: LessonEvent | null) {
+      scenes?.queue?.onLesson(state, event);
+      if (hasFastScenes() && state.active) scenes?.noteTopic(state.active.plan.topic);
+    },
     getPictureTopic: () => scenes?.queue?.getPictureTopic() ?? null,
     onSafetyReply() {
       scenes?.noteSafetyReply();
@@ -153,6 +156,13 @@ async function runSession(context: JobContext): Promise<void> {
           waitForPicture: () => scenes?.waitForPicture() ?? Promise.resolve(true),
         }
       : {}),
+    ...(hasTutorScenes() && hasFastScenes()
+      ? {
+          sentenceBreaks: { queueMs: AUDIO_QUEUE_MS, onBreak: () => scenes?.noteSentenceBreak() },
+          onSceneCut: (heard: SceneHeard) => scenes?.noteSceneCut(heard),
+          takeOwedCommands: () => scenes?.takeOwedCommands() ?? [],
+        }
+      : {}),
     ...(process.env.ASTRA_SHOW_COST === '1' ? { getCostSoFar: () => (getSpentUsd?.() ?? 0) + (hearingSinceMs === null ? 0 : ((Date.now() - hearingSinceMs) / MS_PER_MINUTE) * MUSE_USD_PER_MINUTE) } : {}),
   });
   if (hasTutorScenes() && caps) {
@@ -164,6 +174,10 @@ async function runSession(context: JobContext): Promise<void> {
       send: (message: SceneAgentMessage) => void room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic: SCENE_TOPIC }).catch((error: unknown) => trace('sceneNotSent', { problem: String(error) })),
       canSpeak: session.isAtPause,
       speak: session.speakScene,
+      canCutIn: session.canCutInScene,
+      isInBreath: session.isInBreath,
+      cutIn: session.cutInScene,
+      getLevel: () => brain.getStudentLevel?.() ?? null,
       isTutorClosed: () => brain.getClosedReason?.() != null,
       onShown(shown) {
         brain.noteSceneTurn?.(shown);

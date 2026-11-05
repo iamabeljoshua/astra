@@ -67,11 +67,12 @@ export interface KitFramePageInput {
   kitBundle: string;
   code: string;
   fonts?: KitFont[];
+  drawsFlat?: boolean;
 }
 
 /** The whole sandboxed page for one scene, set as the `srcdoc` of an `<iframe sandbox="allow-scripts">`. Scene code runs in a worker this page starts, and never in the page. */
-export function buildKitFramePage({ kitBundle, code, fonts = [] }: KitFramePageInput): string {
+export function buildKitFramePage({ kitBundle, code, fonts = [], drawsFlat = false }: KitFramePageInput): string {
   const nonce = crypto.randomUUID().replaceAll('-', '');
-  const source = `${kitBundle}\n;self.__scene=(function(){${code}\n;return typeof scene==='function'?scene:null;})();`;
+  const source = `${kitBundle}\n;${drawsFlat ? 'self.__drawFlat=true;' : ''}self.__scene=(function(){${code}\n;return typeof scene==='function'?scene:null;})();`;
   return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${getFrameCsp(nonce)}"><style>${getFontCss(fonts)}${FRAME_CSS}${THEME_CSS}</style></head><body><canvas id="c"></canvas><div id="o"></div><script type="application/json" id="frame-data">${toFrameData({ source, fonts })}</script><script nonce="${nonce}">(${selfContainedFrameHost.toString()})()</script></body></html>`;
 }

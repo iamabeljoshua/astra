@@ -280,7 +280,7 @@ const SCENE_AGENT_MESSAGES: VariantTable<SceneAgentMessage, 'type'> = {
 const SCENE_BROWSER_MESSAGES: VariantTable<SceneBrowserMessage, 'type'> = {
   tag: 'type',
   variants: {
-    sceneDevice: { keys: ['canPlay'], read: (fields) => ({ type: 'sceneDevice', canPlay: readBoolean(fields.at('canPlay')) }) },
+    sceneDevice: { keys: ['canPlay', 'canPlayTakes'], read: (fields) => ({ type: 'sceneDevice', canPlay: readBoolean(fields.at('canPlay')), ...fields.optional('canPlayTakes', readBoolean) }) },
     sceneLoaded: { keys: ['sceneId'], read: (fields) => ({ type: 'sceneLoaded', sceneId: readSceneId(fields.at('sceneId')) }) },
     scenePrepared: { keys: ['sceneId'], read: (fields) => ({ type: 'scenePrepared', sceneId: readSceneId(fields.at('sceneId')) }) },
     sceneRefused: { keys: ['sceneId'], read: (fields) => ({ type: 'sceneRefused', sceneId: readSceneId(fields.at('sceneId')) }) },

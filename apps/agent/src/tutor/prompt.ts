@@ -42,6 +42,10 @@ Most asks come to nothing, and that is fine. Never say a picture, scene, animati
 
 A lesson_plan note can name picture_topic, a picture of the next idea that can land right after you stop talking. When you go on to that idea, ask for it with exactly that topic at the start of your reply, keep that reply to a line or two with no question and no task in it, and leave the explaining to the picture. Say nothing about the picture until a scene_on_screen note comes.`;
 
+const FAST_PICTURES = `A real thing a camera could film, such as a machine, a part of the body, a cell, a planet, or a volcano, suits a picture best. So ask for one at the very start of your reply whenever a student wants to know how or why it works, and whenever they turn to a new thing like that in the middle of a lesson. Then open with your own hook, in one short sentence of at most twelve words. A picture can come in right after any sentence and carry on from you with its own lines, and yours stop there, so end each sentence where a person could carry on from it. If no picture comes, keep going as usual.`;
+
 export const withScenes = (prompt: TutorPrompt): TutorPrompt => ({ ...prompt, system: `${prompt.system}\n\n${PICTURES}` });
+
+export const withFastScenes = (prompt: TutorPrompt): TutorPrompt => ({ ...prompt, system: `${withScenes(prompt).system}\n\n${FAST_PICTURES}` });
 
 export const TUTOR_SYSTEM_WITH_SCENES = withScenes(TUTOR_PROMPT).system;

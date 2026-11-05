@@ -14,8 +14,8 @@ export type SceneAgentMessage =
   | { type: 'voiceAtLimit' };
 
 export type SceneBrowserMessage =
-  /** Sent on joining, so nothing is written for a student who could not see it. */
-  | { type: 'sceneDevice'; canPlay: boolean }
+  /** Sent on joining, so nothing is written for a student who could not see it. `canPlayTakes` is false for a page that draws recipes but has no WebGPU for a written take. */
+  | { type: 'sceneDevice'; canPlay: boolean; canPlayTakes?: boolean }
   | { type: 'sceneLoaded'; sceneId: string }
   | { type: 'scenePrepared'; sceneId: string }
   /** A take is untrusted data, so a damaged one is refused and the lesson stays on the plain board. */

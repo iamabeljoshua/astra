@@ -73,6 +73,13 @@ describe('the scene routes', () => {
       expect(response.body).toEqual({ code: 'function scene(kit) {}', timing: { moments: MOMENTS, duration: 12 } });
     });
 
+    it('sends a scene made from approved parts, and still refuses kit code with no review and no recipe', async () => {
+      saveRecord('from-parts', { engine: 'kit', code: 'function scene(kit) {}', recipe: { items: [] } });
+      saveRecord('written-live', { engine: 'kit', code: 'function scene(kit) {}' });
+      await getKitTake('from-parts').expect(200);
+      await getKitTake('written-live').expect(404);
+    });
+
     it('refuses a scene not marked reviewed', async () => {
       saveRecord('rocket-unreviewed', {});
       saveKitScene('unreviewed', { sceneId: 'rocket-unreviewed', reviewed: false });

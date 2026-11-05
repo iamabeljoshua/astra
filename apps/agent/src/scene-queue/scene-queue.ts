@@ -33,6 +33,7 @@ export interface SceneQueueOptions {
   canPlay(): boolean;
   moveToNextStep(): void;
   trace(name: string, fields?: Record<string, unknown>): void;
+  asksAlwaysGo?: boolean;
 }
 
 export interface SceneQueue {
@@ -65,7 +66,7 @@ function getWanted(lessonTopic: string, step: LessonStep | undefined, title: str
   return step?.teach ? { request: toRequest(lessonTopic, step.teach), source: 'written' } : null;
 }
 
-export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveToNextStep, trace }: SceneQueueOptions): SceneQueue {
+export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveToNextStep, trace, asksAlwaysGo = false }: SceneQueueOptions): SceneQueue {
   let entries: QueueEntry[] = [];
   let lesson: { plan: LessonPlan; stepIndex: number } | null = null;
   let isStopped = false;
@@ -213,7 +214,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       if (isStopped) return;
       const next = lesson ? findEntry(lesson.stepIndex + 1) : undefined;
       if (next && sameWords(next.request, topic)) return moveToNextStep();
-      if (isMakingWrite() || hasSceneWaiting()) return trace('sceneAskPassed', { text: topic });
+      if (!asksAlwaysGo && (isMakingWrite() || hasSceneWaiting())) return trace('sceneAskPassed', { text: topic });
       trace('sceneCue', { text: topic, source: 'asked', wallMs: Date.now() });
       scenes.ask(topic);
     },
