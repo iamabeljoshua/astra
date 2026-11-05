@@ -1,7 +1,8 @@
 import { cpus, loadavg } from 'node:os';
 import { readKey } from '../keys.ts';
 import { getCardPictures } from '../lesson-plan/card-lesson.ts';
-import { makeAnthropicJsonReader } from '../providers/anthropic.ts';
+import { type JsonReader, makeAnthropicJsonReader } from '../providers/anthropic.ts';
+import { makeOpenAiJsonReader } from '../providers/openai-json.ts';
 import { makeAnthropicSceneModels, type RecipeModels, type SceneModels } from '../providers/anthropic.scenes.ts';
 import { getKitCodeProblems, getKitSpokenLines } from '../scenes/kit-code-check.ts';
 import { createKitWorker } from '../scenes/kit-worker.ts';
@@ -14,6 +15,8 @@ import { getSceneStoreRoot, hasKitLive } from '../scenes/scene-settings.ts';
 import { createSceneStore } from '../scenes/scene-store.ts';
 import { getCoreSource, getUsableParts } from '../scenes/recipe/catalogue.ts';
 import { createRecipeWork } from '../scenes/recipe/recipe-work.ts';
+import { createLiveSceneWords, type LiveSceneWords } from '../scenes/live-words/live-scene-words.ts';
+import type { StudentFacts } from '../scenes/live-words/write-speech.ts';
 import type { SpendCaps } from './make-brain.ts';
 import type { TutorBeat } from './brain.ts';
 import { createTutorScenes, type FastSceneHooks, type TutorScenes, type TutorScenesOptions } from './tutor-scenes.ts';
@@ -33,6 +36,12 @@ export const hasFastScenes = () => process.env.ASTRA_FAST_SCENES === '1';
 
 const hasFreshDraw = () => process.env.ASTRA_FRESH_DRAW === '1';
 
+const hasLiveSceneWords = () => process.env.ASTRA_LIVE_SCENE_WORDS === '1';
+
+const HAIKU_WORDS_MODEL = 'haiku-5-5';
+
+// A missing key costs a failed call and so the saved words, and never the session.
+const makeWordsReader = (): JsonReader => ({ read: (request) => (process.env.ASTRA_SCENE_WORDS_MODEL === HAIKU_WORDS_MODEL ? makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') }) : makeOpenAiJsonReader({ apiKey: readKey('OPENAI_API_KEY') })).read(request) });
 /** Words like these ask about something, so the drawing need not wait for the tutor to ask. The router still reads them first, and anything else waits for the tutor. */
 const ASKS_TO_BE_TAUGHT = /^(how|why|what|when|where|which|who|whose|explain|show|teach|tell me|can you|could you|do|does|did|is|are|i want to|i'd like to|what's|how's)\b|\?\s*$/i;
 const FEWEST_WORDS_IN_AN_ASK = 3;
@@ -43,6 +52,7 @@ type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'send' | 'speak' |
 export interface SessionScenes extends TutorScenes {
   queue: SceneQueue | null;
   onTutorAsk(topic: string): void;
+  noteFirstWords(): void;
   noteStudentWords(words: string): void;
 }
 
@@ -50,10 +60,10 @@ const hasScenesAhead = () => process.env.ASTRA_SCENES_AHEAD !== '0';
 
 const getLoadPerCore = () => (loadavg()[0] ?? 0) / Math.max(cpus().length, 1);
 
-type MakeOptions = SessionHooks & { isTutorClosed?(): boolean; caps: Pick<SpendCaps, 'addScene' | 'addTurn' | 'getSceneUsd' | 'getSpendLimit' | 'getLeftTodayUsd' | 'getSharedPlaysToday'>; moveToNextStep(): void; getLastFirstTextMs(): number | null; canCutIn?(): boolean; isInBreath?(): boolean; isBeforeFirstWord?(): boolean; cutIn?(beats: readonly TutorBeat[]): boolean; getLevel?(): string | null };
+type MakeOptions = SessionHooks & { isTutorClosed?(): boolean; caps: Pick<SpendCaps, 'addScene' | 'addTurn' | 'getSceneUsd' | 'getSpendLimit' | 'getLeftTodayUsd' | 'getSharedPlaysToday'>; moveToNextStep(): void; getLastFirstTextMs(): number | null; canCutIn?(): boolean; isInBreath?(): boolean; isBeforeFirstWord?(): boolean; cutIn?(beats: readonly TutorBeat[]): boolean; getLevel?(): string | null; getStudentFacts?(): Promise<StudentFacts>; isReplyStarting?(): boolean };
 
 // A scene's spending lands on the student's day through the same caps as the tutor's, and a scene past the limit is simply not written.
-export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canCutIn, isInBreath, isBeforeFirstWord, cutIn, getLevel, ...hooks }: MakeOptions): SessionScenes {
+export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canCutIn, isInBreath, isBeforeFirstWord, cutIn, getLevel, getStudentFacts, isReplyStarting, ...hooks }: MakeOptions): SessionScenes {
   const limitUsd = Number(process.env.ASTRA_SCENE_SESSION_LIMIT_USD ?? DEFAULT_SCENE_LIMIT_USD);
   const sharedPlaysADay = Number(process.env.ASTRA_SHARED_PLAYS_A_DAY ?? DEFAULT_SHARED_PLAYS_A_DAY);
   if (!process.env.ASTRA_SPEND_FILE) process.stderr.write('ASTRA_SPEND_FILE is not set, so shared scenes have no project ceiling and no per-student cap past this session.\n');
@@ -98,9 +108,22 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
           }),
       }
     : null;
+  const liveWords: LiveSceneWords | null = hasLiveSceneWords() && !isFake && getStudentFacts
+    ? createLiveSceneWords({
+        reader: makeWordsReader(),
+        getStudent: getStudentFacts,
+        isReplyStarting: () => isReplyStarting?.() ?? false,
+        canSpend: () => !isClosed() && caps.getSceneUsd() < limitUsd,
+        onCost: (usd) => caps.addScene(usd),
+        onSettled: (sceneId) => scenes.noteWordsSettled(sceneId),
+        getNowMs: () => performance.now(),
+        trace: hooks.trace,
+      })
+    : null;
   const scenes = createTutorScenes({
     ...hooks,
     ...(fast ? { fast } : {}),
+    ...(liveWords ? { liveWords } : {}),
     ...(kitRuns ? { kitRuns, fitReader: models.fitReader } : {}),
     isClosed,
     canPlayShared: (studentId) => caps.getSharedPlaysToday(studentId) < sharedPlaysADay,
@@ -140,6 +163,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
   return {
     ...scenes,
     queue,
+    noteFirstWords: () => liveWords?.noteFirstWords(),
     noteStudentWords(words) {
       queue?.noteStudentWords(words);
       if (freshTools && isAskingToBeTaught(words)) scenes.askFromLine(words);

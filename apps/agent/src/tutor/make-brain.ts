@@ -174,6 +174,7 @@ export interface SceneHooks {
   /** The brief has come, or will not, so a card's title is known or there is none. */
   onCardKnown?(title: string | null): void;
   onTurnWritten?(turn: { wasLead: boolean; firstTextMs: number | null; spokenText: string; refusalCategory: string | null }): void;
+  onFirstWords?(): void;
 }
 
 // A plan changes the session's title only when the student moves to another topic, and a failed save keeps the page's title and the session running.
@@ -246,7 +247,7 @@ export function makeTutorBrain({ roomName, jobId, trace, showSafetyHelp, onSessi
       }
     : undefined;
   if (!loadProfile) queueMicrotask(() => sceneHooks?.onCardKnown?.(null));
-  const brain = createTutorBrain({ model, prompt: sceneHooks ? (process.env.ASTRA_FAST_SCENES === '1' ? withFastScenes(getLivePrompt()) : withScenes(getLivePrompt())) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, onPreparedLeadDropped: (usd) => caps.addTurn({ usd, voiceCharacters: 0 }), ...(safety ? { safety } : {}), ...(readers ? { readers } : {}), ...(lessonPlanner ? { lessonPlanner } : {}), ...(sceneHooks ? { onAskScene: sceneHooks.onAskScene } : {}), ...(sceneHooks?.onSafetyReply ? { onSafetyReply: sceneHooks.onSafetyReply } : {}), ...(sceneHooks?.onStudentWords ? { onStudentWords: sceneHooks.onStudentWords } : {}) });
+  const brain = createTutorBrain({ model, prompt: sceneHooks ? (process.env.ASTRA_FAST_SCENES === '1' ? withFastScenes(getLivePrompt()) : withScenes(getLivePrompt())) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, onPreparedLeadDropped: (usd) => caps.addTurn({ usd, voiceCharacters: 0 }), ...(safety ? { safety } : {}), ...(readers ? { readers } : {}), ...(lessonPlanner ? { lessonPlanner } : {}), ...(sceneHooks ? { onAskScene: sceneHooks.onAskScene } : {}), ...(sceneHooks?.onSafetyReply ? { onSafetyReply: sceneHooks.onSafetyReply } : {}), ...(sceneHooks?.onStudentWords ? { onStudentWords: sceneHooks.onStudentWords } : {}), ...(sceneHooks?.onFirstWords ? { onFirstWords: sceneHooks.onFirstWords } : {}) });
   if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, flushSpend };
   const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const readMeaning = async (words: string) => {
