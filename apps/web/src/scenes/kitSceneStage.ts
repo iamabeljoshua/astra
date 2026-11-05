@@ -1,7 +1,7 @@
 import type { SceneEngine } from '@astra/contracts';
 import type { KitTake } from '@astra/board/scene3d';
 import { api } from '../api/client';
-import { isKitSceneEnabled } from '../session/lessonFlag';
+import { isFastSceneEnabled, isKitSceneEnabled } from '../session/lessonFlag';
 import { getAppliedTheme } from '../theme/theme';
 import type { KitFrame } from './kitFrame';
 import { createSceneStage, type SceneStage } from './sceneStage';
@@ -20,6 +20,9 @@ interface KitEntry {
 const hasWebGl = () => document.createElement('canvas').getContext('webgl2') !== null;
 
 export const getCanPlayKit = () => isKitSceneEnabled() && window.innerWidth > PHONE_WIDTH && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && hasWebGl();
+
+/** A recipe's scene has no 2D take, so where depth cannot run, the same scene draws itself flat. It needs WebGL, and a page without it gets words and the board. */
+export const getCanDrawRecipes = () => isFastSceneEnabled() && hasWebGl();
 
 function createLayer(parent: HTMLElement): HTMLElement {
   const layer = document.createElement('div');
@@ -53,7 +56,7 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
     }
   };
 
-  const openEntry = async (sceneId: string, layer: HTMLElement): Promise<boolean> => {
+  const openEntry = async (sceneId: string, layer: HTMLElement, drawsFlat: boolean): Promise<boolean> => {
     try {
       const [{ openKitFrame }, take] = await Promise.all([import('./kitFrame'), getKitTake(sceneId)]);
       const frame = await openKitFrame({
@@ -61,6 +64,7 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
         take,
         theme: getAppliedTheme(),
         limitMs: KIT_LOAD_LIMIT_MS,
+        drawsFlat,
         onLost: () => {
           drop(sceneId);
           onChange();
@@ -83,14 +87,14 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
     }
   };
 
-  const open = (sceneId: string): Promise<boolean> => {
+  const open = (sceneId: string, drawsFlat = false): Promise<boolean> => {
     const held = entries.get(sceneId);
     if (held) return held.opening;
     const layer = createLayer(container);
     Object.assign(layer.style, { opacity: '0', visibility: 'hidden', transition: `opacity ${CROSS_FADE_MS}ms` });
     const entry: KitEntry = { layer, frame: null, opening: Promise.resolve(false) };
     entries.set(sceneId, entry);
-    entry.opening = openEntry(sceneId, layer);
+    entry.opening = openEntry(sceneId, layer, drawsFlat);
     dropOldest(sceneId);
     return entry.opening;
   };
@@ -114,7 +118,8 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
       if (engine !== 'kit' || !getCanPlayKit()) {
         const isLoaded = await flat.load(sceneId, durationSeconds);
         onChange();
-        return isLoaded;
+        if (isLoaded || engine !== 'kit' || !getCanDrawRecipes()) return isLoaded;
+        return open(sceneId, true);
       }
       const kitOpening = open(sceneId);
       const hasFlat = await flat.load(sceneId, durationSeconds);
@@ -123,7 +128,8 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
     },
     async prepare(sceneId, engine?: SceneEngine) {
       const kitOpening = engine === 'kit' && getCanPlayKit() ? open(sceneId) : Promise.resolve(false);
-      return (await flat.prepare(sceneId)) || kitOpening;
+      const isHeld = (await flat.prepare(sceneId)) || (await kitOpening);
+      return isHeld || (engine === 'kit' && !getCanPlayKit() && getCanDrawRecipes() ? open(sceneId, true) : false);
     },
     draw(sceneId, seconds) {
       lastDrawnId = sceneId;

@@ -13,11 +13,14 @@ interface ExpectedWord {
   startMs: number | null;
 }
 
+const ENDS_A_SENTENCE = /[.!]["')\]]*$/;
+
 // A voice names words its own way, so its words are matched to ours by position and `atWord` always counts ours. Beats arrive as the brain writes them.
 export function createWordTimeline(beats: readonly Beat[] = []) {
   const expected: ExpectedWord[] = [];
   let nextWord = 0;
   const mismatches: { ours: string; theirs: string }[] = [];
+  let breakCursor = 0;
 
   const addBeat = (beat: Beat) => {
     getSpokenWords(getBeatText(beat)).forEach((text, wordInBeat) => expected.push({ beatId: beat.id, wordInBeat, text, startMs: null }));
@@ -47,5 +50,16 @@ export function createWordTimeline(beats: readonly Beat[] = []) {
     return sent;
   };
 
-  return { addBeat, toBeatWords, getWordsSent, getMismatches: () => mismatches, isComplete: () => nextWord === expected.length };
+  /** True once for each sentence end whose next word starts by `positionMs`. A question holds the floor, so it is not a break. */
+  const hasCrossedSentenceBreak = (positionMs: number): boolean => {
+    let hasCrossed = false;
+    for (; breakCursor < expected.length; breakCursor += 1) {
+      const { startMs } = expected[breakCursor] as ExpectedWord;
+      if (startMs === null || startMs > positionMs) break;
+      if (ENDS_A_SENTENCE.test(expected[breakCursor - 1]?.text ?? '')) hasCrossed = true;
+    }
+    return hasCrossed;
+  };
+
+  return { addBeat, toBeatWords, getWordsSent, hasCrossedSentenceBreak, getMismatches: () => mismatches, isComplete: () => nextWord === expected.length };
 }

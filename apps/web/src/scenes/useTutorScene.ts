@@ -1,8 +1,9 @@
 import type { BoardState } from '@astra/board';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { isFastSceneEnabled } from '../session/lessonFlag';
 import type { LiveVoice } from '../voice/liveVoice';
 import { getCanPlayScenes } from './sceneEngine';
-import { createKitSceneStage } from './kitSceneStage';
+import { createKitSceneStage, getCanDrawRecipes } from './kitSceneStage';
 import type { SceneStage } from './sceneStage';
 
 const PARKED_WIDTH = 960;
@@ -79,16 +80,20 @@ function useSceneHost(isEnabled: boolean): TutorScene {
 
 export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): TutorScene {
   const [canPlay, setCanPlay] = useState(false);
+  const canPlayTakesRef = useRef(true);
   const scene = useSceneHost(canPlay && voice !== null && isEnabled);
   const { stage } = scene;
 
   useEffect(() => {
     if (!voice || !isEnabled) return undefined;
     let isGone = false;
-    void getCanPlayScenes().then((isAble) => {
+    void getCanPlayScenes().then((canPlayTakes) => {
       if (isGone) return;
+      const isAble = canPlayTakes || getCanDrawRecipes();
+      canPlayTakesRef.current = canPlayTakes;
       setCanPlay(isAble);
       if (!isAble) voice.sendScene({ type: 'sceneDevice', canPlay: false });
+      if (isFastSceneEnabled()) void import('./kitFrame').then(({ warmKitFiles }) => warmKitFiles());
     });
     return () => {
       isGone = true;
@@ -113,7 +118,7 @@ export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): Tuto
         if (!isGone) voice.sendScene({ type: isLoaded ? 'sceneLoaded' : 'sceneRefused', sceneId });
       });
     });
-    voice.sendScene({ type: 'sceneDevice', canPlay: true });
+    voice.sendScene({ type: 'sceneDevice', canPlay: true, ...(isFastSceneEnabled() ? { canPlayTakes: canPlayTakesRef.current } : {}) });
     return () => {
       isGone = true;
       stopListening();

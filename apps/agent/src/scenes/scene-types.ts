@@ -1,4 +1,5 @@
 import type { SceneEngine } from '@astra/contracts';
+import type { SceneRecipe } from './recipe/recipe.ts';
 
 export const SCENE_THEMES = ['light', 'dark'] as const;
 export type SceneTheme = (typeof SCENE_THEMES)[number];
@@ -165,6 +166,8 @@ export interface StoredScene {
   engine: SceneEngine;
   engineVersion: string;
   code: string;
+  /** What this scene is made from, when it came from approved parts and not from written code. */
+  recipe?: SceneRecipe;
   narration: string;
   plan: LessonPlan;
   moments: Readonly<Record<string, number>>;

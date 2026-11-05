@@ -56,6 +56,8 @@ export interface TutorBrain {
   getClosedReason?(): TutorClosedReason | null;
   /** A scene landed and its words are being said, so the next turn knows what is on screen and what was heard. */
   noteSceneTurn?(turn: { topic: string; beats: readonly Beat[] }): void;
+  /** The one thing about the student a scene is told. */
+  getStudentLevel?(): string | null;
   /** Checks the student's work against the board as the tutor knows it, and notes it for the next turn. Null if the work cannot stand, such as a line id already used. */
   noteWork?(work: StudentWork): { checked: CheckedWork; hadTask: boolean } | null;
   /** The page reloaded with the board in its hands, so the next reply is told and cannot wipe it. */
@@ -460,6 +462,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   let lastCompactedAtTurn = Number.NEGATIVE_INFINITY;
   let isCompacting = false;
   let isTurnRunning = false;
+  const sceneTurnsWaiting: (() => void)[] = [];
   let lastAskedText: string | null = null;
   let lastSpokenText = '';
   let saidRecently: readonly string[] = [];
@@ -1613,6 +1616,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       } finally {
         finishTurn(turn);
         isTurnRunning = false;
+        for (const noteIt of sceneTurnsWaiting.splice(0)) noteIt();
       }
     },
     notePlayed(report) {
@@ -1639,11 +1643,17 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     },
     getClosedReason: () => (hasToldClosed ? closedReason : null),
     noteSceneTurn({ topic, beats }) {
-      dropLeadAhead();
-      settleLastTurn();
-      lastBeats = beats;
-      pendingNotes.push({ scene_on_screen: { topic, said: beats.map(getBeatText).join(' ') } });
+      const noteIt = () => {
+        dropLeadAhead();
+        settleLastTurn();
+        lastBeats = beats;
+        pendingNotes.push({ scene_on_screen: { topic, said: beats.map(getBeatText).join(' ') } });
+      };
+      // A scene that cuts into a reply comes while the stopped turn is still ending, and that turn must not overwrite it as the last thing said.
+      if (isTurnRunning) sceneTurnsWaiting.push(noteIt);
+      else noteIt();
     },
+    getStudentLevel: () => studentLevel,
     noteCameBack() {
       dropLeadAhead();
       safety?.showHelpIfRaised?.();

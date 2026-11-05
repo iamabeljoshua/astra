@@ -2,7 +2,7 @@ import { cpus, loadavg } from 'node:os';
 import { readKey } from '../keys.ts';
 import { getCardPictures } from '../lesson-plan/card-lesson.ts';
 import { makeAnthropicJsonReader } from '../providers/anthropic.ts';
-import { makeAnthropicSceneModels, type SceneModels } from '../providers/anthropic.scenes.ts';
+import { makeAnthropicSceneModels, type RecipeModels, type SceneModels } from '../providers/anthropic.scenes.ts';
 import { matchLibrary, toShelfScene } from '../scene-queue/library-match.ts';
 import { createSceneQueue, type SceneQueue } from '../scene-queue/scene-queue.ts';
 import { makeFakeSceneModels } from '../scenes/lesson/fake-models.ts';
@@ -10,13 +10,22 @@ import { createTopicRuns } from '../scenes/lesson/topic-runs.ts';
 import { createContainerWorker } from '../scenes/render-worker.ts';
 import { getSceneStoreRoot } from '../scenes/scene-settings.ts';
 import { createSceneStore } from '../scenes/scene-store.ts';
+import { getCoreSource, getUsableParts } from '../scenes/recipe/catalogue.ts';
+import { createRecipeWork } from '../scenes/recipe/recipe-work.ts';
 import type { SpendCaps } from './make-brain.ts';
-import { createTutorScenes, type TutorScenes, type TutorScenesOptions } from './tutor-scenes.ts';
+import type { TutorBeat } from './brain.ts';
+import { createTutorScenes, type FastSceneHooks, type TutorScenes, type TutorScenesOptions } from './tutor-scenes.ts';
 
 /** About four fresh scenes. A saved scene costs nothing, so this only stops a session that keeps asking for new ones. */
 const DEFAULT_SCENE_LIMIT_USD = 0.8;
 /** Three whole lessons of a card's six scenes. Each play is spoken again, at about 100 credits. */
 const DEFAULT_SHARED_PLAYS_A_DAY = 18;
+
+/** Hard edge on a fresh scene. Past it, the words have moved on. */
+const FAST_ASK_LIMIT_MS = 20_000;
+const FAST_MOST_ASKS = 40;
+
+export const hasFastScenes = () => process.env.ASTRA_FAST_SCENES === '1';
 
 type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'send' | 'speak' | 'canSpeak' | 'onShown' | 'trace'>;
 
@@ -29,10 +38,10 @@ const hasScenesAhead = () => process.env.ASTRA_SCENES_AHEAD !== '0';
 
 const getLoadPerCore = () => (loadavg()[0] ?? 0) / Math.max(cpus().length, 1);
 
-type MakeOptions = SessionHooks & { isTutorClosed?(): boolean; caps: Pick<SpendCaps, 'addScene' | 'addTurn' | 'getSceneUsd' | 'getSpendLimit' | 'getLeftTodayUsd' | 'getSharedPlaysToday'>; moveToNextStep(): void; getLastFirstTextMs(): number | null };
+type MakeOptions = SessionHooks & { isTutorClosed?(): boolean; caps: Pick<SpendCaps, 'addScene' | 'addTurn' | 'getSceneUsd' | 'getSpendLimit' | 'getLeftTodayUsd' | 'getSharedPlaysToday'>; moveToNextStep(): void; getLastFirstTextMs(): number | null; canCutIn?(): boolean; cutIn?(beats: readonly TutorBeat[]): boolean; getLevel?(): string | null };
 
 // A scene's spending lands on the student's day through the same caps as the tutor's, and a scene past the limit is simply not written.
-export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...hooks }: MakeOptions): SessionScenes {
+export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canCutIn, cutIn, getLevel, ...hooks }: MakeOptions): SessionScenes {
   const limitUsd = Number(process.env.ASTRA_SCENE_SESSION_LIMIT_USD ?? DEFAULT_SCENE_LIMIT_USD);
   const sharedPlaysADay = Number(process.env.ASTRA_SHARED_PLAYS_A_DAY ?? DEFAULT_SHARED_PLAYS_A_DAY);
   if (!process.env.ASTRA_SPEND_FILE) process.stderr.write('ASTRA_SPEND_FILE is not set, so shared scenes have no project ceiling and no per-student cap past this session.\n');
@@ -41,12 +50,38 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...h
     if (isClosed() || caps.getSceneUsd() >= limitUsd) throw new Error('Stopped at the scene limit');
   };
   const isFake = process.env.LESSON_FAKES === '1';
-  const models: SceneModels = isFake ? makeFakeSceneModels() : makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ({ costUsd }) => caps.addScene(costUsd), assertRoom });
+  const models: SceneModels & RecipeModels = isFake ? makeFakeSceneModels() : makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ({ costUsd }) => caps.addScene(costUsd), assertRoom });
   const store = createSceneStore(getSceneStoreRoot());
   const runs = createTopicRuns({ planner: models.planner, nameReader: models.nameReader, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(process.env.ASTRA_SCENE_CONTAINERS ? { mostAtOnce: Number(process.env.ASTRA_SCENE_CONTAINERS) } : {}), store, warn: (line) => hooks.trace('sceneWarning', { problem: line }) });
   let queue: SceneQueue | null = null;
+  const matchReader = isFake ? null : makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
+  const fast: FastSceneHooks | null = hasFastScenes() && canCutIn && cutIn
+    ? {
+        canCutIn,
+        cutIn,
+        mostAsks: FAST_MOST_ASKS,
+        askLimitMs: FAST_ASK_LIMIT_MS,
+        makeWork: (input) =>
+          createRecipeWork({
+            ...input,
+            router: models.router,
+            writer: models.recipeWriter,
+            reviewer: models.recipeReviewer,
+            nameReader: models.nameReader,
+            matchReader,
+            store,
+            storeRoot: getSceneStoreRoot(),
+            getParts: getUsableParts,
+            getCore: getCoreSource,
+            getLevel: () => getLevel?.() ?? null,
+            trace: hooks.trace,
+            onMatchCost: (usd) => caps.addScene(usd),
+          }),
+      }
+    : null;
   const scenes = createTutorScenes({
     ...hooks,
+    ...(fast ? { fast } : {}),
     isClosed,
     canPlayShared: (studentId) => caps.getSharedPlaysToday(studentId) < sharedPlaysADay,
     router: models.router,
@@ -79,6 +114,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...h
       canPlay: scenes.canPlay,
       moveToNextStep,
       trace: hooks.trace,
+      asksAlwaysGo: fast !== null,
     });
   }
   return {

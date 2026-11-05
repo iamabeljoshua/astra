@@ -31,11 +31,13 @@ export interface KitFramePageInput {
   kitBundle: string;
   code: string;
   fontCss?: string;
+  /** Tells a scene made from parts to draw itself as a flat diagram, for a page that cannot run it in depth. */
+  drawsFlat?: boolean;
 }
 
 /** The whole sandboxed page for one scene, set as the `srcdoc` of an `<iframe sandbox="allow-scripts">`. */
-export function buildKitFramePage({ kitBundle, code, fontCss = '' }: KitFramePageInput): string {
+export function buildKitFramePage({ kitBundle, code, fontCss = '', drawsFlat = false }: KitFramePageInput): string {
   const guardName = `__guard${crypto.randomUUID().replaceAll('-', '')}`;
   const scene = `window.__scene=(function(${guardName}){${toScriptText(guardLoops(code, guardName))}\n;return typeof scene==='function'?scene:null;})(window.__guard);`;
-  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${KIT_FRAME_CSP}"><style>${fontCss}${FRAME_CSS}</style></head><body><canvas id="c"></canvas><div id="o"></div><script>${toScriptText(kitBundle)}</script><script>${scene}</script></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="${KIT_FRAME_CSP}"><style>${fontCss}${FRAME_CSS}</style></head><body><canvas id="c"></canvas><div id="o"></div><script>${toScriptText(kitBundle)}</script><script>${drawsFlat ? 'window.__drawFlat=true;' : ''}${scene}</script></body></html>`;
 }

@@ -16,7 +16,7 @@ import { getRecapLines } from '../recap/recap-rules.ts';
 import { writeLessonRecap } from '../recap/write-recap.ts';
 import { type ApiLink, createApiLink } from './api-link.ts';
 import { createTutorBrain, type SpendLimit, type TraceNote, type TurnSummary, type TutorBrain } from './brain.ts';
-import { PROMPT_VERSIONS, TUTOR_PROMPT, type TutorPrompt, withScenes } from './prompt.ts';
+import { PROMPT_VERSIONS, TUTOR_PROMPT, type TutorPrompt, withFastScenes, withScenes } from './prompt.ts';
 import { createLineReaders, type LineReaders } from './line-read/read-line.ts';
 import { createSpendLedger } from './spend-ledger.ts';
 import { readInk } from './ink/read-ink.ts';
@@ -245,7 +245,7 @@ export function makeTutorBrain({ roomName, jobId, trace, showSafetyHelp, onSessi
       }
     : undefined;
   if (!loadProfile) queueMicrotask(() => sceneHooks?.onCardKnown?.(null));
-  const brain = createTutorBrain({ model, prompt: sceneHooks ? withScenes(getLivePrompt()) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, onPreparedLeadDropped: (usd) => caps.addTurn({ usd, voiceCharacters: 0 }), ...(safety ? { safety } : {}), ...(readers ? { readers } : {}), ...(lessonPlanner ? { lessonPlanner } : {}), ...(sceneHooks ? { onAskScene: sceneHooks.onAskScene } : {}), ...(sceneHooks?.onSafetyReply ? { onSafetyReply: sceneHooks.onSafetyReply } : {}), ...(sceneHooks?.onStudentWords ? { onStudentWords: sceneHooks.onStudentWords } : {}) });
+  const brain = createTutorBrain({ model, prompt: sceneHooks ? (process.env.ASTRA_FAST_SCENES === '1' ? withFastScenes(getLivePrompt()) : withScenes(getLivePrompt())) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, onPreparedLeadDropped: (usd) => caps.addTurn({ usd, voiceCharacters: 0 }), ...(safety ? { safety } : {}), ...(readers ? { readers } : {}), ...(lessonPlanner ? { lessonPlanner } : {}), ...(sceneHooks ? { onAskScene: sceneHooks.onAskScene } : {}), ...(sceneHooks?.onSafetyReply ? { onSafetyReply: sceneHooks.onSafetyReply } : {}), ...(sceneHooks?.onStudentWords ? { onStudentWords: sceneHooks.onStudentWords } : {}) });
   if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, flushSpend };
   const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const readMeaning = async (words: string) => {

@@ -1,4 +1,4 @@
-import type { SceneModels } from '../../providers/anthropic.scenes.ts';
+import type { RecipeModels, SceneModels } from '../../providers/anthropic.scenes.ts';
 import { getPlanFromText } from './lesson-plan.ts';
 
 const FAKE_USAGE = { model: 'fake', ms: 1, costUsd: 0 };
@@ -35,7 +35,19 @@ class Lesson(Lesson2D):
         self.finish()
 `;
 
-export function makeFakeSceneModels(): SceneModels {
+const getFakeRecipeText = (topic: string) =>
+  [
+    { t: 'fit', in: true, topic, stage: 'space' },
+    { t: 'say', m: 'stand', text: 'So this is a rocket on the pad, with two stages stacked up.' },
+    { t: 'say', m: 'climb', text: 'The engines light, and it climbs because the gas goes down.' },
+    { t: 'say', m: 'drop', text: 'Then the empty first stage drops away, which means less to carry.' },
+    { t: 'part', id: 'rocket', part: 'rocket' },
+    { t: 'cam', on: 'stand', look: 'rocket', view: 'front', zoom: 1 },
+  ]
+    .map((line) => JSON.stringify(line))
+    .join('\n');
+
+export function makeFakeSceneModels(): SceneModels & RecipeModels {
   const makeWriter = (name: string): SceneModels['writer'] => ({
     name,
     write: async () => {
@@ -49,6 +61,13 @@ export function makeFakeSceneModels(): SceneModels {
     reviewer: { review: async () => ({ isPass: true, errors: [], ...FAKE_USAGE }) },
     router: { route: async (request) => ({ engine: 'manimgx', kind: 'graph', topic: request, ...FAKE_USAGE }) },
     nameReader: { clear: async () => new Set() },
+    recipeWriter: {
+      write: async ({ topic }) => {
+        await new Promise((resolve) => setTimeout(resolve, WRITE_MS));
+        return { text: getFakeRecipeText(topic), ...FAKE_USAGE };
+      },
+    },
+    recipeReviewer: { read: async () => ({ isGood: true, reasons: [], ...FAKE_USAGE }) },
     planner: { plan: async (topic, _signal, hooks) => { const plan = getPlanFromText(FAKE_PLAN); hooks?.onSceneWords?.({ narration: plan.narration, plan: plan.plan }); return { ...plan, opening: [...plan.opening, { say: `And that is what this lesson on ${topic} is about.` }], ...FAKE_USAGE }; } },
   };
 }

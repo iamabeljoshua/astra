@@ -50,7 +50,18 @@ export interface SpeakTurnOptions {
   /** The source refused a frame or the voice threw. The turn has ended as a stop, and this is the one place the cause shows. */
   onFailure?(failure: unknown): void;
   getNowMs?(): number;
+  /** Told as the student reaches the quiet after a sentence, on the voice's clock, because text reaches the voice long before it is heard. */
+  sentenceBreaks?: SentenceBreaks;
 }
+
+export interface SentenceBreaks {
+  /** How much sent audio is still in the line's queue, so the position heard is this far behind the position sent. */
+  queueMs: number;
+  onBreak(): void;
+}
+
+/** The voice leaves about 275 to 472 ms between sentences, so a break told this early falls inside that quiet. */
+const BREAK_BEFORE_NEXT_WORD_MS = 40;
 
 export interface SpokenTurn {
   /** Settles once the turn is off the line, and never rejects, because one bad turn must not end a session. */
@@ -194,7 +205,7 @@ async function readVoice(work: TurnWork): Promise<void> {
   work.frames.finish();
 }
 
-async function pumpAudio({ options, frames, firstSound, tracker, lineTurn, noteAudioSent, isStopped }: TurnWork): Promise<void> {
+async function pumpAudio({ options, frames, firstSound, timeline, tracker, lineTurn, noteAudioSent, isStopped }: TurnWork): Promise<void> {
   const { messenger, turnId, proofStalls = [], onFrameCaptured, onGap, getNowMs = getSteadyNowMs } = options;
   const pendingStalls = [...proofStalls];
   let audioMs = 0;
@@ -216,6 +227,8 @@ async function pumpAudio({ options, frames, firstSound, tracker, lineTurn, noteA
     await lineTurn.captureFrame(frame);
     audioMs += getFrameMs(frame);
     noteAudioSent(audioMs);
+    const { sentenceBreaks } = options;
+    if (sentenceBreaks && timeline.hasCrossedSentenceBreak(firstSound.toTimeline(audioMs) - sentenceBreaks.queueMs + BREAK_BEFORE_NEXT_WORD_MS)) sentenceBreaks.onBreak();
   }
 }
 
