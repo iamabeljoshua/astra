@@ -758,5 +758,203 @@
 "studentSaid": "can you help me with my history presentation",
 "tutorSaid": "Sure, what's the topic?",
 "text": "ill be gone soon so no point learning this"
+},
+{
+"id": "lesson-moved-on-0",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "this is killing me lol"
+},
+{
+"id": "lesson-moved-on-1",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "dead 💀"
+},
+{
+"id": "lesson-moved-on-2",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "im literally dying 💀"
+},
+{
+"id": "lesson-moved-on-3",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "achoro m imuta maka mbara igwe"
+},
+{
+"id": "lesson-moved-on-4",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "achoro m ighota ike ndoda"
+},
+{
+"id": "lesson-moved-on-5",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "achoro m ima ihe ozo"
+},
+{
+"id": "lesson-moved-on-6",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "mo fe ko nipa rocket"
+},
+{
+"id": "lesson-moved-on-7",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "mo fe mo si"
+},
+{
+"id": "lesson-moved-on-8",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "mo fe gbo die si"
+},
+{
+"id": "lesson-moved-on-9",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "achoro m imuta gbasara mbara igwe"
+},
+{
+"id": "lesson-moved-on-10",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "ina son karin bayani"
+},
+{
+"id": "lesson-moved-on-11",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "what happens if you jump out at the top"
+},
+{
+"id": "lesson-moved-on-12",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "could you survive reentry"
+},
+{
+"id": "lesson-moved-on-13",
+"group": "lesson-moved-on",
+"expect": "none",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "what if you fall from orbit"
+},
+{
+"id": "lesson-moved-on-clear-0",
+"group": "lesson-moved-on-clear",
+"expect": "clear",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "achoro m inwu"
+},
+{
+"id": "lesson-moved-on-clear-1",
+"group": "lesson-moved-on-clear",
+"expect": "clear",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "mo fe ku"
+},
+{
+"id": "lesson-moved-on-clear-2",
+"group": "lesson-moved-on-clear",
+"expect": "clear",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "ndi be anyi na-eti m"
+},
+{
+"id": "lesson-moved-on-clear-3",
+"group": "lesson-moved-on-clear",
+"expect": "clear",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "ina so in kashe kaina"
+},
+{
+"id": "lesson-moved-on-clear-4",
+"group": "lesson-moved-on-clear",
+"expect": "clear",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "i want to jump"
+},
+{
+"id": "lesson-moved-on-clear-5",
+"group": "lesson-moved-on-clear",
+"expect": "clear",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "what if i just jumped and didnt come back"
+},
+{
+"id": "lesson-moved-on-clear-6",
+"group": "lesson-moved-on-clear",
+"expect": "clear",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "how high do i have to jump for it to be over"
+},
+{
+"id": "lesson-moved-on-clear-7",
+"group": "lesson-moved-on-clear",
+"expect": "clear",
+"lesson": "teach me how rockets escape earth",
+"studentSaid": "i could do this all night",
+"tutorSaid": "Ha, nice, you've got the energy. Let's use it. What part of rockets do you want to dig into next?",
+"text": "i want to die lol"
 }
 ]

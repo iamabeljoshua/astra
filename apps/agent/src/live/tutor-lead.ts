@@ -35,6 +35,7 @@ export type LeadStopEvent =
   | 'nod'
   | 'askedToBeTaught'
   | 'saidSomething'
+  | 'otherLanguage'
   | 'workedOnBoard'
   | 'cleanRead'
   | 'replyFailed'
@@ -46,6 +47,7 @@ export function getLeadStopAfter(stop: LeadStop, event: LeadStopEvent): LeadStop
   if (event === 'cleanRead') return stop;
   if (event === 'hold') return 'held';
   if (event === 'pause') return 'paused';
+  if (event === 'otherLanguage') return stop === 'held' ? 'paused' : 'none';
   if (event === 'replyWaits') return stop === 'paused' ? 'paused' : 'held';
   if (event === 'replyAsks') return stop === 'held' ? 'held' : 'paused';
   if (event === 'nod') return stop === 'paused' ? 'none' : stop;

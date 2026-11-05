@@ -20,6 +20,7 @@ const SHOULD_FIRE = new Set(['help', 'crisis_with_help_word']);
 interface ContextRow {
   id: string;
   group: string;
+  lesson?: string;
   expect: 'none' | 'fires' | 'clear';
   studentSaid: string;
   tutorSaid: string;
