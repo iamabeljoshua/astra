@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import type { SceneTheme } from './scene.dto';
 
 interface SceneRecord {
+  /** Set only on a scene made from approved parts, whose code the agent built from them and which holds no model-written code. */
+  recipe?: unknown;
   status?: string;
   ownerId?: string | null;
   engine?: string;
@@ -63,6 +65,6 @@ export function findCheckedKitTake({ storeRoot, sceneId, studentId }: { storeRoo
   if (!storeRoot || existsSync(join(storeRoot, 'flags', `${sceneId}.json`))) return null;
   const record = readRecord<SceneRecord>(join(storeRoot, 'scenes', sceneId, 'scene.json'));
   if (record?.status !== 'checked' || ((record.ownerId ?? null) !== null && record.ownerId !== studentId)) return null;
-  const code = record.engine === 'kit' ? (record.reviewed === true ? record.code : null) : readReviewedKitCode(storeRoot, sceneId, record.topic ?? '');
+  const code = record.engine === 'kit' ? (record.reviewed === true || record.recipe !== undefined ? record.code : null) : readReviewedKitCode(storeRoot, sceneId, record.topic ?? '');
   return code && record.moments && record.durationSeconds ? { code, timing: { moments: record.moments, duration: record.durationSeconds } } : null;
 }
