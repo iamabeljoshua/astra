@@ -13,8 +13,8 @@ vi.mock('./sceneEngine', () => ({
     return engine.canPlay;
   },
 }));
-vi.mock('./kitSceneStage', () => ({
-  createKitSceneStage: (container: HTMLElement) => {
+vi.mock('./sceneStage', () => ({
+  createSceneStage: (container: HTMLElement) => {
     engine.createStage(container);
     return { load: engine.load, prepare: engine.prepare, free: engine.free, draw: () => {}, canDraw: () => true };
   },

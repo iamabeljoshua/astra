@@ -41,7 +41,6 @@
   },
   "dependencies": {
     "@astra/contracts": "workspace:*",
-    "acorn": "8.19.0",
     "katex": "0.19.1"
   },
   "devDependencies": {

@@ -189,7 +189,7 @@ function RunningSession({ session }: { session: Session }) {
                 <div className="flex flex-1 flex-col justify-end gap-2">
                   {isConnecting && (
                     <>
-                      <p aria-hidden data-testid="connecting-title" className="font-voice text-voice wrap-anywhere">{session.title}</p>
+                      {session.durationSeconds === 0 && !view?.sessionTitle && <p aria-hidden data-testid="connecting-title" className="font-voice text-voice wrap-anywhere">{session.title}</p>}
                       <p role="status" className="label text-ink-2">{isSlowToConnect ? VOICE_LABELS.slowToConnect : VOICE_LABELS.connecting}</p>
                     </>
                   )}

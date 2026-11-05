@@ -79,11 +79,13 @@ The job starts about 0.5 s after the press, because the API opens the room as th
 - **The picture is the first teaching.** The greeting plays as it did, because it says this is an AI tutor. When it ends, a ready picture comes before the tutor's first line. The first reply holds its first word 2.5 s at most for a picture on its way, once. `isClearToLand` already waits for the safety read, so a picture never comes ahead of it, and a crisis still ends the ask.
 - **The stylish wait.** With `VITE_FAST_SCENES=1`, the connecting screen shows the topic and holds its dots until the picture lands, 5 s from the press at most. The shared board gains nothing. Only past 15 s without a tutor does the screen say why.
 
+A saved scene's first run went on past its picture with no dead air: the scene's lines ran to 18.3 s, and the tutor's next line followed in the same second. A reply cut this way is paid for and never heard, $0.0345 on a cold prompt cache in that run.
+
 The plan and the first reply still start when the page's line arrives, 1.2 to 2.9 s after the press. Starting them at the job would need the brain to run a turn with nobody to hear it.
 
 Measured on 5 November 2026 in real Chrome, headed and muted, with the fake voice and real models. It was never a quiet Mac.
 
-| Stage, from the press | Before, 4 presses at load 5 to 10 | Now, 8 presses at load 7 to 19 |
+| Stage, from the press | Before, 4 presses at load 5 to 10 | Now, 12 presses at load 7 to 19 |
 | --- | --- | --- |
 | Session saved | 0.1 to 0.2 s | The same |
 | The page opens | 0.7 to 0.8 s | 0.7 to 1.1 s |
@@ -92,8 +94,8 @@ Measured on 5 November 2026 in real Chrome, headed and muted, with the fake voic
 | The job reads the page's line | about 3 s | With the page in the room, or as it reads the opening route |
 | First words, the greeting | 3.1 to 3.9 s | 1.4 to 3.8 s |
 | The scene asked for | 5.8 s | 0.7 to 3.3 s |
-| Picture and its first line, saved | 11.4 s | 4.2 to 5.9 s, on 5 topics |
-| Picture and its first line, fresh parts | Not reached in 14 s | 7.2 s, real, before the first word held. 7.9 s after it, with a 2 s fake writer and the job at 3.3 s |
+| Picture and its first line, saved | 11.4 s | 4.2, 4.2, 4.4, and 5.0 s on the final code. 5.1 and 5.9 s on the two heads before it |
+| Picture and its first line, fresh parts | p50 16.3 s, in the table above | 7.2 s, real, before the first word held. 7.9 s after it, with a 2 s fake writer and the job at 3.3 s |
 | No part fits, the reply's first sound | 6.7 s | 3.6 and 5.8 s |
 
 ## What this does not prove
