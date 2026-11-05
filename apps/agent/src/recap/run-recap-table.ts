@@ -22,7 +22,10 @@ interface RecapCase {
 
 const makeFacts = (tutorWords: readonly string[], fields: Partial<RecapFacts>): RecapFacts => ({ opening: null, movedTo: null, tutorWords, studentLines: [], work: [], ...fields });
 
+const DRAWING_THAT_FAILED = ["That didn't draw, so let's talk it through instead. Where do you want to start?", 'Mitosis copies a cell, so you get two identical daughter cells. Meiosis shuffles the chromosomes and halves them, so you get four different cells. That halving is why a sperm and an egg can join and still make the right number.'];
+
 const CASES: readonly RecapCase[] = [
+  { name: 'a drawing that did not draw', expects: 'lesson', coveredHolds: /mitosis|meiosis/i, coveredLacks: /table|chart|drew|drawn|board|diagram/i, facts: makeFacts(DRAWING_THAT_FAILED, {}) },
   { name: 'right lines among wrong ones', expects: 'lesson', rightHolds: [/\b(?:8|eight|4|four)\b/i], facts: makeFacts(EQUATION_LESSON, { work: [{ line: '2x = 14', status: 'wrong' }, { line: '2x = 8', status: 'right' }, { line: 'x = 4', status: 'right' }] }) },
   { name: 'only wrong lines', expects: 'lesson', facts: makeFacts(EQUATION_LESSON, { work: [{ line: '2x = 14', status: 'wrong' }, { line: 'x = 7', status: 'wrong' }] }) },
   { name: 'nothing tried', expects: 'lesson', facts: makeFacts(HISTORY_LESSON, {}) },

@@ -57,7 +57,7 @@ const INVALID_BEATS: [string, unknown, RegExp][] = [
   ['a backwards domain', withCommand({ kind: 'plot', id: 'curve', expression: 'x', domain: [2, -2] }), /domain: expected a low and a high number/],
   ['an infinite number', withCommand({ kind: 'markValue', id: 'mark', target: 'line', at: Number.POSITIVE_INFINITY }), /\.at: expected a finite number/],
   ['a number written as text', withCommand({ kind: 'markValue', id: 'mark', target: 'line', at: '4' }), /\.at: expected a finite number/],
-  ['a drawing we do not have', withCommand({ kind: 'drawing', id: 'court', name: 'minecraft-sword' }), /\.name: expected one of hoop-side/],
+  ['a drawing we do not have', withCommand({ kind: 'drawing', id: 'court', name: 'minecraft-sword' }), /\.name: expected one of animal-cell/],
   ['an image outside our set', withCommand({ kind: 'image', id: 'painting', asset: 'https://example.com/a.png', alt: 'x' }), /asset: expected one of great-wave/],
   ['a missing simulation value', withCommand({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4 } } }), /upwardSpeed: expected a finite number/],
   ['an unknown simulation value', withCommand({ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 5, releaseHeight: 2, gravity: 9.81, spin: 3 } } }), /spin: unknown field/],

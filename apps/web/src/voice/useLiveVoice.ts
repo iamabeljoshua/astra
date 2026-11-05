@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { ApiError } from '../api/apiError';
 import { api } from '../api/client';
-import { type LiveVoice, type LiveVoiceView, startLiveVoice } from './liveVoice';
+import { type LiveVoice, type LiveVoiceView, type MicControls, startLiveVoice } from './liveVoice';
 
 export type LiveVoiceStatus = 'idle' | 'connecting' | 'live' | 'unavailable' | 'overLimit' | 'tooSoon' | 'finished';
 
@@ -23,6 +23,11 @@ export interface UseLiveVoiceOptions {
   start?: typeof startLiveVoice;
 }
 
+export interface HeldMic extends Pick<MicControls, 'isMicOn' | 'lowerTutor' | 'tellHoldStarted' | 'endLine'> {
+  open(): void;
+  close(): void;
+}
+
 export interface LiveVoiceControls {
   status: LiveVoiceStatus;
   /** With `tooSoon`, how long until the student can start another tutor. */
@@ -38,6 +43,7 @@ export interface LiveVoiceControls {
   /** Leaves the room for good, so nothing asks for it again once the session finishes. */
   leave(): Promise<void>;
   toggleTalk(): Promise<void>;
+  heldMic: HeldMic;
   /** Leaves a room the tutor has gone from, opens a new one with a new tutor, and starts it talking with this line. */
   openAgain(opening: string): Promise<void>;
 }
@@ -51,7 +57,9 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
   // The tutor is known to have gone, and a plain join would find its room and keep that room alive for 2 more minutes, so every ask starts over until one is answered.
   const asksToStartOver = useRef(false);
   const isGone = useRef(false);
-  const pressesWhileOpening = useRef(0);
+  const micControls = useRef<MicControls | null>(null);
+  const wantsMicWhileOpening = useRef(false);
+  const isHoldTellOwed = useRef(false);
   const [isTalkWaiting, setIsTalkWaiting] = useState(false);
   const view = useSyncExternalStore(voice?.subscribe ?? noSubscribe, voice?.getView ?? noView);
 
@@ -80,17 +88,33 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
         }
       };
       try {
-        const opened = await start({ usesSpeechCleanup, wantsGreeting, getAccess });
+        const opened = await start({
+          usesSpeechCleanup,
+          wantsGreeting,
+          getAccess,
+          onMicReady(controls) {
+            if (isGone.current) return;
+            micControls.current = controls;
+            if (wantsMicWhileOpening.current) void controls.setMic(true);
+            if (isHoldTellOwed.current) controls.tellHoldStarted();
+            isHoldTellOwed.current = false;
+          },
+          onTalkInvited() {
+            void api.put('/me/talk-invitation', { body: { heard: true } }).catch(() => {});
+          },
+        });
         if (isGone.current) {
           await opened.close();
           return null;
         }
         if (import.meta.env.DEV) window.astraVoice = opened;
+        micControls.current = opened;
         setVoice(opened);
         setStatus('live');
         return opened;
       } catch {
         opening.current = null;
+        micControls.current = null;
         setStatus((current) => (current === 'finished' || current === 'overLimit' || current === 'tooSoon' ? current : 'unavailable'));
         return null;
       }
@@ -124,14 +148,53 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
     [connect],
   );
 
+  const isTalkOn = view ? view.mic === 'on' || view.mic === 'starting' : isTalkWaiting;
+
+  // Only the last wish reaches the microphone, because a second press while the room opens means off.
+  const askForMic = async (isOn: boolean) => {
+    if (isGone.current) return;
+    wantsMicWhileOpening.current = isOn;
+    setIsTalkWaiting(isOn);
+    void micControls.current?.setMic(isOn);
+    const opened = await connect();
+    const wantsMic = wantsMicWhileOpening.current;
+    wantsMicWhileOpening.current = false;
+    setIsTalkWaiting(false);
+    if (opened && wantsMic) await opened.setMic(true);
+  };
+
+  const dropMicWish = () => {
+    wantsMicWhileOpening.current = false;
+    isHoldTellOwed.current = false;
+    setIsTalkWaiting(false);
+  };
+
   // The last view stays, so the screen holds still while the page fades away. A room still opening closes itself when it arrives, so finishing does not wait on it.
   const leave = async () => {
     isGone.current = true;
     opening.current = null;
+    micControls.current = null;
+    dropMicWish();
     await voice?.close().catch(() => {});
   };
 
-  const isTalkOn = view ? view.mic === 'on' || view.mic === 'starting' : isTalkWaiting;
+  const heldMic: HeldMic = {
+    isMicOn: () => micControls.current?.isMicOn() ?? wantsMicWhileOpening.current,
+    open: () => void askForMic(true),
+    close() {
+      dropMicWish();
+      void micControls.current?.setMic(false);
+    },
+    endLine() {
+      dropMicWish();
+      micControls.current?.endLine();
+    },
+    lowerTutor: () => micControls.current?.lowerTutor(),
+    tellHoldStarted() {
+      if (micControls.current) micControls.current.tellHoldStarted();
+      else isHoldTellOwed.current = true;
+    },
+  };
 
   return {
     status,
@@ -143,17 +206,11 @@ export function useLiveVoice({ sessionId, usesSpeechCleanup = true, start = star
     sendTyped,
     sendOpening,
     leave,
-    // Every press counts, because a second press while the room opens means off. Only the sum of them reaches the microphone.
     async toggleTalk() {
       if (voice) return voice.toggleMic();
-      pressesWhileOpening.current += 1;
-      setIsTalkWaiting(pressesWhileOpening.current % 2 === 1);
-      const opened = await connect();
-      const presses = pressesWhileOpening.current;
-      pressesWhileOpening.current = 0;
-      setIsTalkWaiting(false);
-      if (opened && presses % 2 === 1) await opened.toggleMic();
+      await askForMic(!wantsMicWhileOpening.current);
     },
+    heldMic,
     async openAgain(openingLine) {
       setVoice(null);
       await leave();

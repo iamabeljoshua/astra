@@ -1,5 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common';
 import { SessionsService } from '../sessions/sessions.service';
+import { StudentsService } from '../students/students.service';
 import { TutorSpendService } from '../tutor-spend/tutor-spend.service';
 import { makeStudentToken } from './live-room-grants';
 import type { LiveRoomResponseDto } from './live-room.dto';
@@ -11,7 +12,13 @@ export class LiveRoomService {
     private readonly sessionsService: SessionsService,
     private readonly tutorSpend: TutorSpendService,
     private readonly liveRooms: LiveRooms,
+    private readonly studentsService: StudentsService,
   ) {}
+
+  private async getInvitesTalk(studentId: string, sessionId: string): Promise<boolean> {
+    if (await this.studentsService.hasBeenInvitedToTalk(studentId)) return false;
+    return this.sessionsService.isFirstSession(studentId, sessionId);
+  }
 
   private async requireUnfinishedSession(studentId: string, sessionId: string) {
     const session = await this.sessionsService.getSession(studentId, sessionId);
@@ -31,6 +38,6 @@ export class LiveRoomService {
       await this.liveRooms.close(session.id);
       throw problem;
     });
-    return { access: { url: keys.url, roomName: room.name, isTutorThere: room.isTutorThere, token: await makeStudentToken({ keys, roomName: room.name, studentId }) }, unavailableBecause: null };
+    return { access: { url: keys.url, roomName: room.name, isTutorThere: room.isTutorThere, token: await makeStudentToken({ keys, roomName: room.name, studentId }), invitesTalk: await this.getInvitesTalk(studentId, session.id) }, unavailableBecause: null };
   }
 }

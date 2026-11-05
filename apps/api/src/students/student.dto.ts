@@ -38,3 +38,10 @@ export class AccountResponseDto {
   /** The student, or null unless the status is active. */
   student!: StudentResponseDto | null;
 }
+
+export class NoteTalkInvitationBodyDto {
+  /** Always true. The tutor told this student they can talk. */
+  @IsIn([true])
+  heard!: true;
+}
+

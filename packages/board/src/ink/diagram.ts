@@ -8,6 +8,8 @@ const BOX = { paddingX: 12, paddingY: 7, wobble: 1.2, sides: 4, stepsPerSide: 4 
 const ARROW = { gap: 6, headLength: 9, headAngle: 0.5, smallestSpan: 34, labelScale: 0.75, cornerReach: 8 };
 const NODE_GAP_EMS = 1;
 const LARGEST_EDGE_LABEL_EMS = 10;
+const MOST_NARROWINGS = 5;
+const NARROWEST_ROOM_EMS = 6;
 const AVERAGE_CHARACTER_EMS = 0.6;
 /** A font's box starts above its baseline's ascent, so a label at the top needs a little room. */
 export const FONT_BOX_ROOM_EMS = 0.2;
@@ -137,8 +139,7 @@ function getBounds(nodes: readonly PlacedNode[], steps: readonly DiagramStep[]) 
   return { left, top, width: right - left, height: bottom - top };
 }
 
-/** Draws a diagram by hand, a node at a time. An edge arrives once both of its ends are on the board. A label the strokes cannot write, or any label when `handwritten` is false, is set as plain text. */
-export function drawDiagram(diagram: DrawableDiagram, request: DiagramRequest): DrawnDiagram {
+function drawDiagramOnce(diagram: DrawableDiagram, request: DiagramRequest): DrawnDiagram {
   const { seed, fontSize, maxWidth } = request;
   const random = makeSeededRandom(seed);
   const isHandwritten = diagram.handwritten !== false;
@@ -161,4 +162,17 @@ export function drawDiagram(diagram: DrawableDiagram, request: DiagramRequest): 
   const steps = rawSteps.map((step) => ({ strokes: step.strokes.map((stroke) => moveStroke(stroke, toOrigin)), textLabels: step.textLabels.map((label) => moveTextLabel(label, toOrigin)) }));
   const nodeBoxes = new Map(placed.map(({ name, box }) => [name, { ...box, x: box.x + toOrigin.x, y: box.y + toOrigin.y }]));
   return { steps, width, height, nodeBoxes };
+}
+
+/** Draws a diagram by hand, a node at a time. An edge arrives once both of its ends are on the board. A label the strokes cannot write, or any label when `handwritten` is false, is set as plain text. A diagram too wide for its room lays itself out again for less, and text stays its size. */
+export function drawDiagram(diagram: DrawableDiagram, request: DiagramRequest): DrawnDiagram {
+  const { fontSize, maxWidth } = request;
+  let drawn = drawDiagramOnce(diagram, request);
+  let roomLeft = maxWidth;
+  for (let tries = 0; tries < MOST_NARROWINGS && drawn.width > maxWidth; tries += 1) {
+    roomLeft = Math.max(fontSize * NARROWEST_ROOM_EMS, roomLeft - (drawn.width - maxWidth));
+    const narrower = drawDiagramOnce(diagram, { ...request, maxWidth: roomLeft });
+    if (narrower.width < drawn.width) drawn = narrower;
+  }
+  return drawn;
 }

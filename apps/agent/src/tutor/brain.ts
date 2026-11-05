@@ -3,7 +3,7 @@ import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoar
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
 import { createAttemptTracker } from './attempts.ts';
-import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
+import { BeatTextReader, NAMES_HELP, type WrittenBeatParts } from './beat-text-reader.ts';
 import { MAY_BE_ABOUT_SAFETY, PLAIN_REFUSALS } from './safety-words.ts';
 import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getClaimProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getPictureProblem, getWordsProblem } from './board-memory.ts';
 import type { MemoryNote } from '../learner-record/memory-note.ts';
@@ -129,7 +129,7 @@ export interface TutorBrainOptions {
 
 type TurnStep = 'over' | 'retry';
 
-type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'wrongWords' | 'refused' | 'toolCall' | 'heldQuestion';
+type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'drawingRefused' | 'wrongWords' | 'refused' | 'toolCall' | 'heldQuestion';
 
 interface TurnWork {
   sceneAside?: 'due' | 'moved';
@@ -152,6 +152,7 @@ interface TurnWork {
   hasAttemptText: boolean;
   hasSaidStillWorking: boolean;
   wrongMath: string | null;
+  drawingRefused: string | null;
   wrongWords: string | null;
   toolCall: ToolCall | null;
   toolCalls: ToolCall[];
@@ -185,7 +186,7 @@ const MAX_ATTEMPTS = 2;
 /** Each one costs a new request, about 2 s of quiet, and a search 5.5 to 8.7 s, so more than this in one reply would sound like the tutor has wandered off. */
 const MOST_TOOL_CALLS_A_TURN = 3;
 /** Drawing these shows a student the step, and a ring or a pointer does not. */
-const SHOWING_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'text', 'simulate']);
+const SHOWING_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'text', 'simulate', 'table', 'timeline', 'code', 'image', 'drawing']);
 /** Varied, because a pause of one fixed length turns into a tic. The voice adds about 400 ms to each. */
 const BREATHS_MS = [300, 450, 350];
 /** A repeated opening of a few words is dropped only at the start of a retry, where it sounds like starting over, and a longer repeat anywhere. */
@@ -194,7 +195,6 @@ const COMPACT_AT_TOKENS = 60_000;
 const TURNS_THAT_SET_THE_START = 2;
 const TURNS_KEPT_AFTER_COMPACTING = 8;
 const CHARACTERS_PER_TOKEN = 3.2;
-const NAMES_HELP = /\b(?:adult|emergency)\b/i;
 const PERSONAL_NOTE = /^\{"(?:student|memory|fit)":/;
 
 /** What the model is told after a safety check stops a student's message, built by code, so it holds none of what was refused. */
@@ -408,6 +408,15 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           turn.refused.push(problem);
           trace('commandRefused', { problem });
         },
+        // A reply that may be about a child's safety must get out, whatever it tried to draw.
+        ...(MAY_BE_ABOUT_SAFETY.test(studentText)
+          ? {}
+          : {
+              onDrawingRefused(problem: string) {
+                turn.drawingRefused = problem;
+                trace('drawingRefused', { problem });
+              },
+            }),
         onWrongMath(problem) {
           turn.wrongMath = problem;
           trace('mathRefused', { problem });
@@ -455,6 +464,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       hasAttemptText: false,
       hasSaidStillWorking: false,
       wrongMath: null,
+      drawingRefused: null,
       wrongWords: null,
       toolCall: null,
       toolCalls: [],
@@ -526,6 +536,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       turn.raw += seam + event.text;
       turn.reader.push(seam + event.text);
       if (turn.wrongMath !== null) return 'wrongMath';
+      if (turn.drawingRefused !== null) return 'drawingRefused';
       if (turn.wrongWords !== null) return 'wrongWords';
       if (turn.toolCall !== null) return 'toolCall';
       if (turn.isQuestionHeld) return 'heldQuestion';
@@ -639,6 +650,20 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return 'retry';
   };
 
+  const handleRefusedDrawing = (turn: TurnWork, canRetry: boolean): TurnStep => {
+    const problem = turn.drawingRefused as string;
+    turn.drawingRefused = null;
+    turn.reader.closeAttempt();
+    if (!canRetry) {
+      turn.raw = getWordsSaid(turn);
+      turn.refused.push(`a drawing is not on the board: ${problem}`);
+      sayLine(turn, 'drawingDropped');
+      return 'over';
+    }
+    noteCorrection(turn, `What you were about to draw is not on the board, because the board refused it: ${problem}. The student did not hear the words about it. Write it again, fixed, with the words that go with it. If it still cannot be drawn, say it in words.`);
+    return 'retry';
+  };
+
   const handleWrongWords = (turn: TurnWork, canRetry: boolean): TurnStep => {
     const problem = turn.wrongWords as string;
     turn.wrongWords = null;
@@ -704,6 +729,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const finishAnswer = (turn: TurnWork, canRetry: boolean): TurnStep => {
     addHelpIfMissing(turn);
     turn.reader.finish();
+    if (turn.drawingRefused !== null) return handleRefusedDrawing(turn, canRetry);
     if (turn.wrongWords !== null) return handleWrongWords(turn, turn.attempts < MAX_ATTEMPTS);
     if (turn.isQuestionHeld) return handleHeldQuestion(turn, canRetry);
     if (turn.latestToolResult && !turn.hasWordsSinceToolResult) return sayToolResult(turn, turn.latestToolResult);
@@ -788,6 +814,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       case 'wrongMath':
         turn.reader.closeAttempt();
         return handleWrongMath(turn, canRetry);
+      case 'drawingRefused':
+        return handleRefusedDrawing(turn, canRetry);
       case 'wrongWords':
         return handleWrongWords(turn, canRetry);
       case 'stalledBeforeText':

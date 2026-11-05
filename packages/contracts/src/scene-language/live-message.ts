@@ -80,6 +80,10 @@ export type AgentMessage =
   | { type: 'quietWarning'; isOn: boolean }
   /** The room stayed quiet to its limit and closes now. */
   | { type: 'closingForQuiet' }
+  /** The tutor keeps getting cut off by sound with at most one word in it, so the page may suggest holding to talk. */
+  | { type: 'keptBeingCut' }
+  /** The tutor told this student they can talk, so the page records that and it is not said again. */
+  | { type: 'talkInvited' }
   /** What this session's end says, to show as it is spoken, or null when it has nothing to say. */
   | { type: 'recap'; recap: SessionRecap | null };
 
@@ -94,11 +98,11 @@ export interface BrowserStamp {
 }
 
 /** What the page tells a live tutor about its board. */
-export const TOLD_BOARD_PROBLEMS = ['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant'] as const;
+export const TOLD_BOARD_PROBLEMS = ['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant', 'sliderOverlaps', 'curveTooFine'] as const;
 
 export interface BoardProblemReport {
   problem: (typeof TOLD_BOARD_PROBLEMS)[number];
-  /** An element's id, a slider's id, or the words of a label with no room. */
+  /** An element's id, a curve's id, a slider's id, or the words of a label with no room. */
   subject: string;
 }
 
@@ -110,8 +114,8 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'boardFrozen'; turnId: TurnId; frozen: FrozenFrame[] }
     /** The last word of an `expectsReply` beat started playing, so "yes" now counts as an answer and the 8 second timer starts. */
     | { type: 'questionHeard'; turnId: TurnId; beatId: BeatId }
-    /** The page has joined and hears the tutor's track. `wantsGreeting` is false when the student opened the room by typing, or came back after a drop. */
-    | { type: 'hello'; wantsGreeting: boolean }
+    /** The page has joined and hears the tutor's track. `wantsGreeting` is false when the student opened the room by typing, or came back after a drop. `invitesTalk` is true when the tutor should tell this student they can talk. */
+    | { type: 'hello'; wantsGreeting: boolean; invitesTalk: boolean }
     /** The student typed instead of speaking. `isOpening` marks a line the page sends to start the tutor, which the student did not type. */
     | { type: 'typed'; text: string; isOpening?: boolean }
     /** The student did something on the shared board. The agent works out what it means, because a browser's own word for it is not evidence. */
@@ -135,6 +139,12 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'audioState'; isRunning: boolean }
     /** The student answered a quiet warning, so the room stays open. */
     | { type: 'stillHere' }
+    /** The student turned the microphone on, so they know they can talk. */
+    | { type: 'talkPressed' }
+    /** The student is holding to talk. The tutor stops, and only `lineEnded` ends what they are saying. */
+    | { type: 'holdStarted' }
+    /** The student let go and all they said has left the page, so nothing waits for the voice detector. */
+    | { type: 'lineEnded' }
     /** The student pressed End, so the tutor stops and gives its recap. */
     | { type: 'endingSession' }
   );

@@ -217,7 +217,7 @@ Goals are the codes `class`, `exam`, and `curiosity`, which `getPicksForStudent`
 
 ## Talk with the tutor
 
-A session's screen has a **Talk** button and a reply box. The screen joins the session's room as it opens, on a new session or one you come back to, and the tutor speaks first with no press. The microphone stays off until you press **Talk**. A stored reaction from code plays first, and then the tutor answers with Sonnet 5.5 in short spoken sentences, with math on its words on the board. If you do nothing for 8 s after the tutor stops, the page says you can press **Talk** or type, and the tutor does not say it aloud.
+A session's screen has a **Talk** button and a reply box. The screen joins the session's room as it opens, on a new session or one you come back to, and the tutor speaks first with no press. The microphone stays off until you press **Talk**. Holding **Talk**, or holding Space when focus is not in a text field, opens the microphone only while held, for a noisy room. A stored reaction from code plays first, and then the tutor answers with Sonnet 5.5 in short spoken sentences, with math on its words on the board. In a student's first session the tutor says once, after its first answer, that they can talk. If you do nothing for 8 s after the tutor stops, the page says you can press **Talk** or type, and the tutor does not say that aloud.
 
 To run it, give the API and the agent the same LiveKit project, then start the agent beside `pnpm dev`.
 

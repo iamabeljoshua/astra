@@ -11,7 +11,7 @@ const LIVE_ROOM_KEYS = { LIVEKIT_URL: 'wss://astra-test.livekit.cloud', LIVEKIT_
 const VALID_SESSION = { title: 'Free-body diagrams', subject: 'Physics', language: 'en' };
 
 function getAccess(answer: unknown) {
-  return (answer as { access: { url: string; token: string; roomName: string; isTutorThere: boolean } }).access;
+  return (answer as { access: { url: string; token: string; roomName: string; invitesTalk: boolean; isTutorThere: boolean } }).access;
 }
 
 interface RoomCall {
@@ -93,6 +93,41 @@ describe('the live room route', () => {
   afterAll(async () => {
     process.env = savedEnvironment;
     await testApp.close();
+  });
+
+  describe('telling a student they can talk', () => {
+    const openRoom = async (sessionId: string, who: TestStudent) => getAccess((await post(`/sessions/${sessionId}/live-room`, who).expect(200)).body);
+    const noteInvited = (who: TestStudent) => server().put('/me/talk-invitation').set('Authorization', `Bearer ${who.token}`);
+
+    it('asks for it in a student\'s first session, and not in a later one', async () => {
+      const newStudent = await createTestStudent(testApp);
+      const first = await startSession(newStudent);
+      const second = await startSession(newStudent);
+      expect((await openRoom(first, newStudent)).invitesTalk).toBe(true);
+      expect((await openRoom(second, newStudent)).invitesTalk).toBe(false);
+    });
+
+    it('stops asking once it is recorded, and a second record changes nothing', async () => {
+      const newStudent = await createTestStudent(testApp);
+      const first = await startSession(newStudent);
+      await noteInvited(newStudent).send({ heard: true }).expect(204);
+      await noteInvited(newStudent).send({ heard: true }).expect(204);
+      expect((await openRoom(first, newStudent)).invitesTalk).toBe(false);
+    });
+
+    it('records it for the signed-in student only', async () => {
+      const [one, two] = [await createTestStudent(testApp), await createTestStudent(testApp)];
+      const session = await startSession(two);
+      await noteInvited(one).send({ heard: true }).expect(204);
+      expect((await openRoom(session, two)).invitesTalk).toBe(true);
+    });
+
+    it('refuses anything but heard true, and no sign-in', async () => {
+      const newStudent = await createTestStudent(testApp);
+      await noteInvited(newStudent).send({ heard: false }).expect(400);
+      await noteInvited(newStudent).send({}).expect(400);
+      await server().put('/me/talk-invitation').send({ heard: true }).expect(401);
+    });
   });
 
   it('tells LiveKit which agent to call and nothing about the student', async () => {
@@ -390,7 +425,7 @@ describe('the live room route', () => {
     const sessionId = await startSession();
     const { body, text } = await post(`/sessions/${sessionId}/live-room`).expect(200);
     expect(body).toMatchObject({ unavailableBecause: null });
-    expect(Object.keys(getAccess(body)).sort()).toEqual(['isTutorThere', 'roomName', 'token', 'url']);
+    expect(Object.keys(getAccess(body)).sort()).toEqual(['invitesTalk', 'isTutorThere', 'roomName', 'token', 'url']);
     expect(text).not.toContain(LIVE_ROOM_KEYS.LIVEKIT_API_SECRET);
     expect(JSON.stringify(decodeJwt(getAccess(body).token))).not.toContain(LIVE_ROOM_KEYS.LIVEKIT_API_SECRET);
   });

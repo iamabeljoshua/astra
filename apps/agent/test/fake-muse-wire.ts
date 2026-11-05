@@ -8,6 +8,7 @@ export interface FakeMuseWire {
   getConnectionCount(): number;
   getBytesHeard(): number;
   getOpenCount(): number;
+  getEndStreamCount(): number;
   /** Closes every socket as Muse does when frames stop, 1008. */
   closeAll(code: number): void;
   close(): Promise<void>;
@@ -18,6 +19,7 @@ const BYTES_PER_INTERIM = 4800;
 // Speaks what the plugin expects of Muse's socket: a handshake answered with a session id, interim text as audio arrives, then a final.
 export async function startFakeMuseWire({ words = ['one', 'two', 'three'], handshakeMs = 0 }: { words?: string[]; handshakeMs?: number } = {}): Promise<FakeMuseWire> {
   const server = createServer();
+  let endStreams = 0;
   const sockets = new WebSocketServer({ server });
   const handshakes: Record<string, unknown>[] = [];
   let connections = 0;
@@ -43,6 +45,7 @@ export async function startFakeMuseWire({ words = ['one', 'two', 'three'], hands
           handshakes.push(message);
           setTimeout(() => send({ sessionId: `session-${connections}` }), handshakeMs);
         } else if (message.type === 'endStream') {
+          endStreams += 1;
           if (said > 0) finishTurn();
           socket.close(1000);
         }
@@ -69,6 +72,7 @@ export async function startFakeMuseWire({ words = ['one', 'two', 'three'], hands
     getHandshakes: () => handshakes,
     getConnectionCount: () => connections,
     getBytesHeard: () => bytesHeard,
+    getEndStreamCount: () => endStreams,
     getOpenCount: () => [...sockets.clients].filter((socket) => socket.readyState === WebSocket.OPEN).length,
     closeAll(code) {
       sockets.clients.forEach((socket) => socket.close(code));
