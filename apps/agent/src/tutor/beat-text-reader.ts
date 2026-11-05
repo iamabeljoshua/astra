@@ -42,6 +42,10 @@ export const CLAIMS_A_DRAWING = /\b(here you go|there you go|here it is|here the
 export const KINDS_A_STUDENT_LOOKS_FOR: ReadonlySet<string> = new Set(['table', 'timeline', 'code', 'image', 'drawing', 'diagram', 'plot', 'text', 'simulate']);
 const WRITTEN_KIND = /"kind"\s*:\s*"([A-Za-z]+)"/;
 const HAS_PARTS: ReadonlySet<string> = new Set(['table', 'timeline', 'code', 'drawing', 'diagram']);
+export const NAMES_HELP = /\b(?:adult|emergency)\b/i;
+
+/** A false match costs only a line of chat, so this leans toward counting a lesson that says "adult". */
+export const isAboutSafety = (words: string) => SAFETY_REPLY.test(words) || NAMES_HELP.test(words);
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
 const PRIVATE_TAGS: ReadonlySet<string> = new Set(['thinking', 'think', 'reasoning', 'scratchpad', 'analysis', 'reflection', 'function_calls', 'invoke', 'parameter', 'system', 'system-reminder']);

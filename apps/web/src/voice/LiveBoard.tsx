@@ -1,7 +1,7 @@
 import type { BoardState } from '@astra/board';
 import { getOpenTaskOnBoard } from '@astra/board/shared';
 import type { BoardProblemReport, ElementId, StudentWork } from '@astra/contracts';
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type ComponentProps, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { BoardProblem } from '../board/boardPainting';
 import { getVisualPlace, type VisualPeek } from '../board/boardStage';
 import { BoardStageView } from '../board/BoardStageView';
@@ -59,7 +59,7 @@ interface LiveBoardProps {
   getVisual?(frame: BoardFrame): ReactNode;
   isConnecting?: boolean;
   onTutorState?(state: string | null): void;
-  onTalk?: () => void;
+  talkButtonProps?: ComponentProps<'button'>;
   isTalkOn?: boolean;
   canTalk?: boolean;
   /** The student has ended the session, so the board only looks back, and takes no more work. */
@@ -81,7 +81,7 @@ function useDotInTheMiddle(isConnecting: boolean): boolean {
 }
 
 // The board is a pure reading of the clock, so one read per frame is all it needs.
-export function LiveBoard({ voice, getVisual, onTalk, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState, isLookingBack = false, filesComingSoon }: LiveBoardProps) {
+export function LiveBoard({ voice, getVisual, talkButtonProps, isTalkOn = false, canTalk = true, isConnecting = false, onTutorState, isLookingBack = false, filesComingSoon }: LiveBoardProps) {
   const isDotInTheMiddle = useDotInTheMiddle(isConnecting);
   const [frame, setFrame] = useState<BoardFrame>(() => voice.getBoardNow());
   const [activity, setActivity] = useState(0);
@@ -199,7 +199,7 @@ export function LiveBoard({ voice, getVisual, onTalk, isTalkOn = false, canTalk 
   const tools = (
     <div className="board-tools" data-testid="board-tools">
       {filesComingSoon && <AttachControl filesComingSoon={filesComingSoon} className="board-tool" />}
-      {canTalk && <button type="button" className="board-tool" aria-pressed={isTalkOn} onClick={onTalk}>{BOARD_WORK_LABELS.talk}</button>}
+      {canTalk && <button type="button" className="board-tool" aria-pressed={isTalkOn} {...talkButtonProps}>{BOARD_WORK_LABELS.talk}</button>}
       {isVisualBig && (
         <button
           type="button"

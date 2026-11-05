@@ -9,7 +9,7 @@ import { useLiveVoice } from './useLiveVoice';
 
 vi.mock('../auth/session', () => import('../test/signedInSession'));
 
-const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', isTutorThere: false, token: 'room-token' };
+const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', isTutorThere: false, invitesTalk: false, token: 'room-token' };
 const OPEN_ROOM = { access: ROOM_ACCESS, unavailableBecause: null };
 
 // The real start asks for the room beside its audio setup, and refuses to go on with no access.
@@ -106,6 +106,7 @@ describe('useLiveVoice', () => {
     });
     expect(voice.getView().mic).toBe('off');
     expect(voice.toggleMic).not.toHaveBeenCalled();
+    expect(voice.setMic).not.toHaveBeenCalled();
   });
 
   it('shows the press at once while the room opens, so it cannot look like a press that missed', async () => {
@@ -215,6 +216,77 @@ describe('vendor keys', () => {
   });
 });
 
+describe('a press after the student has left the room', () => {
+  beforeEach(() => stubSessionsApi({ liveRoom: OPEN_ROOM }));
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('opens no room and no microphone while the screen fades away', async () => {
+    const voice = makeFakeVoice();
+    const start = vi.fn(async () => voice);
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
+    await act(async () => void (await result.current.connect()));
+    await act(() => result.current.leave());
+    await act(async () => result.current.heldMic.open());
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(voice.setMic).not.toHaveBeenCalledWith(true);
+    expect(result.current.isTalkOn).toBe(false);
+  });
+});
+
+describe('a hold while the room opens', () => {
+  const openAtScreenOpen = () => {
+    const voice = makeFakeVoice();
+    let open: (opened: LiveVoice) => void = () => {};
+    const start = vi.fn(() => new Promise<LiveVoice>((resolve) => { open = resolve; }));
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start }));
+    act(() => void result.current.sendTyped('the opening line'));
+    return { voice, start, result, finishOpening: () => open(voice) };
+  };
+
+  it('shows as on at once, joins nothing new, and reaches the microphone when the room is up', async () => {
+    const { voice, start, result, finishOpening } = openAtScreenOpen();
+    act(() => result.current.heldMic.open());
+    expect(result.current.isTalkOn).toBe(true);
+    await act(async () => finishOpening());
+    expect(start).toHaveBeenCalledTimes(1);
+    expect(voice.setMic).toHaveBeenCalledWith(true);
+    expect(voice.sendTyped).toHaveBeenCalledWith('the opening line');
+    expect(result.current.view?.mic).toBe('on');
+  });
+
+  it('never opens the microphone when the student let go first', async () => {
+    const { voice, result, finishOpening } = openAtScreenOpen();
+    act(() => result.current.heldMic.open());
+    act(() => result.current.heldMic.endLine());
+    expect(result.current.isTalkOn).toBe(false);
+    await act(async () => finishOpening());
+    expect(voice.setMic).not.toHaveBeenCalled();
+    expect(result.current.view?.mic).toBe('off');
+  });
+
+  it('tells the tutor of the hold once it can, and not if it ended first', async () => {
+    const started = vi.fn();
+    const controls = { isMicOn: () => false, setMic: vi.fn(async () => {}), endLine: vi.fn(), lowerTutor: vi.fn(), tellHoldStarted: started };
+    let ready: (ready: typeof controls) => void = () => {};
+    const start = vi.fn(({ onMicReady }: { onMicReady?: (controls: never) => void }) => {
+      ready = (given) => onMicReady?.(given as never);
+      return new Promise<LiveVoice>(() => {});
+    });
+    const { result } = renderHook(() => useLiveVoice({ sessionId: 'a-session', start: start as never }));
+    act(() => {
+      result.current.heldMic.open();
+      result.current.heldMic.tellHoldStarted();
+    });
+    expect(started).not.toHaveBeenCalled();
+    await act(async () => {
+      await Promise.resolve();
+      ready(controls);
+    });
+    expect(started).toHaveBeenCalledTimes(1);
+    expect(controls.setMic).toHaveBeenCalledWith(true);
+  });
+});
+
 describe('the Privacy Policy on voice', () => {
   const privacy = LEGAL_PAGES.privacy.sections.flatMap((section) => section.today).join(' ');
 
@@ -248,6 +320,11 @@ describe('the Privacy Policy on voice', () => {
 
   it('says plainly that the IP address reaches LiveKit as soon as a session opens, before any press', () => {
     expect(privacy).toContain('When a session opens, your browser joins LiveKit Cloud, even before you press Talk, so LiveKit receives your IP address');
+  });
+
+  it('says the microphone opens on a hold of Space too, and that the invitation is stored', () => {
+    expect(privacy).toContain('press Talk or hold Space');
+    expect(privacy).toContain('The time the tutor first told you that you can talk');
   });
 
   it('says raw audio is not stored, and does not claim the microphone is unused', () => {

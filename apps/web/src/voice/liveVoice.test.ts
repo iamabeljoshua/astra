@@ -68,7 +68,7 @@ vi.mock('./tutorAudio', () => ({
   OUTPUT_GAINS: { full: 1, lowered: 0.25, silent: 0 },
 }));
 
-const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', isTutorThere: false, token: 'room-token' };
+const ROOM_ACCESS = { url: 'wss://room.test', roomName: 'session-a-session', isTutorThere: false, invitesTalk: false, token: 'room-token' };
 const DROPPED = 99;
 const QUIET_LONG_ENOUGH_TO_REJOIN_MS = 4000;
 
