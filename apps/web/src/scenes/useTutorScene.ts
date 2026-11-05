@@ -129,9 +129,21 @@ export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): Tuto
 }
 
 export function useReplayScene(board: BoardState, isEnabled: boolean): TutorScene {
-  const scene = useSceneHost(isEnabled);
+  const [canPlay, setCanPlay] = useState(false);
+  const scene = useSceneHost(canPlay && isEnabled);
   const { stage } = scene;
   const { sceneId, durationSeconds, engine } = getLatestScene(board) ?? { sceneId: null, durationSeconds: 0, engine: undefined };
+
+  useEffect(() => {
+    if (!isEnabled) return undefined;
+    let isGone = false;
+    void getCanPlayScenes().then((isAble) => {
+      if (!isGone) setCanPlay(isAble);
+    });
+    return () => {
+      isGone = true;
+    };
+  }, [isEnabled]);
 
   useEffect(() => {
     if (stage && sceneId !== null) void stage.load(sceneId, durationSeconds, engine);

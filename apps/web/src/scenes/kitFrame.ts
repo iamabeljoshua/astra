@@ -90,6 +90,8 @@ export async function openKitFrame({ host, take, theme, limitMs, drawsFlat = fal
   let isGone = false;
   let pinging: ReturnType<typeof setInterval> | undefined;
   let hasDrawn = false;
+  let isBuilding = true;
+  let buildLimit: ReturnType<typeof setTimeout> | undefined;
   let firstDrawLimit: ReturnType<typeof setTimeout> | null = null;
   let settleOpen: { resolve(frame: KitFrame): void; reject(error: Error): void } | null = null;
 
@@ -99,6 +101,7 @@ export async function openKitFrame({ host, take, theme, limitMs, drawsFlat = fal
     if (isGone) return;
     isGone = true;
     clearInterval(pinging);
+    clearTimeout(buildLimit);
     if (firstDrawLimit) clearTimeout(firstDrawLimit);
     window.removeEventListener('message', onMessage);
     tell({ type: 'dispose' });
@@ -113,6 +116,16 @@ export async function openKitFrame({ host, take, theme, limitMs, drawsFlat = fal
     else onLost();
   };
 
+  const waitForNewPage = () => {
+    isBuilding = true;
+    hasDrawn = false;
+    clearInterval(pinging);
+    clearTimeout(buildLimit);
+    if (firstDrawLimit) clearTimeout(firstDrawLimit);
+    firstDrawLimit = null;
+    buildLimit = setTimeout(() => fail('the scene took too long to start'), limitMs);
+  };
+
   const startPinging = () => {
     clearInterval(pinging);
     missedPings = 0;
@@ -124,7 +137,7 @@ export async function openKitFrame({ host, take, theme, limitMs, drawsFlat = fal
   };
 
   const waitForFirstDraw = () => {
-    if (hasDrawn || firstDrawLimit) return;
+    if (hasDrawn || isBuilding || firstDrawLimit) return;
     firstDrawLimit = setTimeout(() => {
       firstDrawLimit = null;
       if (hasDrawn) return;
@@ -143,7 +156,7 @@ export async function openKitFrame({ host, take, theme, limitMs, drawsFlat = fal
     setTheme(next) {
       if (next === currentTheme) return;
       currentTheme = next;
-      hasDrawn = false;
+      waitForNewPage();
       iframe.srcdoc = page;
     },
     resize: () => tell({ type: 'resize' }),
@@ -151,17 +164,22 @@ export async function openKitFrame({ host, take, theme, limitMs, drawsFlat = fal
   };
 
   const onReply: { [Type in KitFrameReply['type']]?: (reply: Extract<KitFrameReply, { type: Type }>) => void } = {
-    loaded: () => tell({ type: 'load', timing: take.timing, textures, theme: currentTheme }),
+    loaded() {
+      waitForNewPage();
+      tell({ type: 'load', timing: take.timing, textures, theme: currentTheme });
+    },
     ready({ issues }) {
       const broken = issues.find((issue) => BROKEN_SCENE.test(issue));
       if (broken) return fail(broken);
+      isBuilding = false;
+      clearTimeout(buildLimit);
       tell({ type: 'render', seconds: wantSeconds });
       startPinging();
       settleOpen?.resolve(frame);
       settleOpen = null;
     },
     drawn() {
-      if (hasDrawn) return;
+      if (hasDrawn || isBuilding) return;
       hasDrawn = true;
       onFirstDraw();
     },
@@ -179,17 +197,8 @@ export async function openKitFrame({ host, take, theme, limitMs, drawsFlat = fal
   }
 
   return new Promise<KitFrame>((resolve, reject) => {
-    const limit = setTimeout(() => fail('the scene took too long to start'), limitMs);
-    settleOpen = {
-      resolve(made) {
-        clearTimeout(limit);
-        resolve(made);
-      },
-      reject(error) {
-        clearTimeout(limit);
-        reject(error);
-      },
-    };
+    settleOpen = { resolve, reject };
+    waitForNewPage();
     window.addEventListener('message', onMessage);
     host.append(iframe);
   });

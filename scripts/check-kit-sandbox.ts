@@ -28,6 +28,7 @@ const SESSION_ID = 'c3d0a111-session-id';
 const LONGEST_PAGE_GAP_MS = 500;
 // CI's shell keeps a frame on the page's thread, where a 300 MB message would stall the page, so only real Chrome measures that size.
 const BIG_MESSAGE_CHARS = args['real-chrome'] ? 300_000_000 : 20_000_000;
+const TOO_LONG_ANSWER_CHARS = 30_000_000;
 const BUSY_WATCH_MS = 3000;
 const BUSY_SHARE = 0.6;
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
@@ -65,11 +66,17 @@ interface FrameRun {
 const getProbes = ({ replies }: FrameRun): Record<string, string> =>
   Object.fromEntries(replies.flatMap(({ issues }) => issues ?? []).filter((issue) => issue.startsWith('probe|')).map((issue) => issue.split('|').slice(1, 3) as [string, string]));
 
-async function runScene(page: Page, code: string, { renderAfterReady = false, keepRendering = false, settleMs = SETTLE_MS, isRawWorker = false }: { renderAfterReady?: boolean; keepRendering?: boolean; settleMs?: number; isRawWorker?: boolean } = {}): Promise<FrameRun> {
+async function runScene(page: Page, code: string, { renderAfterReady = false, keepRendering = false, askAfterReady = false, settleMs = SETTLE_MS, isRawWorker = false }: { renderAfterReady?: boolean; keepRendering?: boolean; askAfterReady?: boolean; settleMs?: number; isRawWorker?: boolean } = {}): Promise<FrameRun> {
   const srcdoc = isRawWorker ? buildKitFramePage({ kitBundle: code, code: '' }) : buildKitFramePage({ kitBundle: KIT_BUNDLE, code });
   return page.evaluate(
-    ({ srcdoc, timing, renderAfterReady, keepRendering, settleMs, LOAD_LIMIT_MS, SPIN_SECONDS }) =>
+    ({ srcdoc, timing, renderAfterReady, keepRendering, askAfterReady, settleMs, LOAD_LIMIT_MS, SPIN_SECONDS }) =>
       new Promise<FrameRun>((resolve) => {
+        // JSON reads an ArrayBuffer or a Map as {}, so anything JSON cannot hold counts as too large.
+        const getReplySize = (value: unknown): number => {
+          if (value === null || typeof value !== 'object') return String(value).length;
+          const isJson = Array.isArray(value) || Object.getPrototypeOf(value) === Object.prototype;
+          return isJson ? Object.values(value).reduce((total: number, item) => total + getReplySize(item), 1) : Number.POSITIVE_INFINITY;
+        };
         const iframe = document.createElement('iframe');
         iframe.setAttribute('sandbox', 'allow-scripts');
         iframe.style.cssText = 'width:640px;height:360px';
@@ -105,18 +112,19 @@ async function runScene(page: Page, code: string, { renderAfterReady = false, ke
         function onMessage(event: MessageEvent) {
           if (event.source !== iframe.contentWindow) return;
           const reply = event.data as FrameRun['replies'][number];
-          run.largestReplyChars = Math.max(run.largestReplyChars, JSON.stringify(reply)?.length ?? 0);
+          run.largestReplyChars = Math.max(run.largestReplyChars, getReplySize(reply));
           if (reply.type === 'drawn' || reply.type === 'pong') return;
           run.replies.push(reply);
           if (reply.type === 'loaded') iframe.contentWindow?.postMessage({ type: 'load', timing, textures: {}, theme: 'dark', quality: 'low' }, '*');
           if (reply.type === 'ready' && renderAfterReady) iframe.contentWindow?.postMessage({ type: 'render', seconds: SPIN_SECONDS }, '*');
+          if (reply.type === 'ready' && askAfterReady) iframe.contentWindow?.postMessage({ type: 'gate', times: [] }, '*');
           if (reply.type === 'error') run.stoppedAtMs ??= performance.now() - startedAt;
           if (reply.type === 'ready' || (reply.type === 'error' && reply.phase !== 'promise')) settle();
         }
         window.addEventListener('message', onMessage);
         document.body.append(iframe);
       }),
-    { srcdoc, timing: TIMING, renderAfterReady, keepRendering, settleMs, LOAD_LIMIT_MS, SPIN_SECONDS },
+    { srcdoc, timing: TIMING, renderAfterReady, keepRendering, askAfterReady, settleMs, LOAD_LIMIT_MS, SPIN_SECONDS },
   );
 }
 
@@ -227,6 +235,30 @@ const RAW_FLOOD_WORKER = `
   addEventListener('message', ({ data }) => {
     if (data.type === 'beat') postMessage({ type: 'beat', id: data.id });
     if (data.type === 'load') { send(); postMessage({ type: 'ready', issues: [] }); }
+  });
+`;
+
+const RAW_ODD_WORKER = `
+  const buffer = new ArrayBuffer(${BIG_MESSAGE_CHARS});
+  const map = new Map([['big', buffer]]);
+  postMessage({ type: 'loaded' });
+  postMessage({ type: 'loaded' });
+  addEventListener('message', ({ data }) => {
+    if (data.type === 'beat') postMessage({ type: 'beat', id: data.id });
+    if (data.type === 'render') postMessage({ type: 'drawn', seconds: buffer, costMs: map });
+    if (data.type === 'gate') postMessage({ type: 'gate', result: { buffer, map }, issues: [map] });
+    if (data.type === 'load') {
+      postMessage({ type: 'error', phase: buffer, message: map, stack: buffer, line: map, col: buffer, seconds: map });
+      postMessage({ type: 'ready', issues: [map], params: { buffer, map }, parts: buffer });
+    }
+  });
+`;
+
+const RAW_LONG_ANSWER_WORKER = `
+  postMessage({ type: 'loaded' });
+  addEventListener('message', ({ data }) => {
+    if (data.type === 'load') postMessage({ type: 'ready', issues: [] });
+    if (data.type === 'gate') postMessage({ type: 'gate', result: 'x'.repeat(${TOO_LONG_ANSWER_CHARS}), issues: [] });
   });
 `;
 
@@ -345,6 +377,17 @@ await Promise.all(
 const rawFlood = await runScene(page, RAW_FLOOD_WORKER, { isRawWorker: true, renderAfterReady: true, keepRendering: true, settleMs: TYPE_FOR_MS });
 check(rawFlood.largestReplyChars < MOST_REPLY_CHARS, `raw worker code cannot send the page anything large: the largest reply was ${rawFlood.largestReplyChars} characters`);
 if (args['real-chrome']) check(rawFlood.largestPageGapMs < LONGEST_PAGE_GAP_MS, `raw worker messages of 300 MB leave the page's frames alone: its largest gap was ${Math.round(rawFlood.largestPageGapMs)} ms`);
+
+const odd = await runScene(page, RAW_ODD_WORKER, { isRawWorker: true, renderAfterReady: true, askAfterReady: true, settleMs: TYPE_FOR_MS });
+const oddTypes = odd.replies.map(({ type }) => type);
+check(['ready', 'gate', 'error'].every((type) => oddTypes.includes(type)), `a worker's odd ready, answer, and error were each passed on, so the next check measures them: ${oddTypes.join(', ')}`);
+check(odd.largestReplyChars < MOST_REPLY_CHARS, `an ArrayBuffer or a Map in any field reaches the page as nothing: the largest reply was ${odd.largestReplyChars} characters`);
+if (args['real-chrome']) check(odd.largestPageGapMs < LONGEST_PAGE_GAP_MS, `an ArrayBuffer of 300 MB leaves the page's frames alone: its largest gap was ${Math.round(odd.largestPageGapMs)} ms`);
+check(odd.replies.every(({ type, phase }) => type !== 'error' || typeof phase === 'string'), `an error's phase is always a name, and it was ${odd.replies.find(({ type }) => type === 'error')?.phase}`);
+check(oddTypes.filter((type) => type === 'loaded').length === 1, `a worker can say it loaded only once, and the page heard it ${oddTypes.filter((type) => type === 'loaded').length} times`);
+
+const longAnswer = await runScene(page, RAW_LONG_ANSWER_WORKER, { isRawWorker: true, askAfterReady: true, settleMs: TYPE_FOR_MS });
+check(longAnswer.replies.some(({ type, message }) => type === 'error' && /too much/.test(message ?? '')) && !longAnswer.replies.some(({ type }) => type === 'gate'), `an answer longer than the limit stops the scene and does not reach the page: ${longAnswer.replies.map(({ type }) => type).join(', ')}`);
 
 await delay(SETTLE_MS);
 check(hits.length === 0, `no request reached the server from any scene, ${hits.length} did${hits.length ? `: ${hits.join(', ')}` : ''}`);

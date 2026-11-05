@@ -240,7 +240,6 @@ const IF_WORRIED = 'If anything is worrying you, or you do not feel safe, please
 export const VOICE_LABELS = {
   you: 'You',
   board: 'Board',
-  emptyBoard: 'Nothing is drawn yet. The words are on the left.',
   connecting: 'Connecting your tutor',
   unavailable: `Your tutor could not connect just now. ${IF_WORRIED}`,
   reconnecting: 'Your connection dropped. Reconnecting.',
@@ -372,7 +371,7 @@ export const REPLAY_LABELS = {
   deleteFailed: 'That did not work. Try again.',
   couldNotLoad: 'This replay did not load.',
   noneLeft: 'Nothing from this session is saved to replay.',
-  emptyBoard: 'Nothing was drawn at this point. The words are on the left.',
+  emptyBoard: 'Nothing was drawn at this point. Follow the words.',
 } as const;
 
 export const SESSION_LABELS = {
@@ -404,7 +403,7 @@ function getPlainWait(seconds: number): string {
 }
 
 export const SCENE_LABELS = {
-  notCheckedByPerson: 'Drawn for this lesson. Not yet checked by a person.',
+  notCheckedByPerson: 'Drawn for this topic. Not yet checked by a person.',
   wordsNotChecked: 'Written for this lesson. Not yet checked by a person.',
   answerStandIn: "I heard you. I can't answer questions yet, so I'll carry on.",
   lessonDown: "The lesson can't start right now. Your session is saved, so you can try again.",

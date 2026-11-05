@@ -106,6 +106,9 @@ const sameWords = (first: string, second: string) => first.trim().toLowerCase() 
 const getLoadMessage = ({ id, durationSeconds, engine }: StoredScene): SceneAgentMessage => ({ type: 'loadScene', sceneId: id, durationSeconds, ...(engine === 'kit' ? { engine } : {}) });
 const getPrepareMessage = ({ id, engine }: StoredScene): SceneAgentMessage => ({ type: 'prepareScene', sceneId: id, ...(engine === 'kit' ? { engine } : {}) });
 
+const getLoadMessage = ({ id, durationSeconds, engine }: StoredScene): SceneAgentMessage => ({ type: 'loadScene', sceneId: id, durationSeconds, ...(engine === 'kit' ? { engine } : {}) });
+const getPrepareMessage = ({ id, engine }: StoredScene): SceneAgentMessage => ({ type: 'prepareScene', sceneId: id, ...(engine === 'kit' ? { engine } : {}) });
+
 const getFirstMomentAfterStart = (moments: StoredScene['moments']) => Object.entries(moments).filter(([, seconds]) => seconds > 0).sort(([, first], [, second]) => first - second)[0]?.[0];
 
 // The picture fades in on the setup's first word, and a take opens on an empty frame, so the setup line plays it on to its first later moment and the box is never blank under those words. A scene that opens a card ends on its narration, because the tutor's own first line follows it and asks.

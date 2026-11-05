@@ -3,7 +3,7 @@ import { type Beat, getBeatText } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
 import { type FakeReply, makeFakeTutorModel } from '../src/providers/fake-model.ts';
 import type { TutorModelRequest } from '../src/providers/types.ts';
-import type { SafetyCheck, TurnBefore, TutorReading } from '../src/safety/safety-check.ts';
+import { type SafetyCheck, type TurnBefore, type TutorReading } from '../src/safety/safety-check.ts';
 import type { StudentReading } from '../src/safety/student-reading.ts';
 import { createSafetyWatch, type SafetyFlag } from '../src/safety/safety-watch.ts';
 import { createTutorBrain, TUTOR_TIMEOUTS, type StudentProfile, type TurnSummary } from '../src/tutor/brain.ts';
@@ -112,10 +112,10 @@ describe('a signal stops the teaching, shows help, and raises a flag', () => {
     expect(spoken).not.toMatch(/cross any distance/);
   });
 
-  it('waits for a slow read when the reply ended first, so help still comes after the question', async () => {
-    const { brain } = setup({ readAfterMs: 60, getReply: () => ({ pieces: ['Quicker for what, though?'] }) });
+  it('waits for a slow read when the reply ended first, so help still comes after the words already said', async () => {
+    const { brain } = setup({ readAfterMs: 60, getReply: () => ({ pieces: ['Quicker is better here. ', 'So is a longer burn.'] }) });
     const spoken = await say(brain);
-    expect(spoken).toMatch(/^Quicker for what/);
+    expect(spoken).toMatch(/^Quicker is better here/);
     expect(spoken).toContain(SPOKEN_LINES.safetyStop[0]);
   });
 
@@ -243,10 +243,30 @@ describe('vague words are read against what was just said', () => {
 });
 
 describe('a reply that stops partway reads as one person speaking', () => {
-  it('ends the words already said with a period when code cuts in', async () => {
+  it('drops a clause still waiting for its sentence when code cuts in', async () => {
     const { brain, summaries } = setup({ readAfterMs: 30, getReply: () => ({ pieces: ['Nothing travels instantly, ', 'not even light, and here is why that matters.'], msPerPiece: 80 }) });
     await say(brain);
-    expect(summaries.at(-1)?.spokenText).toBe(`Nothing travels instantly. ${SPOKEN_LINES.safetyStop[0]}`);
+    expect(summaries.at(-1)?.spokenText).toBe(SPOKEN_LINES.safetyStop[0]);
+  });
+
+  it('never says a clause that stops at a comma before code cuts in', async () => {
+    const { brain, summaries } = setup({ readAfterMs: 120, getReply: () => ({ pieces: ["You'd coast alongside it. ", 'Then gravity slowly pulls you back down, ', 'and you land far away from where you started.'], msPerPiece: 80 }) });
+    const beats: string[] = [];
+    for await (const beat of brain.reply({ text: STUDENT_WORDS }, new AbortController().signal)) beats.push(getBeatText(beat));
+    expect(beats.join(' ')).not.toMatch(/, That sounds serious/);
+    expect(summaries.at(-1)?.spokenText).toBe(`You'd coast alongside it. ${SPOKEN_LINES.safetyStop[0]}`);
+  });
+
+  it('never says a line that breaks mid sentence before code cuts in', async () => {
+    const { brain, summaries } = setup({ readAfterMs: 120, getReply: () => ({ pieces: ["You'd coast alongside it. ", 'Then gravity slowly pulls you back\n', 'down and you land far away from where you started.'], msPerPiece: 80 }) });
+    await say(brain);
+    expect(summaries.at(-1)?.spokenText).toBe(`You'd coast alongside it. ${SPOKEN_LINES.safetyStop[0]}`);
+  });
+
+  it('sends the clause with the words after it when the read is out and clean', async () => {
+    const { brain, summaries } = setup({ reading: 'none', readAfterMs: 400, getReply: () => ({ pieces: ['Then gravity slowly pulls you back down, ', 'and you land far away from where you started.'], msPerPiece: 30 }) });
+    await say(brain, 'what happens next');
+    expect(summaries.at(-1)?.spokenText).toBe('Then gravity slowly pulls you back down, and you land far away from where you started.');
   });
 
   it('ends them with a period when a retry starts a new sentence', async () => {
