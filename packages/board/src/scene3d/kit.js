@@ -1116,7 +1116,7 @@ export function createKit({ canvas, overlay, timing, textures, quality = 'high',
       const corner = e.o.corner ?? 'tr';
       const x = corner.includes('l') ? margin : w - size - margin;
       const yTop = corner.includes('b') ? h - size - margin : margin;
-      e.frame.style.cssText += `;left:${x}px;top:${yTop}px;width:${size}px;height:${size}px`;
+      Object.assign(e.frame.style, { left: `${x}px`, top: `${yTop}px`, width: `${size}px`, height: `${size}px` });
       const from = resolveTarget(e.o.from, e.o.fromOffset);
       const look = resolveTarget(e.o.look);
       e.cam.position.copy(from); e.cam.up.set(0, 1, 0); e.cam.lookAt(look);

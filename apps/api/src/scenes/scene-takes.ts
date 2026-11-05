@@ -10,6 +10,7 @@ interface SceneRecord {
   topic?: string;
   moments?: Record<string, number>;
   durationSeconds?: number;
+  reviewed?: boolean;
 }
 
 interface KitSceneRecord {
@@ -62,6 +63,6 @@ export function findCheckedKitTake({ storeRoot, sceneId, studentId }: { storeRoo
   if (!storeRoot || existsSync(join(storeRoot, 'flags', `${sceneId}.json`))) return null;
   const record = readRecord<SceneRecord>(join(storeRoot, 'scenes', sceneId, 'scene.json'));
   if (record?.status !== 'checked' || ((record.ownerId ?? null) !== null && record.ownerId !== studentId)) return null;
-  const code = record.engine === 'kit' ? record.code : readReviewedKitCode(storeRoot, sceneId, record.topic ?? '');
+  const code = record.engine === 'kit' ? (record.reviewed === true ? record.code : null) : readReviewedKitCode(storeRoot, sceneId, record.topic ?? '');
   return code && record.moments && record.durationSeconds ? { code, timing: { moments: record.moments, duration: record.durationSeconds } } : null;
 }

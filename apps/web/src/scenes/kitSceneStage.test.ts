@@ -35,7 +35,8 @@ beforeEach(() => {
   vi.stubEnv('VITE_KIT_SCENES', '1');
   vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
   vi.stubGlobal('matchMedia', () => ({ matches: false }));
-  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({} as RenderingContext);
+  vi.stubGlobal('OffscreenCanvas', class { getContext() { return {}; } });
+  vi.stubGlobal('navigator', { ...navigator, userAgentData: {} });
   Object.defineProperty(window, 'innerWidth', { configurable: true, value: 1440 });
   fakes.opened.length = 0;
   fakes.flat.load.mockReset().mockResolvedValue(true);
@@ -175,8 +176,18 @@ describe('when a browser should not play the kit', () => {
     await expectFlatOnly();
   });
 
-  it('plays only the 2D take with no WebGL', async () => {
-    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
+  it('plays only the 2D take with no WebGL in a worker', async () => {
+    vi.stubGlobal('OffscreenCanvas', class { getContext() { return null; } });
+    await expectFlatOnly();
+  });
+
+  it('plays only the 2D take with no OffscreenCanvas', async () => {
+    vi.stubGlobal('OffscreenCanvas', undefined);
+    await expectFlatOnly();
+  });
+
+  it('plays only the 2D take in a browser that is not Chromium', async () => {
+    vi.stubGlobal('navigator', {});
     await expectFlatOnly();
   });
 });

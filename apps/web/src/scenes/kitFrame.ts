@@ -1,5 +1,5 @@
 import { SCENE_ENGINE_VERSIONS } from '@astra/contracts';
-import { buildKitFramePage, getNeededTextures, type KitFrameCommand, type KitFrameReply, type KitTake, type KitTheme } from '@astra/board/scene3d';
+import { buildKitFramePage, getNeededTextures, type KitFont, type KitFrameCommand, type KitFrameReply, type KitTake, type KitTheme } from '@astra/board/scene3d';
 import { fetchAppFile } from '../api/fetchAppFile';
 
 const KIT_BASE = `/scene-kit/${SCENE_ENGINE_VERSIONS.kit}`;
@@ -17,22 +17,20 @@ export interface KitFrame {
   dispose(): void;
 }
 
-let sharedFiles: Promise<{ kitBundle: string; fontCss: string }> | null = null;
+let sharedFiles: Promise<{ kitBundle: string; fonts: KitFont[] }> | null = null;
 const textureFiles = new Map<string, Promise<Blob>>();
 
-async function getFontCss(): Promise<string> {
-  const faces = await Promise.all(
+const getFonts = (): Promise<KitFont[]> =>
+  Promise.all(
     FONT_WEIGHTS.map(async (weight) => {
       const bytes = new Uint8Array(await fetchAppFile(`/fonts/barlow-latin-${weight}-normal.woff2`));
-      return `@font-face{font-family:Barlow;font-weight:${weight};font-display:block;src:url(data:font/woff2;base64,${btoa(String.fromCharCode(...bytes))}) format('woff2');}`;
+      return { weight, url: `data:font/woff2;base64,${btoa(String.fromCharCode(...bytes))}` };
     }),
   );
-  return faces.join('');
-}
 
-async function readSharedFiles(): Promise<{ kitBundle: string; fontCss: string }> {
-  const [kit, fontCss] = await Promise.all([fetchAppFile(`${KIT_BASE}/kit.js`), getFontCss()]);
-  return { kitBundle: new TextDecoder().decode(kit), fontCss };
+async function readSharedFiles(): Promise<{ kitBundle: string; fonts: KitFont[] }> {
+  const [kit, fonts] = await Promise.all([fetchAppFile(`${KIT_BASE}/kit.js`), getFonts()]);
+  return { kitBundle: new TextDecoder().decode(kit), fonts };
 }
 
 export const warmKitFiles = () => void getSharedFiles().catch(() => {});
@@ -82,8 +80,8 @@ export interface OpenKitFrameInput {
 }
 
 export async function openKitFrame({ host, take, theme, limitMs, drawsFlat = false, onLost, onFirstDraw }: OpenKitFrameInput): Promise<KitFrame> {
-  const [{ kitBundle, fontCss }, textures] = await Promise.all([getSharedFiles(), getTextures(take.code)]);
-  const page = buildKitFramePage({ kitBundle, fontCss, code: take.code, drawsFlat });
+  const [{ kitBundle, fonts }, textures] = await Promise.all([getSharedFiles(), getTextures(take.code)]);
+  const page = buildKitFramePage({ kitBundle, fonts, code: take.code, drawsFlat });
   const iframe = createFrameElement(page);
   let currentTheme = theme;
   let wantSeconds = 0;

@@ -2,39 +2,6 @@
 // Lives apart from kit.js so the player owner can take it as one file. kit.js calls addStudio once.
 import * as THREE from 'three';
 
-const THEME_CSS = `
-:root{--hud:rgba(6,6,8,.78);--hud-ink:#FFFBF5;--hud-ink2:#A79F92;--hud-line:#2B2823;--hud-accent:#FFCC94;--leader:#FFFBF5}
-:root[data-theme=light]{--hud:rgba(246,241,230,.92);--hud-ink:#1B1815;--hud-ink2:#5F574C;--hud-line:#CFC6B5;--hud-accent:#B4561E}
-:root[data-canvas=light]{--leader:#1B1815}
-.lbl{background:var(--hud);color:var(--hud-ink);border-left:1px solid var(--hud-ink)}
-.lbl-sub{color:var(--hud-ink2)}
-.leaders line{stroke:var(--leader)}
-.leaders circle{fill:var(--leader)}
-.ttl{color:var(--hud-ink)}
-.ttl.corner,.ttl.lower,.ttl.upper{background:var(--hud);padding:4px 8px}
-.ttl-sub,.ttl.corner .ttl-main{color:var(--hud-ink2)}
-.inset-frame{border-color:var(--hud-ink)}
-.inset-cap{color:var(--hud-ink)}
-.hud{position:absolute;left:0;top:0;opacity:0;box-sizing:border-box;background:var(--hud);border:1px solid var(--hud-line);color:var(--hud-ink);transform-origin:top right;font-family:Barlow,system-ui,sans-serif}
-.hud svg{display:block;width:100%;height:100%}
-.hud .t-label{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;fill:var(--hud-ink2)}
-.hud .t-tick{font-size:12px;font-weight:500;fill:var(--hud-ink2)}
-.hud .t-big{font-size:32px;font-weight:600;fill:var(--hud-ink)}
-.hud .t-unit{font-size:12px;font-weight:500;fill:var(--hud-ink2);letter-spacing:.04em}
-.hud .t-sub{font-size:13px;font-weight:500;fill:var(--hud-ink)}
-.hud .t-mark{font-size:11px;font-weight:600;fill:var(--hud-accent)}
-.hud .s-arc{fill:none;stroke:var(--hud-line);stroke-width:2}
-.hud .s-tick{stroke:var(--hud-ink2);stroke-width:1.4}
-.hud .s-minor{stroke:var(--hud-line);stroke-width:1}
-.hud .s-needle{stroke:var(--hud-ink);stroke-width:3;stroke-linecap:round}
-.hud .s-hub{fill:var(--hud-ink)}
-.hud .s-mark{stroke:var(--hud-accent);stroke-width:3}
-.hud .s-fill{fill:none;stroke:var(--hud-accent);stroke-width:4}
-.hud-read{padding:6px 10px 7px}
-.hud-read .k{font-size:11px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--hud-ink2);line-height:1.2}
-.hud-read .v{font-size:18px;font-weight:600;line-height:1.25;white-space:nowrap}
-`;
-
 const NOISE = /* glsl */ `
 float h31(vec3 p){ p=fract(p*vec3(.1031,.11369,.13787)); p+=dot(p,p.yzx+19.19); return fract((p.x+p.y)*p.z); }
 float vn(vec3 p){ vec3 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
@@ -46,9 +13,6 @@ float fb(vec3 p){ float a=.5,s=0.; for(int i=0;i<4;i++){ s+=a*vn(p); p=p*2.03+ve
 export function addStudio(kit, x) {
   const { scene, register, basePart, pbrMaterial, fadeMaterial, uT, overlay, W, H, issue } = x;
   const svgNS = 'http://www.w3.org/2000/svg';
-  const style = document.createElement('style');
-  style.textContent = THEME_CSS;
-  overlay.appendChild(style);
   document.documentElement.dataset.theme = kit.theme;
   document.documentElement.dataset.canvas = 'dark';
 
