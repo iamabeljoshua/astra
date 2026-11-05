@@ -218,6 +218,10 @@ const BROWSER_MESSAGES: VariantTable<BrowserMessage, 'type'> = {
       keys: STAMP_KEYS,
       read: (fields) => ({ type: 'stillHere', ...readBrowserStamp(fields) }),
     },
+    pageHidden: {
+      keys: [...STAMP_KEYS, 'isHidden'],
+      read: (fields) => ({ type: 'pageHidden', ...readBrowserStamp(fields), isHidden: readBoolean(fields.at('isHidden')) }),
+    },
     talkPressed: {
       keys: STAMP_KEYS,
       read: (fields) => ({ type: 'talkPressed', ...readBrowserStamp(fields) }),

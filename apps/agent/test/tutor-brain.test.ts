@@ -10,7 +10,7 @@ import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 
 /** These tests read the notes a turn collects, and the length reminder that goes with every message has its own test. */
 const NO_TURN_NOTE = { ...TUTOR_PROMPT, turnNote: null, levelLines: {} };
-const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 30 };
+const QUICK = { firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 30 };
 const PROFILE = { level: 'high_school', interests: ['space', 'basketball'], goal: 'exam' };
 
 async function collect(brain: Pick<TutorBrain, 'reply'>, text: string, signal = new AbortController().signal): Promise<Beat[]> {
@@ -103,13 +103,12 @@ describe('the tutor brain', () => {
 });
 
 describe('when the model stalls', () => {
-  it('speaks at the soft limit, gives up at the hard one, and a new request answers', async () => {
+  it('says nothing until the hard limit, then gives up, says it is still there, and a new request answers', async () => {
     const { brain, summaries, model } = setup((_request, attempt) => (attempt === 1 ? { pieces: ['Too late.'], firstTextMs: 10_000 } : reply('Now I have it.')));
     const started = performance.now();
     const beats = await collect(brain, 'why?');
     const tookMs = performance.now() - started;
-    expect(SPOKEN_LINES.stillWorking).toContain(getBeatText(beats[0] as Beat));
-    expect(SPOKEN_LINES.stillThere).toContain(getBeatText(beats[1] as Beat));
+    expect(SPOKEN_LINES.stillThere).toContain(getBeatText(beats[0] as Beat));
     expect(getBeatText(beats.at(-1) as Beat)).toBe('Now I have it.');
     expect(tookMs).toBeLessThan(1000);
     expect(model.requests).toHaveLength(2);
@@ -147,7 +146,6 @@ describe('when the model stalls', () => {
   });
 
   it('holds the real limits above what a healthy model takes', () => {
-    expect(TUTOR_TIMEOUTS.stillWorkingMs).toBeLessThan(TUTOR_TIMEOUTS.firstTextMs);
     expect(TUTOR_TIMEOUTS.firstTextMs * 2).toBeLessThan(10_500);
   });
 });

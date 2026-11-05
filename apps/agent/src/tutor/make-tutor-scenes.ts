@@ -64,13 +64,13 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...h
     const reader = isFake ? null : makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
     queue = createSceneQueue({
       scenes,
-      async readLibrary(plan) {
+      async readLibrary(plan, taken) {
         if (caps.getSpendLimit()) return [];
         const shelf = await store.listShared();
         const pictures = getCardPictures(plan, shelf.map(({ topic }) => topic));
         if (pictures) return pictures;
         if (!reader) return [];
-        const { matches, costUsd } = await matchLibrary(reader, plan, shelf.map(toShelfScene));
+        const { matches, costUsd } = await matchLibrary(reader, plan, shelf.filter(({ topic }) => !taken.includes(topic)).map(toShelfScene));
         caps.addTurn({ usd: costUsd, voiceCharacters: 0 });
         hooks.trace('sceneLibraryRead', { costUsd, matches: matches.filter(Boolean).length, steps: plan.steps.length });
         return matches;

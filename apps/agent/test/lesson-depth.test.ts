@@ -2,13 +2,14 @@ import { type Beat, getBeatText, parseBeat, type AgentMessage } from '@astra/con
 import { initializeLogger, tts } from '@livekit/agents';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { getCardPictures, toCardPlan, parseCardMaterial } from '../src/lesson-plan/card-lesson.ts';
+import { hasWorkingToDo } from '../src/lesson-plan/lesson-plan.ts';
 import { createLessonPlanner, getTeachFirstNote } from '../src/lesson-plan/lesson-planner.ts';
 import { getStateAfterEvent, getStateAfterMove, getStepNote, NO_LESSON } from '../src/lesson-plan/plan-progress.ts';
 import { createLiveSession, type LiveSession } from '../src/live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../src/live/reactions.ts';
 import { getLead, LEAD_TIMINGS, LEAD_WORDS, type LeadKind } from '../src/live/tutor-lead.ts';
 import { dropRepeatedIdeas } from '../src/lesson-plan/ask-planner.ts';
-import { getPlanWordsProblem } from '../src/lesson-plan/lesson-rules.ts';
+import { getLessonWordsProblem } from '../src/lesson-plan/lesson-rules.ts';
 import { showsItsAnswer } from '../src/tutor/board-memory.ts';
 import { createVoiceLine, type VoiceOutput } from '../src/live/voice-line.ts';
 import { makeFakeTutorModel } from '../src/providers/fake-model.ts';
@@ -139,11 +140,11 @@ describe('asking to be taught', () => {
 
 describe('what a student never hears or sees', () => {
   it.each(["That's the whole plan covered.", 'Last idea: an orbit is falling sideways.', 'Last exercise. Try this.', 'That is my plan.', 'The plan is done.'])('does not let "%s" through', (words) => {
-    expect(getPlanWordsProblem(words)).not.toBeNull();
+    expect(getLessonWordsProblem(words)).not.toBeNull();
   });
 
   it.each(['The plan was to land on the Moon.', 'The last stage drops off.', 'Engineers plan for this.', 'A flight plan matters.'])('leaves "%s" alone', (words) => {
-    expect(getPlanWordsProblem(words)).toBeNull();
+    expect(getLessonWordsProblem(words)).toBeNull();
   });
 
   it.each(['100 - 30 = 70', '8 - 0.5 = 7.5', '\\frac{100}{10} = 10', '11.2 \\div 2.4 \\approx 4.7', '8 \\times 60 = 480'])('reads %s as showing its answer', (tex) => {
@@ -159,7 +160,7 @@ describe('what a student never hears or sees', () => {
     return { getCostUsd: () => 0, compact: async () => null, warm: async () => {}, stream: async function* () { yield { type: 'text', text: texts[Math.min(attempt++, texts.length - 1)] as string, isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; } } as never;
   };
 
-  const QUICK_TIMES = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 };
+  const QUICK_TIMES = { firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 };
   const getMath = (summary: TurnSummary) => summary.beats.flatMap((beat) => beat.script.flatMap((part) => (typeof part !== 'string' && part.kind === 'writeMath' ? [part.tex] : [])));
   const getTasks = (summary: TurnSummary) => summary.beats.flatMap((beat) => beat.script.flatMap((part) => (typeof part !== 'string' && part.kind === 'task' ? [part.id] : [])));
   const GIVES_IT_AWAY = 'Your turn. {"kind":"writeMath","id":"p1","tex":"100 - 30 = 70","claim":"new"}How many tonnes? {"kind":"task","id":"a1","way":"write","on":"p1"}';
@@ -185,7 +186,7 @@ describe('what a student never hears or sees', () => {
 
   it('asks again quietly when a reply names the plan', async () => {
     const said: string[] = [];
-    const brain = createTutorBrain({ model: reply(["That's the whole plan covered.", 'Now, thrust.']), timeouts: { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 } });
+    const brain = createTutorBrain({ model: reply(["That's the whole plan covered.", 'Now, thrust.']), timeouts: { firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 } });
     for await (const beat of brain.reply({ text: 'ok' }, new AbortController().signal)) said.push(getBeatText(beat));
     expect(said.join(' ')).toBe('Now, thrust.');
   });
@@ -301,9 +302,9 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.close()));
 });
 
-const FAST = { ...LEAD_TIMINGS, firstWordAfterMs: 30, afterQuestionMs: 400, afterTaskMs: 500 };
+const FAST = { ...LEAD_TIMINGS, firstWordAfterMs: 30, afterQuestionMs: 400, afterTaskMs: 500, afterQuestionAgainMs: 400, afterTaskAgainMs: 500 };
 
-function startLeading({ answers, canLead = () => true, leadTimings = FAST, mostQuietLeads, quietLimitMs, onQuietLimit }: { answers(request: string, index: number): readonly TutorBeat[]; canLead?(): boolean; leadTimings?: typeof FAST; mostQuietLeads?: number; quietLimitMs?: number; onQuietLimit?(): void }) {
+function startLeading({ answers, canLead = () => true, hasLessonLeft = () => true, leadTimings = FAST, quietLimitMs, onQuietLimit }: { answers(request: string, index: number): readonly TutorBeat[]; canLead?(): boolean; hasLessonLeft?(): boolean; leadTimings?: typeof FAST; quietLimitMs?: number; onQuietLimit?(): void }) {
   const asked: string[] = [];
   const leads: LeadKind[] = [];
   const left: string[] = [];
@@ -313,6 +314,7 @@ function startLeading({ answers, canLead = () => true, leadTimings = FAST, mostQ
       yield* answers(text, asked.length - 1);
     },
     canLead,
+    hasLessonLeft,
     noteLead: (kind) => void leads.push(kind),
     noteWork: (work) => {
       left.push(work.way);
@@ -330,7 +332,6 @@ function startLeading({ answers, canLead = () => true, leadTimings = FAST, mostQ
     allTakes: TAKES,
     setTurnCap: () => {},
     leadTimings,
-    ...(mostQuietLeads === undefined ? {} : { mostQuietLeads }),
     ...(quietLimitMs === undefined ? {} : { quietLimitMs }),
     ...(onQuietLimit ? { onQuietLimit } : {}),
   });
@@ -343,7 +344,7 @@ function startLeading({ answers, canLead = () => true, leadTimings = FAST, mostQ
 const teaching = (_request: string, index: number) => [makeBeat(`r${index}`, 'Gravity pulls back.')];
 
 describe('what comes next', () => {
-  const FACTS = { isQuestionOpen: false, hasOpenTask: false, hasTriedTask: false, unansweredInARow: 0, quietLeads: 0, mostQuietLeads: 30 };
+  const FACTS = { isQuestionOpen: false, hasOpenTask: false, hasTriedTask: false, unansweredInARow: 0, isPageHidden: false, quietForMs: 0, hasLessonLeft: true };
 
   it('goes on at once with nothing open, and waits on a question or a task', () => {
     expect(getLead(FACTS)).toMatchObject({ kind: 'next', afterMs: 0 });
@@ -356,9 +357,23 @@ describe('what comes next', () => {
     expect(getLead({ ...FACTS, hasOpenTask: true, hasTriedTask: true, isQuestionOpen: true })).toMatchObject({ kind: 'taskLeft' });
   });
 
-  it('checks once at the second unanswered ask, and stops at the backstop', () => {
-    expect(getLead({ ...FACTS, isQuestionOpen: true, unansweredInARow: 1 })).toMatchObject({ kind: 'checkIn' });
-    expect(getLead({ ...FACTS, quietLeads: 30 })).toBeNull();
+  it('never stops on unanswered asks, however many, and only waits less once they have shown they are listening', () => {
+    for (const unansweredInARow of [1, 2, 10, 100]) {
+      expect(getLead({ ...FACTS, isQuestionOpen: true, unansweredInARow })).toMatchObject({ kind: 'noAnswer', afterMs: LEAD_TIMINGS.afterQuestionAgainMs });
+      expect(getLead({ ...FACTS, hasOpenTask: true, unansweredInARow })).toMatchObject({ kind: 'taskLeft', afterMs: LEAD_TIMINGS.afterTaskAgainMs });
+    }
+    expect(LEAD_TIMINGS.afterTaskAgainMs).toBeLessThan(LEAD_TIMINGS.afterTaskMs);
+  });
+
+  it('holds only on a real sign they have gone', () => {
+    expect(getLead({ ...FACTS, isPageHidden: true })).toBeNull();
+    expect(getLead({ ...FACTS, hasLessonLeft: false, quietForMs: LEAD_TIMINGS.mostQuietMs })).toBeNull();
+    expect(getLead({ ...FACTS, hasLessonLeft: false, quietForMs: LEAD_TIMINGS.mostQuietMs - 1 })).toMatchObject({ kind: 'next' });
+  });
+
+  it('teaches a whole lesson to a student who only listens, because a listener and a walked away student look the same', () => {
+    expect(getLead({ ...FACTS, quietForMs: 25 * 60_000 })).toMatchObject({ kind: 'next' });
+    expect(getLead({ ...FACTS, quietForMs: LEAD_TIMINGS.mostQuietInALessonMs })).toBeNull();
   });
 });
 
@@ -379,17 +394,48 @@ describe('the tutor leads', () => {
     expect(asked.slice(1, 5)).toEqual([LEAD_WORDS.next, LEAD_WORDS.next, LEAD_WORDS.next, LEAD_WORDS.next]);
   }, 15_000);
 
-  it('checks once after two asks go unanswered, then holds until the student is back', async () => {
-    const { asked, leads, type, session } = startLeading({ answers: (_request, index) => [makeBeat(`q${index}`, 'Which way does it pull?', true)] });
+  it('goes on past question after question with no answer, and never stops to check on them', async () => {
+    const { leads, type } = startLeading({ answers: (_request, index) => [makeBeat(`q${index}`, 'Which way does it pull?', true)], leadTimings: { ...FAST, afterQuestionMs: 150, afterQuestionAgainMs: 100 } });
     type('teach me rockets');
-    await vi.waitFor(() => expect(leads).toEqual(['noAnswer', 'checkIn']), { timeout: 6000 });
+    await vi.waitFor(() => expect(leads.length).toBeGreaterThanOrEqual(4), { timeout: 12_000 });
+    expect(new Set(leads)).toEqual(new Set(['noAnswer']));
+  }, 15_000);
+
+  it('holds while the tab is hidden, and goes on as they come back', async () => {
+    const { asked, session, type } = startLeading({ answers: teaching });
+    type('teach me rockets');
+    await vi.waitFor(() => expect(asked.length).toBeGreaterThanOrEqual(2), { timeout: 4000 });
+    session.onBrowser({ type: 'pageHidden', isHidden: true, clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
     await delay(2500);
     const heldAt = asked.length;
-    await delay(900);
+    await delay(1500);
+    expect(asked.length).toBe(heldAt);
+    session.onBrowser({ type: 'pageHidden', isHidden: false, clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
+    await vi.waitFor(() => expect(asked.length).toBeGreaterThan(heldAt), { timeout: 4000 });
+  }, 15_000);
+
+  it('holds while the page is away, and goes on when it is back', async () => {
+    const { asked, session, type } = startLeading({ answers: teaching });
+    type('teach me rockets');
+    await vi.waitFor(() => expect(asked.length).toBeGreaterThanOrEqual(2), { timeout: 4000 });
+    session.onBrowser({ type: 'audioState', isRunning: false, clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
+    await delay(2500);
+    const heldAt = asked.length;
+    await delay(1500);
+    expect(asked.length).toBe(heldAt);
+    session.onBrowser({ type: 'audioState', isRunning: true, clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
+    await vi.waitFor(() => expect(asked.length).toBeGreaterThan(heldAt), { timeout: 8000 });
+  }, 20_000);
+
+  it('holds after the quiet limit with no lesson left, and goes on at any sign of them', async () => {
+    const { asked, session, type } = startLeading({ answers: teaching, hasLessonLeft: () => false, leadTimings: { ...FAST, mostQuietMs: 1500 } });
+    type('teach me rockets');
+    await delay(3500);
+    const heldAt = asked.length;
+    await delay(1200);
     expect(asked.length).toBe(heldAt);
     session.onBrowser({ type: 'typing', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
     await vi.waitFor(() => expect(asked.length).toBeGreaterThan(heldAt), { timeout: 4000 });
-    expect(leads.at(-1)).toBe('next');
   }, 15_000);
 
   it('waits on a question, then carries on past it when no answer comes', async () => {
@@ -442,17 +488,17 @@ describe('the tutor leads', () => {
     type('teach me rockets');
     await vi.waitFor(() => expect(leads).toContain('noAnswer'), { timeout: 6000 });
     session.onBrowser({ type: 'questionHeard', clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
-    await vi.waitFor(() => expect(leads).toContain('checkIn'), { timeout: 6000 });
+    await vi.waitFor(() => expect(leads.length).toBeGreaterThanOrEqual(2), { timeout: 6000 });
   }, 12_000);
 
   it('never closes the room on a student only listening, and does once it is holding for one who has gone', async () => {
     const onQuietLimit = vi.fn();
-    const { asked, type } = startLeading({ answers: (_request, index) => (index < 4 ? teaching(_request, index) : [makeBeat(`q${index}`, 'Which way?', true)]), quietLimitMs: 2500, onQuietLimit });
+    const { asked, session, type } = startLeading({ answers: teaching, quietLimitMs: 2500, onQuietLimit });
     type('teach me rockets');
     await vi.waitFor(() => expect(asked.length).toBeGreaterThanOrEqual(4), { timeout: 10_000 });
     expect(onQuietLimit).not.toHaveBeenCalled();
+    session.onBrowser({ type: 'pageHidden', isHidden: true, clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
     await vi.waitFor(() => expect(onQuietLimit).toHaveBeenCalled(), { timeout: 12_000 });
-    expect(asked.at(-1)).toBe(LEAD_WORDS.checkIn);
   }, 25_000);
 
   it('goes on by itself no sooner than the student lets go of hold to talk', async () => {
@@ -472,18 +518,42 @@ describe('the tutor leads', () => {
     expect(leads).toEqual([]);
   });
 
-  it('stops a run nobody is hearing, so a forgotten tab does not keep paying', async () => {
-    const { asked, type } = startLeading({ answers: teaching, mostQuietLeads: 1 });
+  it('lands no scene while the tab is hidden, so its voice is not spent on nobody', async () => {
+    const { session, type, asked } = startLeading({ answers: (_request, index) => [makeBeat(`r${index}`, 'Gravity pulls back.')], canLead: () => false });
     type('teach me rockets');
-    await vi.waitFor(() => expect(asked.length).toBe(2), { timeout: 4000 });
-    await delay(800);
-    expect(asked.length).toBe(2);
+    await vi.waitFor(() => expect(asked.length).toBe(1), { timeout: 2000 });
+    await vi.waitFor(() => expect(session.isAtPause()).toBe(true), { timeout: 4000 });
+    session.onBrowser({ type: 'pageHidden', isHidden: true, clockId: 'c', browserMs: 1, startedMsAgo: 0 } as never);
+    expect(session.isAtPause()).toBe(false);
   });
 });
 
-const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 };
+const QUICK = { firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 };
+
+const NUMBERS_PLAN = { topic: 'Escape speed', kind: 'teachFirst' as const, steps: [{ teach: 'What escape speed means', exercise: 'One short problem.', material: ['For Earth, it is about eleven kilometers every second.'] }] };
+
+describe('what kind of exercise a step wants', () => {
+  it('reads working from numbers and quantities, spelled or not', () => {
+    expect(hasWorkingToDo({ teach: 'What escape velocity really means', exercise: 'x', material: ['For Earth, it is about eleven kilometers every second.'] })).toBe(true);
+    expect(hasWorkingToDo({ teach: 'The Moon is smaller', exercise: 'the Moon is 2.4 km/s, how many times less than 11.2?' })).toBe(true);
+    expect(hasWorkingToDo({ teach: 'What the Jacobins wanted', exercise: 'put these events in order' })).toBe(false);
+    expect(hasWorkingToDo({ teach: 'A sonnet has fourteen lines at a set speed', exercise: 'match the ten beats to their line' })).toBe(false);
+  });
+
+  it('tells the tutor the kind only when the exercise is due', () => {
+    const escape = getStateAfterMove(NO_LESSON, { move: 'new', plan: NUMBERS_PLAN });
+    expect(getStepNote(escape)).not.toHaveProperty('exercise_kind');
+    expect(getStepNote(afterReplies(7, escape))).toMatchObject({ exercise_due: true, exercise_kind: 'problem' });
+    const history = getStateAfterMove(NO_LESSON, { move: 'new', plan: { topic: 'Revolution', kind: 'teachFirst', steps: [{ teach: 'What the Jacobins wanted', exercise: 'put these events in order' }] } });
+    expect(getStepNote(afterReplies(6, history))).toMatchObject({ exercise_due: true, exercise_kind: 'board' });
+  });
+});
 
 describe('the brain in a lead', () => {
+  const reply = (lines: readonly string[]) => {
+    let index = 0;
+    return { getCostUsd: () => 0, compact: async () => null, warm: async () => {}, stream: async function* () { yield { type: 'text', text: lines[Math.min(index++, lines.length - 1)] as string, isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; } } as never;
+  };
   const run = async (brain: Required<TutorBrain>, text: string) => {
     const said: string[] = [];
     for await (const beat of brain.reply({ text }, new AbortController().signal)) said.push(getBeatText(beat));
@@ -510,9 +580,119 @@ describe('the brain in a lead', () => {
     const led = createTutorBrain({ model: slow, timeouts: QUICK });
     led.noteLead('next');
     expect(await run(led, LEAD_WORDS.next)).toBe('Gravity pulls back.');
-    const asked = createTutorBrain({ model: slow, timeouts: QUICK });
-    expect(await run(asked, 'teach me gravity')).toContain('Gravity pulls back.');
-    expect(await run(asked, 'and again')).not.toBe('Gravity pulls back.');
+  });
+
+  it('says no filler on a slow reply to a student either', async () => {
+    const slow = { getCostUsd: () => 0, compact: async () => null, warm: async () => {}, stream: async function* () { await delay(90); yield { type: 'text', text: 'Gravity pulls back.', isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; } } as never;
+    const brain = createTutorBrain({ model: slow, timeouts: QUICK });
+    expect(await run(brain, 'teach me gravity')).toBe('Gravity pulls back.');
+  });
+
+  it('takes an opening tic off a reply', async () => {
+    for (const [written, heard] of [['Next, the exhaust pushes back.', 'The exhaust pushes back.'], ['Time for a short one, about the Moon.', 'About the Moon.'], ['Fine, skip it. The exhaust pushes back.', 'The exhaust pushes back.']] as const) {
+      const brain = createTutorBrain({ model: reply([written]), timeouts: QUICK });
+      brain.noteLead('next');
+      expect(await run(brain, LEAD_WORDS.next)).toBe(heard);
+    }
+  });
+
+  it('takes the tic off a reply that opens on a command too', async () => {
+    const brain = createTutorBrain({ model: reply([' {"kind":"boardMode","mode":"teach"}Time for a quick one. The exhaust pushes back.']), timeouts: QUICK });
+    brain.noteLead('next');
+    expect(await run(brain, LEAD_WORDS.next)).toBe('The exhaust pushes back.');
+  });
+
+  it('asks again quietly for a reply that announces a correction', async () => {
+    const seen: string[] = [];
+    const model = { stream: async function* (request: { turns: { text?: string }[] }) { seen.push(JSON.stringify(request.turns)); yield { type: 'text', text: seen.length === 1 ? 'Quick correction on my last line: gravity weakens as you climb. ' : 'Gravity weakens as you climb. ', isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; }, getCostUsd: () => 0, compact: async () => null, warm: async () => {} } as never;
+    const brain = createTutorBrain({ model, timeouts: QUICK });
+    brain.noteLead('next');
+    expect(await run(brain, LEAD_WORDS.next)).toBe('Gravity weakens as you climb.');
+    expect(seen).toHaveLength(2);
+  });
+
+  const onExerciseStep = (replies: readonly string[], seen: string[] = []) => {
+    const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
+    planner.noteCardLesson(NUMBERS_PLAN);
+    for (let index = 0; index < 7; index += 1) planner.noteReplyEnded({ wasSafety: false, wasLead: true });
+    let index = 0;
+    const model = { stream: async function* (request: { turns: { text?: string }[] }) { seen.push(JSON.stringify(request.turns)); yield { type: 'text', text: replies[Math.min(index++, replies.length - 1)] as string, isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; }, getCostUsd: () => 0, compact: async () => null, warm: async () => {} } as never;
+    return createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner });
+  };
+  const WHY_TASK = '{"kind":"task","id":"a1","way":"write","reads":"words"}Why does gravity fade?';
+  const PROBLEM_TASK = 'Try this. {"kind":"writeMath","id":"p1","tex":"11.2 \\\\div 2.4","claim":"new"}Earth over the Moon. {"kind":"task","id":"a1","way":"write","on":"p1"}Have a go.';
+  const PICK_TASK = 'Try this. {"kind":"writeMath","id":"p1","tex":"F = m a","claim":"new"}Which part is the push? {"kind":"task","id":"a1","way":"pick","on":"p1","answer":["F"]}';
+
+  it('sends a why question back on a step with numbers, and takes a real problem', async () => {
+    const seen: string[] = [];
+    const brain = onExerciseStep([WHY_TASK, PROBLEM_TASK], seen);
+    brain.noteLead('next');
+    const said = await run(brain, LEAD_WORDS.next);
+    expect(seen).toHaveLength(2);
+    expect(said).toContain('Earth over the Moon.');
+    expect(said).not.toContain('Hold on');
+    expect(brain.getBoard().openTask).toBe('a1');
+    expect(seen[0]).toContain('exercise_kind');
+  });
+
+  it('sends a bare question back, because it leaves no place to answer', async () => {
+    const seen: string[] = [];
+    const brain = onExerciseStep(['Why does gravity fade?', PROBLEM_TASK], seen);
+    brain.noteLead('next');
+    expect(await run(brain, LEAD_WORDS.next)).not.toContain('Why does gravity fade');
+    expect(seen).toHaveLength(2);
+  });
+
+  it('never sends back help for a student in danger, with an exercise due', async () => {
+    const seen: string[] = [];
+    const brain = onExerciseStep(['That sounds serious. Please tell an adult you trust now. Are you safe right now?'], seen);
+    expect(await run(brain, 'i want to die')).toContain('Are you safe right now?');
+    expect(seen).toHaveLength(1);
+  });
+
+  it('answers a student who asks something with an exercise due, and may ask them back', async () => {
+    const seen: string[] = [];
+    const brain = onExerciseStep(['Ever dropped a ball?'], seen);
+    expect(await run(brain, 'wait what is gravity')).toBe('Ever dropped a ball?');
+    expect(seen).toHaveLength(1);
+  });
+
+  it('takes a pick on a step with numbers at once', async () => {
+    const seen: string[] = [];
+    const brain = onExerciseStep([PICK_TASK], seen);
+    brain.noteLead('next');
+    await run(brain, LEAD_WORDS.next);
+    expect(seen).toHaveLength(1);
+  });
+
+  it('lets a second why through rather than leave a student with nothing to do', async () => {
+    const brain = onExerciseStep([WHY_TASK, WHY_TASK]);
+    brain.noteLead('next');
+    await run(brain, LEAD_WORDS.next);
+    expect(brain.getBoard().openTask).toBe('a1');
+  });
+
+  it('gives the tutor code\'s own number for a problem nobody tried', async () => {
+    const seen: string[] = [];
+    const brain = onExerciseStep([PROBLEM_TASK, 'It comes to about 4.67. Now the next idea.'], seen);
+    brain.noteLead('next');
+    await run(brain, LEAD_WORDS.next);
+    brain.noteLead('taskLeft');
+    await run(brain, LEAD_WORDS.taskLeft);
+    expect(seen.at(-1)).toContain('4.66667');
+  });
+
+  it('stops leading at the end of a plan, and says so through what it holds', async () => {
+    const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
+    planner.noteCardLesson({ topic: 'Gravity', kind: 'teachFirst', steps: [{ teach: 'why it falls', exercise: 'x' }] });
+    const brain = createTutorBrain({ model: reply(['Gravity pulls back.', 'That is the idea.']), timeouts: QUICK, lessonPlanner: planner });
+    await run(brain, 'Gravity');
+    expect(brain.canLead()).toBe(true);
+    expect(brain.hasLessonLeft()).toBe(true);
+    brain.noteLead('taskLeft');
+    await run(brain, LEAD_WORDS.taskLeft);
+    expect(brain.hasLessonLeft()).toBe(false);
+    expect(brain.canLead()).toBe(false);
   });
 
   it('cannot lead once the tutor has closed for spending', async () => {

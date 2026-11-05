@@ -162,7 +162,7 @@ describe('a scene ask on a turn with an exercise due', () => {
   });
 
   it('keeps a task written after the last sentence, with the ask first', async () => {
-    const { planner, say } = makeLesson(['Slope is steepness.', `{"kind":"askScene","topic":"${OLD_TOPIC}"}Let's try it. {"kind":"task","id":"a1","way":"write","reads":"words"}`]);
+    const { planner, say } = makeLesson(['Slope is steepness.', `{"kind":"askScene","topic":"${OLD_TOPIC}"}Let's try it. {"kind":"writeMath","id":"p1","tex":"15 + 27","claim":"new"}{"kind":"task","id":"a1","way":"write","on":"p1"}`]);
     await say('teach me slopes');
     const said = await say('okay what next');
     expect(hasTask(said)).toBe(true);

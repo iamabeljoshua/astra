@@ -2,7 +2,6 @@ const IF_WORRIED = "If anything is worrying you, or you don't feel safe, please 
 
 // A crisis line can arrive on any turn, and these may be the only words the student gets, so each line that ends a turn with no real reply names help.
 export const SPOKEN_LINES = {
-  stillWorking: ['One moment.', 'Let me think about that.', 'Let me work that out.'],
   stillThere: ['Still with you, nearly there.', 'Bear with me a moment.', 'Sorry, this is taking a little longer.'],
   couldNotReply: [`I can't reach my notes right now. ${IF_WORRIED} Ask me again in a moment?`, `Something's slow on my side. ${IF_WORRIED} Could you ask that again?`, `I lost my connection for a moment. ${IF_WORRIED} Would you ask me again?`],
   lostThread: ['Sorry, I lost my thread for a second.', 'Hold on, I lost my place.', 'Sorry, let me pick that back up.'],

@@ -1,4 +1,4 @@
-import type { LessonKind, LessonPlan, LessonStep, PlanMove } from './lesson-plan.ts';
+import { hasWorkingToDo, type LessonKind, type LessonPlan, type LessonStep, type PlanMove } from './lesson-plan.ts';
 
 interface ActivePlan {
   plan: LessonPlan;
@@ -40,7 +40,9 @@ export type LessonEvent =
   | 'skipped';
 
 /** The only part of a plan the tutor is told on a turn, because everything before it stays cached. */
-export type StepNote = { topic: string; kind: LessonKind; is_finished: true } | { topic: string; kind: LessonKind; step: string; teach_first: string | null; then_exercise: string; next_idea: string | null; exercise_due?: true; material?: readonly string[]; picture_topic?: string; picture_coming?: true };
+export type ExerciseKind = 'problem' | 'board';
+
+export type StepNote = { topic: string; kind: LessonKind; is_finished: true } | { topic: string; kind: LessonKind; step: string; teach_first: string | null; then_exercise: string; next_idea: string | null; exercise_due?: true; exercise_kind?: ExerciseKind; material?: readonly string[]; picture_topic?: string; picture_coming?: true };
 
 export const NO_LESSON: LessonState = { active: null, shelved: [], repliesEnded: 0, isExerciseDeclined: false };
 
@@ -126,7 +128,7 @@ export function getStepNote(state: LessonState): StepNote | null {
   if (!step) return { topic: plan.topic, kind: plan.kind, is_finished: true };
   const isDue = isExerciseDue(state);
   const isPictureComing = step.picture !== undefined && stepIndex > 0 && state.repliesEnded === active.stepStartReply;
-  return { topic: plan.topic, kind: plan.kind, step: `${stepIndex + 1} of ${plan.steps.length}`, teach_first: step.teach, then_exercise: step.exercise, next_idea: plan.steps[stepIndex + 1]?.teach ?? null, ...(isDue ? { exercise_due: true as const } : {}), ...(step.material && !isDue ? { material: step.material } : {}), ...(isPictureComing ? { picture_coming: true as const } : {}) };
+  return { topic: plan.topic, kind: plan.kind, step: `${stepIndex + 1} of ${plan.steps.length}`, teach_first: step.teach, then_exercise: step.exercise, next_idea: plan.steps[stepIndex + 1]?.teach ?? null, ...(isDue ? { exercise_due: true as const, exercise_kind: hasWorkingToDo(step) ? ('problem' as const) : ('board' as const) } : {}), ...(step.material && !isDue ? { material: step.material } : {}), ...(isPictureComing ? { picture_coming: true as const } : {}) };
 }
 
 export function getStateWithMoreSteps(state: LessonState, topic: string, steps: readonly LessonStep[]): LessonState {

@@ -6,7 +6,7 @@ import { createTutorBrain } from '../src/tutor/brain.ts';
 import { TUTOR_PROMPT } from '../src/tutor/prompt.ts';
 import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 
-const QUICK = { stillWorkingMs: 400, firstTextMs: 1200, betweenTextMs: 800, finishGraceMs: 20, reportWaitMs: 30 };
+const QUICK = { firstTextMs: 1200, betweenTextMs: 800, finishGraceMs: 20, reportWaitMs: 30 };
 const MISSED = '{"attempt":"missed"}';
 const GOT = '{"attempt":"got"}';
 const SHOW_STEP = '{"kind":"writeMath","id":"steps","tex":"2x = 8","claim":"new"}';

@@ -21,7 +21,7 @@ const FRACTIONS: LessonPlan = {
 const newPlan = (plan: LessonPlan): PlanMove => ({ move: 'new', plan });
 const heard = (words: string, isOpening = false) => ({ words, isOpening, tutorSaid: 'Have a go.' });
 const TASK = { kind: 'task', id: 'a1', way: 'write', reads: 'words' } as unknown as SceneCommand;
-const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 };
+const QUICK = { firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 };
 
 function plannerWith(answers: readonly (PlanMove | null)[], options: Partial<LessonPlannerOptions> = {}) {
   const asks: PlanAsk[] = [];

@@ -27,7 +27,8 @@ export interface QueueScenes {
 
 export interface SceneQueueOptions {
   scenes: QueueScenes;
-  readLibrary(plan: LessonPlan): Promise<readonly (string | null)[]>;
+  /** `taken` holds titles earlier steps already use, so a later read cannot spend a step's picture on one. */
+  readLibrary(plan: LessonPlan, taken: readonly string[]): Promise<readonly (string | null)[]>;
   getFacts(): AheadFacts;
   canPlay(): boolean;
   moveToNextStep(): void;
@@ -74,12 +75,9 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
   let lateWrites = 0;
   let lastRefusal: string | null = null;
   const givenUp = new Set<string>();
-  const libraryByTopic = new Map<string, readonly (string | null)[] | 'reading'>();
+  const libraryByTopic = new Map<string, { titles: readonly (string | null)[] | null; isReading: boolean }>();
 
-  const getLibrary = (topic: string) => {
-    const known = libraryByTopic.get(topic);
-    return known === 'reading' ? undefined : known;
-  };
+  const getLibrary = (topic: string) => libraryByTopic.get(topic)?.titles ?? undefined;
 
   const getFactsNow = (): AheadFacts => ({ ...getFacts(), writesStarted });
 
@@ -166,12 +164,16 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
   };
 
   const startLibraryRead = (plan: LessonPlan) => {
-    if (libraryByTopic.has(plan.topic) || !canPrepare()) return;
-    libraryByTopic.set(plan.topic, 'reading');
-    void readLibrary(plan)
+    const known = libraryByTopic.get(plan.topic);
+    const stepsRead = known?.titles?.length ?? 0;
+    if (known?.isReading || (known && plan.steps.length <= stepsRead) || !canPrepare()) return;
+    const unread = plan.steps.slice(stepsRead);
+    const titlesSoFar = known?.titles ?? [];
+    libraryByTopic.set(plan.topic, { titles: known?.titles ?? null, isReading: true });
+    void readLibrary({ ...plan, steps: unread }, titlesSoFar.filter((title) => title !== null))
       .catch(() => [])
       .then((titles) => {
-        libraryByTopic.set(plan.topic, titles);
+        libraryByTopic.set(plan.topic, { titles: [...titlesSoFar, ...unread.map((_step, index) => titles[index] ?? null)], isReading: false });
         if (lesson?.plan.topic !== plan.topic) return;
         reachStep();
         fillAhead();

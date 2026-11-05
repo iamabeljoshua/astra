@@ -494,6 +494,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     if (roomName !== null) keepBoard(roomName, player.getOperations());
   };
   window.addEventListener('pagehide', onPageHide);
+  const sendPageHidden = () => send({ type: 'pageHidden', ...getStamp(), isHidden: document.visibilityState === 'hidden' });
+  document.addEventListener('visibilitychange', sendPageHidden);
 
   const micControls: MicControls = {
     isMicOn: () => mic.getState() === 'on' || mic.getState() === 'starting',
@@ -557,6 +559,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
     stopListening = listenToTutor(track, { audioContext, gain, clock, onProbe });
     hasTutorTrack = true;
     send({ type: 'hello', ...getStamp(), wantsGreeting: wantsGreeting && !hasSaidHello, invitesTalk: invitesTalk && !hasPressedTalk });
+    if (document.visibilityState === 'hidden') sendPageHidden();
     hasSaidHello = true;
     sendAudioState();
     // A new room holds a new job, which has not heard what this page can play.
@@ -592,6 +595,7 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
   } catch (problem) {
     clearTimeout(tutorWait);
     window.removeEventListener('pagehide', onPageHide);
+    document.removeEventListener('visibilitychange', sendPageHidden);
     await mic.close();
     await audioContext.close();
     throw problem;
@@ -708,6 +712,8 @@ export async function startLiveVoice({ getAccess, wantsGreeting = true, usesSpee
       clearTimeout(tutorWait);
       localYield.close();
       window.removeEventListener('pagehide', onPageHide);
+      document.removeEventListener('visibilitychange', sendPageHidden);
+    document.removeEventListener('visibilitychange', sendPageHidden);
       await mic.close();
       stopListening();
       await room.disconnect();

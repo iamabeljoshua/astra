@@ -1,26 +1,30 @@
-export type LeadKind = 'next' | 'noAnswer' | 'taskLeft' | 'taskTried' | 'checkIn';
+export type LeadKind = 'next' | 'noAnswer' | 'taskLeft' | 'taskTried';
 
 export const LEAD_TIMINGS = {
   firstWordAfterMs: 1200,
-  afterQuestionMs: 15_000,
-  afterTaskMs: 60_000,
+  afterQuestionMs: 12_000,
+  afterTaskMs: 40_000,
+  // Once an ask has gone by untried, a student who is only listening should not sit through the same wait on every one.
+  afterQuestionAgainMs: 7000,
+  afterTaskAgainMs: 20_000,
   afterTaskTriedMs: 5000,
+  mostQuietMs: 10 * 60_000,
+  // A listener and a student who walked away look the same from here, so a running lesson goes to its own end. Its 16 ideas take about 25 minutes, and this is only for a plan that somehow never ends.
+  mostQuietInALessonMs: 35 * 60_000,
 };
 
 export type LeadTimings = typeof LEAD_TIMINGS;
 
-export const MOST_UNANSWERED_IN_A_ROW = 2;
-export const MOST_QUIET_LEADS = 30;
-
-export const LEAD_WORDS: Readonly<Record<LeadKind, string>> = { next: '(carry on)', noAnswer: '(no answer)', taskLeft: '(did not try it)', taskTried: '(carry on after the exercise)', checkIn: '(still quiet)' };
+export const LEAD_WORDS: Readonly<Record<LeadKind, string>> = { next: '(carry on)', noAnswer: '(no answer)', taskLeft: '(did not try it)', taskTried: '(carry on after the exercise)' };
 
 export interface LeadFacts {
   isQuestionOpen: boolean;
   hasOpenTask: boolean;
   hasTriedTask: boolean;
   unansweredInARow: number;
-  quietLeads: number;
-  mostQuietLeads: number;
+  isPageHidden: boolean;
+  quietForMs: number;
+  hasLessonLeft: boolean;
 }
 
 export interface Lead {
@@ -29,12 +33,10 @@ export interface Lead {
   firstWordAfterMs: number;
 }
 
-export function getLead({ isQuestionOpen, hasOpenTask, hasTriedTask, unansweredInARow, quietLeads, mostQuietLeads }: LeadFacts, timings: LeadTimings = LEAD_TIMINGS): Lead | null {
-  if (quietLeads >= mostQuietLeads) return null;
+export function getLead({ isQuestionOpen, hasOpenTask, hasTriedTask, unansweredInARow, isPageHidden, quietForMs, hasLessonLeft }: LeadFacts, timings: LeadTimings = LEAD_TIMINGS): Lead | null {
+  if (isPageHidden || quietForMs >= (hasLessonLeft ? timings.mostQuietInALessonMs : timings.mostQuietMs)) return null;
   if (hasOpenTask && hasTriedTask && !isQuestionOpen) return { kind: 'taskTried', afterMs: timings.afterTaskTriedMs, firstWordAfterMs: 0 };
-  const isAsked = hasOpenTask || isQuestionOpen;
-  if (!isAsked) return { kind: 'next', afterMs: 0, firstWordAfterMs: timings.firstWordAfterMs };
-  const afterMs = hasOpenTask ? timings.afterTaskMs : timings.afterQuestionMs;
-  if (unansweredInARow + 1 >= MOST_UNANSWERED_IN_A_ROW) return { kind: 'checkIn', afterMs, firstWordAfterMs: 0 };
-  return { kind: hasOpenTask ? 'taskLeft' : 'noAnswer', afterMs, firstWordAfterMs: 0 };
+  if (hasOpenTask) return { kind: 'taskLeft', afterMs: unansweredInARow > 0 ? timings.afterTaskAgainMs : timings.afterTaskMs, firstWordAfterMs: 0 };
+  if (isQuestionOpen) return { kind: 'noAnswer', afterMs: unansweredInARow > 0 ? timings.afterQuestionAgainMs : timings.afterQuestionMs, firstWordAfterMs: 0 };
+  return { kind: 'next', afterMs: 0, firstWordAfterMs: timings.firstWordAfterMs };
 }

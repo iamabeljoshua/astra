@@ -22,7 +22,7 @@ const until = async (isDone: () => boolean, limitMs = 30_000) => {
 };
 const STAMP = { clockId: 'test', browserMs: 0, startedMsAgo: 0 };
 const typed = (text: string): BrowserMessage => ({ type: 'typed', text, ...STAMP });
-const QUICK = { ...TUTOR_TIMEOUTS, stillWorkingMs: 60, firstTextMs: 200, betweenTextMs: 200 };
+const QUICK = { ...TUTOR_TIMEOUTS, firstTextMs: 200, betweenTextMs: 200 };
 
 function setup(getReply: (request: TutorModelRequest, attempt: number) => FakeReply, timeouts = QUICK) {
   const summaries: TurnSummary[] = [];

@@ -9,7 +9,7 @@ import { decideSpoken } from '../src/tutor/watcher/spoken-answer.ts';
 import { decideOnWork } from '../src/tutor/watcher/watch-rule.ts';
 import { checkWorkOnBoard } from '@astra/board/shared';
 
-const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5, checkingMathMs: 40 };
+const QUICK = { firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5, checkingMathMs: 40 };
 const id = (value: string) => value as ElementId;
 const line = (lineId: string, text: string, task?: string): StudentWork => ({ way: 'write', id: id(lineId), text, ...(task ? { task: id(task) } : {}) });
 const reply = (...pieces: string[]): FakeReply => ({ pieces });

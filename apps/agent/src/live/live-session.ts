@@ -23,7 +23,7 @@ import type { SpokenReading } from '../tutor/watcher/read-spoken.ts';
 import type { SpokenExpected } from '../tutor/watcher/spoken-answer.ts';
 import type { WordMeaning } from '../tutor/watcher/watch-rule.ts';
 import { getNextTurnState, INITIAL_TURN_STATE, type TimerName, type TurnAction, type TurnEvent, type TurnState } from './turn-rule.ts';
-import { getLead, LEAD_TIMINGS, LEAD_WORDS, type LeadTimings, MOST_QUIET_LEADS } from './tutor-lead.ts';
+import { getLead, LEAD_TIMINGS, LEAD_WORDS, type LeadTimings } from './tutor-lead.ts';
 import { getWords, hasWords } from './turn-words.ts';
 import { getSteadyNowMs, type VoiceLine } from './voice-line.ts';
 
@@ -92,7 +92,6 @@ export interface LiveSessionOptions {
   /** The recap has played, or there was none, and the room can go. */
   onEndingOver?(): void;
   leadTimings?: LeadTimings;
-  mostQuietLeads?: number;
 }
 
 export interface LiveSession {
@@ -207,7 +206,7 @@ function recordingTo(heard: HeardTurn, messenger: TurnMessenger): TurnMessenger 
   };
 }
 
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, endLine = () => {}, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn, onPause, onStudentTurn, getOpeningScene, onLinkChange, waitForPicture = async () => true, onLogWritten, writeRecap = async () => null, onRecap = () => {}, onEnding, onEndingOver = () => {}, leadTimings = LEAD_TIMINGS, mostQuietLeads = MOST_QUIET_LEADS }: LiveSessionOptions): LiveSession {
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, endLine = () => {}, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn, onPause, onStudentTurn, getOpeningScene, onLinkChange, waitForPicture = async () => true, onLogWritten, writeRecap = async () => null, onRecap = () => {}, onEnding, onEndingOver = () => {}, leadTimings = LEAD_TIMINGS }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   // A new job in the same room restarts this count, and a page ignores a turn it has seen, so each job's turns carry their own name.
   const jobTag = randomUUID().slice(0, 8);
@@ -250,7 +249,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   let leadTimer: ReturnType<typeof setTimeout> | undefined;
   let unansweredInARow = 0;
   let isLeadHeld = false;
-  let quietLeads = 0;
+  let isPageHidden = false;
   let isQuestionOpen = false;
   let lastSpokeAtMs = getNowMs();
   let lastStudentSignAtMs = Number.NEGATIVE_INFINITY;
@@ -398,11 +397,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
 
   const noteStudentSign = () => {
     lastStudentSignAtMs = getNowMs();
-    quietLeads = 0;
     unansweredInARow = 0;
-    if (!isLeadHeld) return;
+    if (isLeadHeld) isQuestionOpen = false;
     isLeadHeld = false;
-    isQuestionOpen = false;
     armLead(0);
   };
 
@@ -414,14 +411,12 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   function checkLead(): void {
     if (isEnding || isLeadHeld || !tutor.canLead?.() || isTutorTalking() || thought || cut || heldReply) return;
     if (isThinking || !audioRunning || holdGate.isHolding() || state.phase !== 'clear' || state.tutor !== 'silent' || state.isVoiceOn || hasWords(state.partial)) return armLead(LEAD_RECHECK_MS);
-    const lead = getLead({ isQuestionOpen, hasOpenTask: boardWork.hasOpenTask(), hasTriedTask: boardWork.hasTriedOpenTask(), unansweredInARow, quietLeads, mostQuietLeads }, leadTimings);
-    if (!lead) return;
     const nowMs = getNowMs();
+    const lead = getLead({ isQuestionOpen, hasOpenTask: boardWork.hasOpenTask(), hasTriedTask: boardWork.hasTriedOpenTask(), unansweredInARow, isPageHidden, quietForMs: nowMs - Math.max(lastStudentSignAtMs, startedAtMs), hasLessonLeft: tutor.hasLessonLeft?.() ?? false }, leadTimings);
+    if (!lead) return;
     const leftMs = Math.max(lastSpokeAtMs + lead.afterMs, lastStudentSignAtMs + Math.max(lead.afterMs, leadTimings.firstWordAfterMs)) - nowMs;
     if (leftMs > 0) return armLead(leftMs);
-    quietLeads += 1;
-    if (lead.kind === 'noAnswer' || lead.kind === 'taskLeft' || lead.kind === 'checkIn') unansweredInARow += 1;
-    isLeadHeld = lead.kind === 'checkIn';
+    if (lead.kind === 'noAnswer' || lead.kind === 'taskLeft') unansweredInARow += 1;
     tutor.noteLead?.(lead.kind);
     if (lead.kind === 'taskLeft' || lead.kind === 'taskTried') boardWork.leaveOpenTask();
     firstWordAtMs = lastSpokeAtMs + lead.firstWordAfterMs;
@@ -621,7 +616,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     dispatch({ type: 'workLanded' });
   };
 
-  const isAtPause = () => !isEnding && !isTutorTalking() && !thought && !cut && !isThinking && state.phase === 'clear' && !state.isVoiceOn && !holdGate.isWaitingForLine() && state.partial === '' && !boardWork.hasOpenTask() && getNowMs() - askedAtMs >= ROOM_TO_ANSWER_MS;
+  const isAtPause = () => !isEnding && !isPageHidden && !isTutorTalking() && !thought && !cut && !isThinking && state.phase === 'clear' && !state.isVoiceOn && !holdGate.isWaitingForLine() && state.partial === '' && !boardWork.hasOpenTask() && getNowMs() - askedAtMs >= ROOM_TO_ANSWER_MS;
 
   // The scene's beats are this thought's first beats, so a stop, a resume, and a breath treat them as any reply's.
   async function* openOnScene(request: TutorRequest, signal: AbortSignal, thoughtOf: () => Thought, getScene: () => Promise<readonly TutorBeat[] | null>): AsyncGenerator<TutorBeat> {
@@ -928,6 +923,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (message.type === 'pulse') return link.notePulse(message.hearsAgent, getNowMs());
       // Past the limit too, because a student keeping their room open must always be heard.
       if (message.type === 'stillHere') return noteSomethingHappened();
+      if (message.type === 'pageHidden') {
+        isPageHidden = message.isHidden;
+        return message.isHidden ? undefined : noteStudentSign();
+      }
       if (!messageGate.take()) {
         if (!isDroppingMessages) trace('messagesDropped');
         isDroppingMessages = true;
@@ -963,7 +962,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (message.type === 'paused' && isStudentQuiet) void boardWork.onPaused(message);
       if (message.type === 'hello') {
         // Each page load has its own clock, so a new one on a running session is a reload, and the board came back with it.
-        if (pageClockId !== null && pageClockId !== message.clockId) tutor.noteCameBack?.();
+        if (pageClockId !== null && pageClockId !== message.clockId) {
+          isPageHidden = false;
+          tutor.noteCameBack?.();
+        }
         pageClockId = message.clockId;
         onHello(message);
       }

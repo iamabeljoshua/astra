@@ -22,6 +22,11 @@ export interface LessonPlan {
 /** What one thing the student said does to the lesson. */
 export type PlanMove = { move: 'stay' } | { move: 'new'; plan: LessonPlan } | { move: 'back'; topic: string };
 
+const NAMES_A_QUANTITY = /\d|\b(?:hundred|thousand|million|billion|percent|speed|velocity|kilometers?|meters?|mass|momentum|force|thrust|fuel|equations?|formula|ratio|slope|derivative|angle|distance|squared?|multipl\w+|divid\w+)\b/i;
+
+/** A card's lines say what the idea holds. The planner writes numbers into an exercise where it sees working, and it knows a sonnet's fourteen lines are not working. */
+export const hasWorkingToDo = ({ teach, exercise, material }: LessonStep) => (material ? NAMES_A_QUANTITY.test([teach ?? '', ...material].join(' ')) : /\d/.test(exercise));
+
 const MOST_TOPIC_CHARACTERS = 80;
 const MOST_STEP_CHARACTERS = 160;
 const MOST_STEPS = 5;

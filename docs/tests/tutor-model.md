@@ -218,8 +218,7 @@ Abel: "it usually says good question when i didn't ask a question". Two things s
 
 | What happens | What the student hears | Proof |
 | --- | --- | --- |
-| No text for 3 s | "One moment." or a version of it, while the dot pulses | Recorded stream, live |
-| No text for 5 s | The request is dropped and a new one sent, with "Still with you, nearly there." | Recorded 10 s stall, live: answered at 5 s plus the new request |
+| No text for 5 s, on a reply to the student | The dot pulses and nothing is said until then. The request is dropped and a new one sent, with "Still with you, nearly there." A stored "One moment." at 3 s opened 5 of 41 replies at one prompt, crisis replies among them, so it is gone | Recorded 10 s stall, live: answered at 5 s plus the new request |
 | A second request stalls | "I can't reach my notes right now.", one sentence naming an adult they trust or their local emergency number, and "Ask me again in a moment?" | `tutor-brain.test.ts`, `claims-and-turns.test.ts` |
 | Text stops for 4 s mid reply | "Sorry, I lost my thread for a second." if it had already said something, and a new request carries what was said | `tutor-brain.test.ts` |
 | A refusal that could be about the student's safety: `bio`, `general_harms`, a category with no name or one not listed here, or any refused message whose words mention being hurt or in danger | A line that says it is not the student's fault, and points to an adult they trust or their local emergency number. The message stays out of history, and the next request carries a `declined` note, built by code with none of the refused words, so the tutor checks on them before teaching on, unless their newest message comes first | `tutor-brain.test.ts`, `claims-and-turns.test.ts` |

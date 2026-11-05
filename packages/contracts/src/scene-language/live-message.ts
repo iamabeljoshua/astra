@@ -139,6 +139,8 @@ export type BrowserMessage = BrowserStamp &
     | { type: 'audioState'; isRunning: boolean }
     /** The student answered a quiet warning, so the room stays open. */
     | { type: 'stillHere' }
+    /** The tab went out of sight or came back. Out of sight is a real sign they have gone, so nothing goes on by itself. */
+    | { type: 'pageHidden'; isHidden: boolean }
     /** The student turned the microphone on, so they know they can talk. */
     | { type: 'talkPressed' }
     /** The student is holding to talk. The tutor stops, and only `lineEnded` ends what they are saying. */
