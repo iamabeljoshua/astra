@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { getKitSpokenLines } from '../src/scenes/kit-code-check.ts';
 import { canTryAfterRefusal, makeScene } from '../src/scenes/make-scene.ts';
 import type { RenderResult, RenderWorker } from '../src/scenes/render-worker.ts';
@@ -314,6 +314,13 @@ describe('a kit scene the review refuses', () => {
     const maker = kitMaker(passing, []);
     const made = await makeScene(maker, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
     expect(made).toMatchObject({ isOk: true, scene: { engine: 'kit', engineVersion: '0.1.0', ownerId: 'ada', parts: ['ball'], isCheckedByPerson: false } });
+  });
+
+  it('keeps the word check whatever a maker adds to the code check', async () => {
+    const worker = vi.fn(async () => KIT_RENDER);
+    const made = await makeScene({ ...kitMaker(passing, []), worker, repairWriter: undefined, checkCode: () => [], writers: [makeWriter('first', 'see www.example.com')] }, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
+    expect(made.isOk).toBe(false);
+    expect(worker).not.toHaveBeenCalled();
   });
 
   it('reviews only the lines a student could hear over it', async () => {

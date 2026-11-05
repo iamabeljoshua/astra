@@ -86,6 +86,13 @@ describe('the kit code check', () => {
     expect(problemsOf(scene("kit.astro.moonOrbit({ earth: 'e', moon: 'moon' });"), 'why does the moon have phases').join(' ')).not.toMatch(/moonOrbit/);
   });
 
+  it('is not satisfied by the function\'s name in a comment or a string', () => {
+    const inComment = scene().replace('const moon =', '// kit.astro.moonOrbit\n  const moon =');
+    const inString = scene("kit.label('kit.astro.moonOrbit', { at: 'moon' });");
+    expect(problemsOf(inComment, 'why does the moon have phases').join(' ')).toMatch(/kit\.astro\.moonOrbit/);
+    expect(problemsOf(inString, 'why does the moon have phases').join(' ')).toMatch(/kit\.astro\.moonOrbit/);
+  });
+
   it('holds the seasons to the kit\'s own tilt', () => {
     expect(problemsOf(scene(), 'what causes the seasons').join(' ')).toMatch(/kit\.astro\.seasons/);
   });

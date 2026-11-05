@@ -353,6 +353,7 @@ The 6 scenes made for math and graph topics from the planner's own words passed 
 
 ## What this does not prove
 
+- That the frame check is safe on a server. It runs model-written code in Chromium with Chromium's own sandbox on. It has only run on Metal on one Mac. On Linux it asks for software GL with `--enable-unsafe-swiftshader`, which Chromium says is not meant for untrusted content, and nothing has run that path. Before it serves a real student it belongs in a locked container, as the ManimGX worker is.
 - That a live 3D scene is true. One reader read still frames of 7, and found errors in 3 the review had passed. Motion between the frames was read only in the code. Neither a person's check nor a truth list stands behind these, and the label says so.
 - That a live 3D scene lands on a quiet machine any sooner, or on a real student's laptop at all. These ran on one Mac with Metal.
 - That a topic with `kit.astro` is safe. The Moon scene used it and read clean, and a Moon scene with a different plan was refused at an earlier head over which crescent it showed.

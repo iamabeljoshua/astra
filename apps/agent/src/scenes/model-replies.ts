@@ -3,7 +3,6 @@ import type { FactError, FixedWords, RouteEngine, SceneRoute, SceneVerdict, Scen
 const ENGINES: readonly RouteEngine[] = ['manimgx', 'kit', 'none'];
 export const SAFETY_KIND = 'safety';
 export const DANGEROUS_KIND = 'dangerous';
-/** Solid things a camera could film. A kit route with any other kind is the router in doubt, and a wrong scene is the worst failure. */
 const KIT_KINDS: readonly string[] = ['physics-object', 'chemistry', 'biology', 'astronomy', 'earth-engineering'];
 const NEVER_A_SOLID_THING = /\b(solve|solving|equations?|derivatives?|integrals?|graphs?|plots?|algebra|fractions?|theorems?|probability|statistics|percent(age)?s?|formulas?|functions?|code|algorithm|programming|maps?|grids?|tables?|histor(y|ical)|wars?|politics|economy|feelings?|love)\b/i;
 const CLEARED_NAME_KINDS = ['place', 'event', 'thing', 'figure'];
@@ -85,7 +84,7 @@ const WORD_STEM_LETTERS = 4;
 const LEAST_SHARED_WORDS = 2;
 const getIdeaStems = (text: string) => (text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter((word) => !WORDS_NAMING_NO_IDEA.has(word) && word.length >= 3).map((word) => word.slice(0, WORD_STEM_LETTERS));
 
-/** A title it read off the list that holds most of the topic's words, because a reader can talk itself into a match on one word, as the Moon's spin for its phases, and a wrong scene is the worst failure. */
+// A reader can talk itself into a match on one word, as the Moon's spin for its phases, so most of the topic must be in the title.
 export function getFitFromText(topic: string, titles: readonly string[], text: string): string | null {
   try {
     const { title } = readJsonObject(text);
@@ -112,7 +111,6 @@ export function getClearedNames(names: readonly string[], text: string): Readonl
 
 const WORD_FIELDS = ['setup', 'narration', 'close'] as const;
 
-/** Only the fields it may change, as text, and anything else reads as no change. */
 export function getFixedWordsFromText(text: string): FixedWords | undefined {
   try {
     const reply = readJsonObject(text);

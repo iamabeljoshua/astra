@@ -3,7 +3,7 @@ import type { MadeScene } from './make-scene.ts';
 import type { RouteEngine, SceneRoute, StoredScene } from './scene-types.ts';
 
 export const SHOW_WINDOW_MS = 20_000;
-/** Measured at load about 26, a kit scene is ready about 35 s after the ask, and about 65 s with one rewrite after a review. A later scene costs nothing, because the tutor never waits and a new topic ends the ask. */
+/** A kit scene took 30 to 72 s on a loaded Mac, and a later one costs nothing, because the tutor never waits and a new topic ends the ask. */
 export const KIT_ASK_LIMIT_MS = 90_000;
 
 export type SceneState =
@@ -20,7 +20,6 @@ export interface SceneDeskOptions {
   make(route: SceneRoute): Promise<MadeScene>;
   getNowMs(): number;
   onChange?(state: SceneState, atMs: number): void;
-  /** The engines this lesson may write with. Anything else is no scene. */
   engines?: readonly RouteEngine[];
 }
 

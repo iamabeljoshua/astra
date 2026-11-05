@@ -4,12 +4,10 @@ import { readMarks } from './narration.ts';
 import type { LessonPlan } from './scene-types.ts';
 
 const REACHES_OUTSIDE = new Set('fetch XMLHttpRequest WebSocket EventSource RTCPeerConnection webkitRTCPeerConnection Worker SharedWorker ServiceWorker BroadcastChannel MessageChannel importScripts navigator window globalThis document localStorage sessionStorage indexedDB caches eval Function setTimeout setInterval setImmediate requestAnimationFrame requestIdleCallback queueMicrotask Date performance WebAssembly Proxy Reflect'.split(' '));
-// Plain words a scene may well use for its own, as a stage's top colour or a local called parent, so they count only when nothing in the scene declares them.
+// Plain words a scene may use for its own, as a stage's top colour, so they count only when nothing in the scene declares them.
 const GLOBALS_WITH_PLAIN_NAMES = new Set('top self parent frames frameElement opener location history alert open Image Audio Video'.split(' '));
-// No scene has a reason to reach these on any object, so they count as a property and as a string too.
 const NEVER_ON_ANYTHING = new Set('constructor __proto__ prototype getPrototypeOf setPrototypeOf sendBeacon postMessage cookie TextureLoader ImageLoader ImageBitmapLoader FileLoader AudioLoader ObjectLoader LoadingManager WebGLRenderer'.split(' '));
 const REFUSED_SYNTAX = new Set(['ImportExpression', 'MetaProperty', 'WithStatement', 'DebuggerStatement', 'AwaitExpression', 'YieldExpression', 'TaggedTemplateExpression']);
-// A label holds words and numbers with a unit, so a dot between two runs of letters is an address and no ordinary label has one.
 const ADDRESS_IN_TEXT = /[a-z0-9-]\.[a-z]{2,}(\b|\/)|^\s*\/\/|\b(data|blob|javascript|file|ftp|ws|wss):/i;
 
 interface TruthRule {
@@ -17,10 +15,10 @@ interface TruthRule {
   needs: string;
 }
 
-/** Hand-written geometry is where these went wrong, 1 of 10 clean against 14 of 14 on the kit's functions, so a topic the kit computes must use what it computes. */
+/** Hand-written geometry is where these went wrong, 1 of 10 clean against 14 of 14 on the kit's functions. */
 const TOPICS_THE_KIT_COMPUTES: readonly TruthRule[] = [
-  { topic: /\bmoon\b.*\b(phases?|crescent|gibbous)\b|\b(phases?|crescent|gibbous)\b.*\bmoon\b|\blunar phases?\b/i, needs: 'kit.astro.moonOrbit' },
-  { topic: /\bseasons?\b|\bsolstices?\b|\bequinox(es)?\b|\baxial tilt\b/i, needs: 'kit.astro.seasons' },
+  { topic: /\bmoon\b.*\b(phases?|crescent|gibbous)\b|\b(phases?|crescent|gibbous)\b.*\bmoon\b|\blunar phases?\b/i, needs: 'moonOrbit' },
+  { topic: /\bseasons?\b|\bsolstices?\b|\bequinox(es)?\b|\baxial tilt\b/i, needs: 'seasons' },
 ];
 
 interface SyntaxNode {
@@ -29,6 +27,10 @@ interface SyntaxNode {
 }
 
 const isNode = (value: unknown): value is SyntaxNode => typeof value === 'object' && value !== null && typeof (value as SyntaxNode).type === 'string';
+
+const isNamedMember = (node: unknown, name: string): node is SyntaxNode => isNode(node) && node.type === 'MemberExpression' && !node.computed && (node.property as SyntaxNode).name === name;
+
+const usesAstro = (nodes: readonly SyntaxNode[], name: string) => nodes.some((node) => isNamedMember(node, name) && isNamedMember(node.object, 'astro'));
 
 function* walk(node: SyntaxNode): Generator<SyntaxNode> {
   yield node;
@@ -42,7 +44,6 @@ function getBoundNames(pattern: unknown): string[] {
   return [...walk(pattern)].flatMap((node) => (node.type === 'Identifier' ? [node.name as string] : []));
 }
 
-// A property's name and an object's key are not references to anything global, so only the words no object should have count there.
 function getNameOnlyNodes(nodes: readonly SyntaxNode[]): ReadonlySet<SyntaxNode> {
   return new Set(nodes.flatMap((node) => {
     if (node.type === 'MemberExpression' && !node.computed && isNode(node.property)) return [node.property];
@@ -84,7 +85,6 @@ function parseOneScene(code: string): { root: SyntaxNode } | { problem: string }
   }
 }
 
-/** A first screen before the code reaches a browser. The sandbox is the wall, and this keeps a scene that tries anything from ever being booted. */
 export function getKitCodeProblems({ code, topic, moments }: { code: string; topic: string; moments: Readonly<Record<string, number>> }): string[] {
   const parsed = parseOneScene(code);
   if ('problem' in parsed) return [parsed.problem];
@@ -96,9 +96,8 @@ export function getKitCodeProblems({ code, topic, moments }: { code: string; top
     ...getCodeProblems(code),
     ...nodes.flatMap((node) => getNodeProblems(node, nameOnly, declared)),
     ...Object.entries(moments).filter(([moment, seconds]) => seconds > 0 && !strings.has(moment)).map(([moment]) => `it never uses the moment ${moment}`),
-    ...TOPICS_THE_KIT_COMPUTES.filter((rule) => rule.topic.test(topic) && !code.includes(rule.needs)).map((rule) => `a scene on this topic must place its bodies with ${rule.needs}`),
+    ...TOPICS_THE_KIT_COMPUTES.filter((rule) => rule.topic.test(topic) && !usesAstro(nodes, rule.needs)).map((rule) => `a scene on this topic must place its bodies with kit.astro.${rule.needs}`),
   ])];
 }
 
-/** A tutor speaks its own words and only these come from the plan, so a line nobody will hear cannot refuse a scene. */
 export const getKitSpokenLines = ({ setup, narration, close }: LessonPlan): readonly string[] => [setup, readMarks(narration).text, close];

@@ -20,7 +20,6 @@ const SHEET_FRAME_WIDTH = 640;
 const JPEG_QUALITY = 78;
 const SHEET_THEME: SceneTheme = 'dark';
 const MOST_NAMED_PARTS = 24;
-// A server has no GPU, so the frames come from software GL there, which draws the same picture slower.
 const GL_ARGS = process.platform === 'darwin' ? ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist'] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 
 export interface KitFrameRequest {
@@ -36,7 +35,6 @@ export type KitFrameCheck = (request: KitFrameRequest, signal: AbortSignal) => P
 
 type GateResult = NonNullable<Extract<KitFrameReply, { type: 'gate' }>['result']>;
 
-/** The same pictures a parent would see must exist, differ over time, and repeat for the same second, or the review has nothing true to read. */
 export function getFrameProblems({ samples, deterministic, mismatches, costMean }: GateResult, firstMomentSeconds: number): string[] {
   const shown = samples.filter(({ t }) => t >= firstMomentSeconds);
   const blank = shown.filter(({ lit, std }) => lit < LEAST_LIT || std < LEAST_CONTRAST).map(({ t }) => t.toFixed(1));
@@ -50,7 +48,6 @@ export function getFrameProblems({ samples, deterministic, mismatches, costMean 
 
 const HOST_PAGE = `<!doctype html><html><body style="margin:0;background:#000"><div id="host" style="width:${FRAME_WIDTH}px;height:${FRAME_HEIGHT}px"></div></body></html>`;
 
-// The stack's top line names where the scene broke, which is what a rewrite needs and all it needs.
 const getErrorReason = ({ phase, message, stack }: Extract<KitFrameReply, { type: 'error' }>) => `${phase}: ${message}${stack ? ` ${stack.split('\n')[1]?.trim() ?? ''}` : ''}`.trim();
 
 const textureFile = (name: string) => join(KIT_PUBLIC, 'textures', `${name}.${name.endsWith('alpha') ? 'png' : 'jpg'}`);
@@ -60,7 +57,6 @@ function getSheetPage(frames: readonly { seconds: number; jpeg: Buffer }[]): str
   return `<!doctype html><html><body style="margin:0;background:#333;display:grid;grid-template-columns:repeat(${SHEET_COLUMNS},${SHEET_FRAME_WIDTH}px);gap:4px;width:max-content">${cells.join('')}</body></html>`;
 }
 
-// Runs in the host page, which has a real origin so it can fetch the maps, and only ever talks to the sandboxed frame by messages.
 function startHost(srcdoc: string) {
   const host = document.querySelector('#host') as HTMLElement;
   const iframe = document.createElement('iframe');
@@ -103,7 +99,6 @@ interface HostWindow {
   kitHost: { take(isWanted: (reply: { type?: string }) => boolean): Promise<KitFrameReply>; send(command: KitFrameCommand): void; sendLoad(timing: unknown, names: readonly string[], files: Readonly<Record<string, string>>): Promise<void> };
 }
 
-// An error from the frame ends the check wherever it comes, so a reader of the replies only sees what it asked for.
 async function waitFor<Type extends KitFrameReply['type']>(page: Page, type: Type): Promise<Extract<KitFrameReply, { type: Type }>> {
   const reply = await page.evaluate((wanted) => (window as unknown as HostWindow).kitHost.take((one) => one.type === wanted), type as string);
   if (reply.type === 'error') throw new Error(getErrorReason(reply));
@@ -139,12 +134,12 @@ async function readFrames(page: Page, { code, moments, durationSeconds, seconds 
   return { isOk: true, parts: ready.parts, sheet: await page.screenshot({ type: 'jpeg', quality: JPEG_QUALITY, fullPage: true }) };
 }
 
-/** Each check gets its own browser, which starts in about a second, so nothing outlives a session and a renderer spinning past its limit goes with it. */
+/** Each check gets its own browser, so nothing outlives a session and a renderer spinning past its limit goes with it. */
 export function createFrameCheck(): KitFrameCheck {
   return async (request, signal) => {
     // Loaded here, so a session with live 3D off never pays for it and a server with no browser only loses this scene.
     const { chromium } = await import('playwright');
-    const browser = await chromium.launch({ headless: true, args: [...GL_ARGS, '--use-mock-keychain', '--no-first-run'] });
+    const browser = await chromium.launch({ headless: true, chromiumSandbox: true, args: [...GL_ARGS, '--use-mock-keychain', '--no-first-run'] });
     const escapes: string[] = [];
     let settle: (result: KitFrameResult) => void = () => {};
     const stopped = new Promise<KitFrameResult>((resolve) => {
@@ -177,7 +172,6 @@ export function createFrameCheck(): KitFrameCheck {
   };
 }
 
-/** Takes a scene's code to the frame check. A kit scene has no take to make, since the page builds its take from the saved code, so a pass only adds pictures. */
 export function createKitWorker(checkFrames: KitFrameCheck = createFrameCheck()): RenderWorker {
   return async ({ code, moments, durationSeconds, inspectSeconds = [] }, signal): Promise<RenderResult> => {
     const startedAt = performance.now();

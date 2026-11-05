@@ -27,9 +27,7 @@ export interface LessonWork {
 export interface LessonWorkOptions {
   router: SceneRouter;
   runs: TopicRuns;
-  /** Writes 3D scenes live. Left out, a request the router sends to the kit gets no scene. */
   kitRuns?: TopicRuns;
-  /** Finds a saved scene that already answers a typed question, which lands in seconds. */
   fitReader?: SceneFitReader;
   store: SceneStore;
   request: string;
@@ -102,7 +100,6 @@ export function createLessonWork({ router, runs, kitRuns, fitReader, store, requ
     return isCard ? asked.catch(() => NO_ROUTE) : asked;
   };
 
-  // Null on any doubt or failure, because a reader that is down must cost a fresh scene and nothing else.
   const findFit = async (topic: string): Promise<StoredScene | null> => {
     if (!fitReader || isCard || !writesKit) return null;
     const titles = (await store.listShared()).map((scene) => scene.topic);

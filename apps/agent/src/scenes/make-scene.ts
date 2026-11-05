@@ -22,16 +22,11 @@ const MOST_NOTICE_CHARACTERS = 300;
 const LINE_THROUGH_TEXT = /(runs|edge) through the text/;
 
 export interface SceneMaker {
-  /** What the scene's code runs on, ManimGX unless a run says otherwise. */
   engine?: SceneEngine;
-  /** The themes the review must see. A kit scene looks the same on either, so it shows one. */
   themes?: readonly SceneTheme[];
-  /** Runs before the code reaches a worker. It replaces the plain word check, so it must hold it. */
   checkCode?(scene: { code: string; topic: string; moments: Readonly<Record<string, number>> }): readonly string[];
   writers: readonly SceneWriter[];
-  /** The lines a student could hear over this scene. Left out, every line of the plan. */
   getLinesToReview?(plan: LessonPlan): readonly string[];
-  /** Gets one try at what a review reported, and that try is reviewed again. The review itself never rewrites anything. */
   repairWriter?: SceneWriter;
   reviewer: SceneReviewer;
   worker: RenderWorker;
@@ -115,7 +110,7 @@ async function writeUntilClean(maker: SceneMaker, { brief, plan, values, tally, 
     tally.writer = writer.name;
     const code = await takeWritten(writer, tally, index === 0 && earlyWrite ? earlyWrite : writer.write(brief, repair, AbortSignal.any([AbortSignal.timeout(maker.writerLimitMs ?? WRITER_LIMIT_MS), signal])));
     if (code === null) continue;
-    const contentProblems = maker.checkCode ? maker.checkCode({ code, topic: brief.topic, moments: brief.moments }) : getCodeProblems(code);
+    const contentProblems = [...new Set([...getCodeProblems(code), ...(maker.checkCode?.({ code, topic: brief.topic, moments: brief.moments }) ?? [])])];
     const themes = maker.themes ?? SCENE_THEMES;
     const render = contentProblems.length > 0 || signal.aborted ? null : await maker.worker({ code, moments: brief.moments, durationSeconds: brief.durationSeconds, themes, values, inspectSeconds: getInspectSeconds(brief) }, AbortSignal.any([AbortSignal.timeout(2 * (maker.writerLimitMs ?? WRITER_LIMIT_MS)), signal]));
     tally.renderMs += render?.ms ?? 0;
@@ -196,7 +191,7 @@ function toStoredScene({ engine, key, plan, brief, attempt, verdict, trace, valu
 
 const getMarkIds = (narration: string) => readMarks(narration).marks.map(({ id }) => id).join(' ');
 
-/** The code keeps its moments by name, so words that move a mark, or that any check refuses, stay out and the review still has the old words to refuse. */
+// The code keeps its moments by name, so words that move a mark or fail a check stay out, and the review still has the old words to refuse.
 function getPlanWithWords(topic: string, plan: LessonPlan, words: FixedWords | undefined, cleared: ClearedNames | undefined): LessonPlan {
   if (!words) return plan;
   const changed = { ...plan, ...words };
@@ -220,7 +215,6 @@ interface RewriteRequest {
   clearedNames: ClearedNames | undefined;
 }
 
-// The new words can move the moments, so the code goes through every check on the times those words give.
 async function rewriteAfterReview(maker: SceneMaker, writer: SceneWriter, { run, topic, reviewed, refused, clearedNames }: RewriteRequest): Promise<Reviewed | null> {
   const repair = { problems: refused.errors.map(({ what, truth }) => `${what} What is true: ${truth}`), code: reviewed.attempt.code, canChangeWords: true };
   const writing = writer.write(reviewed.brief, repair, AbortSignal.any([AbortSignal.timeout(maker.writerLimitMs ?? WRITER_LIMIT_MS), run.signal]));

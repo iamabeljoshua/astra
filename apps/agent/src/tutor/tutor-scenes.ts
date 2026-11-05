@@ -10,7 +10,7 @@ import type { TutorBeat } from './brain.ts';
 
 /** A take in the browser took 96 ms with the engine fetched, so this only covers a slow line. */
 const PAGE_LOAD_LIMIT_MS = 6000;
-/** The page gives a kit frame 15 s to build its scene, and a live scene has no 2D take to answer sooner, so it hears a little past that. */
+/** The page gives a kit frame 15 s to build, and a live scene has no 2D take to answer sooner, so this hears a little past that. */
 const KIT_PAGE_LOAD_LIMIT_MS = 16_000;
 const getPageLimitMs = ({ engine }: Pick<StoredScene, 'engine'>) => (engine === 'kit' ? KIT_PAGE_LOAD_LIMIT_MS : PAGE_LOAD_LIMIT_MS);
 const MOST_ASKS_IN_A_SESSION = 6;
@@ -25,7 +25,6 @@ const OPENING_WAIT_MS = 2500;
 export interface TutorScenesOptions {
   router: SceneRouter;
   runs: TopicRuns;
-  /** Writes 3D scenes live. Left out, a request the router sends to the kit gets no scene. */
   kitRuns?: TopicRuns;
   fitReader?: SceneFitReader;
   store: SceneStore;
@@ -84,7 +83,7 @@ interface SceneAsk {
   page: PageState;
   isAhead: boolean;
   isOpening: boolean;
-  /** Written live in 3D. It takes longer than a student stays quiet, so a student's turn does not end it, and only its limit, a new topic, or a safety reply does. */
+  /** Written live in 3D, which takes longer than a student stays quiet, so a student's turn does not end it. */
   isKit: boolean;
 }
 
@@ -266,7 +265,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
       if (opening.kind === 'possible') giveOpening(null);
       return null;
     }
-    // Scenes the queue prepares ahead stay on what is saved or on ManimGX, because a live 3D scene is paid for only when a student is asking.
+    // A live 3D scene is paid for only when a student is asking, so the queue never starts one.
     const work = createLessonWork({ router, runs, ...(kitRuns && !isAhead ? { kitRuns } : {}), ...(fitReader && !isAhead ? { fitReader } : {}), store, request: isCard ? cardTitle : topic, isCard, studentId, getNowMs, isOnlyForScene: true, onChange: (state) => onDeskChange(ask, state) });
     const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: null, windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isAhead, isOpening: isCard && !isAhead && opening.kind === 'possible', isKit: false };
     works.push(work);

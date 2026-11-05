@@ -5,7 +5,6 @@ import { createSceneStore } from '../scene-store.ts';
 
 interface Case {
   topic: string;
-  /** Words any right title must hold, or none when nothing in the library answers it. */
   fits: string | null;
 }
 
