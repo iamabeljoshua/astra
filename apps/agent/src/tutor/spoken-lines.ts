@@ -8,6 +8,7 @@ export const SPOKEN_LINES = {
   checkingMath: ['Hold on, let me check that.'],
   stuckHandBack: ["That one's hard, so let's slow right down. Tell me which bit feels most confusing."],
   mathDropped: ["Let's work this next bit out together. What would you try first?", "Let's do this next part together. What do you think comes next?"],
+  drawingDropped: ["That didn't draw, so let's talk it through instead. Where do you want to start?", "The board wouldn't take that, so let's do it out loud. What do you want to look at first?"],
   refused: [
     `I can't go into that here, and you haven't done anything wrong by asking. ${IF_WORRIED} What would you like to do next?`,
     `That's one I can't talk about here, and that's down to me, not you. ${IF_WORRIED} What would you like to do next?`,

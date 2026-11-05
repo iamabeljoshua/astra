@@ -11,11 +11,14 @@ export function GutterMark({ element, atMs, isReducedMotion }: { element: BoardE
   const paths = MARK_PATHS[content.mark];
   const drawn = isReducedMotion ? 1 : getMotionValue(element.entrance, atMs);
   return (
+    <>
     <svg data-testid={`mark-${content.mark}`} data-mark={element.id} viewBox="0 0 32 30" width="30" height="30" aria-hidden className="flex-none overflow-visible">
       {paths.map((path, index) => {
         const share = Math.min(1, Math.max(0, drawn * paths.length - index));
         return <path key={path} d={path} pathLength={1} strokeDasharray={1} strokeDashoffset={1 - share} fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" />;
       })}
     </svg>
+    {content.label && <span data-testid="board-note" className="board-row-note">{content.label}</span>}
+    </>
   );
 }

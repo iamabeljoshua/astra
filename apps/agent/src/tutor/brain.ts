@@ -138,7 +138,7 @@ type TurnStep = 'over' | 'retry';
 
 const ENDS_THAT_STOP_A_LEAD: ReadonlySet<string> = new Set(['noWords', 'stalledBeforeText', 'stalledInText', 'failed', 'rejected', 'refused']);
 
-type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'wrongWords' | 'refused' | 'toolCall' | 'heldQuestion';
+type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stalledInText' | 'failed' | 'rejected' | 'wrongMath' | 'drawingRefused' | 'wrongWords' | 'refused' | 'toolCall' | 'heldQuestion';
 
 interface TurnWork {
   sceneAside?: 'due' | 'moved';
@@ -166,6 +166,7 @@ interface TurnWork {
   /** A tic was the whole of the first beat, so what is now first needs its capital. */
   lostOpeningBeat: boolean;
   wrongMath: string | null;
+  drawingRefused: string | null;
   wrongWords: string | null;
   toolCall: ToolCall | null;
   toolCalls: ToolCall[];
@@ -199,7 +200,7 @@ const MAX_ATTEMPTS = 2;
 /** Each one costs a new request, about 2 s of quiet, and a search 5.5 to 8.7 s, so more than this in one reply would sound like the tutor has wandered off. */
 const MOST_TOOL_CALLS_A_TURN = 3;
 /** Drawing these shows a student the step, and a ring or a pointer does not. */
-const SHOWING_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'text', 'simulate']);
+const SHOWING_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'text', 'simulate', 'table', 'timeline', 'code', 'image', 'drawing']);
 /** Varied, because a pause of one fixed length turns into a tic. The voice adds about 400 ms to each. */
 const BREATHS_MS = [300, 450, 350];
 /** A repeated opening of a few words is dropped only at the start of a retry, where it sounds like starting over, and a longer repeat anywhere. */
@@ -487,6 +488,15 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           turn.refused.push(problem);
           trace('commandRefused', { problem });
         },
+        // A reply that may be about a child's safety must get out, whatever it tried to draw.
+        ...(MAY_BE_ABOUT_SAFETY.test(studentText)
+          ? {}
+          : {
+              onDrawingRefused(problem: string) {
+                turn.drawingRefused = problem;
+                trace('drawingRefused', { problem });
+              },
+            }),
         onWrongMath(problem) {
           turn.wrongMath = problem;
           trace('mathRefused', { problem });
@@ -542,6 +552,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       isExerciseSteered: false,
       lostOpeningBeat: false,
       wrongMath: null,
+      drawingRefused: null,
       wrongWords: null,
       toolCall: null,
       toolCalls: [],
@@ -611,6 +622,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       turn.raw += seam + event.text;
       turn.reader.push(seam + event.text);
       if (turn.wrongMath !== null) return 'wrongMath';
+      if (turn.drawingRefused !== null) return 'drawingRefused';
       if (turn.wrongWords !== null) return 'wrongWords';
       if (turn.toolCall !== null) return 'toolCall';
       if (turn.isQuestionHeld) return 'heldQuestion';
@@ -728,6 +740,20 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return 'retry';
   };
 
+  const handleRefusedDrawing = (turn: TurnWork, canRetry: boolean): TurnStep => {
+    const problem = turn.drawingRefused as string;
+    turn.drawingRefused = null;
+    turn.reader.closeAttempt();
+    if (!canRetry) {
+      turn.raw = getWordsSaid(turn);
+      turn.refused.push(`a drawing is not on the board: ${problem}`);
+      sayLine(turn, 'drawingDropped');
+      return 'over';
+    }
+    noteCorrection(turn, `What you were about to draw is not on the board, because the board refused it: ${problem}. The student did not hear the words about it. Write it again, fixed, with the words that go with it. If it still cannot be drawn, say it in words.`);
+    return 'retry';
+  };
+
   const handleWrongWords = (turn: TurnWork, canRetry: boolean): TurnStep => {
     const problem = turn.wrongWords as string;
     turn.wrongWords = null;
@@ -793,6 +819,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const finishAnswer = (turn: TurnWork, canRetry: boolean): TurnStep => {
     addHelpIfMissing(turn);
     turn.reader.finish();
+    if (turn.drawingRefused !== null) return handleRefusedDrawing(turn, canRetry);
     if (turn.wrongWords !== null) return handleWrongWords(turn, turn.attempts < MAX_ATTEMPTS);
     if (turn.isQuestionHeld) return handleHeldQuestion(turn, canRetry);
     if (turn.latestToolResult && !turn.hasWordsSinceToolResult) return sayToolResult(turn, turn.latestToolResult);
@@ -877,6 +904,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       case 'wrongMath':
         turn.reader.closeAttempt();
         return handleWrongMath(turn, canRetry);
+      case 'drawingRefused':
+        return handleRefusedDrawing(turn, canRetry);
       case 'wrongWords':
         return handleWrongWords(turn, canRetry);
       case 'stalledBeforeText':

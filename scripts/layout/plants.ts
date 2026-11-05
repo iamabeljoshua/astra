@@ -2,10 +2,21 @@ import type { Page } from 'playwright';
 import type { DefectKind } from '../../apps/web/src/lab/deck/findLayoutDefects.ts';
 import { type DeckServer, type SourcePlant, waitForDeck } from './deck-server.ts';
 import { getFlashesInScene } from './flash-check.ts';
+import type { DeckSurface } from './sweeps.ts';
 
 const BOARD = '[data-testid="board"]';
+interface BoardSize {
+  width: number;
+  height: number;
+}
+
 const LAPTOP_BOARD = { width: 760, height: 752 };
 const PHONE_BOARD = { width: 358, height: 506 };
+const ROW_SCREENS = new Map([[LAPTOP_BOARD, { width: 1366, height: 800 }], [PHONE_BOARD, { width: 390, height: 844 }]]);
+const SMALL_PHONE_SCREEN = { width: 320, height: 568 };
+const PHONE_LANDSCAPE_SCREEN = { width: 844, height: 390 };
+const BLOCK_CONTENT = '.board-row-block .board-row-content';
+const BLOCK_WRAPPER = '.board-row-block .board-row-wrapper';
 const FLASH_SCENE = 'hostile-strobe-picture';
 const FLASH_SCENE_LAST_COMMAND_MS = 1800;
 
@@ -296,8 +307,37 @@ const SEEN_PLANTS: readonly ScriptPlant[] = [
   { name: 'raw braces', scene: 'mixed-lesson-opening', size: LAPTOP_BOARD, expects: 'raw-source', script: rawWords('a_{1} + b^{2}') },
 ];
 
-async function checkPlant(page: Page, plant: PagePlant | ScriptPlant, mount: string): Promise<DefectKind[]> {
-  await page.evaluate(({ scene, size, key }) => window.boardDeck?.show({ scene, size, mount: key }), { scene: plant.scene, size: plant.size, key: mount });
+const row = (index: number) => `document.querySelectorAll('${BOARD} .board-row')[${index}]`;
+
+const ROW_PLANTS: readonly ScriptPlant[] = [
+  { name: 'a row pulled up onto the row above', scene: 'mixed-lesson-opening', size: LAPTOP_BOARD, expects: 'element-on-element', script: `${row(1)}.style.marginTop = '-120px';` },
+  { name: 'a row of words pulled onto the row above', scene: 'language-verb-table', size: PHONE_BOARD, expects: 'text-on-text', script: `${row(1)}.style.marginTop = '-120px';` },
+  { name: 'gutter words laid on their own row', scene: 'hostile-marks-on-wide-things', size: LAPTOP_BOARD, expects: 'text-on-text', script: `document.querySelector('${BOARD} .board-row-gutter').style.transform = 'translate(-560px, 0)';` },
+  { name: 'gutter words under the row on a phone, laid back on it', scene: 'hostile-marks-on-wide-things', size: PHONE_BOARD, expects: 'text-on-text', script: `document.querySelector('${BOARD} .board-row-gutter').style.transform = 'translate(0, -90px)';` },
+  { name: 'a note from over the rows laid on a row', scene: 'mixed-marks-on-parts', size: LAPTOP_BOARD, expects: 'text-on-text', script: `const flow = document.querySelector('${BOARD} svg.board-marks').getBoundingClientRect(); const cell = document.querySelector('${BOARD} td').getBoundingClientRect(); const note = document.querySelector('${BOARD} svg.board-marks text'); const x = cell.left - flow.left + 4; const y = cell.top - flow.top + 16; note.setAttribute('x', x); note.setAttribute('y', y); for (const span of note.querySelectorAll('tspan')) { span.setAttribute('x', x); span.setAttribute('y', y); }` },
+  { name: 'a picture hangs over the row below', scene: 'history-pyramid-facts', size: LAPTOP_BOARD, expects: 'element-on-element', script: `${row(1)}.style.marginTop = '-200px';` },
+  { name: 'a row cut by its own content box', scene: 'language-verb-table', size: LAPTOP_BOARD, expects: 'text-clipped', script: `const box = document.querySelector('${BOARD} ${BLOCK_CONTENT}'); box.style.overflow = 'hidden'; box.style.height = '40px';` },
+  { name: 'a table cut by its wrapper across', scene: 'language-verb-table', size: PHONE_BOARD, expects: 'text-clipped', script: `const box = document.querySelector('${BOARD} ${BLOCK_WRAPPER}'); box.style.overflow = 'hidden'; box.style.width = '80px';` },
+  { name: 'a timeline cut by a clip-path on its row', scene: 'history-empires-timeline', size: LAPTOP_BOARD, expects: 'text-clipped', script: `document.querySelector('${BOARD} ${BLOCK_WRAPPER}').style.clipPath = 'inset(0 50% 0 0)';` },
+  { name: 'a code block cut short on its row', scene: 'code-long-line', size: PHONE_BOARD, expects: 'text-clipped', script: `const box = document.querySelector('${BOARD} .board-code'); box.style.overflow = 'hidden'; box.style.height = '50px';` },
+  { name: 'the board stops scrolling, so the last rows are lost', scene: 'math-board-fills-up', size: PHONE_LANDSCAPE_SCREEN, expects: 'text-off-board', script: `document.querySelector('${BOARD} .board-scroll').style.overflow = 'hidden';` },
+  { name: 'a table too wide for the column leaves the board', scene: 'language-verb-table', size: PHONE_BOARD, expects: 'text-off-board', script: `document.querySelector('${BOARD} table').style.minWidth = '900px';` },
+  { name: 'a row pushed past the right edge', scene: 'language-verb-table', size: LAPTOP_BOARD, expects: 'element-off-board', script: `const box = document.querySelector('${BOARD} ${BLOCK_WRAPPER}'); box.style.left = '900px';` },
+  { name: 'a row pushed above the top, where no scroll reaches', scene: 'mixed-lesson-opening', size: LAPTOP_BOARD, expects: 'element-off-board', script: `document.querySelector('${BOARD} .board-flow').style.marginTop = '-400px';` },
+  { name: 'a row shrunk past reading', scene: 'language-verb-table', size: LAPTOP_BOARD, expects: 'too-small', script: `document.querySelector('${BOARD} ${BLOCK_WRAPPER}').style.transform = 'scale(0.2)';` },
+  { name: 'a note hidden in the gutter', scene: 'hostile-marks-on-wide-things', size: LAPTOP_BOARD, expects: 'dropped-words', script: `document.querySelector('${BOARD} .board-row-note').style.visibility = 'hidden';` },
+];
+
+async function getPlantSize(page: Page, { size }: { size: BoardSize }, surface: DeckSurface): Promise<BoardSize> {
+  if (surface === 'view') return size;
+  const screen = ROW_SCREENS.get(size) ?? size;
+  await page.setViewportSize(screen);
+  return screen;
+}
+
+async function checkPlant(page: Page, plant: PagePlant | ScriptPlant, mount: string, surface: DeckSurface): Promise<DefectKind[]> {
+  const shownSize = await getPlantSize(page, plant, surface);
+  await page.evaluate(({ scene, size, key }) => window.boardDeck?.show({ scene, size, mount: key }), { scene: plant.scene, size: shownSize, key: mount });
   await page.evaluate('script' in plant ? `(() => { ${plant.script} })()` : `(${plant.plant.toString().replace(/^plant/, 'function')})(${JSON.stringify(BOARD)})`);
   await page.waitForTimeout(plant.expects === 'broken-image' ? 300 : 0);
   const found = await page.evaluate((scene) => window.boardDeck?.checkWithColors({ scene }) ?? [], plant.scene);
@@ -305,11 +345,13 @@ async function checkPlant(page: Page, plant: PagePlant | ScriptPlant, mount: str
   return found.map(({ kind }) => kind);
 }
 
-export async function runPagePlants(page: Page, verdict: Verdict): Promise<void> {
+const ONLY_ON_THE_VIEW: ReadonlySet<string> = new Set(['one element laid over another', 'an element pushed past the right edge', 'text pushed past the bottom edge', 'an element shrunk past reading, with no report', 'huge words']);
+
+export async function runPagePlants(page: Page, surface: DeckSurface, verdict: Verdict): Promise<void> {
   let caught = 0;
-  const plants = [...PAGE_PLANTS, ...SEEN_PLANTS];
+  const plants = surface === 'rows' ? [...ROW_PLANTS, ...[...PAGE_PLANTS, ...SEEN_PLANTS].filter(({ name }) => !ONLY_ON_THE_VIEW.has(name))] : [...PAGE_PLANTS, ...SEEN_PLANTS];
   for (const [index, plant] of plants.entries()) {
-    const found = await checkPlant(page, plant, `plant-${index}`);
+    const found = await checkPlant(page, plant, `plant-${index}`, surface).catch((error: Error) => [`the plant itself failed: ${error.message.split('\n')[0]}` as DefectKind]);
     if (found.includes(plant.expects)) caught += 1;
     else verdict.failures.push(`planted defect not caught: ${plant.name}, expected ${plant.expects}, found ${found.join(', ') || 'nothing'}`);
   }
@@ -320,6 +362,7 @@ interface LibraryPlant extends SourcePlant {
   scene: string;
   size: { width: number; height: number };
   expects: DefectKind;
+  playsThrough?: boolean;
 }
 
 const LIBRARY_PLANTS: readonly LibraryPlant[] = [
@@ -345,38 +388,55 @@ const LIBRARY_PLANTS: readonly LibraryPlant[] = [
   { name: 'an arrow loses its straight run past a taller neighbour', file: 'packages/board/src/ink/diagram.ts', find: 'return [{ ...makeStroke(holdCorners(points, ARROW.cornerReach)), role: \'line\' }', replace: 'return [{ ...makeStroke([points[0] as InkPosition, { x: (points.at(-1) as InkPosition).x, y: (points[0] as InkPosition).y + 400 }, points.at(-1) as InkPosition]), role: \'line\' }', scene: 'mixed-arrow-past-a-wide-node', size: LAPTOP_BOARD, expects: 'line-on-box' },
 ];
 
-async function checkLibraryPlant(page: Page, server: DeckServer, plant: LibraryPlant): Promise<DefectKind[]> {
+const ROW_LIBRARY_PLANTS: readonly LibraryPlant[] = [
+  { name: 'a row keeps its old table when the tutor replaces it', file: 'apps/web/src/board/boardRowPainting.ts', find: 'if (known && canKeepItem(known.content, element.content)) {', replace: 'if (known) {', scene: 'mixed-hide-and-replace', size: LAPTOP_BOARD, expects: 'dropped-words', playsThrough: true },
+  { name: 'a ring stays inside the column and runs through the words', file: 'apps/web/src/board/boardRowPainting.ts', find: 'left: board.left - flow.left, top: board.top - flow.top - scrolledBy, width: board.right - flow.left,', replace: 'left: 0, top: 0, width: flow.width,', scene: 'mixed-marks-on-parts', size: LAPTOP_BOARD, expects: 'line-on-text' },
+  { name: 'a note forgets the gutter words under a row', file: 'apps/web/src/board/boardRowPainting.ts', find: 'alsoTaken: rows.flatMap((row) => getGutterWords(row, flow))', replace: 'alsoTaken: []', scene: 'hostile-marks-on-wide-things', size: PHONE_BOARD, expects: 'text-on-text' },
+  { name: 'a note under the last row keeps no room', file: 'apps/web/src/board/boardRowPainting.ts', find: 'const room = Math.max(0, Math.ceil(marks.getNotesBottom() - lastRowBottom));', replace: 'const room = 0;', scene: 'physics-lever-labelled', size: PHONE_LANDSCAPE_SCREEN, expects: 'text-off-board' },
+  { name: 'a wide diagram keeps its first layout', file: 'packages/board/src/ink/diagram.ts', find: 'tries < MOST_NARROWINGS && drawn.width > maxWidth', replace: 'tries < 0', scene: 'mixed-arrow-past-a-wide-node', size: SMALL_PHONE_SCREEN, expects: 'ink-off-board' },
+  { name: 'a gutter mark loses its label', file: 'apps/web/src/board/GutterMark.tsx', find: '{content.label && <span', replace: '{false && <span', scene: 'hostile-marks-on-wide-things', size: LAPTOP_BOARD, expects: 'dropped-words' },
+  { name: 'a row of tutor text is set as markup', file: 'apps/web/src/board/SharedBoard.tsx', find: '>{content.text}</p>', replace: ' dangerouslySetInnerHTML={{ __html: content.text }} />', scene: 'hostile-markup-everywhere', size: LAPTOP_BOARD, expects: 'forbidden-element' },
+];
+
+const LIBRARY_PLANTS_ONLY_ON_THE_VIEW: ReadonlySet<string> = new Set(['placement forgets the height of what is above', 'placement stops shrinking a wide line', 'text is set as markup', 'a note ignores the ring it names']);
+
+async function checkLibraryPlant(page: Page, server: DeckServer, plant: LibraryPlant, surface: DeckSurface): Promise<DefectKind[]> {
   server.plant(plant);
+  const shownSize = await getPlantSize(page, plant, surface);
   await page.reload();
   await waitForDeck(page);
-  await page.evaluate(({ scene, size }) => window.boardDeck?.show({ scene, size }), { scene: plant.scene, size: plant.size });
+  const moments = plant.playsThrough ? await page.evaluate((scene) => window.boardDeck?.listScenes().find(({ name }) => name === scene)?.moments ?? [], plant.scene) : [];
+  for (const atMs of moments) await page.evaluate(({ scene, size, at }) => window.boardDeck?.show({ scene, size, atMs: at, mount: 'played' }), { scene: plant.scene, size: shownSize, at: atMs });
+  if (moments.length === 0) await page.evaluate(({ scene, size }) => window.boardDeck?.show({ scene, size }), { scene: plant.scene, size: shownSize });
   const found = await page.evaluate((scene) => window.boardDeck?.check({ scene }) ?? [], plant.scene);
   return found.map(({ kind }) => kind);
 }
 
 const FLASH_PLANT: SourcePlant = { name: 'a picture shows from its first moment', file: 'apps/web/src/board/imageItem.ts', find: 'const UNSEEN_ENTRANCE_SHARE = 0.42;', replace: 'const UNSEEN_ENTRANCE_SHARE = 0;' };
 
-async function runFlashPlant(page: Page, server: DeckServer, verdict: Verdict): Promise<void> {
+async function runFlashPlant(page: Page, server: DeckServer, surface: DeckSurface, verdict: Verdict): Promise<void> {
   server.plant(FLASH_PLANT);
+  const size = await getPlantSize(page, { size: LAPTOP_BOARD }, surface);
   await page.reload();
   await waitForDeck(page);
   const shots = await page.context().newCDPSession(page);
-  const { flashes } = await getFlashesInScene(page, shots, { scene: FLASH_SCENE, lastCommandMs: FLASH_SCENE_LAST_COMMAND_MS });
+  const { flashes } = await getFlashesInScene(page, shots, { scene: FLASH_SCENE, lastCommandMs: FLASH_SCENE_LAST_COMMAND_MS, size });
   await shots.detach();
   if (flashes <= 3) verdict.failures.push(`planted defect not caught: ${FLASH_PLANT.name}, ${flashes} flashes in a second`);
   verdict.lines.push(`Planted flash: ${FLASH_PLANT.name}, ${flashes} flashes in a second`);
 }
 
-export async function runSourcePlants(page: Page, server: DeckServer, verdict: Verdict): Promise<void> {
-  await runFlashPlant(page, server, verdict);
+export async function runSourcePlants(page: Page, server: DeckServer, surface: DeckSurface, verdict: Verdict): Promise<void> {
+  await runFlashPlant(page, server, surface, verdict);
   let caught = 0;
-  for (const plant of LIBRARY_PLANTS) {
-    const found = await checkLibraryPlant(page, server, plant);
+  const plants = surface === 'rows' ? [...ROW_LIBRARY_PLANTS, ...LIBRARY_PLANTS.filter(({ name }) => !LIBRARY_PLANTS_ONLY_ON_THE_VIEW.has(name))] : LIBRARY_PLANTS;
+  for (const plant of plants) {
+    const found = await checkLibraryPlant(page, server, plant, surface);
     if (found.includes(plant.expects)) caught += 1;
     else verdict.failures.push(`planted library defect not caught: ${plant.name}, expected ${plant.expects}, found ${found.join(', ') || 'nothing'}`);
   }
   server.plant(null);
   await page.reload();
   await waitForDeck(page);
-  verdict.lines.push(`Planted in the library: ${caught} of ${LIBRARY_PLANTS.length} caught`);
+  verdict.lines.push(`Planted in the library: ${caught} of ${plants.length} caught`);
 }

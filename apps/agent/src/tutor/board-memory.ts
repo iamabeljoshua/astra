@@ -36,7 +36,7 @@ const STAY_IN_THIS_SESSION = 'Never send them to another session. Anything they 
 
 export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), shownLines: new Set(), lastAssertedLine: null, verdicts: new Map(), openTask: null, doneTasks: new Set(), isLatestWorkWrong: false, isLatestMathUnjudged: false, offProblemLines: new Set(), isLatestLineOffProblem: false, hasComeBack: false };
 
-export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'plot', 'markValue', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate', 'diagram', 'note', 'tangent', 'task', 'boardMode']);
+export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'plot', 'markValue', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate', 'diagram', 'note', 'tangent', 'task', 'boardMode', 'table', 'timeline', 'code', 'image', 'drawing']);
 
 const FEWEST_TURNS_BEFORE_THE_ANSWER = 2;
 const PRAISE = /^\s*(yes|yep|yeah|right|correct|exactly|perfect|nice|great|good( job| work)?|well done|that'?s (right|correct|it)|spot on|you got it)\b/i;
@@ -131,7 +131,7 @@ export function checkAgainstBoard(command: SceneCommand, memory: BoardMemory): C
   if (memory.hasComeBack && (command.kind === 'clearBoard' || command.kind === 'hide')) return { ok: false, problem: CAME_BACK_WHOLE, isWrongMath: true };
   if (hasTooManyMarksInARow(JSON.stringify(command))) return refuse('too many combining marks in a row');
   if (!DRAWN_KINDS.has(command.kind)) return refuse(`the board cannot draw ${command.kind} yet`);
-  if ('id' in command && isStudentLineId(command.id)) return refuse(`${command.id} is a name kept for the student's lines`);
+  if ('id' in command && isStudentLineId(command.id)) return refuse(`${command.id} is a name kept for the student's lines, so draw it again under a word, as in poem`);
   const markProblem = command.kind === 'annotate' ? getMarkProblem(command, memory) : null;
   // The words after a mark lean on it, so a refused tick or cross stops them too, and the student never hears about a mark that was not drawn.
   if (markProblem !== null) return { ok: false, problem: markProblem, isWrongMath: command.kind === 'annotate' && (command.mark === 'check' || command.mark === 'cross') };

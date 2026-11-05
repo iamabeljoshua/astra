@@ -1,4 +1,4 @@
-import type { BoardState, StudentLineContent } from '@astra/board';
+import type { BoardElement, BoardState, StudentLineContent } from '@astra/board';
 import { canWriteByHand, preloadMathFonts, writeStyle } from '@astra/board/drawing';
 import { getOpenDragOn } from '@astra/board/shared';
 import { type ElementId, getInkLineId, type StudentWork } from '@astra/contracts';
@@ -33,9 +33,11 @@ const getRowKey = (row: BoardRow) => (row.inks.length > 0 ? `ink:${getRowId(row)
 
 function getRowClass({ element, isStruck, inks }: BoardRow): string {
   const { content } = element;
-  const owner = content.kind === 'studentLine' ? `board-row-student ${content.reading.kind === 'math' ? '' : 'board-row-words'}` : content.kind === 'writeMath' || content.kind === 'text' ? 'board-row-tutor' : '';
+  const owner = content.kind === 'studentLine' ? `board-row-student ${content.reading.kind === 'math' ? '' : 'board-row-words'}` : content.kind === 'writeMath' || content.kind === 'text' ? 'board-row-tutor' : BLOCK_KINDS.has(content.kind) ? 'board-row-block' : '';
   return `board-row ${owner} ${inks.length > 0 ? 'board-row-ink' : ''} ${isStruck ? 'board-row-struck' : ''}`;
 }
+
+const BLOCK_KINDS: ReadonlySet<BoardElement['content']['kind']> = new Set(['table', 'timeline', 'code', 'image', 'diagram', 'drawing']);
 
 const isMathInReadAs = ({ inks, element }: BoardRow) => inks.length > 0 && element.math !== null;
 
@@ -66,6 +68,7 @@ function RowGutter({ row, atMs, isReducedMotion, onFixReading, setWrapper }: { r
 export function SharedBoard({ board, atMs, onWork, onMovePoint, onBoardProblem, liveRow, lineInTheBand = null, onFixReading }: SharedBoardProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGSVGElement>(null);
+  const roomForNotesRef = useRef<HTMLDivElement>(null);
   const wrappers = useRef(new Map<string, HTMLElement>());
   const painting = useRef<ReturnType<typeof createBoardRowPainting> | null>(null);
   const problemListener = useRef(onBoardProblem);
@@ -90,8 +93,8 @@ export function SharedBoard({ board, atMs, onWork, onMovePoint, onBoardProblem, 
 
   useLayoutEffect(() => {
     problemListener.current = onBoardProblem;
-    if (!overlayRef.current) return;
-    painting.current ??= createBoardRowPainting({ overlay: overlayRef.current, getWrapper: (id) => wrappers.current.get(id), onBoardProblem: (problem) => problemListener.current?.(problem) });
+    if (!overlayRef.current || !roomForNotesRef.current) return;
+    painting.current ??= createBoardRowPainting({ overlay: overlayRef.current, roomForNotes: roomForNotesRef.current, getWrapper: (id) => wrappers.current.get(id), onBoardProblem: (problem) => problemListener.current?.(problem) });
     painting.current.paint({ board, atMs, isReducedMotion });
     for (const { button, query, on } of pickTargets.current.values()) {
       const box = painting.current.getPartBox(on, query);
@@ -105,7 +108,11 @@ export function SharedBoard({ board, atMs, onWork, onMovePoint, onBoardProblem, 
 
   useEffect(() => {
     const scroll = scrollRef.current;
-    if (scroll) scroll.scrollTop = scroll.scrollHeight;
+    if (!scroll) return;
+    // Gliding further than a screen sweeps the whole board past the eye, which reached 4 flashes a second on the real clock.
+    const isLongMove = scroll.scrollHeight - scroll.clientHeight - scroll.scrollTop > scroll.clientHeight;
+    scroll.style.scrollBehavior = isLongMove ? 'auto' : '';
+    scroll.scrollTop = scroll.scrollHeight;
   }, [rowCount]);
 
   return (
@@ -130,6 +137,7 @@ export function SharedBoard({ board, atMs, onWork, onMovePoint, onBoardProblem, 
             </div>
             );
           })}
+          <div ref={roomForNotesRef} aria-hidden="true" />
           {liveRow}
           <svg ref={overlayRef} aria-hidden="true" className="board-ink board-marks pointer-events-none absolute inset-0 h-full w-full overflow-visible" />
           {onWork && <PickTargets board={board} onTarget={setPickTarget} onWork={onWork} />}

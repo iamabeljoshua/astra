@@ -98,11 +98,11 @@ export interface BrowserStamp {
 }
 
 /** What the page tells a live tutor about its board. */
-export const TOLD_BOARD_PROBLEMS = ['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant'] as const;
+export const TOLD_BOARD_PROBLEMS = ['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant', 'sliderOverlaps', 'curveTooFine'] as const;
 
 export interface BoardProblemReport {
   problem: (typeof TOLD_BOARD_PROBLEMS)[number];
-  /** An element's id, a slider's id, or the words of a label with no room. */
+  /** An element's id, a curve's id, a slider's id, or the words of a label with no room. */
   subject: string;
 }
 
