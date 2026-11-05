@@ -301,6 +301,22 @@ describe('a request the router sends to the kit, with live 3D on', () => {
   });
 });
 
+describe('a saved scene under the router\'s own topic', () => {
+  it('plays when the router sends that topic to the kit, even with live 3D off', async () => {
+    const { work, store } = setUp({ engine: 'kit', topic: 'how a heart beats' });
+    await store.saveChecked(saved('how a heart beats'), TAKES, []);
+    work.desk.ask(work.request);
+    await vi.waitFor(() => expect(work.desk.getState().kind).toBe('ready'));
+  });
+
+  it('stays out when the router says the question needs no drawing', async () => {
+    const { work, store } = setUp({ engine: 'none', topic: 'how a heart beats' });
+    await store.saveChecked(saved('how a heart beats'), TAKES, []);
+    work.desk.ask(work.request);
+    await vi.waitFor(() => expect(work.desk.getState()).toEqual({ kind: 'declined', engine: 'none' }));
+  });
+});
+
 describe('a saved scene that fits a typed question', () => {
   function setUpFit(find: (topic: string, titles: readonly string[]) => Promise<string | null>) {
     const store = createSceneStore(mkdtempSync(join(tmpdir(), 'lesson-work-fit-')));

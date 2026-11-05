@@ -2,7 +2,7 @@ import { buildKitFramePage, getNeededTextures, type KitFrameCommand, type KitFra
 import { SCENE_ENGINE_VERSIONS } from '@astra/contracts';
 import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { type Browser, chromium, type Page } from 'playwright';
+import { chromium, type Page } from 'playwright';
 import type { RenderResult, RenderWorker } from './render-worker.ts';
 import type { SceneTheme } from './scene-types.ts';
 
@@ -139,25 +139,21 @@ async function readFrames(page: Page, { code, moments, durationSeconds, seconds 
   return { isOk: true, parts: ready.parts, sheet: await page.screenshot({ type: 'jpeg', quality: JPEG_QUALITY, fullPage: true }), ms: 0 };
 }
 
-/** One browser for the whole process, because starting one costs seconds a student does not have. Each check gets its own empty profile, and a check past its limit takes the browser with it, because a spinning renderer can ignore everything else. */
+/** Each check gets its own browser, which starts in about a second, so nothing outlives a session and a renderer spinning past its limit goes with it. */
 export function createFrameCheck(): KitFrameCheck {
-  let browser: Promise<Browser> | null = null;
-  const getBrowser = () => (browser ??= chromium.launch({ headless: true, args: [...GL_ARGS, '--use-mock-keychain', '--no-first-run'] }));
   return async (request, signal) => {
     const startedAt = performance.now();
-    const opened = await getBrowser();
-    const context = await opened.newContext({ viewport: { width: FRAME_WIDTH, height: FRAME_HEIGHT }, deviceScaleFactor: 1, serviceWorkers: 'block' });
+    const browser = await chromium.launch({ headless: true, args: [...GL_ARGS, '--use-mock-keychain', '--no-first-run'] });
     const escapes: string[] = [];
-    let settle: ((result: KitFrameResult) => void) | null = null;
-    const giveUp = (reason: string) => {
-      settle?.({ isOk: false, reasons: [reason] });
-      browser = null;
-      void opened.close().catch(() => {});
-    };
-    const limit = setTimeout(() => giveUp(`the scene was not done in ${MOST_CHECK_MS / 1000} s`), MOST_CHECK_MS);
-    const onAbort = () => giveUp('no longer wanted');
+    let settle: (result: KitFrameResult) => void = () => {};
+    const stopped = new Promise<KitFrameResult>((resolve) => {
+      settle = resolve;
+    });
+    const limit = setTimeout(() => settle({ isOk: false, reasons: [`the scene was not done in ${MOST_CHECK_MS / 1000} s`] }), MOST_CHECK_MS);
+    const onAbort = () => settle({ isOk: false, reasons: ['no longer wanted'] });
     signal.addEventListener('abort', onAbort, { once: true });
     try {
+      const context = await browser.newContext({ viewport: { width: FRAME_WIDTH, height: FRAME_HEIGHT }, deviceScaleFactor: 1, serviceWorkers: 'block' });
       const page = await context.newPage();
       await page.route('**/*', async (route) => {
         const url = route.request().url();
@@ -169,14 +165,14 @@ export function createFrameCheck(): KitFrameCheck {
       page.on('framenavigated', (frame) => {
         if (frame !== page.mainFrame() && frame.url() !== 'about:srcdoc') escapes.push('the scene tried to leave its frame');
       });
-      const result = await Promise.race([readFrames(page, request, () => escapes), new Promise<KitFrameResult>((resolve) => { settle = resolve; })]);
+      const result = await Promise.race([readFrames(page, request, () => escapes), stopped]);
       return result.isOk ? { ...result, ms: performance.now() - startedAt } : result;
     } catch (error) {
       return { isOk: false, reasons: [error instanceof Error ? error.message : String(error)] };
     } finally {
       clearTimeout(limit);
       signal.removeEventListener('abort', onAbort);
-      void context.close().catch(() => {});
+      void browser.close().catch(() => {});
     }
   };
 }

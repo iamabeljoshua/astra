@@ -29,7 +29,7 @@ export interface LessonWorkOptions {
   runs: TopicRuns;
   /** Writes 3D scenes live. Left out, a request the router sends to the kit gets no scene. */
   kitRuns?: TopicRuns;
-  /** Finds a saved scene that already answers a typed question, which lands in seconds and has a person's check behind it. */
+  /** Finds a saved scene that already answers a typed question, which lands in seconds. */
   fitReader?: SceneFitReader;
   store: SceneStore;
   request: string;
@@ -146,8 +146,10 @@ export function createLessonWork({ router, runs, kitRuns, fitReader, store, requ
       useSaved(fit.topic, fit);
       return { ...SAVED_ROUTE, topic: fit.topic };
     }
-    if (savedByTopic) useSaved(topic, savedByTopic);
-    else if (!isOnlyForScene || route.engine === 'manimgx' || (route.engine === 'kit' && writesKit)) joinRun(topic, route.engine);
+    if (savedByTopic) {
+      useSaved(topic, savedByTopic);
+      if (route.engine !== 'none') return { ...SAVED_ROUTE, topic };
+    } else if (!isOnlyForScene || route.engine === 'manimgx' || (route.engine === 'kit' && writesKit)) joinRun(topic, route.engine);
     return { ...route, topic };
   };
 

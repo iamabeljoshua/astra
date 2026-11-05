@@ -19,6 +19,7 @@ const { values: args } = parseArgs({
     student: { type: 'string', default: 'kit-proof' },
     limitUsd: { type: 'string', default: '1' },
     waitS: { type: 'string', default: '100' },
+    routeOnly: { type: 'boolean', default: false },
   },
 });
 
@@ -56,6 +57,7 @@ const worker: typeof checkFrames = (job, signal) => {
   return checkFrames(job, signal);
 };
 const kitRuns = createTopicRuns({ engine: 'kit', themes: ['dark'], checkCode: getKitCodeProblems, getLinesToReview: getKitSpokenLines, planner: models.planner, nameReader: models.nameReader, writers: [models.kitWriter, models.kitFallbackWriter], repairWriter: models.kitFallbackWriter, reviewer: models.kitReviewer, worker, store, warn });
+const stopAtRoute = (reason: string) => ({ join: () => ({ plan: Promise.resolve('nothing'), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: false, reasons: [reason] }), leave() {} }) }) as unknown as TopicRuns;
 const noManimRuns = { join: () => ({ plan: Promise.resolve('nothing'), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: false, reasons: ['this proof writes no ManimGX'] }), leave() {} }) } as unknown as TopicRuns;
 
 const questions = [...(args.ask ?? []), ...(args.questions ? (JSON.parse(readFileSync(args.questions, 'utf8')) as string[]) : [])];
@@ -67,7 +69,8 @@ for (const question of questions) {
   const work = createLessonWork({
     router: { route: async (request, signal) => { const route = await models.router.route(request, signal); engine = route.engine; console.log(`  route ${JSON.stringify({ engine: route.engine, kind: route.kind, topic: route.topic })}`); return route; } },
     runs: noManimRuns,
-    kitRuns,
+    kitRuns: args.routeOnly ? stopAtRoute('this run stops at the route') : kitRuns,
+    fitReader: models.fitReader,
     store,
     request: question,
     isCard: false,

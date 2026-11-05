@@ -241,7 +241,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
   };
 
   const onDeskChange = (ask: SceneAsk, state: SceneState) => {
-    trace('sceneState', { state: state.kind, afterMs: Math.round(getNowMs() - ask.askedAtMs), ...(state.kind === 'failed' ? { reasons: state.reasons } : {}) });
+    trace('sceneState', { state: state.kind, afterMs: Math.round(getNowMs() - ask.askedAtMs), ...(state.kind === 'failed' ? { reasons: state.reasons } : {}), ...(state.kind === 'making' ? { engine: state.route.engine, kind: state.route.kind, topic: state.route.topic } : {}) });
     if (prepared.get(toKey(ask.topic)) === ask) {
       if (state.kind === 'ready' && shownSceneIds.has(state.scene.id)) forgetPrepared(ask, 'declined');
       else if (state.kind === 'ready') send(getPrepareMessage(state.scene));

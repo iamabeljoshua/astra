@@ -95,7 +95,7 @@ export function getKitCodeProblems({ code, topic, moments }: { code: string; top
   return [...new Set([
     ...getCodeProblems(code),
     ...nodes.flatMap((node) => getNodeProblems(node, nameOnly, declared)),
-    ...Object.keys(moments).filter((moment) => !strings.has(moment)).map((moment) => `it never uses the moment ${moment}`),
+    ...Object.entries(moments).filter(([moment, seconds]) => seconds > 0 && !strings.has(moment)).map(([moment]) => `it never uses the moment ${moment}`),
     ...TOPICS_THE_KIT_COMPUTES.filter((rule) => rule.topic.test(topic) && !code.includes(rule.needs)).map((rule) => `a scene on this topic must place its bodies with ${rule.needs}`),
   ])];
 }

@@ -77,6 +77,10 @@ describe('the kit code check', () => {
     expect(problemsOf(scene().replace("'moon-out'", 'null'))).toContain('it never uses the moment moon-out');
   });
 
+  it('lets a scene open on its first moment with no word for it, since a scene starts there anyway', () => {
+    expect(getKitCodeProblems({ code: scene().replace("'moon-in'", 'null'), topic: 'a moon', moments: { 'moon-in': 0, 'moon-out': 3 } })).toEqual([]);
+  });
+
   it('holds the Moon to the kit\'s own orbit on a question about its phases, since hand-written geometry is where the truth broke', () => {
     expect(problemsOf(scene(), 'why does the moon have phases').join(' ')).toMatch(/kit\.astro\.moonOrbit/);
     expect(problemsOf(scene("kit.astro.moonOrbit({ earth: 'e', moon: 'moon' });"), 'why does the moon have phases').join(' ')).not.toMatch(/moonOrbit/);
