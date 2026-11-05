@@ -36,6 +36,7 @@ export interface TutorScene {
   stage: SceneStage | null;
   /** A take loads before it shows, so its canvas waits off screen and moves in when the scene lands. */
   onContainer(container: HTMLElement | null): void;
+  isOnScreen: boolean;
 }
 
 function getLatestScene(board: BoardState) {
@@ -48,6 +49,7 @@ function useSceneHost(isEnabled: boolean): TutorScene {
   const [stage, setStage] = useState<SceneStage | null>(null);
   const parts = useRef<{ parking: HTMLElement; host: HTMLElement } | null>(null);
   const [, noteStageChange] = useState(0);
+  const [isOnScreen, setIsOnScreen] = useState(false);
 
   useEffect(() => {
     if (!isEnabled) return undefined;
@@ -73,9 +75,10 @@ function useSceneHost(isEnabled: boolean): TutorScene {
   const onContainer = useCallback((container: HTMLElement | null) => {
     if (!parts.current) return;
     moveInto(container ?? parts.current.parking, parts.current.host);
+    setIsOnScreen(container !== null);
   }, []);
 
-  return { stage, onContainer };
+  return { stage, onContainer, isOnScreen };
 }
 
 export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): TutorScene {

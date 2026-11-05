@@ -6,7 +6,7 @@ import { getCardMaterial } from '../scenes/scene-library';
 import { SessionsService } from '../sessions/sessions.service';
 import { StudentsService } from '../students/students.service';
 import { type SpendReply, TutorSpendService } from '../tutor-spend/tutor-spend.service';
-import type { SaveLogBodyDto, TutorBrief } from './agent-channel.dto';
+import type { JobOpening, SaveLogBodyDto, TutorBrief } from './agent-channel.dto';
 
 
 @Injectable()
@@ -22,6 +22,11 @@ export class AgentChannelService {
     const [profile, cardTitle] = await Promise.all([this.students.getProfile(await this.getStudentId(sessionId)), this.sessions.getCardTitle(sessionId)]);
     const cardMaterial = cardTitle ? getCardMaterial(process.env.SCENE_STORE_DIR, cardTitle) : null;
     return { level: profile?.level ?? null, interests: profile?.interests ?? [], goal: profile?.goal ?? null, cardTitle, ...(cardMaterial ? { cardMaterial } : {}) };
+  }
+
+  async getOpening(sessionId: string): Promise<JobOpening> {
+    const studentId = await this.getStudentId(sessionId);
+    return { studentId, question: await this.sessions.getOpeningQuestion(studentId, sessionId) };
   }
 
   async addSpend(sessionId: string, usd: number): Promise<SpendReply> {

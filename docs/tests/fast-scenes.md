@@ -54,8 +54,51 @@ The page needs `VITE_FAST_SCENES=1`. Depth needs `VITE_KIT_SCENES=1`, a width ab
 
 The press to the ask costs more than everything after it, about 8 to 11 s from Home on these runs, in session start, joining the room, the greeting, and the tutor's first words. That is what keeps Home from 15 s on this Mac. No run here was on a quiet machine. All but the last lesson ran with no `ASTRA_AGENT_KEY`, so with no profile, level, or memory read, which a real session does.
 
+## The chain with everything on
+
+A student's own ask tries, in order: a saved scene, parts, fresh drawing once `feat/draw-on-the-fly` lands, live 3D, then words and the board. `createRecipeWork` holds the order. It reaches live 3D only on a typed question the router read as a solid thing, after no saved scene matched and no part fit, and with `ASTRA_KIT_LIVE=1`. The queue and a card never reach it. A live scene runs its frame check and page in PR 127's worker, and a review that passes sets `reviewed` on its record, which the take route asks for.
+
+## The starter library
+
+`recipe/starter/` holds 24 recipes from the Haiku run Abel enjoyed, about 26 KB. Run this once per store:
+
+```
+SCENE_STORE_DIR=<store> ASTRA_FAST_SCENES_ANY_PART=1 node scripts/import-recipes.ts
+```
+
+Each recipe gets the reading a fresh recipe gets: the schema, the part check, and the word check, with no model. It saves as a shared scene under its own topic, and a second run changes nothing. `--from <run folder>` first copies a lab run's passing recipes into the library. Of the 33 in `A-haiku`, these stayed out: `car-engine`, which a person found wrong, `dev-seasons`, whose recipe names no part, and `atom`, `bees`, `dev-mars`, `helicopter`, `motor`, `sewing`, and `submarine`, where the model said no part fits. No model reviewed the 24, and I read their words, not their frames.
+
+A question with the same words as a saved title in another form, such as "How does a jet engine work?", plays with no model read. Words that differ go to the matcher as before.
+
+## The first seconds
+
+The job starts about 0.5 s after the press, because the API opens the room as the session saves. It reads `GET /agent/sessions/:id/opening`, which names the room's student and a typed question, for the worker alone. LiveKit's dispatch metadata and the tutor's brief stay free of both, as their tests require.
+
+- **The picture starts at the press.** The worker asks for the scene from the student's words before the page joins, and sends it once the page says it can play.
+- **The page's first messages need no wait.** The job hears them up to 2 s before LiveKit names their sender. The API named the only student with a token for the room, so the worker reads them at once. That took first words from 3.1 to 3.9 s to 1.5 to 3.5 s.
+- **The picture is the first teaching.** The greeting plays as it did, because it says this is an AI tutor. When it ends, a ready picture comes before the tutor's first line. The first reply holds its first word 2.5 s at most for a picture on its way, once. `isClearToLand` already waits for the safety read, so a picture never comes ahead of it, and a crisis still ends the ask.
+- **The stylish wait.** With `VITE_FAST_SCENES=1`, the connecting screen shows the topic and holds its dots until the picture lands, 5 s from the press at most. The shared board gains nothing. Only past 15 s without a tutor does the screen say why.
+
+The plan and the first reply still start when the page's line arrives, 1.2 to 2.9 s after the press. Starting them at the job would need the brain to run a turn with nobody to hear it.
+
+| Stage, from the press, at load 7 to 14 | Before | Now |
+| --- | --- | --- |
+| Session saved | 0.1 to 0.2 s | The same |
+| The page opens | 0.7 to 0.9 s | The same |
+| The job in the room | 0.5 to 2.6 s | The same |
+| The page in the room | 1.2 to 3.0 s | The same |
+| The job reads the page's line | 3.1 s | 1.3 to 3.0 s |
+| First words, the greeting | 3.1 to 3.9 s | 1.5 to 3.5 s |
+| The scene asked for | 5.8 s | 0.7 to 2.9 s |
+| The page has a saved scene | 6.8 s | 2.5 to 3.5 s |
+| Picture and its first line, saved | 10.4 to 13.4 s | 4.4 to 5.9 s |
+| Picture and its first line, fresh parts | 12.5 s | 7.2 s, measured before the hold, and see `What this does not prove` |
+
 ## What this does not prove
 
+- Live 3D with a real writer on this tree. Its budget here was $0.40 and one fresh scene costs about $0.47, so a real headless Chromium ran the frame check on a small scene and a hostile one in PR 127's worker, and the fake writer ran the route. `docs/tests/scenes.md` holds what PR 126 measured before the merge.
+- A Home card on the page. A card's saved scene already opens its lesson, and `How DNA copies itself` is the one card title the library shares today.
+- Chris's voice on these numbers. They used the fake voice.
 - That the lines are true. A person's reading of the frames found faults in lines the review kept, such as a signal starting "in the cell body" and "Blue blood".
 - That a part's own cycle matches its words. A cycle runs on its own clock, so a line can name a stroke the part is not showing.
 - Chris's voice over a cut, on most of these numbers. They used the tone voice.

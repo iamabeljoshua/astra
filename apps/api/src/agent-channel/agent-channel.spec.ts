@@ -22,6 +22,7 @@ describe('the agent channel', () => {
   const server = () => request(testApp.app.getHttpServer());
   const asStudent = (call: request.Test, { token }: TestStudent = student) => call.set('Authorization', `Bearer ${token}`);
   const getBrief = (id: string, key = AGENT_KEY) => server().get(`/agent/sessions/${id}/brief`).set('Authorization', `Bearer ${key}`);
+  const getOpening = (id: string, key = AGENT_KEY) => server().get(`/agent/sessions/${id}/opening`).set('Authorization', `Bearer ${key}`);
   const addSpend = (id: string, body: object, key = AGENT_KEY) => server().post(`/agent/sessions/${id}/spend`).set('Authorization', `Bearer ${key}`).send(body);
 
   const setTitle = (id: string, body: object, key = AGENT_KEY) => server().post(`/agent/sessions/${id}/title`).set('Authorization', `Bearer ${key}`).send(body);
@@ -152,6 +153,20 @@ describe('the agent channel', () => {
       namedStudent = await createTestStudent(testApp);
       await asStudent(server().put('/me/profile'), namedStudent).send(VALID_PROFILE).expect(200);
       namedSessionId = await startSession(namedStudent);
+    });
+
+    it('names the room\'s student and a typed question for the worker, and keeps them out of the brief', async () => {
+      const { body } = await getOpening(namedSessionId).expect(200);
+      expect(body).toEqual({ studentId: namedStudent.studentId, question: VALID_SESSION.title });
+      await getOpening(namedSessionId, 'not-the-key').expect(401);
+    });
+
+    it('names no question for a card, or for a session that has started', async () => {
+      const card = await asStudent(server().post('/sessions'), namedStudent).send({ ...VALID_SESSION, artwork: 'parabola' }).expect(201);
+      expect((await getOpening((card.body as { id: string }).id).expect(200)).body).toMatchObject({ question: null });
+      const started = await startSession(namedStudent);
+      await asStudent(server().patch(`/sessions/${started}`), namedStudent).send({ durationSeconds: 20 }).expect(200);
+      expect((await getOpening(started).expect(200)).body).toMatchObject({ question: null });
     });
 
     it('holds the level, interests, and goal of the session\'s student, and nothing else', async () => {

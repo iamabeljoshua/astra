@@ -78,6 +78,9 @@ export interface LiveSessionOptions {
   recordTurn?: RecordTurn;
   /** The tutor has stopped talking and has nothing more to say, so a scene may land. */
   onPause?(): void;
+  onReactionOver?(): void;
+  /** The student has heard the greeting, so a first picture nearly ready can come before the tutor's own first line. */
+  holdFirstWord?(): Promise<void>;
   onStudentTurn?(): void;
   /** Asked once, by the first reply. Beats mean this session opens on a scene, and the tutor's first line follows them. */
   getOpeningScene?(): Promise<readonly TutorBeat[] | null>;
@@ -109,6 +112,8 @@ export interface LiveSession {
   speakScene(beats: readonly TutorBeat[]): boolean;
   canCutInScene(): boolean;
   isInBreath(): boolean;
+  /** A reply is under way and none of its sound has reached the line. */
+  isBeforeFirstWord(): boolean;
   /** Ends the reply here and says a scene's words in its place. False, and nothing changes, unless `canCutInScene` holds. */
   cutInScene(beats: readonly TutorBeat[]): boolean;
   close(): Promise<void>;
@@ -229,7 +234,7 @@ function recordingTo(heard: HeardTurn, messenger: TurnMessenger): TurnMessenger 
   };
 }
 
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, endLine = () => {}, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn, onPause, onStudentTurn, getOpeningScene, onLinkChange, waitForPicture = async () => true, onLogWritten, writeRecap = async () => null, readSafety, onRecap = () => {}, onEnding, onEndingOver = () => {}, leadTimings = LEAD_TIMINGS, sentenceBreaks, onSceneCut, takeOwedCommands }: LiveSessionOptions): LiveSession {
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, endLine = () => {}, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn, onPause, onReactionOver, holdFirstWord, onStudentTurn, getOpeningScene, onLinkChange, waitForPicture = async () => true, onLogWritten, writeRecap = async () => null, readSafety, onRecap = () => {}, onEnding, onEndingOver = () => {}, leadTimings = LEAD_TIMINGS, sentenceBreaks, onSceneCut, takeOwedCommands }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   // A new job in the same room restarts this count, and a page ignores a turn it has seen, so each job's turns carry their own name.
   const jobTag = randomUUID().slice(0, 8);
@@ -381,7 +386,10 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
 
   const onSpeechFinished = (speaking: Speaking) => {
     speaking.isOver = true;
-    if (speaking === reaction) reaction = null;
+    if (speaking === reaction) {
+      reaction = null;
+      onReactionOver?.();
+    }
     if (speaking === reply) {
       setThinking(false);
       reply = null;
@@ -697,6 +705,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     firstWordAtMs = 0;
     if (leftMs > 0) await delay(leftMs);
     await boardWork.waitWhileTyping();
+    await holdFirstWord?.();
   };
 
   const startReply = (request: TutorRequest) => {
@@ -1108,6 +1117,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       return true;
     },
     isInBreath,
+    isBeforeFirstWord: () => reply !== null && !thought?.isScene && !reply.hasSound,
     async close() {
       clearInterval(linkChecker);
       clearTimeout(voiceStall);

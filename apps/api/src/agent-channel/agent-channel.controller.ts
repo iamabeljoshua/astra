@@ -3,7 +3,7 @@ import type { SpendReply } from '../tutor-spend/tutor-spend.service';
 import { ApiExcludeController } from '@nestjs/swagger';
 import { PublicRoute } from '../auth/route-access';
 import { AddSpendBodyDto, SaveLogBodyDto, SaveRecapBodyDto, SetTitleBodyDto } from './agent-channel.dto';
-import type { TutorBrief } from './agent-channel.dto';
+import type { JobOpening, TutorBrief } from './agent-channel.dto';
 import { WriteLearnerNotesBodyDto } from '../learner-record/learner-record.dto';
 import type { LearnerRecordDto } from '../learner-record/learner-record.dto';
 import { AgentChannelService } from './agent-channel.service';
@@ -24,6 +24,12 @@ export class AgentChannelController {
   @Get(':id/brief')
   getBrief(@Param('id') sessionId: string): Promise<TutorBrief> {
     return this.agentChannel.getBrief(sessionId);
+  }
+
+  /** For the worker, and never in a prompt: whose room this is, and the question it opened on, so a picture starts at the press. */
+  @Get(':id/opening')
+  getOpening(@Param('id') sessionId: string): Promise<JobOpening> {
+    return this.agentChannel.getOpening(sessionId);
   }
 
   /** Adds what a turn cost to the student's total for today. A finished session takes it too, because a turn can end as its room closes. */

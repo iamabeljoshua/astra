@@ -136,7 +136,7 @@ export function createSpendCaps({ link, ledger, trace, sessionLimitUsd, sessionV
 export function warmTutorModel(): void {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
   if (!TUTOR_MODEL_NAMES.includes(name as TutorModelName)) return;
-  void makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') }).warm((hasTutorScenes() ? withScenes(getLivePrompt()) : getLivePrompt()).system).catch(() => {});
+  void makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') }).warm((hasTutorScenes() ? (process.env.ASTRA_FAST_SCENES === '1' ? withFastScenes(getLivePrompt()) : withScenes(getLivePrompt())) : getLivePrompt()).system).catch(() => {});
 }
 
 export const hasTutorScenes = () => process.env.ASTRA_TUTOR_SCENES === '1';
