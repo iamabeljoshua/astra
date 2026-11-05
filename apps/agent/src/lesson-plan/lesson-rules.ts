@@ -53,6 +53,14 @@ export const WAITING_NOTE = { waiting: 'You stopped and told them you would wait
 
 export const STAY_NOTE = { hold_on: 'They asked you not to move on, because they are lost. Say this idea again in a line or two, simpler, with one everyday picture and no new term. Set nothing, say in a few words that you will wait for them, and then you stay quiet until they do something.' };
 
+export const CARRY_ON_NOTE = { carry_on: 'You were waiting for them, and they have just nodded. Go on with the lesson from where you were, with no question about the nod.' };
+
+export const OTHER_LANGUAGE_NOTE = { other_language: 'This line is in another language. Answer what it says, in that language, and do not carry on with what you were teaching in this reply. If you cannot tell what it says, say so.' };
+
+export const WORRYING_LINE_NOTE = { may_be_about_them: 'This line may be about them and not the lesson, and you may not be able to read it. Teach nothing in this reply. Follow Staying safe, in their language if you can.' };
+
+export const EXERCISE_OPEN_NOTE = { exercise_open: 'They only nodded, and the exercise is still theirs to try. Say so in a few words, clear nothing, set nothing, and teach nothing.' };
+
 export const SLOW_NOTE = { pace: 'They asked you to slow down. One short sentence, plain words, and one small step at a time.' };
 
 const OPENS_ON_LET_ME_START_OVER = /(^\s*|[.!?]\s+)actually,?\s+let me\b[^.!?{]*[.!?]\s*(\S?)/giu;

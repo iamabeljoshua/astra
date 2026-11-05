@@ -27,7 +27,7 @@ interface Line {
 
 const EVAL_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../../evals/tutor-turns');
 const { values: args } = parseArgs({ options: { reps: { type: 'string', default: '2' }, workers: { type: 'string', default: '6' }, spend: { type: 'string' }, out: { type: 'string' }, 'with-tutor': { type: 'boolean', default: false }, file: { type: 'string', default: 'student-lines.json' } } });
-const HOLDS = new Set(['stop', 'leave', 'lost']);
+const HOLDS = new Set(['stop', 'wait', 'worrying', 'other_language', 'leave', 'lost']);
 const lines = JSON.parse(readFileSync(join(EVAL_FOLDER, args.file), 'utf8')) as Line[];
 const promises = JSON.parse(readFileSync(join(EVAL_FOLDER, 'tutor-promises.json'), 'utf8')) as { text: string; promises: boolean }[];
 const ledger = args.spend ? createSpendLedger(args.spend, { limitUsd: 6, limitCredits: 0 }) : null;

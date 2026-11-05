@@ -107,7 +107,7 @@ export function checkAgainstGuess({ tex, problemTex, previousTex }: StepInput): 
   return isOutOfStep && !isOnlySlips ? { status: 'unknown', offProblem: problemTex } : UNKNOWN;
 }
 
-const NUMBER_WITH_SPELLED_UNIT = /^-?\d+(?:\.\d+)?(?:[a-zA-Z]{2,}|[a-zA-Z]+\/[a-zA-Z]+)(?:\/[a-zA-Z]+)*(?:\^\{?-?\d+\}?)?$/;
+const NUMBER_WITH_SPELLED_UNIT = /^-?\d+(?:\.\d+)?(?:[a-zA-Z]{2,}|g|[a-zA-Z]+\/[a-zA-Z]+\d?|\\frac\{[a-zA-Z]+\}\{[a-zA-Z]+\d?\})(?:\/[a-zA-Z]+)*(?:\^\{?-?\d+\}?)?$/;
 
 export function isAnswerWithUnit(tex: string): boolean {
   const sides = tex.split('=').map(compact);

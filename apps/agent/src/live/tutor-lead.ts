@@ -25,12 +25,17 @@ export const LEAD_WORDS: Readonly<Record<LeadKind, string>> = { next: '(carry on
 export type LeadStop =
   | 'none'
   | 'held'
+  | 'paused'
   | 'crisis'
   | 'replyFailed';
 
 export type LeadStopEvent =
   | 'crisis'
   | 'hold'
+  | 'pause'
+  | 'replyWaits'
+  | 'replyAsks'
+  | 'nod'
   | 'askedToBeTaught'
   | 'saidSomething'
   | 'workedOnBoard'
@@ -43,6 +48,10 @@ export function getLeadStopAfter(stop: LeadStop, event: LeadStopEvent): LeadStop
   if (stop === 'crisis') return event === 'askedToBeTaught' || event === 'cleanRead' ? 'none' : 'crisis';
   if (event === 'cleanRead') return stop;
   if (event === 'hold') return 'held';
+  if (event === 'pause') return 'paused';
+  if (event === 'replyWaits') return stop === 'paused' ? 'paused' : 'held';
+  if (event === 'replyAsks') return stop === 'held' ? 'held' : 'paused';
+  if (event === 'nod') return stop === 'paused' ? 'none' : stop;
   if (event === 'replyFailed') return stop === 'none' ? 'replyFailed' : stop;
   if (event === 'replyWorked') return stop === 'replyFailed' ? 'none' : stop;
   return 'none';

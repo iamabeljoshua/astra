@@ -262,7 +262,7 @@ describe('patience', () => {
     expect(isFiller('Hmm, let me think')).toBe(true);
     const { actions } = play([ON, words('Hmm, let me think'), OFF, decided('Hmm, let me think')]);
     expect(actions).toContain('start patience');
-    expect(actions).toContain('holdLeads');
+    expect(actions).toContain('noteQuietLine');
     expect(actions).not.toContain('reply');
   });
 

@@ -1,16 +1,15 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import type { AgentMessage, BrowserMessage, ElementId, InkPoint, ReadMath, StudentAction, StudentWork, Task } from '@astra/contracts';
-import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getLinearAnswer, getNod, getPickParts, type Nod, NODS, wantsSomethingElse } from '@astra/board/shared';
+import { type CheckedWork, cleanStudentText, checkWorkOnBoard, getLinearAnswer, getNod, getPickParts, type Nod, NODS, wantsSomethingElse, isThinkingAloud } from '@astra/board/shared';
 import type { BoardElement } from '@astra/board';
 import type { SpokenReading } from './read-spoken.ts';
 import { decideSpoken, type SpokenDecision, type SpokenExpected, type SpokenPart } from './spoken-answer.ts';
 import { MAY_BE_ABOUT_SAFETY } from '../safety-words.ts';
 import type { TutorBrain } from '../brain.ts';
-import { getPlainWish, isHoldWish } from '../../lesson-plan/student-wish.ts';
 import { decideOnReading, decideOnWork, decideWatch, getGate, getWorkWords, HOLDS_WORDS, type WatchDecision, type WatchSituation, type WordMeaning, decideOnSpokenWork } from './watch-rule.ts';
 
 export interface BoardWorkOptions {
-  tutor: Pick<TutorBrain, 'noteWork' | 'noteWatcher' | 'getBoard' | 'holdLeads'>;
+  tutor: Pick<TutorBrain, 'noteWork' | 'noteWatcher' | 'getBoard' | 'noteQuietLine'>;
   writeLog(message: BrowserMessage & { type: 'worked' }, checked: CheckedWork): void;
   speakUp(words: string): void;
   speakUpAsCode?(words: string): void;
@@ -145,7 +144,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, speakUpAsCode = spea
       else speakUpAsCode(getWorkWords(message.work));
     } else {
       unanswered = { checked, keys: wrongKeys };
-      if (message.work.way === 'write' && isHoldWish(getPlainWish(message.work.text))) tutor.holdLeads?.();
+      if (message.work.way === 'write' && isThinkingAloud(message.work.text)) tutor.noteQuietLine?.(message.work.text);
     }
   };
 

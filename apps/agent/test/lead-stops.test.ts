@@ -289,12 +289,13 @@ describe('their words stop it', () => {
     type('teach me rockets');
     await vi.waitFor(() => expect(leadsAsked()).toBeGreaterThan(0), { timeout: 1000 });
     type('para por favor');
-    await vi.waitFor(() => expect(asked.some(({ words }) => words === 'para por favor')).toBe(true), { timeout: 1000 });
+    await delay(100);
     expect(brain.canLead()).toBe(false);
     const heldAt = leadsAsked();
-    await delay(200);
+    await delay(100);
     expect(leadsAsked()).toBe(heldAt);
     landRead('stop');
+    await vi.waitFor(() => expect(asked.some(({ words }) => words === 'para por favor')).toBe(true), { timeout: 1000 });
     await delay(300);
     expect(leadsAsked()).toBe(heldAt);
     expect(asked.filter(({ words }) => words === 'para por favor')).toHaveLength(1);

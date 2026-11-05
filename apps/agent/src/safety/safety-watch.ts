@@ -16,7 +16,7 @@ export interface SafetyFlag {
 
 export interface SafetyWatch {
   /** A kind, or `vague` outside a school talk, has raised a flag and shown the help by the time this resolves, and `vague` in a school talk resolves as `school`. */
-  readStudent(text: string, tutorSaid: string): Promise<StudentReading>;
+  readStudent(text: string, tutorSaid: string, canVagueStandDown?: () => Promise<boolean>): Promise<StudentReading>;
   noteTurnEnd(turn: { spoken: string; safetyRead: Promise<void>; getKind(): SafetyKind | null }): void;
   showHelp(): void;
   showHelpIfRaised?(): void;
@@ -89,10 +89,11 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace, flagRetryWa
     showHelpIfRaised() {
       if (isHelpShown) showHelp();
     },
-    readStudent(text, tutorSaid) {
+    readStudent(text, tutorSaid, canVagueStandDown) {
       const before = { studentSaid, tutorSaid };
       const read = check.readStudent(text, before).then(async (firstReading) => {
-        const studentReading = isSafetyKind(firstReading) && isInSchoolTalk && (await check.fitsSchoolTalk(text, before)) ? 'vague' : firstReading;
+        const afterSchoolRead = isSafetyKind(firstReading) && isInSchoolTalk && (await check.fitsSchoolTalk(text, before)) ? 'vague' : firstReading;
+        const studentReading = afterSchoolRead === 'vague' && sessionReading === 'none' && (await canVagueStandDown?.()) ? 'none' : afterSchoolRead;
         trace('safetyRead', { reading: studentReading });
         const settled = settleReading(studentReading);
         if (isSafetyKind(settled) || settled === 'vague') {
