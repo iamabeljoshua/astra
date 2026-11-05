@@ -111,6 +111,8 @@ export interface LiveSession {
   /** Says a scene's words as a turn of its own, stopped and resumed as any reply is. False, and nothing said, unless this is a pause. */
   speakScene(beats: readonly TutorBeat[]): boolean;
   canCutInScene(): boolean;
+  /** Between two stretches of a reply, where a scene can come in with nothing to wait for. */
+  isInBreath(): boolean;
   /** Ends the reply here, at a sentence's end, and says a scene's words in its place. The brain hears exactly what the student heard. False, and nothing changes, if the student has the floor. */
   cutInScene(beats: readonly TutorBeat[]): boolean;
   close(): Promise<void>;
@@ -670,7 +672,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
 
   const isAtPause = () => isClearToLand() && !isTutorTalking() && !thought && !isThinking && getNowMs() - askedAtMs >= ROOM_TO_ANSWER_MS;
 
-  const canCutInScene = () => isClearToLand() && reply !== null && reply.canResume && !reaction && !thought?.isScene;
+  const isInBreath = () => reply === null && stretchBeforeBreath !== null;
+
+  const canCutInScene = () => isClearToLand() && (isInBreath() || (reply !== null && reply.canResume)) && !reaction && !thought?.isScene;
 
   // The rest of the reply goes, and what was heard stays with the brain, in the same order a student's line cuts a reply.
   const startSceneThought = (beats: readonly TutorBeat[]) => {
@@ -736,6 +740,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     reaction?.spoken.stop();
     reaction = null;
     if (reply) {
+      if (!action.keepsThought && thought?.isScene) onSceneCut?.({ reports: reply.reports, wordsSent: reply.spoken.getWordsSent() });
       if (!action.keepsThought) noteCutForBrain(reply);
       reply.spoken.stop();
       cut = action.keepsThought ? reply : null;
@@ -1101,13 +1106,14 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       tutor.dropPreparedLead?.();
       spokenTicket += 1;
       resumeTicket += 1;
-      noteCutForBrain(reply);
+      if (reply) noteCutForBrain(reply);
       reply?.spoken.stop();
       lastStretch = null;
       dropThought();
       startSceneThought(beats);
       return true;
     },
+    isInBreath,
     async close() {
       clearInterval(linkChecker);
       clearTimeout(voiceStall);

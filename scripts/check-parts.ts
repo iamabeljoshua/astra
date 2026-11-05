@@ -3,7 +3,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { chromium, type Page } from 'playwright';
 import { getCoreSource, getPartCatalogue, type PartDefinition } from '../apps/agent/src/scenes/recipe/catalogue.ts';
-import { compileRecipe, getRecipeTiming, type SceneRecipe } from '../apps/agent/src/scenes/recipe/recipe.ts';
+import { compileRecipe, getRecipeTiming } from '../apps/agent/src/scenes/recipe/recipe.ts';
+import { getWholePartRecipe } from '../apps/agent/src/scenes/recipe/whole-part.ts';
 import { buildKitFramePage, getNeededTextures } from '../packages/board/src/scene3d/index.ts';
 import { SCENE_ENGINE_VERSIONS } from '../packages/contracts/src/index.ts';
 
@@ -11,23 +12,6 @@ const ROOT = join(import.meta.dirname, '..');
 const GPU_FLAGS = ['--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--use-mock-keychain', '--mute-audio'];
 const DRAW_TIMES = [1.5, 4, 7, 11, 16, 4, 1.5];
 const BROKEN_SCENE = /unknown|failed|bad expression|needs points|not loaded|duplicate part/i;
-
-/** Runs every motion a part has, so a part that only misbehaves while moving is caught. */
-export function getWholePartRecipe(part: PartDefinition): SceneRecipe {
-  const motions = Object.keys(part.motions);
-  return {
-    topic: part.name,
-    stage: part.stage ?? 'studio',
-    says: [{ m: 'first', text: 'A line that gives the part a moment to stand still before it moves.' }, { m: 'second', text: 'A line long enough to run its motions for a good while, so they go round.' }, { m: 'third', text: 'A last line, so the part settles back on the whole thing in the frame.' }],
-    items: [{ id: 'main', part: part.name }],
-    moves: motions.map((motion) => ({ item: 'main', motion, on: 'second' })),
-    labels: part.anchors.slice(0, 5).map((anchor) => ({ text: anchor, at: `main.${anchor}`, show: 'first' })),
-    arrows: [],
-    flows: [],
-    gauges: [],
-    cams: [{ on: 'first', look: 'main', view: 'front', zoom: 1 }],
-  };
-}
 
 async function checkPart(page: Page, part: PartDefinition, kitBundle: string): Promise<string[]> {
   const recipe = getWholePartRecipe(part);

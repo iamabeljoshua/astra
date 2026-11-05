@@ -3,6 +3,7 @@ import type { PartCatalogue, PartDefinition } from './catalogue.ts';
 const MOST_SAYS = 8;
 const FEWEST_SAYS = 2;
 const MOST_LINE_CHARACTERS = 160;
+const MOST_REASON_CHARACTERS = 500;
 const MOST_LABEL_WORDS = 4;
 const MOST_LABEL_CHARACTERS = 40;
 const MOST_ITEMS = 6;
@@ -122,6 +123,7 @@ export const createRecipeDraft = (): RecipeDraft => ({ fit: { kind: 'unknown' },
 type Written = Record<string, unknown>;
 
 const readText = (value: unknown, mostCharacters: number): string | undefined => (typeof value === 'string' && value.trim() !== '' && value.length <= mostCharacters ? value.trim() : undefined);
+const readReason = (value: unknown): string => (typeof value === 'string' ? value.trim().slice(0, MOST_REASON_CHARACTERS) : '');
 const readMoment = (value: unknown): string | undefined => (typeof value === 'string' && MOMENT_ID.test(value) ? value : undefined);
 const readItemId = (value: unknown): string | undefined => (typeof value === 'string' && ITEM_ID.test(value) ? value : undefined);
 const readNumber = (value: unknown, lowest = -MOST_COORDINATE, highest = MOST_COORDINATE): number | undefined => (typeof value === 'number' && Number.isFinite(value) && value >= lowest && value <= highest ? value : undefined);
@@ -152,7 +154,7 @@ function readArgs(value: unknown): RecipeItem['args'] | undefined {
   if (!isPlainObject(value)) return undefined;
   const entries = Object.entries(value).slice(0, MOST_ARG_ENTRIES).flatMap(([name, arg]) => {
     const read = readArg(arg);
-    return read === undefined ? [] : [[name, read] as const];
+    return read === undefined || readItemId(name) === undefined ? [] : [[name, read] as const];
   });
   return entries.length > 0 ? Object.fromEntries(entries) : undefined;
 }
@@ -161,7 +163,7 @@ const readStage = (value: unknown): RecipeStage => (STAGES as readonly unknown[]
 
 function addFit(draft: RecipeDraft, line: Written): void {
   const topic = readText(line.topic, MOST_LINE_CHARACTERS) ?? '';
-  draft.fit = line.in === true ? { kind: 'fits', topic, stage: readStage(line.stage) } : { kind: 'noFit', topic, why: readText(line.why, MOST_LINE_CHARACTERS * 2) ?? '' };
+  draft.fit = line.in === true ? { kind: 'fits', topic, stage: readStage(line.stage) } : { kind: 'noFit', topic, why: readReason(line.why) };
 }
 
 function addSay(draft: RecipeDraft, line: Written): boolean {
@@ -245,7 +247,7 @@ export function addRecipeLine(draft: RecipeDraft, rawLine: string): void {
   if (line === '' || line.startsWith('```')) return;
   try {
     const parsed = JSON.parse(line) as Written;
-    const reader = typeof parsed.t === 'string' ? LINE_READERS[parsed.t] : undefined;
+    const reader = typeof parsed.t === 'string' && Object.hasOwn(LINE_READERS, parsed.t) ? LINE_READERS[parsed.t] : undefined;
     if (!reader || !reader(draft, parsed)) draft.unreadLines += 1;
   } catch {
     draft.unreadLines += 1;
@@ -315,7 +317,7 @@ function keepWhere<Shape>(list: readonly Shape[], isKept: (one: Shape) => boolea
 
 const isLabelWordingFine = ({ text, sub }: RecipeLabel) => text.split(/\s+/).length <= MOST_LABEL_WORDS && !ADDRESS.test(text) && !ADDRESS.test(sub ?? '');
 
-// A bad label or arrow is dropped, because a missing label is safe and a wrong one is not. A wrong part, or no words, refuses the whole recipe.
+// A bad label or arrow is dropped, because a missing label is safe and a wrong one is not. A wrong main part, or no words, refuses the whole recipe, and anything beside a whole scene is dropped.
 export function checkRecipe(draft: RecipeDraft, parts: PartCatalogue): CheckedRecipe {
   const problems: string[] = [];
   const dropped: string[] = [];
@@ -326,7 +328,7 @@ export function checkRecipe(draft: RecipeDraft, parts: PartCatalogue): CheckedRe
   const items = keepItems(getWholeSceneItems(draft.items, parts, dropped), moments, parts, problems);
   const itemParts = new Map(items.flatMap((item) => (parts.get(item.part) ? [[item.id, parts.get(item.part) as PartDefinition] as const] : [])));
   const facts: CheckFacts = { moments, momentOrder: draft.says.map(({ m }) => m), itemParts, items };
-  const moves = keepWhere(draft.moves, ({ item, motion, on }) => motion in (itemParts.get(item)?.motions ?? {}) && moments.has(on), ({ item, motion }) => `move ${motion} on ${item}`, dropped).map((move) => keepKnownMoment(move, 'off', moments));
+  const moves = keepWhere(draft.moves, ({ item, motion, on }) => Object.hasOwn(itemParts.get(item)?.motions ?? {}, motion) && moments.has(on), ({ item, motion }) => `move ${motion} on ${item}`, dropped).map((move) => keepKnownMoment(move, 'off', moments));
   const labels = keepWhere(draft.labels, (label) => isKnownTarget(label.at, facts) && moments.has(label.show) && isOnStageBy(label.at, label.show, facts) && isLabelWordingFine(label), ({ text, at }) => `label "${text}" at ${at}`, dropped).map((label) => keepKnownMoment(label, 'hide', moments));
   const keepArrows = (list: readonly RecipeArrow[]) => keepWhere(list, ({ from, to, show }) => isKnownTarget(from, facts) && isKnownTarget(to, facts) && moments.has(show), ({ from, to }) => `arrow from ${String(from)} to ${String(to)}`, dropped).map((arrow) => keepKnownMoment(arrow, 'hide', moments));
   const gauges = keepWhere(draft.gauges, ({ on }) => moments.has(on), ({ label }) => `gauge ${label}`, dropped);
@@ -341,7 +343,7 @@ export function getRecipeTiming(says: readonly RecipeLine[]): { moments: Record<
   let atCharacter = 0;
   const toSeconds = (characters: number) => Number((characters / NOMINAL_CHARACTERS_PER_SECOND).toFixed(TIME_DECIMALS));
   for (const { m, text } of says) {
-    moments[m] ??= toSeconds(atCharacter);
+    if (!Object.hasOwn(moments, m)) moments[m] = toSeconds(atCharacter);
     atCharacter += text.length + 1;
   }
   return { moments, durationSeconds: Number((toSeconds(atCharacter) + SECONDS_AFTER_LAST_WORD).toFixed(TIME_DECIMALS)) };

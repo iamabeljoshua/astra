@@ -26,6 +26,7 @@ const OPENING_WAIT_MS = 2500;
 export interface FastSceneHooks {
   makeWork(input: SceneWorkInput): SceneWork;
   canCutIn(): boolean;
+  isInBreath(): boolean;
   cutIn(beats: readonly TutorBeat[]): boolean;
   mostAsks: number;
   askLimitMs: number;
@@ -220,7 +221,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       give(beats);
       return;
     }
-    const cutIn = at === 'sentence' && ask.canLandOnSentence ? fast : undefined;
+    const cutIn = (at === 'sentence' || fast?.isInBreath()) && ask.canLandOnSentence ? fast : undefined;
     if (cutIn ? !cutIn.canCutIn() : !canSpeak()) {
       if (at === 'pause') ask.recheck = setTimeout(() => land(ask), RECHECK_PAUSE_MS);
       return;
@@ -275,7 +276,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
     }
     const request = isCard ? cardTitle : topic;
     const onChange = (state: SceneState) => onDeskChange(ask, state);
-    const work: SceneWork = fast ? fast.makeWork({ request, isCard, studentId, lessonTitle, canPlayTakes, getNowMs, onChange }) : createLessonWork({ router, runs, store, request, isCard, studentId, getNowMs, isOnlyForScene: true, onChange });
+    const work: SceneWork = fast ? fast.makeWork({ request, isCard, studentId, canPlayTakes, getNowMs, onChange }) : createLessonWork({ router, runs, store, request, isCard, studentId, getNowMs, isOnlyForScene: true, onChange });
     const ask: SceneAsk = { topic, work, askedAtMs: getNowMs(), askLimit: null, windowLimit: null, recheck: null, page: { kind: 'notAsked' }, isAhead, isOpening: isCard && !isAhead && opening.kind === 'possible', canLandOnSentence: true };
     works.push(work);
     trace('sceneAsked', { text: topic, isCard, isAhead });
@@ -379,7 +380,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       send(getLoadMessage(moved.move.scene));
       return sayWordsLeft();
     }
-    if (moved.move.kind === 'needsScene' && !current) ask(title);
+    if (moved.move.kind === 'needsScene' && !current && ![...askedTopics].some((asked) => isSameTopic(asked, title))) ask(title);
   };
 
   return {
@@ -446,6 +447,7 @@ export function createTutorScenes({ router, runs, store, getCardTitle, getNowMs,
       if (message.type === 'sceneRefused') return end(pending, 'refusedByPage');
       clearTimeout(pending.page.limit);
       pending.page = { kind: 'loaded', scene: pending.page.scene };
+      trace('scenePageHas', { afterMs: Math.round(getNowMs() - pending.askedAtMs) });
       land(pending);
     },
     notePause() {

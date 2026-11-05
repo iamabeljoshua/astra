@@ -13,7 +13,7 @@ interface ExpectedWord {
   startMs: number | null;
 }
 
-const ENDS_A_SENTENCE = /[.!]["')\]]*$/;
+const ENDS_A_SENTENCE = /[.!?]["')\]]*$/;
 
 // A voice names words its own way, so its words are matched to ours by position and `atWord` always counts ours. Beats arrive as the brain writes them.
 export function createWordTimeline(beats: readonly Beat[] = []) {
@@ -50,7 +50,7 @@ export function createWordTimeline(beats: readonly Beat[] = []) {
     return sent;
   };
 
-  /** True once for each sentence end whose next word starts by `positionMs`. A question holds the floor, so it is not a break. */
+  /** True once for each sentence end whose next word starts by `positionMs`. A question with more words after it is one the tutor answers itself, so it counts, and one that ends the reply has no next word. */
   const hasCrossedSentenceBreak = (positionMs: number): boolean => {
     let hasCrossed = false;
     for (; breakCursor < expected.length; breakCursor += 1) {

@@ -115,11 +115,15 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
 
   return {
     async load(sceneId, durationSeconds, engine?: SceneEngine) {
+      // A scene from parts has no 2D take, so with fast scenes on nothing boots that engine to find out.
+      if (engine === 'kit' && getCanDrawRecipes() && (await open(sceneId, !getCanPlayKit()))) {
+        onChange();
+        return true;
+      }
       if (engine !== 'kit' || !getCanPlayKit()) {
         const isLoaded = await flat.load(sceneId, durationSeconds);
         onChange();
-        if (isLoaded || engine !== 'kit' || !getCanDrawRecipes()) return isLoaded;
-        return open(sceneId, true);
+        return isLoaded;
       }
       const kitOpening = open(sceneId);
       const hasFlat = await flat.load(sceneId, durationSeconds);
@@ -127,9 +131,9 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
       return hasFlat || kitOpening;
     },
     async prepare(sceneId, engine?: SceneEngine) {
+      if (engine === 'kit' && getCanDrawRecipes() && (await open(sceneId, !getCanPlayKit()))) return true;
       const kitOpening = engine === 'kit' && getCanPlayKit() ? open(sceneId) : Promise.resolve(false);
-      const isHeld = (await flat.prepare(sceneId)) || (await kitOpening);
-      return isHeld || (engine === 'kit' && !getCanPlayKit() && getCanDrawRecipes() ? open(sceneId, true) : false);
+      return (await flat.prepare(sceneId)) || kitOpening;
     },
     draw(sceneId, seconds) {
       lastDrawnId = sceneId;

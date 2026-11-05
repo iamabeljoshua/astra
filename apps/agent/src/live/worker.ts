@@ -95,7 +95,11 @@ async function runSession(context: JobContext): Promise<void> {
   const sceneHooks = {
     onAskScene: (topic: string) => scenes?.onTutorAsk(topic),
     onStudentWords: (words: string) => scenes?.queue?.noteStudentWords(words),
-    onLessonChange: (state: LessonState, event: LessonEvent | null) => scenes?.queue?.onLesson(state, event),
+    onLessonChange(state: LessonState, event: LessonEvent | null) {
+      scenes?.queue?.onLesson(state, event);
+      // A planner's opening names no new title, and the tutor does not always ask, so with fast scenes the plan's topic asks too.
+      if (hasFastScenes() && state.active) scenes?.noteTopic(state.active.plan.topic);
+    },
     getPictureTopic: () => scenes?.queue?.getPictureTopic() ?? null,
     onSafetyReply() {
       scenes?.noteSafetyReply();
@@ -172,6 +176,7 @@ async function runSession(context: JobContext): Promise<void> {
       canSpeak: session.isAtPause,
       speak: session.speakScene,
       canCutIn: session.canCutInScene,
+      isInBreath: session.isInBreath,
       cutIn: session.cutInScene,
       getLevel: () => brain.getStudentLevel?.() ?? null,
       isTutorClosed: () => brain.getClosedReason?.() != null,

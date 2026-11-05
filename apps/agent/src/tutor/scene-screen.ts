@@ -82,6 +82,9 @@ export function takeOwedCommands(screen: Screen): { screen: Screen; owed: readon
   return { screen: { ...screen, owed: [] }, owed: screen.owed };
 }
 
+// A scene that comes back has a new element, because the old one was hidden, so its words must drive the new one.
+const getBeatsAimedAt = (beats: readonly TutorBeat[], from: ElementId, to: ElementId): TutorBeat[] => beats.map((beat) => ({ ...beat, script: beat.script.map((part) => (typeof part !== 'string' && part.kind === 'runSimulation' && part.target === from ? { ...part, target: to } : part)) }));
+
 const isAboutTitle = (one: ScreenScene, title: string) => (one.lessonTitle !== null && one.lessonTitle.trim().toLowerCase() === title.trim().toLowerCase()) || isSameTopic(one.scene.topic, title);
 
 function getBackCommands(back: ScreenScene, elementId: ElementId): SceneCommand[] {
@@ -99,5 +102,5 @@ export function noteLessonTitle(screen: Screen, title: string, newElementId: Ele
   const hide: SceneCommand[] = onScreen ? [{ kind: 'hide', target: onScreen.elementId }] : [];
   const back = shelved.find((one) => isAboutTitle(one, title));
   if (!back) return { screen: { onScreen: null, shelved: remaining, owed: [...screen.owed, ...hide] }, move: { kind: 'needsScene' } };
-  return { screen: { onScreen: { ...back, elementId: newElementId, lessonTitle: title, studentTurnsAway: 0 }, shelved: remaining.filter((one) => one !== back), owed: [...screen.owed, ...hide, ...getBackCommands(back, newElementId)] }, move: { kind: 'back', scene: back.scene } };
+  return { screen: { onScreen: { ...back, elementId: newElementId, lessonTitle: title, left: getBeatsAimedAt(back.left, back.elementId, newElementId), studentTurnsAway: 0 }, shelved: remaining.filter((one) => one !== back), owed: [...screen.owed, ...hide, ...getBackCommands(back, newElementId)] }, move: { kind: 'back', scene: back.scene } };
 }
