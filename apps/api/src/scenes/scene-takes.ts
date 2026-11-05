@@ -57,7 +57,7 @@ export interface KitTakeRecord {
   timing: { moments: Record<string, number>; duration: number };
 }
 
-/** One format for a stored scene and a live one. Its times are always the record's, so the 3D scene runs on the same clock as the 2D take. */
+/** One format for a stored scene and a live one. */
 export function findCheckedKitTake({ storeRoot, sceneId, studentId }: { storeRoot: string | undefined; sceneId: string; studentId: string }): KitTakeRecord | null {
   if (!storeRoot || existsSync(join(storeRoot, 'flags', `${sceneId}.json`))) return null;
   const record = readRecord<SceneRecord>(join(storeRoot, 'scenes', sceneId, 'scene.json'));

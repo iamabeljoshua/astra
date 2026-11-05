@@ -2,7 +2,6 @@ import { guardLoops } from './guard-loops.ts';
 
 export const KIT_FRAME_CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; font-src data:; img-src data: blob:; media-src 'none'; connect-src 'none'; worker-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'";
 
-// The labels' colours for each theme come from `THEME_CSS` in studio.js, which the scene's build adds.
 const FRAME_CSS = `
 html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Barlow,system-ui,sans-serif}
 canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
@@ -29,15 +28,12 @@ canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 const toScriptText = (source: string) => source.replace(/<\/script/gi, '<\\/script').replace(/<!--/g, '<\\!--');
 
 export interface KitFramePageInput {
-  /** The built kit, the text of `apps/web/public/scene-kit/<version>/kit.js`. */
   kitBundle: string;
-  /** A scene's `scene.js`, which declares `function scene(kit)`. */
   code: string;
-  /** `@font-face` rules with data: URLs, because the page can fetch nothing. Empty falls back to a system font. */
   fontCss?: string;
 }
 
-/** The whole sandboxed page for one scene, set as the `srcdoc` of an `<iframe sandbox="allow-scripts">`. A random name holds the guard, so a scene cannot shadow it. Throws on a syntax error. */
+/** The whole sandboxed page for one scene, set as the `srcdoc` of an `<iframe sandbox="allow-scripts">`. */
 export function buildKitFramePage({ kitBundle, code, fontCss = '' }: KitFramePageInput): string {
   const guardName = `__guard${crypto.randomUUID().replaceAll('-', '')}`;
   const scene = `window.__scene=(function(${guardName}){${toScriptText(guardLoops(code, guardName))}\n;return typeof scene==='function'?scene:null;})(window.__guard);`;

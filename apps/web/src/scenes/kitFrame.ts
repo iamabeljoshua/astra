@@ -6,13 +6,10 @@ const KIT_BASE = `/scene-kit/${SCENE_ENGINE_VERSIONS.kit}`;
 const FONT_WEIGHTS = [400, 500, 600];
 const PING_EVERY_MS = 500;
 const MOST_MISSED_PINGS = 4;
-/** A frame on screen that has not drawn by now is a black box to the student, so it counts as failed. */
 const FIRST_DRAW_LIMIT_MS = 2000;
-/** A silently dropped part or moment means the picture is not what was reviewed. */
 const BROKEN_SCENE = /unknown|failed|bad expression|needs points|not loaded|duplicate part/i;
 
 export interface KitFrame {
-  /** Whether the sandbox has said it drew a frame on screen since the scene last built. */
   hasDrawn(): boolean;
   render(seconds: number): void;
   setTheme(theme: KitTheme): void;
@@ -77,13 +74,11 @@ export interface OpenKitFrameInput {
   take: KitTake;
   theme: KitTheme;
   limitMs: number;
-  /** The frame stopped answering or threw after it was ready. It is already gone. */
-  onStall(): void;
-  /** The frame just proved it draws on screen, which a still page has no other way to hear. */
+  onLost(): void;
   onFirstDraw(): void;
 }
 
-export async function openKitFrame({ host, take, theme, limitMs, onStall, onFirstDraw }: OpenKitFrameInput): Promise<KitFrame> {
+export async function openKitFrame({ host, take, theme, limitMs, onLost, onFirstDraw }: OpenKitFrameInput): Promise<KitFrame> {
   const [{ kitBundle, fontCss }, textures] = await Promise.all([getSharedFiles(), getTextures(take.code)]);
   const page = buildKitFramePage({ kitBundle, fontCss, code: take.code });
   const iframe = createFrameElement(page);
@@ -114,7 +109,7 @@ export async function openKitFrame({ host, take, theme, limitMs, onStall, onFirs
     settleOpen = null;
     dispose();
     if (opening) opening.reject(new Error(reason));
-    else onStall();
+    else onLost();
   };
 
   const startPinging = () => {
@@ -148,7 +143,6 @@ export async function openKitFrame({ host, take, theme, limitMs, onStall, onFirs
       if (next === currentTheme) return;
       currentTheme = next;
       hasDrawn = false;
-      // A scene reads the theme as it builds, so it builds again, as a 2D take fetches its other theme.
       iframe.srcdoc = page;
     },
     resize: () => tell({ type: 'resize' }),
@@ -156,7 +150,6 @@ export async function openKitFrame({ host, take, theme, limitMs, onStall, onFirs
   };
 
   const onReply: { [Type in KitFrameReply['type']]?: (reply: Extract<KitFrameReply, { type: Type }>) => void } = {
-    // A browser with no atomic move reloads a moved frame, and the page only has to send it the scene again.
     loaded: () => tell({ type: 'load', timing: take.timing, textures, theme: currentTheme }),
     ready({ issues }) {
       const broken = issues.find((issue) => BROKEN_SCENE.test(issue));

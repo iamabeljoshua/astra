@@ -24,7 +24,6 @@ interface SharedBoardProps {
   liveRow?: ReactNode;
   lineInTheBand?: string | null;
   onFixReading?: (text: string) => void;
-  /** Said where the board has nothing on it, because an empty panel on the dark theme reads as a broken black box. */
   emptyNote?: string;
 }
 

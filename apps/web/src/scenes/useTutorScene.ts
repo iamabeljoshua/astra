@@ -37,11 +37,15 @@ export interface TutorScene {
   onContainer(container: HTMLElement | null): void;
 }
 
+function getLatestScene(board: BoardState) {
+  const content = [...board.elements.values()].filter((element) => element.content.kind === 'richScene').at(-1)?.content;
+  return content?.kind === 'richScene' ? content : null;
+}
+
 /** A stage with its parking place, for as long as the screen is open. */
 function useSceneHost(isEnabled: boolean): TutorScene {
   const [stage, setStage] = useState<SceneStage | null>(null);
   const parts = useRef<{ parking: HTMLElement; host: HTMLElement } | null>(null);
-  // A still replay renders only when told, so a take finishing its load has to say so.
   const [, noteStageChange] = useState(0);
 
   useEffect(() => {
@@ -119,12 +123,10 @@ export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): Tuto
   return scene;
 }
 
-/** A replay has no tutor to say a scene is coming, so the scene on its board at this moment is what it loads. If it cannot, the board or the card's picture shows. */
 export function useReplayScene(board: BoardState, isEnabled: boolean): TutorScene {
   const scene = useSceneHost(isEnabled);
   const { stage } = scene;
-  const element = [...board.elements.values()].filter(({ content }) => content.kind === 'richScene').at(-1)?.content;
-  const { sceneId, durationSeconds, engine } = element?.kind === 'richScene' ? element : { sceneId: null, durationSeconds: 0, engine: undefined };
+  const { sceneId, durationSeconds, engine } = getLatestScene(board) ?? { sceneId: null, durationSeconds: 0, engine: undefined };
 
   useEffect(() => {
     if (stage && sceneId !== null) void stage.load(sceneId, durationSeconds, engine);
@@ -134,6 +136,6 @@ export function useReplayScene(board: BoardState, isEnabled: boolean): TutorScen
 }
 
 export function hasDrawableScene(board: BoardState, stage: SceneStage | null): boolean {
-  const scene = [...board.elements.values()].filter((element) => element.content.kind === 'richScene').at(-1)?.content;
-  return Boolean(stage && scene?.kind === 'richScene' && stage.canDraw(scene.sceneId));
+  const scene = getLatestScene(board);
+  return Boolean(stage && scene && stage.canDraw(scene.sceneId));
 }

@@ -16,7 +16,7 @@ interface FakeFrame {
 
 const fakes = vi.hoisted(() => ({
   flat: { load: vi.fn(), prepare: vi.fn(), draw: vi.fn(), canDraw: vi.fn(), free: vi.fn() },
-  opened: [] as { input: { onStall(): void; onFirstDraw(): void }; frame: FakeFrame; setDrawn(): void }[],
+  opened: [] as { input: { onLost(): void; onFirstDraw(): void }; frame: FakeFrame; setDrawn(): void }[],
   openKitFrame: vi.fn(),
   getTake: vi.fn(),
 }));
@@ -44,7 +44,7 @@ beforeEach(() => {
   fakes.flat.canDraw.mockReset().mockReturnValue(true);
   fakes.flat.free.mockReset();
   fakes.getTake.mockReset().mockResolvedValue(TAKE);
-  fakes.openKitFrame.mockReset().mockImplementation(async (input: { onStall(): void; onFirstDraw(): void }) => {
+  fakes.openKitFrame.mockReset().mockImplementation(async (input: { onLost(): void; onFirstDraw(): void }) => {
     let hasDrawn = false;
     const frame: FakeFrame = { hasDrawn: () => hasDrawn, render: vi.fn(), setTheme: vi.fn(), resize: vi.fn(), dispose: vi.fn() };
     fakes.opened.push({ input, frame, setDrawn: () => { hasDrawn = true; input.onFirstDraw(); } });
@@ -95,7 +95,7 @@ describe('a scene with a kit take and a 2D take', () => {
     stage.draw(SCENE, 3);
     expect(container.dataset.engine).toBe('kit');
     onChange.mockClear();
-    fakes.opened[0]?.input.onStall();
+    fakes.opened[0]?.input.onLost();
     expect(onChange).toHaveBeenCalled();
     stage.draw(SCENE, 3.5);
     expect(container.dataset.engine).toBe('flat');
@@ -146,7 +146,7 @@ describe('a live scene, which has no 2D take', () => {
   it('cannot draw once the frame stalls, so the board comes back', async () => {
     const stage = createKitSceneStage(makeContainer());
     await stage.load(SCENE, 20, 'kit');
-    fakes.opened[0]?.input.onStall();
+    fakes.opened[0]?.input.onLost();
     expect(stage.canDraw(SCENE)).toBe(false);
   });
 });

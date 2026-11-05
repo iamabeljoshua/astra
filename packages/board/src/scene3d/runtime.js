@@ -1,4 +1,3 @@
-// Runs inside the sandboxed iframe. The page owns the clock and sends the time, and this only ever draws that time.
 import { createKit, mulberry } from './kit.js';
 
 const real = {
@@ -34,9 +33,9 @@ function lockDown() {
   window.setTimeout = blockedTime('setTimeout');
   window.setInterval = blockedTime('setInterval');
   for (const name of ['fetch', 'XMLHttpRequest', 'WebSocket', 'EventSource', 'RTCPeerConnection', 'webkitRTCPeerConnection', 'Worker', 'SharedWorker', 'BroadcastChannel', 'importScripts']) {
-    try { Object.defineProperty(window, name, { value: undefined, configurable: false }); } catch { /* Already gone in this browser. */ }
+    try { Object.defineProperty(window, name, { value: undefined, configurable: false }); } catch {}
   }
-  try { navigator.sendBeacon = () => false; } catch { /* Already gone in this browser. */ }
+  try { navigator.sendBeacon = () => false; } catch {}
 }
 
 window.addEventListener('error', (event) => tell({ type: 'error', phase: 'script', message: String(event.message), line: event.lineno, col: event.colno }));
@@ -48,7 +47,6 @@ console.error = (...parts) => {
   real.consoleError(...parts);
 };
 
-// A loop in scene code calls this, under a name the scene cannot know. A frame gets 250 ms and the build gets 3 s before the loop is stopped with an error.
 let guardDeadline = real.now() + LOAD_BUDGET_MS;
 window.__guard = () => {
   if (real.now() > guardDeadline) {
