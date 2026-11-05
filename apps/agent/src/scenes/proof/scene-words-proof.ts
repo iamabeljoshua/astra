@@ -9,7 +9,7 @@ import type { StudentFacts } from '../live-words/write-speech.ts';
 import { getSceneKey, createSceneStore } from '../scene-store.ts';
 import type { StoredScene } from '../scene-types.ts';
 
-// node scene-words-proof.ts --model haiku|openai --store <dir> --out <file.jsonl> [--recipe <scene.json>] [--limit <n>]. One call for each scene and student, no voice, and nothing saved to the store.
+// node scene-words-proof.ts --model haiku|openai --store <dir> --out <file.jsonl> [--topics 'a|b'] [--scene <scene.json>] [--limit <n>]. One call for each scene and student, no voice, and nothing saved to the store.
 const SAVED_TOPICS = ['What a quadratic is really asking', 'How a rocket escapes Earth', 'Why a free kick curves', 'What really causes the seasons'];
 const NOTE_WORD: Readonly<Record<string, string>> = { 'What a quadratic is really asking': 'quadratic equations', 'How a rocket escapes Earth': 'rocket speed', 'Why a free kick curves': 'free kick spin', 'What really causes the seasons': 'seasons and tilt' };
 
@@ -48,12 +48,12 @@ async function main() {
   const reader = model === 'openai' ? makeOpenAiJsonReader({ apiKey: readKey('OPENAI_API_KEY') }) : makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
   const out = getArgument('out') ?? '/dev/null';
   const store = createSceneStore(getArgument('store') ?? '');
-  const recipePath = getArgument('recipe');
-  const saved = SAVED_TOPICS.flatMap((topic) => {
+  const scenePath = getArgument('scene');
+  const saved = (getArgument('topics')?.split('|') ?? SAVED_TOPICS).flatMap((topic) => {
     const found = store.find(getSceneKey(topic));
     return found ? [found] : [];
   });
-  const scenes = [...saved, ...(recipePath ? [JSON.parse(readFileSync(recipePath, 'utf8')) as StoredScene] : [])].slice(0, Number(getArgument('limit') ?? 99));
+  const scenes = [...saved, ...(scenePath ? [JSON.parse(readFileSync(scenePath, 'utf8')) as StoredScene] : [])].slice(0, Number(getArgument('limit') ?? 99));
   writeFileSync(out, '');
   const rows: Record<string, unknown>[] = [];
   for (const scene of scenes) {

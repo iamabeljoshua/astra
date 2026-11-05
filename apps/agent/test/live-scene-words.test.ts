@@ -10,6 +10,9 @@ import { getNumbersSaid } from '../src/scenes/live-words/number-words.ts';
 import type { StudentFacts } from '../src/scenes/live-words/write-speech.ts';
 import { createSceneStore } from '../src/scenes/scene-store.ts';
 import type { LessonPlan, SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
+import { toFreshScene } from '../src/scenes/recipe/fresh-drawing.ts';
+import { toRecipeScene } from '../src/scenes/recipe/recipe-scene.ts';
+import type { SceneRecipe } from '../src/scenes/recipe/recipe.ts';
 import { createTutorScenes, getTutorSceneBeats, LIVE_WORDS_WAIT_MS } from '../src/tutor/tutor-scenes.ts';
 
 const TOPIC = 'what the slope of a line tells you';
@@ -81,6 +84,30 @@ describe('the same picture with other words', () => {
     expect(toMoments(live)).toEqual(toMoments(saved));
     expect(live.map(getBeatText).join(' ')).toContain('the same curve a ball keeps');
     expect(live.map(getBeatText).join(' ')).not.toContain('[[');
+  });
+});
+
+describe('every kind of saved picture', () => {
+  const RECIPE: SceneRecipe = { topic: 'how a bridge holds', stage: 'studio', says: [{ m: 'deck', text: 'So this is the deck, and the cars sit on it.' }, { m: 'cables', text: 'The cables pull up on it from the towers above.' }, { m: 'towers', text: 'And the towers push all that weight into the ground.' }], items: [], moves: [], labels: [], arrows: [], flows: [], gauges: [], cams: [] };
+  const KEY = { id: `scene-${'c'.repeat(40)}`, topic: RECIPE.topic, ownerId: null };
+  const STARTER = toRecipeScene({ recipe: RECIPE, code: 'function scene(kit) {}', key: KEY, costUsd: 0, writeMs: 0 });
+  const FRESH = toFreshScene({ drawing: { topic: RECIPE.topic, says: RECIPE.says, code: 'function scene(kit) {}' }, key: KEY, costUsd: 0, writeMs: 0 });
+  const WRITTEN: SceneSpeech = { setup: 'Right, so look at the deck, where the cars sit.', narration: '[[cables]] Those cables hold it up from the towers overhead. [[towers]] The towers then press all that weight down into the ground.', close: '' };
+
+  it.each([['a starter recipe', STARTER], ['a fresh drawing', FRESH]])('keeps the marks of %s, and its picture never hears the live words', (_name, scene) => {
+    const checked = checkSceneSpeech({ scene, written: WRITTEN, interests: [] });
+    expect(checked).toEqual({ isOk: true, speech: WRITTEN });
+    const toMoments = (beats: readonly Beat[]) => beats.flatMap(getCues).flatMap(({ command }) => (command.kind === 'runSimulation' && command.action === 'play' ? [String(command.until)] : []));
+    const saved = getTutorSceneBeats({ plan: scene.plan, scene, number: 1 });
+    const live = getTutorSceneBeats({ plan: WRITTEN, scene, number: 1 });
+    expect(toMoments(live)).toEqual(toMoments(saved));
+    expect(live.map(getBeatText).join(' ')).toContain('press all that weight');
+    expect(scene.recipe?.says).toEqual(RECIPE.says);
+  });
+
+  it('refuses a close on a recipe, which ends on its last moment', () => {
+    const checked = checkSceneSpeech({ scene: STARTER, written: { ...WRITTEN, close: 'What holds it up?' }, interests: [] });
+    expect(checked.isOk).toBe(false);
   });
 });
 
