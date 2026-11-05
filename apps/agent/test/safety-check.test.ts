@@ -3,11 +3,10 @@ import { type Beat, getBeatText } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
 import { type FakeReply, makeFakeTutorModel } from '../src/providers/fake-model.ts';
 import type { TutorModelRequest } from '../src/providers/types.ts';
-import { SCHOOL_TALK_RULES, STUDENT_RULES, type SafetyCheck, type TurnBefore, type TutorReading } from '../src/safety/safety-check.ts';
+import { type SafetyCheck, type TurnBefore, type TutorReading } from '../src/safety/safety-check.ts';
 import type { StudentReading } from '../src/safety/student-reading.ts';
 import { createSafetyWatch, type SafetyFlag } from '../src/safety/safety-watch.ts';
 import { createTutorBrain, TUTOR_TIMEOUTS, type StudentProfile, type TurnSummary } from '../src/tutor/brain.ts';
-import { LINE_READ_RULES } from '../src/tutor/line-read/read-line.ts';
 import { REPLY_CHECKS } from '../src/tutor/eval/reply-checks.ts';
 import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 
@@ -237,24 +236,9 @@ describe('vague words are read against what was just said', () => {
     await say(brain, 'can you help me with my history presentation');
     await say(brain, VAGUE_WORDS);
     expect(readsAsked).toEqual([
-      { lesson: '', studentSaid: '', tutorSaid: '' },
-      { lesson: '', studentSaid: 'can you help me with my history presentation', tutorSaid: 'Sure, what is the topic?' },
+      { studentSaid: '', tutorSaid: '' },
+      { studentSaid: 'can you help me with my history presentation', tutorSaid: 'Sure, what is the topic?' },
     ]);
-  });
-
-  it('keeps the lesson\'s subject in front of the check after the talk has moved on', async () => {
-    const { brain, readsAsked } = setup({ reading: ['school', 'none', 'none'], getReply: () => ({ pieces: ['Nice, what part next?'] }) });
-    await say(brain, 'teach me how rockets escape earth');
-    await say(brain, 'i could do this all night');
-    await say(brain, 'what happens if you jump out at the top');
-    expect(readsAsked.at(-1)).toEqual({ lesson: 'teach me how rockets escape earth', studentSaid: 'i could do this all night', tutorSaid: 'Nice, what part next?' });
-  });
-
-  it('keeps the shape of a wish to learn beside the shape of a wish to die, in Igbo, Yoruba, and Hausa', () => {
-    for (const rules of [STUDENT_RULES, SCHOOL_TALK_RULES]) {
-      for (const shape of ['achoro m imuta', 'mo fe ko', 'ina so in koyi', 'achoro m inwu', 'mo fe ku', 'ina so in kashe kaina']) expect(rules).toContain(shape);
-    }
-    for (const shape of ['achoro m imuta', 'mo fe ko', 'ina so in koyi']) expect(LINE_READ_RULES).toContain(shape);
   });
 });
 

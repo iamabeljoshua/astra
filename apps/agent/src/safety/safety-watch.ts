@@ -33,7 +33,6 @@ export interface SafetyWatchOptions {
 }
 
 const FLAG_RETRY_WAIT_MS = 1000;
-const MOST_LESSON_LINES = 3;
 
 const getFlagKey = ({ kind, source }: SafetyFlag) => `${kind}/${source}`;
 
@@ -45,7 +44,6 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace, flagRetryWa
   let isHelpShown = false;
   let reading: Promise<unknown> = Promise.resolve();
   let studentSaid = '';
-  let schoolLines: string[] = [];
   let isInSchoolTalk = false;
   let sessionReading: SessionReading = 'none';
 
@@ -92,12 +90,11 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace, flagRetryWa
       if (isHelpShown) showHelp();
     },
     readStudent(text, tutorSaid, canVagueStandDown) {
-      const before = { lesson: schoolLines.filter((line) => line !== studentSaid).join(' / '), studentSaid, tutorSaid };
+      const before = { studentSaid, tutorSaid };
       const read = check.readStudent(text, before).then(async (firstReading) => {
         const afterSchoolRead = isSafetyKind(firstReading) && isInSchoolTalk && (await check.fitsSchoolTalk(text, before)) ? 'vague' : firstReading;
         const studentReading = afterSchoolRead === 'vague' && sessionReading === 'none' && (await canVagueStandDown?.()) ? 'none' : afterSchoolRead;
         trace('safetyRead', { reading: studentReading });
-        if (studentReading === 'school') schoolLines = [...schoolLines, text].slice(-MOST_LESSON_LINES);
         const settled = settleReading(studentReading);
         if (isSafetyKind(settled) || settled === 'vague') {
           showHelpOnce();
