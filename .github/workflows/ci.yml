@@ -40,10 +40,20 @@ jobs:
       # The plants and the strobes need more of this job's time than it has. `pnpm test:board` runs them.
       - name: Check every deck scene for layout defects, on a laptop board in light and a phone board in dark
         run: node scripts/check-layout.ts --quick --no-plants --no-flash
-      - name: Check that a scene's sandbox stops a spinning scene and keeps it from the network, cookies, and the page
-        run: node scripts/check-kit-sandbox.ts
       - name: Fail if the other packages' tests failed
         wait-all:
+
+  # Its own job, because the job above has no time left for it under its limit.
+  kit-sandbox:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/install
+      - name: Install the browser for the sandbox check
+        run: pnpm exec playwright install chromium
+      - name: Check that a scene's sandbox stops a spinning scene and keeps it from the network, cookies, and the page
+        run: node scripts/check-kit-sandbox.ts
 
   api-and-agent:
     runs-on: ubuntu-latest
@@ -122,7 +132,7 @@ jobs:
 
   # Merges read this one status. needs.*.result reads only the jobs in needs, so the first step fails on a job left out, and the second fails on a job cancelled at its limit.
   checks:
-    needs: [typecheck-and-web, api-and-agent]
+    needs: [typecheck-and-web, kit-sandbox, api-and-agent]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 1
