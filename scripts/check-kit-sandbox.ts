@@ -147,7 +147,7 @@ check(hits.length === 0, `no request reached the server from any scene, ${hits.l
 await browser.close();
 server.close();
 if (failures.length) {
-  console.error(`${failures.length} sandbox checks failed`);
+  console.error(`${failures.length} sandbox checks failed:\n${failures.join('\n')}`);
   process.exit(1);
 }
 console.log('The sandbox held.');
