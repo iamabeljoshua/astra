@@ -3,7 +3,7 @@ import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem
 import { type AttemptReport, parseAttemptReport } from './attempts.ts';
 import { parseToolCall, type ToolCall } from './tools/tool-call.ts';
 
-/** A turn wraps up at the next sentence end past this. The prompt asks for 40 to 80, and this only stops a reply that runs away. */
+/** A turn wraps up at the next sentence end past this. The prompt asks for 40 to 70, and this only stops a reply that runs away. */
 export const TURN_WORDS_TO_WRAP = 100;
 /** A line break after fewer words than this is only a new beat, because a pause after "Okay, look." sounds odd. */
 const FEWEST_WORDS_BEFORE_A_BREATH = 6;

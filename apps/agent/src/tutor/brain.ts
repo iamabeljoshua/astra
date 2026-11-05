@@ -263,8 +263,8 @@ const MAX_ATTEMPTS = 2;
 const MOST_TOOL_CALLS_A_TURN = 3;
 /** Drawing these shows a student the step, and a ring or a pointer does not. */
 const SHOWING_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'text', 'simulate', 'table', 'timeline', 'code', 'image', 'drawing']);
-/** Varied, because a pause of one fixed length turns into a tic. The voice adds about 400 ms to each. */
-const BREATHS_MS = [300, 450, 350];
+/** Varied, because a pause of one fixed length turns into a tic. The voice's first audio and the tail of the last word add about 800 ms to each. */
+const BREATHS_MS = [150, 250, 200];
 /** A repeated opening of a few words is dropped only at the start of a retry, where it sounds like starting over, and a longer repeat anywhere. */
 const FEWEST_WORDS_IN_A_REPEAT = 4;
 const COMPACT_AT_TOKENS = 60_000;

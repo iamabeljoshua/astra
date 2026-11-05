@@ -1,8 +1,8 @@
 export type LeadKind = 'next' | 'noAnswer' | 'taskLeft' | 'taskTried';
 
 export const LEAD_TIMINGS = {
-  // A breath between teaching replies, so the student can still jump in. The voice's first audio adds about 300 ms to it.
-  firstWordAfterMs: 250,
+  // A breath between teaching replies, so the student can still jump in. The voice's first audio and the tail of the last word add about 800 ms to it.
+  firstWordAfterMs: 100,
   slowFirstWordAfterMs: 4000,
   /** A student who just made a sound or a key gets this long before a reply follows it. */
   afterStudentSignMs: 1200,

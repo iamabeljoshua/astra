@@ -58,7 +58,7 @@ const MOST_SHELVED = 8;
 const REPLIES_BEFORE_THE_EXERCISE: Record<LessonKind, number> = { handsOn: 1, teachFirst: 2 };
 const MOST_REPLIES_ON_A_STEP = 12;
 const REPLIES_ON_A_CARD_STEP = 3;
-/** A teaching reply runs 40 to 80 words, so three of them hold about what seven short ones did. */
+/** A teaching reply runs 40 to 70 words, so three of them hold about what seven short ones did. */
 const REPLIES_WHILE_LISTENING: Record<LessonKind, number> = { handsOn: 1, teachFirst: 3 };
 const REPLIES_WHILE_LISTENING_ON_A_CARD = 3;
 

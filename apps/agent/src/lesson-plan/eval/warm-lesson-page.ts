@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { chromium } from 'playwright';
 
-// Runs the rocket card on a real page in real Chrome, stops at a word limit so a proof cannot overspend, and saves the page's audio, the trace, and when each thing was done, for `read-warm-lesson.py` to measure.
+// Runs a lesson on a real page in real Chrome, stops at a word limit so a proof cannot overspend, and saves the page's audio and when each thing was done, so the pauses and gaps can be measured on what really played.
 const { values: args } = parseArgs({
   options: {
     web: { type: 'string' },
