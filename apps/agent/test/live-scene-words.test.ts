@@ -61,6 +61,7 @@ describe('what code lets a student hear', () => {
     ['words from a safety reply', withNarration('[[a]] Please tell an adult you trust, it climbs two steps at a time. [[b]] Same steady climb, the same curve a ball keeps.'), 'banned'],
     ['too few words', withNarration('[[a]] It climbs. [[b]] Steady.'), 'length'],
     ['a stray bracket', withNarration('[[a]] [laughs] It climbs two steps at a time as it moves along. [[b]] Same steady climb, the same curve, all the way.'), 'shape'],
+    ['a long dash', withNarration('[[a]] It climbs two steps at a time \u2014 as it moves along. [[b]] Same steady climb, the same curve, all the way along.'), 'shape'],
   ])('refuses %s', (_name, written, kind) => {
     expect(getProblemKinds(written)).toContain(kind);
   });

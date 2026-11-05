@@ -25,7 +25,7 @@ const LONGEST_SHARE = 1.4;
 const LONGEST_SETUP_WORDS = 20;
 const FEWEST_WORDS_A_MOMENT = 2;
 const SAME_NUMBER_WITHIN = 1e-6;
-const NOT_SPEECH = /[[\]{}<>*#_\\\n]/;
+const NOT_SPEECH = /[[\]{}<>*#_\\\n\u2013\u2014]/;
 
 const TELLS_WHAT_IT_KNOWS: readonly RegExp[] = [/\bi\s+(?:remember|recall|know|noticed|heard)\b/i, /\byou\s+(?:told|mentioned|struggled|got stuck|had trouble|found (?:this|that|it) hard)\b/i, /\blast (?:time|session|lesson|week)\b/i, /\b(?:earlier|previous|past|other) (?:session|lesson)s?\b/i, /\byour (?:notes?|profile|interests?|record|level|history|favou?rite)\b/i, /\b(?:since|because|as|given)\s+you(?:'re| are)?\s+(?:like|love|enjoy|into|a fan|play)/i, /\byou\s+(?:like|love|enjoy)\b/i, /\b(?:you(?:'re| are)|as) an? [\p{L}]+ (?:fan|player|lover)\b/iu];
 const TUTOR_NEVER_SAYS: readonly RegExp[] = [/\b(?:amazing|incredible|mind-blowing|fascinating|great question|at its core|it's worth noting|in essence|let's explore|delve|key takeaway|the secret|the trick|clever|surprise)\b/i, /(?:^|[.?!]\s+)(?:now\s+)?(?:here's|here is|there's a)\b/i];
