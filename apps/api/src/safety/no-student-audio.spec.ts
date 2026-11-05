@@ -16,6 +16,8 @@ const FILE_WRITERS: Record<string, string> = {
   'apps/agent/src/scenes/library/run-library.ts': 'a library run summary, on a developer machine',
   'apps/agent/src/scenes/library/write-entry.ts': 'a library scene plan and its code, on a developer machine',
   'apps/agent/src/scenes/lesson/voice-takes.ts': "the tutor's voice from text to speech, never a student's",
+  'apps/agent/src/scenes/recipe/catalogue.ts': "a person's approval of a part, on a developer machine",
+  'apps/agent/src/scenes/recipe/recipe-work.ts': 'topics no part could draw and review verdicts, with no student in them',
   'apps/agent/src/scenes/scene-store.ts': 'scene records, takes, and sheets',
   'apps/agent/src/scenes/spend-ledger.ts': 'lesson costs',
   'apps/agent/src/tutor/spend-ledger.ts': 'tutor costs',
