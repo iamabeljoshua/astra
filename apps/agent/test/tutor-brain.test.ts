@@ -218,9 +218,9 @@ describe('when a drawing is refused', () => {
   });
 
   it('lets a claim go when its next sentence comes with no drawing', async () => {
-    const { brain } = setup(() => reply("Here's why. ", 'Velocity has a direction, and that changes everything for us. ', 'Speed does not.'));
+    const { brain } = setup(() => reply('Take a look at why. ', 'Velocity has a direction, and that changes everything for us. ', 'Speed does not.'));
     const beats = await collect(brain, 'tell me');
-    expect(getBeatText(beats[0] as Beat).trim()).toBe("Here's why. Velocity has a direction,");
+    expect(getBeatText(beats[0] as Beat).trim()).toBe('Take a look at why. Velocity has a direction,');
     expect(getBeatText(beats.at(-1) as Beat).trim()).toBe('Speed does not.');
   });
 });
@@ -449,7 +449,7 @@ describe('a turn that runs long', () => {
   });
 
   it('ends on a sentence end wherever the commas fall', async () => {
-    const clauses = Array.from({ length: 30 }, (_, index) => `clause number ${index + 1},`).join(' ');
+    const clauses = Array.from({ length: 40 }, (_, index) => `clause number ${index + 1},`).join(' ');
     const { brain } = setup(() => reply(`${clauses} and that is the end of it. Then this is thrown away.`));
     const said = say(await collect(brain, 'tell me'));
     expect(said).toMatch(/and that is the end of it\.$|\?$/);
@@ -460,7 +460,7 @@ describe('a turn that runs long', () => {
     const { brain, summaries } = setup(() => reply(endless));
     const beats = await collect(brain, 'tell me');
     const words = say(beats).split(/\s+/).length;
-    expect(words).toBeLessThan(110);
+    expect(words).toBeLessThan(160);
     expect(SPOKEN_LINES.cutShort).toContain(getBeatText(beats.at(-1) as Beat));
     expect(beats.at(-1)?.expectsReply).toBe(true);
     expect(summaries[0]?.endedAs).toBe('ended');
@@ -833,8 +833,8 @@ describe('the prompt names what math it may write', () => {
 
 describe('the tutor prompt', () => {
   it('tells the model not to open with praise unless the student really asked something good', () => {
-    expect(TUTOR_SYSTEM).toMatch(/Do not open with praise/);
-    expect(TUTOR_SYSTEM).toMatch(/Good question/);
+    expect(TUTOR_SYSTEM).toMatch(/Never praise them for nothing/);
+    expect(TUTOR_SYSTEM).toMatch(/great question/);
   });
 });
 

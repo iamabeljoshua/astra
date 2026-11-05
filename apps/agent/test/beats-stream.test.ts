@@ -4,8 +4,8 @@ import { BeatTextReader, TURN_WORDS_TO_WRAP, type WrittenBeatParts } from '../sr
 
 const HIDE = '{"kind":"hide","target":"a"}';
 const CLEAR = '{"kind":"clearBoard"}';
-const MANY_WORDS = Array.from({ length: 130 }, (_, index) => `word${index}`).join(' ');
-const FIRST_NINETY = Array.from({ length: 90 }, (_, index) => `word${index}`).join(' ');
+const MANY_WORDS = Array.from({ length: 180 }, (_, index) => `word${index}`).join(' ');
+const WORDS_UP_TO_THE_CUT = Array.from({ length: 140 }, (_, index) => `word${index}`).join(' ');
 const ONE_LONG_WORD = 'a'.repeat(1300);
 const MANY_COMMANDS = `Watch ${CLEAR.repeat(14)}this.`;
 const BAD_SIMULATE = '{"kind":"simulate","id":"s","simulation":{"model":"bogus"}}';
@@ -54,7 +54,7 @@ const CASES: ReaderCase[] = [
   { name: 'a private use character and a hidden selector are not spoken', text: 'Watch\uE000 this\u{E0100} now.', spoken: 'Watch this now.' },
   { name: 'markdown and emoji are not spoken', text: 'This is *really* _neat_ `code` \u{1F600} now.', spoken: 'This is really neat code  now.' },
   { name: 'TeX marks are not spoken', text: 'So $x^2$ and \\frac are here.', spoken: 'So x2 and frac are here.' },
-  { name: 'a model that forgets the format stops at the turn limit', text: MANY_WORDS, spoken: FIRST_NINETY, beats: 3 },
+  { name: 'a model that forgets the format stops at the turn limit', text: MANY_WORDS, spoken: WORDS_UP_TO_THE_CUT },
   { name: 'one word longer than a beat holds', text: ONE_LONG_WORD, spoken: `${'a'.repeat(600)} ${'a'.repeat(600)} ${'a'.repeat(100)}`, beats: 3 },
   { name: 'more commands than a beat holds', text: MANY_COMMANDS, spoken: 'Watch this.', cues: Array<number>(12).fill(1), bad: 2 },
   { name: 'the same id twice in a beat', text: 'Watch {"kind":"writeMath","id":"e","tex":"x"}this {"kind":"writeMath","id":"e","tex":"y"}now.', spoken: 'Watch this now.', cues: [1], bad: 1 },
@@ -67,8 +67,10 @@ const CASES: ReaderCase[] = [
   { name: 'an oversized list speaks none of its tail', text: `Look ${LONG_LIST}here.`, spoken: 'Look here.', bad: 1 },
   { name: 'a broken command with a far closing brace keeps its words', text: 'Watch {"kind":"hide","target":"a" lets go now. And the set is 1} more.', spoken: 'Watch lets go now. And the set is 1 more.', bad: 1 },
   { name: 'a zero-width space and a bidi override are not spoken', text: 'Watch​ this‮ now.', spoken: 'Watch this now.' },
-  { name: 'a question ends the turn, so the tutor cannot answer itself', text: 'What pulls on it?\nGravity pulls on it.', spoken: 'What pulls on it?', replies: [true], textAfter: 'Gravity pulls on it.' },
-  { name: 'a question inside a line ends the turn too', text: 'What pulls on it? Gravity.\nNext.', spoken: 'What pulls on it?', replies: [true], textAfter: 'Gravity. Next.' },
+  { name: 'a question with words after it is the tutor asking itself', text: 'So why does it fall?\nGravity pulls on it.', spoken: 'So why does it fall? Gravity pulls on it.', replies: [false, false] },
+  { name: 'a question inside a line stays too', text: 'So why does it fall? Well, gravity does that.', spoken: 'So why does it fall? Well, gravity does that.', replies: [false, false] },
+  { name: 'only the question that ends the reply waits for an answer', text: 'So why does it fall? Well, gravity does that. Which way does it pull?', spoken: 'So why does it fall? Well, gravity does that. Which way does it pull?', replies: [false, false, true] },
+  { name: 'a drawing after a question it answers lands on the words after it', text: `So why does it fall? ${HIDE}Gravity pulls on it.`, spoken: 'So why does it fall? Gravity pulls on it.', cues: [0], replies: [false, false] },
   { name: 'a sentence ends its beat', text: 'Gravity pulls down. Speed drops.', spoken: 'Gravity pulls down. Speed drops.', beats: 2 },
   { name: 'a comma ends a beat once it has a few words', text: 'So the ball slows down, and then it stops.', spoken: 'So the ball slows down, and then it stops.', beats: 2 },
   { name: 'a comma after one word does not', text: 'Okay, the ball slows.', spoken: 'Okay, the ball slows.', beats: 1 },
@@ -133,22 +135,20 @@ describe('reading a model stream into beats', () => {
 
   it('wraps a long turn at the next clause, and keeps what came after out of the voice', () => {
     const sentence = 'The ball keeps climbing a little slower every single second until it stops.';
-    const text = Array.from({ length: 8 }, () => sentence).join(' ');
+    const text = Array.from({ length: 10 }, () => sentence).join(' ');
     const seen = read(text, 5);
     expect(getSpokenWords(seen.spoken).length).toBeGreaterThanOrEqual(TURN_WORDS_TO_WRAP);
     expect(getSpokenWords(seen.spoken).length).toBeLessThan(TURN_WORDS_TO_WRAP + 13);
     expect(seen.textAfter).not.toBe('');
   });
 
-  it('breathes when a sentence ends inside a beat, so a long stretch cannot hide behind a comma', () => {
-    const stretches = getStretchWords("Light travels as waves, and blue waves are shorter than red ones. Think ripples on a pond hitting a post. Short, quick ripples get bounced around by tiny things more than long, lazy ones. Here's the honest limit: the full reason involves how light shakes the electrons inside each molecule, and I'm skipping that.");
-    expect(stretches.length).toBeGreaterThan(1);
-    expect(Math.max(...stretches)).toBeLessThanOrEqual(45);
+  it('keeps a long teaching stretch in one breath when the model writes no line break', () => {
+    const sentence = 'The ball keeps climbing a little slower every single second until it stops.';
+    expect(getStretchWords(Array.from({ length: 6 }, () => sentence).join(' '))).toHaveLength(1);
   });
 
-  it('never lets a stretch pass 45 words, even with no comma and no sentence end', () => {
-    const stretches = getStretchWords(`${Array.from({ length: 80 }, (_, index) => `word${index}`).join(' ')}.`);
-    expect(Math.max(...stretches)).toBeLessThanOrEqual(45);
+  it('breathes at the line break the model wrote', () => {
+    expect(getStretchWords('The ball keeps climbing a little slower every second.\nThen it stops and falls back down to the ground.')).toHaveLength(2);
   });
 
   it('keeps a safety reply whole, with no breath in it, however long', () => {

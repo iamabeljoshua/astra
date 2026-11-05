@@ -44,7 +44,7 @@ const MOST_USD_A_REPORT = 10;
 /** Off by default, because a search claim can carry a child's details to a web search whose sub-processors Abel has not approved. Abel decides on switching it on. */
 const isFindSourceOn = () => process.env.ASTRA_FIND_SOURCE === FIND_SOURCE_ON;
 
-const getLivePrompt = (): TutorPrompt => (isFindSourceOn() ? PROMPT_VERSIONS.v3FindSource : TUTOR_PROMPT);
+const getLivePrompt = (): TutorPrompt => (isFindSourceOn() ? PROMPT_VERSIONS.v4FindSource : TUTOR_PROMPT);
 
 function makeLedger() {
   const path = process.env.ASTRA_SPEND_FILE;
@@ -245,7 +245,7 @@ export function makeTutorBrain({ roomName, jobId, trace, showSafetyHelp, onSessi
       }
     : undefined;
   if (!loadProfile) queueMicrotask(() => sceneHooks?.onCardKnown?.(null));
-  const brain = createTutorBrain({ model, prompt: sceneHooks ? withScenes(getLivePrompt()) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(safety ? { safety } : {}), ...(readers ? { readers } : {}), ...(lessonPlanner ? { lessonPlanner } : {}), ...(sceneHooks ? { onAskScene: sceneHooks.onAskScene } : {}), ...(sceneHooks?.onSafetyReply ? { onSafetyReply: sceneHooks.onSafetyReply } : {}), ...(sceneHooks?.onStudentWords ? { onStudentWords: sceneHooks.onStudentWords } : {}) });
+  const brain = createTutorBrain({ model, prompt: sceneHooks ? withScenes(getLivePrompt()) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, onPreparedLeadDropped: (usd) => caps.addTurn({ usd, voiceCharacters: 0 }), ...(safety ? { safety } : {}), ...(readers ? { readers } : {}), ...(lessonPlanner ? { lessonPlanner } : {}), ...(sceneHooks ? { onAskScene: sceneHooks.onAskScene } : {}), ...(sceneHooks?.onSafetyReply ? { onSafetyReply: sceneHooks.onSafetyReply } : {}), ...(sceneHooks?.onStudentWords ? { onStudentWords: sceneHooks.onStudentWords } : {}) });
   if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, flushSpend };
   const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const readMeaning = async (words: string) => {

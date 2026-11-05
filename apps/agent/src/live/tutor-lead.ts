@@ -1,14 +1,17 @@
 export type LeadKind = 'next' | 'noAnswer' | 'taskLeft' | 'taskTried';
 
 export const LEAD_TIMINGS = {
-  firstWordAfterMs: 1200,
+  // A breath between teaching replies, so the student can still jump in. The voice's first audio adds about 300 ms to it.
+  firstWordAfterMs: 250,
   slowFirstWordAfterMs: 4000,
-  afterQuestionMs: 12_000,
-  afterTaskMs: 40_000,
+  /** A student who just made a sound or a key gets this long before a reply follows it. */
+  afterStudentSignMs: 1200,
+  afterQuestionMs: 8000,
+  afterTaskMs: 30_000,
   // Once an ask has gone by untried, a student who is only listening should not sit through the same wait on every one.
-  afterQuestionAgainMs: 7000,
-  afterTaskAgainMs: 20_000,
-  afterTaskTriedMs: 5000,
+  afterQuestionAgainMs: 5000,
+  afterTaskAgainMs: 15_000,
+  afterTaskTriedMs: 3000,
   afterKeyMs: 8000,
   mostQuietMs: 10 * 60_000,
   // A listener and a student who walked away look the same from here, so a running lesson goes to its own end, and this is only for a plan that somehow never ends.

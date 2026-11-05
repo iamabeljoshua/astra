@@ -4,6 +4,7 @@ import { makeFakeTutorModel } from '../src/providers/fake-model.ts';
 import type { TutorModelRequest } from '../src/providers/types.ts';
 import { createTutorBrain } from '../src/tutor/brain.ts';
 import { PROMPT_VERSIONS, TUTOR_PROMPT } from '../src/tutor/prompt.ts';
+import { STAYING_SAFE_V2 } from '../src/tutor/prompts/staying-safe-v2.ts';
 import { PROMPT_V2 } from '../src/tutor/prompts/v2.ts';
 
 const struggled: MemoryLine = { kind: 'struggled', about: 'the sign', days_ago: 2, known_from: 'checked_on_board' };
@@ -176,8 +177,9 @@ describe('the prompt versions', () => {
 
   it('keeps safety and being right after the personal section, whole', () => {
     const { system } = TUTOR_PROMPT;
-    const safety = PROMPT_V2.slice(PROMPT_V2.indexOf('# Being right'));
-    expect(system.endsWith(safety)).toBe(true);
+    const safety = PROMPT_V2.slice(PROMPT_V2.indexOf('# Being right'), PROMPT_V2.indexOf('# Notes you receive'));
+    expect(system).toContain(safety);
+    expect(system).toContain(STAYING_SAFE_V2);
     expect(system.indexOf('# Teaching this student')).toBeLessThan(system.indexOf('# Staying safe'));
   });
 });

@@ -72,8 +72,9 @@ describe('a lesson from a card', () => {
 
   it('holds the exercise off for longer while the student only listens', () => {
     const afterLeads = (count: number) => Array.from({ length: count }).reduce<ReturnType<typeof atCard>>((next) => getStateAfterEvent(next, 'leadEnded'), atCard());
-    expect(getStepNote(afterLeads(6))).not.toHaveProperty('exercise_due');
-    expect(getStepNote(afterLeads(7))).toMatchObject({ exercise_due: true });
+    expect(getStepNote(afterLeads(2))).not.toHaveProperty('exercise_due');
+    expect(getStepNote(afterLeads(2))).not.toHaveProperty('worked_example_due');
+    expect(getStepNote(afterLeads(3))).toMatchObject({ exercise_due: true });
   });
 
   it('moves through every step for a student who said no exercises', () => {
@@ -247,8 +248,8 @@ describe('where a lesson ends', () => {
     for (let step = planner.getStepNote(); step && 'step' in step && !step.step.startsWith(step.step.split(' of ')[1] ?? ''); step = planner.getStepNote()) planner.moveToNextStep();
   };
 
-  it('asks for no more than 12 ideas by itself', async () => {
-    const { planner, askMore } = startPlanned(11, ({ most }) => stepsOf(most, 11));
+  it('asks for no more than 10 ideas by itself', async () => {
+    const { planner, askMore } = startPlanned(9, ({ most }) => stepsOf(most, 9));
     reachLastStep(planner);
     await vi.waitFor(() => expect(askMore).toHaveBeenCalledOnce());
     expect(askMore.mock.calls[0]?.[0].most).toBe(1);
@@ -354,7 +355,7 @@ afterEach(async () => {
   await Promise.all(sessions.splice(0).map((session) => session.close()));
 });
 
-const FAST = { ...LEAD_TIMINGS, firstWordAfterMs: 30, afterQuestionMs: 400, afterTaskMs: 500, afterQuestionAgainMs: 400, afterTaskAgainMs: 500, afterKeyMs: 400 };
+const FAST = { ...LEAD_TIMINGS, firstWordAfterMs: 30, afterStudentSignMs: 30, afterQuestionMs: 400, afterTaskMs: 500, afterQuestionAgainMs: 400, afterTaskAgainMs: 500, afterKeyMs: 400 };
 
 function startLeading({ answers, canLead = () => true, hasLessonLeft = () => true, leadTimings = FAST, quietLimitMs, onQuietLimit }: { answers(request: string, index: number): readonly TutorBeat[]; canLead?(): boolean; hasLessonLeft?(): boolean; leadTimings?: typeof FAST; quietLimitMs?: number; onQuietLimit?(): void }) {
   const asked: string[] = [];
@@ -529,7 +530,7 @@ describe('the tutor leads', () => {
   });
 
   it('stays stopped when the student presses stop', async () => {
-    const { asked, session, type } = startLeading({ answers: teaching, leadTimings: { ...FAST, firstWordAfterMs: 400 } });
+    const { asked, session, type } = startLeading({ answers: teaching, leadTimings: { ...FAST, firstWordAfterMs: 400, afterStudentSignMs: 400 } });
     type('teach me rockets');
     await vi.waitFor(() => expect(asked.length).toBe(1), { timeout: 2000 });
     await delay(100);
@@ -598,7 +599,7 @@ describe('what kind of exercise a step wants', () => {
   it('tells the tutor the kind only when the exercise is due', () => {
     const escape = getStateAfterMove(NO_LESSON, { move: 'new', plan: NUMBERS_PLAN });
     expect(getStepNote(escape)).not.toHaveProperty('exercise_kind');
-    expect(getStepNote(afterReplies(7, escape))).toMatchObject({ exercise_due: true, exercise_kind: 'problem' });
+    expect(getStepNote(getStateAfterEvent(afterReplies(7, escape), 'exampleShown'))).toMatchObject({ exercise_due: true, exercise_kind: 'problem' });
     const history = getStateAfterMove(NO_LESSON, { move: 'new', plan: { topic: 'Revolution', kind: 'teachFirst', steps: [{ teach: 'What the Jacobins wanted', exercise: 'put these events in order' }] } });
     expect(getStepNote(afterReplies(6, history))).toMatchObject({ exercise_due: true, exercise_kind: 'board' });
   });
@@ -644,32 +645,24 @@ describe('the brain in a lead', () => {
     expect(await run(brain, 'teach me gravity')).toBe('Gravity pulls back.');
   });
 
-  it('takes an opening tic off a reply', async () => {
-    for (const [written, heard] of [['Next, the exhaust pushes back.', 'The exhaust pushes back.'], ['Time for a short one, about the Moon.', 'About the Moon.'], ['Fine, skip it. The exhaust pushes back.', 'The exhaust pushes back.']] as const) {
+  it('takes an opening on "here\'s" off any sentence, and starts it on what it was going to say', async () => {
+    for (const [written, heard] of [["Here's the thing, gravity never stops.", 'Gravity never stops.'], ["Here's where it gets fun. The exhaust pushes back.", 'The exhaust pushes back.'], ["Gravity pulls. Now here's the problem: fuel is heavy.", 'Gravity pulls. Fuel is heavy.']] as const) {
       const brain = createTutorBrain({ model: reply([written]), timeouts: QUICK });
       brain.noteLead('next');
       expect(await run(brain, LEAD_WORDS.next)).toBe(heard);
     }
   });
 
-  it('takes a reply to nobody off a lead, and leaves it on a reply to a student', async () => {
-    const led = createTutorBrain({ model: reply(['Okay. Four percent of a thousand is forty.']), timeouts: QUICK });
-    led.noteLead('taskLeft');
-    expect(await run(led, LEAD_WORDS.taskLeft)).toBe('Four percent of a thousand is forty.');
-    const asked = createTutorBrain({ model: reply(['Okay. Four percent of a thousand is forty.']), timeouts: QUICK });
-    expect(await run(asked, 'what is four percent of a thousand')).toBe('Okay. Four percent of a thousand is forty.');
-  });
-
-  it('takes "Next," off a sentence later in a reply', async () => {
-    const brain = createTutorBrain({ model: reply(['A hundred minus thirty is seventy. Next, why rockets launch east.']), timeouts: QUICK });
-    brain.noteLead('taskLeft');
-    expect(await run(brain, LEAD_WORDS.taskLeft)).toBe('A hundred minus thirty is seventy. Why rockets launch east.');
-  });
-
-  it('takes the tic off a reply that opens on a command too', async () => {
-    const brain = createTutorBrain({ model: reply([' {"kind":"boardMode","mode":"teach"}Time for a quick one. The exhaust pushes back.']), timeouts: QUICK });
+  it('takes the opener off when the drawing guard landed inside it', async () => {
+    const brain = createTutorBrain({ model: reply(['First line. {"kind":"writeMath","id":"p1","tex":"1 + 1 = 2","claim":"new"}One and one.', "Here's how it runs. Gravity pulls."]), timeouts: QUICK });
+    await run(brain, 'show me a sum');
     brain.noteLead('next');
-    expect(await run(brain, LEAD_WORDS.next)).toBe('The exhaust pushes back.');
+    expect(await run(brain, LEAD_WORDS.next)).toBe('Gravity pulls.');
+  });
+
+  it('leaves the words of a safety reply alone', async () => {
+    const brain = createTutorBrain({ model: reply(["That sounds serious. Here's who can help: an adult you trust, or your local emergency number."]), timeouts: QUICK });
+    expect(await run(brain, 'someone is hurting me')).toContain("Here's who can help");
   });
 
   it('asks again quietly for a reply that announces a correction', async () => {
@@ -685,6 +678,7 @@ describe('the brain in a lead', () => {
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
     planner.noteCardLesson(NUMBERS_PLAN);
     for (let index = 0; index < 7; index += 1) planner.noteReplyEnded({ wasSafety: false, wasLead: true, spoken: '' });
+    planner.noteExampleShown();
     let index = 0;
     const model = { stream: async function* (request: { turns: { text?: string }[] }) { seen.push(JSON.stringify(request.turns)); yield { type: 'text', text: replies[Math.min(index++, replies.length - 1)] as string, isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; }, getCostUsd: () => 0, compact: async () => null, warm: async () => {} } as never;
     return createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner });

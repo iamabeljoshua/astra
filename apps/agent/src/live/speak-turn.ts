@@ -9,6 +9,12 @@ import { createWordTimeline } from './word-timeline.ts';
 
 const MS_PER_SECOND = 1000;
 const STILL_ARRIVING_MS = 300;
+/** The first words go to the voice as soon as no more are waiting behind them, so the first sound stays fast. */
+const FIRST_WORDS_WAIT_MS = 30;
+/** Chris speaks about 2.9 words a second, pauses and all, and leaning fast here would run the audio dry. */
+const MS_A_WORD_LASTS = 300;
+/** Later words wait as long as the audio already sent can cover them, because the voice only keeps its natural pauses inside one synthesis. This much is left for the voice's first audio, which is about 300 to 500 ms. */
+const VOICE_NEEDS_MS = 800;
 
 export interface TurnMessenger {
   send(message: AgentMessage): void;
@@ -55,18 +61,52 @@ export interface SpokenTurn {
   isVoiceOwing(): boolean;
   /** How many words of each beat have left the agent, the only record if the browser's report is lost. */
   getWordsSent(): Map<BeatId, number>;
+  /** Audio the voice has made and the line has not played. Infinity while the voice may still make more. */
+  getAudioLeftMs(): number;
 }
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+interface VoiceFeed {
+  noteBeatWritten(wordCount: number): void;
+  flush(): void;
+  close(): void;
+}
+
+// Sends the voice long stretches. A flush every few words gave every comma and full stop the same pause, 275 ms at the median against 472 ms for the same words sent whole.
+function createVoiceFeed(stream: tts.SynthesizeStream, getNowMs: () => number): VoiceFeed {
+  let wordsHeld = 0;
+  let sentAudioEndsAtMs: number | null = null;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const flush = () => {
+    clearTimeout(timer);
+    if (wordsHeld === 0) return;
+    sentAudioEndsAtMs = Math.max(sentAudioEndsAtMs ?? 0, getNowMs()) + wordsHeld * MS_A_WORD_LASTS;
+    wordsHeld = 0;
+    stream.flush();
+  };
+  return {
+    noteBeatWritten(wordCount) {
+      clearTimeout(timer);
+      wordsHeld += wordCount;
+      timer = setTimeout(flush, sentAudioEndsAtMs === null ? FIRST_WORDS_WAIT_MS : Math.max(0, sentAudioEndsAtMs - VOICE_NEEDS_MS - getNowMs()));
+    },
+    flush,
+    close: () => clearTimeout(timer),
+  };
+}
+
 interface TurnWork {
   options: SpeakTurnOptions;
   stream: tts.SynthesizeStream;
+  feed: VoiceFeed;
   timeline: ReturnType<typeof createWordTimeline>;
   frames: FrameQueue;
   firstSound: FirstSound;
   tracker: PlayoutTracker;
   lineTurn: LineTurn;
+  noteAudioRead(ms: number): void;
+  noteVoiceDone(): void;
   noteAudioSent(ms: number): void;
   isStopped(): boolean;
 }
@@ -89,19 +129,19 @@ function createHeldMessenger(messenger: TurnMessenger) {
   };
 }
 
-async function writeBeat({ options: { messenger, turnId, textPace }, stream, isStopped }: TurnWork, beat: Beat): Promise<void> {
+async function writeBeat({ options: { messenger, turnId, textPace }, stream, feed, isStopped }: TurnWork, beat: Beat): Promise<void> {
   const words = getSpokenWords(getBeatText(beat));
   const cues = getCues(beat);
   for (const [wordIndex, word] of words.entries()) {
     if (isStopped()) return;
     const cuesHere = cues.filter((cue) => cue.atWord === wordIndex);
-    if (textPace?.flushBeforeCues && cuesHere.length > 0) stream.flush();
+    if (textPace?.flushBeforeCues && cuesHere.length > 0) feed.flush();
     for (const cue of cuesHere) messenger.send({ type: 'cue', turnId, beatId: beat.id, atWord: cue.atWord, command: cue.command });
     stream.pushText(`${word} `);
     if (textPace) await delay(textPace.msPerWord);
   }
   if (isStopped()) return;
-  stream.flush();
+  feed.noteBeatWritten(words.length);
   messenger.send({ type: 'beatClosed', turnId, beatId: beat.id, wordCount: words.length, expectsReply: beat.expectsReply });
 }
 
@@ -115,7 +155,9 @@ async function writeText(work: TurnWork): Promise<void> {
     work.options.onBeatStarted?.(beat);
     await writeBeat(work, beat);
   }
-  if (!work.isStopped()) work.stream.endInput();
+  if (work.isStopped()) return;
+  work.feed.close();
+  work.stream.endInput();
 }
 
 // Holds the turn's first word times until the first sound is known, because they count from it.
@@ -140,6 +182,7 @@ async function readVoice(work: TurnWork): Promise<void> {
     if (!hasReadAudio) onFirstAudioRead?.(getNowMs());
     hasReadAudio = true;
     work.firstSound.noteFrame(chunk.frame);
+    work.noteAudioRead(getFrameMs(chunk.frame));
     sendWords((chunk.timedTranscripts ?? []).map((word) => ({ text: word.text, atVoiceMs: (word.startTime ?? 0) * MS_PER_SECOND })));
     work.frames.push(chunk.frame);
   }
@@ -147,6 +190,7 @@ async function readVoice(work: TurnWork): Promise<void> {
     work.firstSound.settle();
     sendWords([]);
   }
+  work.noteVoiceDone();
   work.frames.finish();
 }
 
@@ -188,12 +232,15 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
   const firstSound = createFirstSound();
   const frames = createFrameQueue();
   const stream = voice.stream();
+  const feed = createVoiceFeed(stream, getNowMs);
   const timeline = createWordTimeline();
   const lineTurn = line.takeTurn();
   const heldMessenger = createHeldMessenger(messenger);
   let isStopped = false;
   let isFinished = false;
   let audioSentMs = 0;
+  let audioReadMs = 0;
+  let isVoiceDone = false;
   const tracker = createPlayoutTracker({
     onRanDry({ atMs }) {
       const gap = { atMs: firstSound.toTimeline(atMs) };
@@ -204,11 +251,18 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
   const work: TurnWork = {
     options: { ...options, messenger: heldMessenger },
     stream,
+    feed,
     timeline,
     frames,
     firstSound,
     tracker,
     lineTurn,
+    noteAudioRead(ms) {
+      audioReadMs += ms;
+    },
+    noteVoiceDone() {
+      isVoiceDone = true;
+    },
     noteAudioSent(ms) {
       audioSentMs = ms;
     },
@@ -219,6 +273,7 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
   const stop = () => {
     if (isStopped || isFinished) return;
     isStopped = true;
+    feed.close();
     if (!heldMessenger.isHolding()) messenger.sendOnBothChannels({ type: 'stop', turnId });
     tracker.close();
     frames.discard();
@@ -243,8 +298,9 @@ export function speakTurn(options: SpeakTurnOptions): SpokenTurn {
     })
     .finally(() => {
       isFinished = true;
+      feed.close();
       lineTurn.leave();
     });
 
-  return { finished, getWordMismatches: timeline.getMismatches, isVoiceOwing: () => !timeline.isComplete(), getWordsSent: () => timeline.getWordsSent(firstSound.toTimeline(audioSentMs)), stop };
+  return { finished, getWordMismatches: timeline.getMismatches, isVoiceOwing: () => !timeline.isComplete(), getWordsSent: () => timeline.getWordsSent(firstSound.toTimeline(audioSentMs)), getAudioLeftMs: () => (isVoiceDone ? audioReadMs - audioSentMs : Number.POSITIVE_INFINITY), stop };
 }

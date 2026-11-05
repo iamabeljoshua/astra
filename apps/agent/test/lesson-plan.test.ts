@@ -511,6 +511,9 @@ describe('when the exercise is due', () => {
     planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
     expect(note(planner).exercise_due).toBeUndefined();
     planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
+    expect(note(planner).worked_example_due).toBe(true);
+    expect(note(planner).exercise_due).toBeUndefined();
+    planner.noteExampleShown();
     expect(note(planner).exercise_due).toBe(true);
   });
 

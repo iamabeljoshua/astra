@@ -125,6 +125,19 @@ export function getExerciseProblem(command: SceneCommand & { kind: 'task' }, wan
   return wanted === 'board' && wasLastWrittenWords && isWrittenWordsTask(command, memory, atTurnStart) ? 'The last exercise was written words too, and the student did not hear what you were about to set. Set something on the board this time: a pick on a part of a diagram, things to put in order with a place task, or a sentence with a blank.' : null;
 }
 
+const toWordsOfALine = (text: string) => new Set(text.toLowerCase().match(/\p{L}{3,}/gu) ?? []);
+const FEWEST_WORDS_THAT_MAKE_A_LINE = 3;
+const SHARE_THAT_IS_THE_SAME_LINE = 0.75;
+
+/** A blank in a sentence the tutor has just said tests memory, and readers counted 6 of 16 such exercises. */
+export function getRepeatedLineProblem(command: SceneCommand, saidRecently: string): string | null {
+  if (command.kind !== 'text' || !command.text.includes('___')) return null;
+  const line = toWordsOfALine(command.text);
+  const said = toWordsOfALine(saidRecently);
+  const shared = [...line].filter((word) => said.has(word)).length;
+  return line.size >= FEWEST_WORDS_THAT_MAKE_A_LINE && shared / line.size >= SHARE_THAT_IS_THE_SAME_LINE ? 'That blank is nearly word for word what you just told them, so it only tests memory, and they did not hear you set it. Set one that makes them use the idea on a new case, or join it to an earlier idea.' : null;
+}
+
 export function checkAgainstBoard(command: SceneCommand, memory: BoardMemory): CommandVerdict {
   const { lines } = memory;
   // The words after a clear lean on it, as "fresh start" does, so a refused one stops them too.
@@ -194,7 +207,7 @@ export function getMemoryOnComingBack(memory: BoardMemory): BoardMemory {
 }
 
 /** Their own words beat holding the answer back, so asking for it once is enough. */
-const ASKS_FOR_THE_ANSWER = /\b(?:just|please)\s+(?:tell|give|show)\s+me\b|\b(?:tell|give|show)\s+me\s+the\s+answer\b|\bwhat(?:'?s|\s+is)\s+the\s+answer\b|\bjust\s+the\s+answer\b/i;
+const ASKS_FOR_THE_ANSWER = /\bshow\s+me\b|\bi\s*(?:do\s*n[o'’]?t|dont)\s*know\s+how\b|\b(?:just|please)\s+(?:tell|give)\s+me\b|\b(?:tell|give|show)\s+me\s+the\s+answer\b|\bwhat(?:'?s|\s+is)\s+the\s+answer\b|\bjust\s+the\s+answer\b/i;
 
 export function getMemoryOnNewTurn(memory: BoardMemory, studentText: string): BoardMemory {
   if (!memory.openTask) return memory;
@@ -248,7 +261,7 @@ const NO_PICTURE_YET = 'You spoke as if a picture were on screen or on its way, 
 export const getPictureProblem = (text: string, { kinds }: BoardMemory): string | null => (COUNTS_ON_A_PICTURE.some((pattern) => pattern.test(text)) && ![...kinds.values()].includes('richScene') ? NO_PICTURE_YET : null);
 
 /** The prompt's own list of what the tutor may never claim, held here too, because the model still says "I'm glad you told me" to a student in crisis. */
-const CLAIMS_A_FEELING = /\bI(?:'m| am)\s+(?:(?:really|so|very|truly|just)\s+)?(?:glad|happy|sorry|worried|proud)\b|\bI\s+(?:really\s+|do\s+)?care\b|\bmatters?\s+to\s+me\b/i;
+const CLAIMS_A_FEELING = /\bI(?:'m| am)\s+(?:(?:really|so|very|truly|just)\s+)?(?:glad|happy|sorry|worried|proud)\b|\bI\s+(?:really\s+|do\s+)?care\b|\bmatters?\s+(?:more\s+)?to\s+me\b/i;
 const SAY_WHAT_IS_TRUE = 'You are an AI, so you were about to claim a feeling you do not have, and the student did not hear it. Say what is true instead, such as "that sounds serious" or "you did the right thing telling me". Keep everything else you were going to say.';
 
 export function getClaimProblem(text: string): string | null {

@@ -159,7 +159,7 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
     lessonPlanner,
     readers: createLineReaders(makeAnthropicOneWordReader({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost: (usd) => ledger.charge({ anthropicUsd: usd }) })),
     ...(memory ? { memory: { memory: { count: memory.length, notes: [...memory] } } } : {}),
-    ...(prompt === PROMPT_VERSIONS.v3FindSource ? { findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }) } : {}),
+    ...(prompt === PROMPT_VERSIONS.v3FindSource || prompt === PROMPT_VERSIONS.v4FindSource ? { findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }) } : {}),
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}${fields?.report ? `: ${String(fields.report)}` : ''}`),
     onTurnEnd(summary) {
       onTurn(summary);
