@@ -824,8 +824,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         return clearTimeout(timers.get(action.name));
       case 'setTurnCap':
         return setTurnCap(action.ms);
-      case 'holdLeads':
-        return tutor.holdLeads?.();
+      case 'noteQuietLine':
+        return tutor.noteQuietLine?.(action.words);
       case 'promptAfterSilence':
         tutor.holdLeads?.();
         reply = speakTake(['prompt'], { isReply: true });

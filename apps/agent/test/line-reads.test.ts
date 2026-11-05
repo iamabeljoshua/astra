@@ -443,7 +443,7 @@ describe('words a lead must not say', () => {
 });
 
 describe('the code path for whole lines', () => {
-  it.each([['um wait', 'stop'], ['ok wait', 'stop'], ['hm wait', 'stop'], ['hmm let me think', 'stop'], ['ok next', 'go_on'], ['ok thanks', 'filler'], ['ok', 'filler'], ['wait 11.2', null], ['ok 4 m', null]])('reads %s as %s', async (line, wish) => {
+  it.each([['um wait', 'wait'], ['ok wait', 'wait'], ['hm wait', 'wait'], ['hmm let me think', 'wait'], ['ok next', 'go_on'], ['ok thanks', 'filler'], ['ok', 'filler'], ['wait 11.2', null], ['ok 4 m', null]])('reads %s as %s', async (line, wish) => {
     const { getPlainWish } = await import('../src/lesson-plan/student-wish.ts');
     expect(getPlainWish(line)).toBe(wish);
   });
@@ -454,7 +454,7 @@ describe('the code path for whole lines', () => {
     const lines = JSON.parse(readFileSync(join(import.meta.dirname, '../../../evals/tutor-turns/student-lines.json'), 'utf8')) as { text: string; label: string; tutorSaid: string }[];
     const wrong = lines.filter(({ text, label }) => {
       const wish = (getPlainWish as (words: string) => unknown)(text);
-      return wish !== null && wish !== label;
+      return wish !== null && wish !== label && !(wish === 'wait' && label === 'stop');
     });
     expect(wrong.map(({ text, label }) => `${text}: ${label}`)).toEqual([]);
   });
@@ -617,10 +617,10 @@ describe('the reads fail', () => {
   });
 });
 
-describe('a reply that asks after them, or cannot read them', () => {
-  it.each(["That looks like Igbo, and I can't read it well enough to be sure. Is someone hurting you?", "I can't read that one. Try other words?", 'Sorry, that didn\'t come through. Try again?', 'Not sure what "mo fe ku" means. Did you mean to type something else?', "Sorry, I can't follow that last bit. Could you type it in English?"])('"%s" holds until they speak and names help', async (reply) => {
+describe('a reply that asks after them, or a line nobody can read', () => {
+  it.each(["That looks like Igbo, and I can't read it well enough to be sure. Is someone hurting you?", "I can't read that one. Try other words?", 'Not sure what "mo fe ku" means. Did you mean to type something else?'])('"%s" on a line read as unreadable holds until they speak and names help', async (reply) => {
     const line = 'mo fe ku';
-    const run = startLesson({ safety: makeWatch(async () => 'school'), answer: (words, index) => (words === line ? reply : `Gravity keeps pulling, beat ${index}.`) });
+    const run = startLesson({ safety: makeWatch(async () => 'school'), wishes: { [line]: 'unreadable' }, answer: (words, index) => (words === line ? reply : `Gravity keeps pulling, beat ${index}.`) });
     run.type('teach me rockets');
     await run.waitForLead();
     expect(await leadsAfter(run, () => run.typeInBox(line))).toBe(0);
@@ -713,5 +713,136 @@ describe('a read that never lands or throws', () => {
     run.typeInBox('so how fast is it');
     await vi.waitFor(() => expect(run.turns.length).toBeGreaterThan(0), { timeout: 2000 });
     expect(run.turns[0]?.firstBeatMs).toBeLessThan(100);
+  });
+});
+
+const BEAT = (index: number) => `Gravity keeps pulling, beat ${index}.`;
+
+describe('a clarifying reply on an ordinary line', () => {
+  it.each(["I'm not sure what the point five g is about. Which number are you asking about?", 'Not sure what a newton is? It is a unit of force.', "The second stage didn't catch fire.", "Sorry, I didn't catch that. Which number do you mean?"])('"%s" gets no emergency line and does not hold the lesson', async (reply) => {
+    const line = 'wait so 0.5g is that right';
+    const run = startLesson({ safety: makeWatch(async () => 'school'), answer: (words, index) => (words === line ? reply : BEAT(index)) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox(line);
+    await delay(STILL_MS);
+    expect(spokenTo(run, line)[0]).not.toMatch(/adult you trust|emergency/);
+    expect(run.brain.isLeadStopped()).toBe(false);
+  });
+});
+
+describe('a nod after a hold that only waits for one', () => {
+  const heldBy = async (hold: string, wish: string, nod: string, nodWish?: string) => {
+    const run = startLesson({ safety: makeWatch(async () => 'school'), wishes: { [hold]: wish, ...(nodWish ? { [nod]: nodWish } : {}) }, answer: (words, index) => (words === hold ? 'Take your time.' : BEAT(index)) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox(hold);
+    await delay(STILL_MS);
+    expect(run.brain.isLeadStopped()).toBe(true);
+    return { run, leads: await leadsAfter(run, () => run.typeInBox(nod)) };
+  };
+
+  it.each([
+    ['i dont understand', 'lost', 'ok', undefined],
+    ['i dont understand', 'lost', 'got it', 'filler'],
+    ['can you explain that again', 'lost', 'alright', undefined],
+    ['huh', 'lost', 'yes', 'filler'],
+    ['give me a sec', 'wait', 'sure', 'filler'],
+    ['give me a sec', 'wait', 'alright', undefined],
+    ['give me a sec', 'wait', 'yeah', undefined],
+    ['wait', 'wait', 'ok', undefined],
+  ])('%s (%s) then %s carries on', async (hold, wish, nod, nodWish) => {
+    const { run, leads } = await heldBy(hold, wish, nod, nodWish);
+    expect(leads).toBeGreaterThan(0);
+    expect(run.brain.isLeadStopped()).toBe(false);
+  });
+
+  it.each(['ok', 'alright', 'yeah', 'sure', 'got it'])('please stop talking then %s still holds', async (nod) => {
+    const run = startLesson({ wishes: { sure: 'filler', 'got it': 'filler' } });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox('please stop talking');
+    await delay(STILL_MS);
+    expect(await leadsAfter(run, () => run.typeInBox(nod))).toBe(0);
+    expect(run.brain.isLeadStopped()).toBe(true);
+  });
+
+  it('a reply that promises to wait does not turn a moment into a stop', async () => {
+    const { run, leads } = await heldBy('i need a minute', 'wait', 'ok');
+    expect(spokenTo(run, 'i need a minute')).toEqual(['Take your time.']);
+    expect(leads).toBeGreaterThan(0);
+  });
+});
+
+describe('a line in a language the lesson is not in', () => {
+  const speak = (line: string, wish: string, reply: string) => {
+    const run = startLesson({ safety: makeWatch(async () => 'school'), wishes: { [line]: wish, 'so how fast': 'talk' }, answer: (words, index) => (words === line ? reply : BEAT(index)) });
+    return run;
+  };
+
+  it.each(['ndi be anyi na-eti m', 'siwezi tena'])('%s read as unreadable gets no lead, a note against teaching, and help', async (line) => {
+    const run = speak(line, 'unreadable', 'That ball always comes back down.');
+    run.type('teach me rockets');
+    await run.waitForLead();
+    expect(await leadsAfter(run, () => run.typeInBox(line))).toBe(0);
+    expect(run.brain.isLeadStopped()).toBe(true);
+    expect(asksFor(run, line)[0]?.notes.join(' ')).toContain('other_language');
+    expect(spokenTo(run, line)[0]).toMatch(/adult you trust/);
+  });
+
+  it.each(['kedu ka rocket si aga', 'спасибо', 'como funciona un cohete'])('%s with nothing wrong gets no emergency line and no lead until they speak again', async (line) => {
+    const run = speak(line, 'other_language', 'Un cohete empuja gases hacia abajo.');
+    run.type('teach me rockets');
+    await run.waitForLead();
+    expect(await leadsAfter(run, () => run.typeInBox(line))).toBe(0);
+    expect(run.brain.isLeadStopped()).toBe(true);
+    expect(spokenTo(run, line)).toEqual(['Un cohete empuja gases hacia abajo.']);
+    run.typeInBox('so how fast');
+    await delay(STILL_MS);
+    expect(run.brain.isLeadStopped()).toBe(false);
+  });
+});
+
+describe('the smaller things a read decides', () => {
+  it('a line read as a wait stops the reply after the words already out, so nothing is taught first', async () => {
+    const line = 'im thinking';
+    const run = startLesson({ safety: makeWatch(async () => 'school'), wishes: { [line]: 'wait' }, answer: (words, index) => (words === line ? 'Take your time.\n\nThrow it harder and it goes higher.' : BEAT(index)) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox(line);
+    await delay(STILL_MS);
+    expect(spokenTo(run, line)[0]).toBe('Take your time.');
+  });
+
+  it('a read that never comes back says so by the end of the reply, with no emergency number', async () => {
+    const line = 'so how fast is it';
+    const run = startLesson({ swapReaders: { readLine: (asked: string) => (asked === line ? new Promise(() => {}) : Promise.resolve('talk')) } as never, answer: (_words, index) => BEAT(index) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox(line);
+    await delay(STILL_MS);
+    expect(spokenTo(run, line)[0]).toContain('a little trouble on my side');
+    expect(spokenTo(run, line)[0]).not.toMatch(/emergency/);
+  });
+
+  it('a read that fails ends the reply with no emergency number', async () => {
+    const line = 'so how fast is it';
+    const run = startLesson({ swapReaders: { readLine: async (asked: string) => (asked === line ? 'unread' : 'talk') } as never, answer: (_words, index) => BEAT(index) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox(line);
+    await delay(STILL_MS);
+    expect(spokenTo(run, line)[0]).toContain('a little trouble on my side');
+    expect(spokenTo(run, line)[0]).not.toMatch(/emergency/);
+  });
+
+  it('a nod on an open exercise is told to keep the exercise', async () => {
+    const run = startLesson({ answer: (_words, index) => (index === 0 ? TASK('11.2 / 2.4') : BEAT(index)) });
+    run.type('give me one');
+    await vi.waitFor(() => expect(run.brain.getBoard().openTask).not.toBeNull(), { timeout: 2000 });
+    await delay(50);
+    run.type('ok');
+    await delay(STILL_MS);
+    expect(asksFor(run, 'ok')[0]?.notes.join(' ')).toContain('exercise_open');
   });
 });

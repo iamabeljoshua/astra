@@ -83,7 +83,8 @@ function decideOnLine(text: string, reading: LineReading | undefined, checked: C
   const tex = reading ? getLineTex(reading) : null;
   if (status === 'right') return checked.closesTask || checked.isWorkedSumNotWrong || (tex !== null && isFinishedAnswer(tex)) ? reply('the student finished') : wait('a right line, and the student is working');
   if (status === 'unknown' && checked.verdict.offProblem !== undefined) return reply('the line does not follow from the problem on the board');
-  return tex !== null && (isFinishedAnswer(tex) || isBareAnswer(tex) || isAnswerWithUnit(tex)) ? reply('the student gave an answer code cannot judge') : wait('code cannot judge this line, so the tutor looks at a pause');
+  const isOnlyNumbers = !/\p{L}/u.test(text);
+  return tex !== null && (isFinishedAnswer(tex) || isBareAnswer(tex) || isAnswerWithUnit(tex) || isOnlyNumbers) ? reply('the student gave an answer code cannot judge') : wait('code cannot judge this line, so the tutor looks at a pause');
 }
 
 export function decideOnWork(work: StudentWork, checked: CheckedWork, hasTask: boolean): WorkDecision {

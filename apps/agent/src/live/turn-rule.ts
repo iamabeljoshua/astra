@@ -1,4 +1,3 @@
-import { getPlainWish, isHoldWish } from '../lesson-plan/student-wish.ts';
 import { LEAD_WORDS, type LeadKind } from './tutor-lead.ts';
 import { dropWordsAlreadyAnswered, hasWords, isFiller, isSmallReaction } from './turn-words.ts';
 
@@ -113,7 +112,7 @@ export type TurnAction =
   | { do: 'cancelTimer'; name: TimerName }
   | { do: 'setTurnCap'; ms: number }
   | { do: 'promptAfterSilence' }
-  | { do: 'holdLeads' };
+  | { do: 'noteQuietLine'; words: string };
 
 export interface TurnStep {
   state: TurnState;
@@ -221,7 +220,7 @@ function onTurnDecided(state: TurnState, { text }: { text: string }): TurnStep {
   const cleared = { ...state, answeredPartial: null, hasSpokenSinceAnswer: false };
   if (!hasWords(fresh)) return { state: cleared, actions: [] };
   if (isSmallReaction(fresh) && state.startedOverTutor && !state.isQuestionHeard) return { state: cleared, actions: [] };
-  if (isFiller(fresh)) return { state: { ...cleared, isWaitingOnStudent: true, partial: '', hasFinalWords: false }, actions: [startTimer('patience'), ...(isHoldWish(getPlainWish(fresh)) ? [{ do: 'holdLeads' } as const] : [])] };
+  if (isFiller(fresh)) return { state: { ...cleared, isWaitingOnStudent: true, partial: '', hasFinalWords: false }, actions: [startTimer('patience'), { do: 'noteQuietLine', words: fresh }] };
   return startReply(cleared, { fresh, carried: state.unanswered, via: 'final' });
 }
 

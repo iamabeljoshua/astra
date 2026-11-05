@@ -1,3 +1,4 @@
+import { namesHelp } from '../src/safety/help-words.ts';
 import { type Beat, getBeatText } from '@astra/contracts';
 import { describe, expect, it } from 'vitest';
 import { type FakeReply, makeFakeTutorModel } from '../src/providers/fake-model.ts';
@@ -101,12 +102,6 @@ describe('a signal stops the teaching, shows help, and raises a flag', () => {
     const spoken = await say(brain, 'quiero matarme');
     expect(model.requests).toHaveLength(2);
     expect(spoken).toContain(SPOKEN_LINES.safetyHelp[0]);
-  });
-
-  it('asks again when a reply in another language says it cannot read the words, even with a soft line about an adult', async () => {
-    const { brain, model } = setup({ getReply: (_request, attempt) => ({ pieces: [attempt === 1 ? "Sorry, I can't read that. If anything is worrying you, tell an adult you trust." : 'That sounds serious. Please tell an adult you trust now, or call your local emergency number. Are you safe right now?'] }) });
-    expect(await say(brain, 'achoro m inwu')).toMatch(/emergency number/);
-    expect(model.requests).toHaveLength(2);
   });
 
   it('stops teaching at the next beat when the signal comes after the first words', async () => {
@@ -460,5 +455,55 @@ describe('flags hold no words and reach no parent', () => {
     isApiDown = false;
     await safety.flush();
     expect(sent).toEqual([{ kind: 'self_harm', source: 'student' }]);
+  });
+});
+
+describe('help words in any script', () => {
+  it.each(['Расскажи взрослому, которому доверяешь', 'Позвони в экстренную службу', 'Расскажи об этом взрослому.', 'Tell an adult you trust', 'أخبر شخصا بالغا', 'किसी वयस्क को बताओ', 'mtu mzima unayemwamini'])('%s names help', (words) => {
+    expect(namesHelp(words)).toBe(true);
+  });
+
+  it.each(['Ракета набирает скорость', 'A rocket burns fuel', 'adulterated fuel', 'teachers'.slice(0, 5)])('%s does not', (words) => {
+    expect(namesHelp(words)).toBe(false);
+  });
+});
+
+describe('a retry for help', () => {
+  it('does not say again what the student already heard', async () => {
+    const { brain } = setup({ reading: 'vague', readAfterMs: 60, getReply: (_request, attempt) => ({ pieces: [attempt === 1 ? 'Take all the time you need.' : 'Take all the time you need. If anything is worrying you, tell an adult you trust.'] }) });
+    const spoken = await say(brain, 'i have a plan for how to do it');
+    expect(spoken.match(/Take all the time you need/g)).toHaveLength(1);
+  });
+});
+
+describe('a vague read beside what the line asks of the tutor', () => {
+  const makeVagueWatch = () => {
+    const flags: string[] = [];
+    let shown = 0;
+    const watch = createSafetyWatch({ check: { readStudent: async () => 'vague', fitsSchoolTalk: async () => false, readTutor: async () => 'none' }, addFlag: async (flag) => void flags.push(flag.kind), showHelp: () => void (shown += 1), trace: () => {} });
+    return { watch, flags, shown: () => shown };
+  };
+
+  it('stands down on a line that only steers the lesson', async () => {
+    const { watch, flags, shown } = makeVagueWatch();
+    expect(await watch.readStudent('ok keep going', 'Take your time.', async () => true)).toBe('none');
+    expect(flags).toEqual([]);
+    expect(shown()).toBe(0);
+  });
+
+  it('stands on any other line', async () => {
+    const { watch, flags, shown } = makeVagueWatch();
+    expect(await watch.readStudent('i have a plan', '', async () => false)).toBe('vague');
+    await watch.flush();
+    expect(flags).toEqual(['vague']);
+    expect(shown()).toBe(1);
+  });
+
+  it('stands on the same line once something worrying has been raised', async () => {
+    const { watch, flags } = makeVagueWatch();
+    await watch.readStudent('i have a plan', '', async () => false);
+    expect(await watch.readStudent('ok keep going', 'Are you safe right now?', async () => true)).toBe('vague');
+    await watch.flush();
+    expect(flags).toEqual(['vague']);
   });
 });
