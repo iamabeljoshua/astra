@@ -119,7 +119,7 @@ export const REPLY_CHECKS: Record<string, { why: string; onlyOnWork?: boolean; i
   namesNothingYet: { why: 'A plain idea comes before its name, so the first reply uses no term they have not met', passes: (spoken, _commands, details = NO_DETAILS) => !details.terms.some((term) => spoken.toLowerCase().includes(term)) },
   checksTheGround: { why: 'It finds out what they have before it explains, in a few words', passes: (spoken) => /\?\s*$/.test(spoken) && countWords(spoken) <= 30 },
   noTestFeel: { why: 'A check must not feel like a test', passes: (spoken) => !TEST_WORDS.test(spoken) },
-  oneStretchAtMost: { why: 'Abel chose stretches of 40 to 80 words by ear on 5 November, and past the wrap at 100 a stretch stops being one idea', passes: (_spoken, _commands, details = NO_DETAILS) => details.longestStretchWords <= 100 },
+  oneStretchAtMost: { why: 'Abel asked for about 30 words a reply on 5 November, the wrap comes at the first sentence end past 45, and a worked example or a safety reply stays whole', passes: (_spoken, commands, details = NO_DETAILS) => details.longestStretchWords <= (commands.includes('writeMath') ? 100 : 70) },
   thirtyFiveAtMost: { why: 'Simpler means shorter too', passes: (spoken) => countWords(spoken) <= 35 },
   noWelcomeBack: { why: 'The app greets them, and "Welcome back." opened 13 of 14 such replies', passes: (spoken) => !GREETING.test(spoken.trim()) },
   numberIsChecked: { why: 'T6: a worked out number is on the board, where code checks it, or came from compute', passes: (_spoken, commands, details = NO_DETAILS) => details.toolCalls.includes('compute') || commands.includes('writeMath') || commands.includes('transformMath') },
@@ -154,4 +154,5 @@ export const JUDGED_CHECKS: Record<string, string> = {
   answersTheClarification: 'The student stopped to ask what the tutor meant. Does the tutor answer that exact thing first, plainly, with no repeating of its earlier explanation word for word?',
 };
 
+export const STARTS_PLAIN_QUESTION = 'This is the first thing a tutor said to a university student who asked the question above. Would a bright ten-year-old follow every word, with an everyday example and nothing that talks down? Answer YES or NO on the first line. Then give one short reason.';
 export const LEVELS_QUESTION = 'Two tutor replies answer the same question, for two different students. Which reply is pitched at the more advanced student? Answer A or B on the first line, or SAME if a reader could not tell them apart by level. Then give one short reason.';

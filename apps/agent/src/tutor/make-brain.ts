@@ -4,6 +4,7 @@ import { askClaims, askMoreSteps, askPlanner } from '../lesson-plan/ask-planner.
 import { createLessonPlanner, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
 import type { LessonEvent, LessonState } from '../lesson-plan/plan-progress.ts';
 import { makeAnthropicJsonReader, makeAnthropicOneWordReader, makeAnthropicPictureReader, makeAnthropicSourceFinder, makeAnthropicTutorModel, TUTOR_MODEL_NAMES, type TutorModelName } from '../providers/anthropic.ts';
+import { isOpenAiModelName, makeOpenAiTutorModel, OPENAI_MODEL_NAMES } from '../providers/openai.ts';
 import { getMemoryNote } from '../learner-record/memory-note.ts';
 import { createSessionDigest } from '../learner-record/session-digest.ts';
 import { writeRecordOfRoom } from '../learner-record/write-record.ts';
@@ -44,7 +45,7 @@ const MOST_USD_A_REPORT = 10;
 /** Off by default, because a search claim can carry a child's details to a web search whose sub-processors Abel has not approved. Abel decides on switching it on. */
 const isFindSourceOn = () => process.env.ASTRA_FIND_SOURCE === FIND_SOURCE_ON;
 
-const getLivePrompt = (): TutorPrompt => (isFindSourceOn() ? PROMPT_VERSIONS.v4FindSource : TUTOR_PROMPT);
+const getLivePrompt = (): TutorPrompt => (isFindSourceOn() ? PROMPT_VERSIONS.v5FindSource : TUTOR_PROMPT);
 
 function makeLedger() {
   const path = process.env.ASTRA_SPEND_FILE;
@@ -197,7 +198,7 @@ function makeLessonPlanner({ link, caps, trace, onSessionTitle, sceneHooks }: { 
 export function makeTutorBrain({ roomName, jobId, trace, showSafetyHelp, onSessionTitle = () => {}, sceneHooks }: { roomName: string; jobId: string; trace: TraceNote; showSafetyHelp(): void; onSessionTitle?(title: string): void; sceneHooks?: SceneHooks }): MadeBrain {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
   if (name === STAND_IN) return { brain: createStandInTutor(), flushSpend: async () => {} };
-  if (name !== RECORDED && !TUTOR_MODEL_NAMES.includes(name as TutorModelName)) throw new Error(`ASTRA_TUTOR_MODEL is ${name}. Choose ${[STAND_IN, RECORDED, ...TUTOR_MODEL_NAMES].join(', ')}`);
+  if (name !== RECORDED && !isOpenAiModelName(name) && !TUTOR_MODEL_NAMES.includes(name as TutorModelName)) throw new Error(`ASTRA_TUTOR_MODEL is ${name}. Choose ${[STAND_IN, RECORDED, ...TUTOR_MODEL_NAMES, ...OPENAI_MODEL_NAMES].join(', ')}`);
   const link = makeApiLink(roomName);
   const caps = createSpendCaps({
     link,
@@ -206,7 +207,7 @@ export function makeTutorBrain({ roomName, jobId, trace, showSafetyHelp, onSessi
     sessionLimitUsd: Number(process.env.ASTRA_SESSION_LIMIT_USD ?? DEFAULT_SESSION_LIMIT_USD),
     sessionVoiceLimitCharacters: Number(process.env.ASTRA_SESSION_VOICE_LIMIT_CHARACTERS ?? DEFAULT_SESSION_VOICE_LIMIT_CHARACTERS),
   });
-  const model = name === RECORDED ? makeRecordedTutorModel() : makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') });
+  const model = name === RECORDED ? makeRecordedTutorModel() : isOpenAiModelName(name) ? makeOpenAiTutorModel({ name, apiKey: readKey('OPENAI_API_KEY') }) : makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') });
   let checkUsd = 0;
   const digest = createSessionDigest();
   const onTurnEnd = (summary: TurnSummary) => {

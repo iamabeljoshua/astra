@@ -571,6 +571,25 @@ Two facts changed, so the page changed. The microphone also opens on a hold of S
 
 **The lag step.** It did not appear on Cloud. M3.2's reviewer saw one step of about 320 ms with no report, on a simulated link with 1% loss, in 1 run of 11. Here 8 runs of 66 s of a test tone over LiveKit Cloud and the real network gave 1880 gaps between words of 280 ms, with none over 322 ms and 0 `audioGap` reports. Single gaps grew by 16 to 42 ms as the browser's jitter buffer moved, which adds up to about 40 ms over a 66 s turn. That is 8.8 minutes on one network on one night, so it says the step is not common here, and no more. The tone's words all sound alike, so `analyse-run.ts` matches them a whole word off, and these runs read the tone's own rhythm instead.
 
+## Chris on v4 turbo
+
+Abel chose `eleven_v4_turbo` by ear on 5 November, for its laugh. It is `DEFAULT_MODEL` in `providers/elevenlabs.ts`. These are one short run each on real Chris, through the product's own path, `makeElevenLabsVoice` and the plugin, with one word pushed at a time.
+
+| Measure | Flash, 84 characters | v4 turbo, 199 characters with 2 tags |
+| --- | --- | --- |
+| First audio, from the first word pushed | 948 ms | 688 and 713 ms |
+| Sample rate on the socket | 24000 Hz | 24000 Hz |
+| Credits on the account, read before and after | 18, or 0.21 a character, by subtraction | 44, or 0.22 a character |
+| Word times, set against OpenAI's transcription of the same audio, p50, p95, worst | 46, 215, 215 ms | 88, 313, 418 ms |
+
+What this path does differently, all found on the first run:
+
+- The plugin treats `eleven_v3` and `eleven_v4` as dialogue models, so the socket is `text-to-dialogue/multi-stream-input` and voice settings other than a few are ignored. Chris sets none.
+- Word times restart with each message on v4 turbo, where Flash counts from the start of the speech. Cues would have landed on the wrong words, so the plugin patch adds the audio already sent to each message's times, for `eleven_v4` models. `providers.test.ts` holds this on a fake of that socket.
+- The voice times a tag as a word, so `speakTurn` drops it before matching words by position.
+
+So word timing is looser than Flash on this one sample, and the 100 ms rule is not proved on v4 turbo. The ruler is rough, because it reads 215 ms at p95 on Flash, where the page has measured far less. On the v4 turbo sample, single words read 300 to 418 ms apart from the transcription, such as `drama` and `for`, which the same ruler does not show on Flash. No page run with a real voice has measured it at the ear. The stored reactions, "Hm." and "I see.", are still Flash takes.
+
 ## What it cost
 
 ElevenLabs: about 1,360 credits by the characters this lane sent, within the 2,000 limit. The account's own count rose more across the same hours, because M3.2's fix round spent on it at the same time, so the account alone cannot separate them. The stored takes were about 45 of those. Muse: under $0.30 by audio time, at $0.18 an hour, against the $5 limit. LiveKit Cloud: the free plan, with one room per run, each removed when its job closed. The fix round after the review spent about 492 credits by its characters, all on overlong checks of voice settings Abel then set aside, and about $0.25 on Muse by the time its sessions stayed open, on the fake voice otherwise. The account's own count moved more across those hours, because other lanes spend on it too.

@@ -1,29 +1,75 @@
 diff --git a/dist/tts.cjs b/dist/tts.cjs
-index 75f022ed42e4bff8e0be5f03ed94b8b143649c4c..b25717e6327ce1848e0bb793a9ae9f067e865d5b 100644
+index 75f022ed42e4bff8e0be5f03ed94b8b143649c4c..4381cb81c5a5229b2f3e664ed8f8fba8849c97cf 100644
 --- a/dist/tts.cjs
 +++ b/dist/tts.cjs
-@@ -453,7 +453,7 @@ class Connection {
+@@ -214,6 +214,7 @@ class Connection {
+       textBuffer: "",
+       startTimesMs: [],
+       durationsMs: [],
++      audioMs: 0,
+       firstWordOffsetMs: null,
+       timeoutMs,
+       terminate
+@@ -448,12 +449,13 @@ class Connection {
+           const starts = dialogue ? alignment.char_start_times_ms : alignment.charStartTimesMs || alignment.charsStartTimesMs;
+           const durs = dialogue ? alignment.char_durations_ms : alignment.charDurationsMs || alignment.charsDurationsMs;
+           if (chars && starts && durs && chars.length === durs.length && starts.length === durs.length) {
++            const chunkStartMs = this.#opts.model.startsWith('eleven_v4') ? ctx.audioMs : 0;
+             ctx.textBuffer += chars.join("");
+             for (let i = 0; i < chars.length; i++) {
                const char = chars[i];
-               const start = starts[i];
+-              const start = starts[i];
++              const start = starts[i] + chunkStartMs;
                const dur = durs[i];
 -              if (!dialogue && ctx.firstWordOffsetMs === null && start > 0) {
 +              if (!dialogue && ctx.firstWordOffsetMs === null) {
                  ctx.firstWordOffsetMs = start;
                }
                if (char.length > 1) {
+@@ -482,6 +484,7 @@ class Connection {
+         }
+         if (data.audio) {
+           const audioData = Buffer.from(data.audio, "base64");
++          ctx.audioMs += (audioData.length / 2 / sampleRateFromFormat(this.#opts.encoding)) * 1000;
+           stream2.pushAudio(audioData);
+           if (ctx.timeoutTimer) {
+             clearTimeout(ctx.timeoutTimer);
 diff --git a/dist/tts.js b/dist/tts.js
-index f82ac864e9c340350235a5e3b31871a8491a3921..f778e38354afbb89228e88d389f10e87c74e78e9 100644
+index f82ac864e9c340350235a5e3b31871a8491a3921..7a8e6a5623c13935db485ddba03331a6f5a67f96 100644
 --- a/dist/tts.js
 +++ b/dist/tts.js
-@@ -443,7 +443,7 @@ class Connection {
+@@ -204,6 +204,7 @@ class Connection {
+       textBuffer: "",
+       startTimesMs: [],
+       durationsMs: [],
++      audioMs: 0,
+       firstWordOffsetMs: null,
+       timeoutMs,
+       terminate
+@@ -438,12 +439,13 @@ class Connection {
+           const starts = dialogue ? alignment.char_start_times_ms : alignment.charStartTimesMs || alignment.charsStartTimesMs;
+           const durs = dialogue ? alignment.char_durations_ms : alignment.charDurationsMs || alignment.charsDurationsMs;
+           if (chars && starts && durs && chars.length === durs.length && starts.length === durs.length) {
++            const chunkStartMs = this.#opts.model.startsWith('eleven_v4') ? ctx.audioMs : 0;
+             ctx.textBuffer += chars.join("");
+             for (let i = 0; i < chars.length; i++) {
                const char = chars[i];
-               const start = starts[i];
+-              const start = starts[i];
++              const start = starts[i] + chunkStartMs;
                const dur = durs[i];
 -              if (!dialogue && ctx.firstWordOffsetMs === null && start > 0) {
 +              if (!dialogue && ctx.firstWordOffsetMs === null) {
                  ctx.firstWordOffsetMs = start;
                }
                if (char.length > 1) {
+@@ -472,6 +474,7 @@ class Connection {
+         }
+         if (data.audio) {
+           const audioData = Buffer.from(data.audio, "base64");
++          ctx.audioMs += (audioData.length / 2 / sampleRateFromFormat(this.#opts.encoding)) * 1000;
+           stream2.pushAudio(audioData);
+           if (ctx.timeoutTimer) {
+             clearTimeout(ctx.timeoutTimer);
 diff --git a/src/tts.ts b/src/tts.ts
 index 2a04c175bf70fb673963027ac97a0030d981c4da..aa429e5b8f29f8301b91e2fdb477e068c19ad6b2 100644
 --- a/src/tts.ts
