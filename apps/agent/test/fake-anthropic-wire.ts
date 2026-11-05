@@ -12,7 +12,7 @@ export interface WireReply {
 }
 
 export interface WireRequest {
-  body: { messages: { role: string; content: unknown }[] };
+  body: { messages: { role: string; content: unknown }[]; thinking?: { type: string } };
   wasClosedEarly: boolean;
   textSent: string;
 }

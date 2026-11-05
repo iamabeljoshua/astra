@@ -5,7 +5,7 @@ import { createPlayoutTracker, type PlayoutTracker } from '@astra/board';
 import { createFirstSound, type FirstSound, getFrameMs } from './first-sound.ts';
 import { createFrameQueue, type FrameQueue } from './frame-queue.ts';
 import { getSteadyNowMs, type LineTurn, type VoiceLine } from './voice-line.ts';
-import { createWordTimeline } from './word-timeline.ts';
+import { createWordTimeline, type SpeechBreak } from './word-timeline.ts';
 
 const MS_PER_SECOND = 1000;
 const STILL_ARRIVING_MS = 300;
@@ -55,7 +55,7 @@ export interface SpeakTurnOptions {
 
 export interface SentenceBreaks {
   queueMs: number;
-  onBreak(): void;
+  onBreak(kind: SpeechBreak): void;
 }
 
 /** The voice leaves about 275 to 472 ms between sentences, so a break told this early falls inside that quiet. */
@@ -230,7 +230,8 @@ async function pumpAudio({ options, frames, firstSound, timeline, tracker, lineT
     audioMs += getFrameMs(frame);
     noteAudioSent(audioMs);
     const { sentenceBreaks } = options;
-    if (sentenceBreaks && timeline.hasCrossedSentenceBreak(firstSound.toTimeline(audioMs) - sentenceBreaks.queueMs + BREAK_BEFORE_NEXT_WORD_MS)) sentenceBreaks.onBreak();
+    const crossed = sentenceBreaks ? timeline.getCrossedBreak(firstSound.toTimeline(audioMs) - sentenceBreaks.queueMs + BREAK_BEFORE_NEXT_WORD_MS) : null;
+    if (crossed) sentenceBreaks?.onBreak(crossed);
   }
 }
 

@@ -53,6 +53,7 @@ function fitStage() {
 const draw = (seconds) => {
   sceneSeconds = seconds;
   rand = kit.rng(RANDOM_SEED);
+  kit.setNow(seconds);
   context.reset();
   context.fillStyle = kit.paperColor;
   context.fillRect(0, 0, canvas.width, canvas.height);
@@ -96,7 +97,7 @@ function withWatchedLabels(madeKit) {
     context.font = madeKit.font(options.size ?? 28, options.weight ?? 600);
     const { width } = context.measureText(String(text));
     context.restore();
-    labelsInCheck.push({ text: String(text), to: options.to, alpha: options.alpha ?? 1, width });
+    labelsInCheck.push({ text: String(text), to: options.to, alpha: madeKit.shown(options), width });
     return undefined;
   };
   return madeKit;

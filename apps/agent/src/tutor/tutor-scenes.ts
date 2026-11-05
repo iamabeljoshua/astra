@@ -35,6 +35,8 @@ export interface FastSceneHooks {
   cutIn(beats: readonly TutorBeat[]): boolean;
   mostAsks: number;
   askLimitMs: number;
+  /** A drawing is paid by the token and is late already, so it may come in at a comma, and one the student has moved on from stops. */
+  drawsFresh?: boolean;
 }
 
 export interface TutorScenesOptions {
@@ -84,7 +86,11 @@ export interface TutorScenes {
   waitForPicture(): Promise<boolean>;
   /** The student pressed End or left, so nothing more is asked or lands. A scene already on screen can still come back to a reloaded page. */
   close(): void;
-  noteSentenceBreak(): void;
+  noteSentenceBreak(kind?: 'sentence' | 'clause'): void;
+  /** The student's own line names the idea, so a drawing can start before the tutor asks. False when it does not. */
+  askFromLine(line: string): boolean;
+  /** This turn's line has asked already, so the tutor's own ask in reply to it would pay for the same idea twice. */
+  isLineAnswering(): boolean;
   /** The greeting has ended, and a reply's first word can be on its way, so a picture that is ready goes now. */
   noteReactionOver(): void;
   holdFirstWord(): Promise<void>;
@@ -166,6 +172,8 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
   const shownSceneIds = new Set<string>();
   const works: SceneWork[] = [];
   let wordCuts = 0;
+  let lineAsk: 'none' | 'waiting' | 'landed' = 'none';
+  let lineAskObject: SceneAsk | null = null;
   let endEarlyHold = () => {};
   let hasHeldFirstWord = false;
 
@@ -195,6 +203,8 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
     if (ask.recheck) clearTimeout(ask.recheck);
     if (ask.page.kind === 'loading') clearTimeout(ask.page.limit);
     current = null;
+    if (ask === lineAskObject) lineAsk = how === 'landed' ? 'landed' : 'none';
+    if (how === 'replaced' && fast?.drawsFresh) ask.work.leave();
     if (MISSED_ITS_MOMENT.has(how)) askedTopics.delete(toKey(ask.topic));
     if (ask.isOpening) giveOpening(null);
     if (ask.isAhead && how !== 'landed') {
@@ -429,6 +439,16 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
 
   return {
     ask,
+    askFromLine(line) {
+      const shown = screen.onScreen?.scene.topic;
+      if (shown && isSameTopic(line, shown)) return false;
+      trace('sceneAskFromLine', { text: line });
+      if (!ask(line) || !current) return false;
+      lineAskObject = current;
+      lineAsk = 'waiting';
+      return true;
+    },
+    isLineAnswering: () => lineAsk !== 'none',
     prepare(request) {
       const key = toKey(request);
       // The queue's titles were read once for the topic, so one can have been flagged since, and a flagged title has no saved scene and would pay for a new write.
@@ -538,6 +558,8 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
     noteStudentTurn() {
       const isFirstTurn = !hasHadStudentTurn;
       hasHadStudentTurn = true;
+      lineAsk = 'none';
+      lineAskObject = null;
       isAfterSafetyReply = false;
       isTitleUnheard = false;
       // A card's title reaches the tutor as the first turn, and that turn is what asked.
@@ -603,8 +625,8 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
       for (const work of works.splice(0)) work.leave();
       prepared.clear();
     },
-    noteSentenceBreak() {
-      if (current) land(current, 'sentence');
+    noteSentenceBreak(kind = 'sentence') {
+      if (current && (kind === 'sentence' || fast?.drawsFresh)) land(current, 'sentence');
     },
     noteReactionOver() {
       if (current?.isEarly) land(current);
