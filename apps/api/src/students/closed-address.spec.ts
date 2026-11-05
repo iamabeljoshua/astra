@@ -195,6 +195,29 @@ describe('closing an account under 13', () => {
     expect(await countHashes(user.email)).toBe(1);
   });
 
+  it('privacy page: Delete my data on a closed account forgets its record once Auth has deleted the account', async () => {
+    const user = await signUp(getNewAddress());
+    await whileAuthIsDown(async () => {
+      await asToken(server().post('/me/birth-date'), user.token).send({ birthDate: YOUNG_BIRTH_DATE }).expect(200, CLOSED_ACCOUNT);
+    });
+    expect(await countClosedAccounts(user.authUserId)).toBe(1);
+
+    await asToken(server().delete('/me'), user.token).expect(200, { deleted: true });
+
+    expect(await countAuthUsers(user.authUserId)).toBe(0);
+    expect(await countClosedAccounts(user.authUserId)).toBe(0);
+    expect(await countHashes(user.email)).toBe(1);
+  });
+
+  it('keeps that record when Delete my data cannot reach Auth, and says so with an error', async () => {
+    const user = await signUp(getNewAddress());
+    await whileAuthIsDown(async () => {
+      await asToken(server().post('/me/birth-date'), user.token).send({ birthDate: YOUNG_BIRTH_DATE }).expect(200, CLOSED_ACCOUNT);
+      await asToken(server().delete('/me'), user.token).expect(500);
+    });
+    expect(await countClosedAccounts(user.authUserId)).toBe(1);
+  });
+
   it('Terms: the first date confirmed stands, so a younger date cannot replace an old-enough one', async () => {
     const user = await signUp(getNewAddress());
     await asToken(server().post('/me/birth-date'), user.token).send({ birthDate: OLD_ENOUGH_BIRTH_DATE }).expect(200);

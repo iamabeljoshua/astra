@@ -2,7 +2,7 @@ import { type Beat, type BeatId, type BoardProblemReport, clipTypedText, type El
 import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoard, cleanStudentText as cleanLine, getBoardAt, getNod, getOpenTaskOnBoard, getWorkContext } from '@astra/board/shared';
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
-import { asksToMakeAWeapon, namesHelp, readsAsEnglish, saysItCannotRead, soundsLikeCrisisReply } from '../safety/help-words.ts';
+import { asksToMakeAWeapon, namesHelp, readsAsEnglish, saysItCannotRead, saysNobodyCanBeTold, soundsLikeCrisisReply } from '../safety/help-words.ts';
 import { isSafetyKind, type StudentReading } from '../safety/student-reading.ts';
 import type { SafetyWatch } from '../safety/safety-watch.ts';
 import { createAttemptTracker } from './attempts.ts';
@@ -83,7 +83,8 @@ export const TUTOR_TIMEOUTS = {
   reportWaitMs: 150,
   /** Most sessions have the profile long before the first message, and a slow API must not hold up the reply. */
   profileWaitMs: 1000,
-  safetyReadWaitMs: 4000,
+  /** Longer than a read that had to retry, which runs 3 s, a short backoff, and 3 s more. It only holds a turn while the check is that slow. */
+  safetyReadWaitMs: 7000,
 };
 
 export type TutorTimeouts = typeof TUTOR_TIMEOUTS;
@@ -187,6 +188,7 @@ interface TurnWork {
   safetyRead: Promise<void>;
   safetyAnswered: Promise<typeof SAFETY_ANSWERED>;
   hasStoppedForSafety: boolean;
+  isFinished: boolean;
   /** The next beat follows a cut or a retry, and may start a new sentence. */
   startsAfterCut: boolean;
 }
@@ -390,6 +392,14 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     if ([...board.kinds.values()].includes('richScene')) turn.sceneAside = 'due';
   };
 
+  // The reply has ended with no word of this, and nothing that comes next may teach on as if the read had said nothing.
+  const noteLateSafetyRead = () => {
+    trace('lateSafetyRead');
+    isAfterSafetyReply = true;
+    lessonPlanner?.noteReplyEnded({ wasSafety: true });
+    onSafetyReply?.();
+  };
+
   const takesSceneAside = (turn: TurnWork) => {
     const moves = turn.sceneAside === 'due';
     if (moves) turn.sceneAside = 'moved';
@@ -531,6 +541,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       safetyRead: Promise.resolve(),
       safetyAnswered: createNever(),
       hasStoppedForSafety: false,
+      isFinished: false,
       startsAfterCut: false,
     };
     if (safety) {
@@ -539,6 +550,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         turn.safetyRead = safety.readStudent(studentText, lastSpokenText).then((reading) => {
           turn.safetyReading = reading;
           resolve(SAFETY_ANSWERED);
+          if (turn.isFinished && isAboutSafety(reading)) noteLateSafetyRead();
         });
       });
     }
@@ -788,7 +800,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const replyLacksHelp = (turn: TurnWork) => {
     if (!isAboutSafety(turn.safetyReading) || turn.hasStoppedForSafety) return false;
     const words = `${getWordsSaid(turn)} ${turn.raw}`;
-    return (isSafetyKind(turn.safetyReading) && saysItCannotRead(words)) || (!turn.reader.isSafetyReply && !namesHelp(words));
+    return (isSafetyKind(turn.safetyReading) && (saysItCannotRead(words) || saysNobodyCanBeTold(words))) || (!turn.reader.isSafetyReply && !namesHelp(words));
   };
 
   // In English the check's answer usually beats the model's first words, and code's line is what the model says anyway, so the student hears it sooner. A reply in another language gets to finish, because it usually names help in that language.
@@ -1013,6 +1025,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     attempts.endTurn({ askedAQuestion: turn.beats.at(-1)?.expectsReply ?? false, wasCut: turn.endedAs === 'aborted' });
     lastBeats = turn.beats;
     lastSpokenText = getWordsSaid(turn);
+    turn.isFinished = true;
     safety?.noteTurnEnd({ spoken: lastSpokenText, safetyRead: turn.safetyRead, getKind: () => (isSafetyKind(turn.safetyReading) ? turn.safetyReading : null) });
     lastRefused = wasRefused ? [] : turn.refused;
     hidesLastWords = wasRefused;

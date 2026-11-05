@@ -78,7 +78,7 @@ export class StudentsService {
       await removeStudentSceneFiles({ ...getSceneStorePaths(process.env), studentId });
       await this.students.deleteStudent({ studentId, authUserId });
     }
-    await this.authAccounts.erase({ authUserId, email });
+    await this.eraseFromAuth({ authUserId, email });
     return { deleted: true };
   }
 
@@ -91,11 +91,16 @@ export class StudentsService {
     return CLOSED_ACCOUNT;
   }
 
+  // With no address there is no hash, so only the closed record keeps that account closed.
+  private async eraseFromAuth({ authUserId, email }: Pick<SignIn, 'authUserId' | 'email'>): Promise<void> {
+    const isErased = await this.authAccounts.erase({ authUserId, email });
+    if (isErased && email) await this.students.forgetClosedAccount(authUserId);
+  }
+
   // The close already stands, so a failure here only logs, and the account's next read or answer tries again.
-  private async finishClosing({ authUserId, email }: SignIn): Promise<void> {
+  private async finishClosing(signIn: SignIn): Promise<void> {
     try {
-      const isErased = await this.authAccounts.erase({ authUserId, email });
-      if (isErased && email) await this.students.forgetClosedAccount(authUserId);
+      await this.eraseFromAuth(signIn);
     } catch (thrown) {
       this.logger.error(`Could not erase a closed account from Auth: ${thrown instanceof Error ? thrown.message : 'unknown error'}`);
     }

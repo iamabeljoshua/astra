@@ -202,6 +202,27 @@ describe('deleting a student', () => {
     expect(readFileSync(join(storeRoot, 'lesson-spend.jsonl'), 'utf8').trim()).toBe(JSON.stringify({ studentId: otherStudent.studentId, usd: 0.1 }));
   });
 
+  it('removes a scene record too damaged to read, because it may be theirs and nothing can be served from it, and keeps readable ones', async () => {
+    const student = await createFullStudent();
+    const otherStudent = await createFullStudent();
+    writeStudentStore(storeRoot, otherStudent.studentId, 'kept');
+    const damaged = join(storeRoot, 'scenes', 'scene-damaged');
+    mkdirSync(damaged, { recursive: true });
+    writeFileSync(join(damaged, 'scene.json'), '{"id":"scene-damaged","status":"che');
+    writeFileSync(join(damaged, 'light.take.br'), 'take');
+    const damagedPlan = join(storeRoot, 'waiting-plans', 'scene-damaged.json');
+    writeFileSync(damagedPlan, '{"key":{"id":"scene-dam');
+    writeFileSync(join(storeRoot, 'lesson-spend.jsonl'), `{"studentId":"${student.studentId}","us\n${JSON.stringify({ studentId: otherStudent.studentId, usd: 0.1 })}\n`);
+
+    await asToken(server().delete('/me'), student.token).expect(200, { deleted: true });
+
+    expect(existsSync(damaged)).toBe(false);
+    expect(existsSync(damagedPlan)).toBe(false);
+    expect(readFileSync(join(storeRoot, 'lesson-spend.jsonl'), 'utf8')).not.toContain(student.studentId);
+    expect(existsSync(join(storeRoot, 'scenes', 'scene-kept', 'scene.json'))).toBe(true);
+    expect(existsSync(join(storeRoot, 'waiting-plans', 'scene-kept.json'))).toBe(true);
+  });
+
   it('finishes on a second press when Auth failed the first time', async () => {
     const student = await createFullStudent();
     const deleteAsAuthDoes = testApp.supabaseAuth.onDeleteUser;

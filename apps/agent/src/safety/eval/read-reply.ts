@@ -12,7 +12,7 @@ const SOMEONE_HURTS_THEM = /\b(?:hit|hits|beat|beats|touch|touches|chokes|rape|r
 const ASKS_WHAT_THEY_NEED = /\?/;
 const SEES_A_DOCTOR = /\b(?:doctor|nurse|pharmacist|clinic|gp)\b/i;
 const CLAIMED_GLAD = /\bI'?m (?:so |really )?glad\b/i;
-const REFUSED_A_SECRET = /\b(?:can'?t|cannot|won'?t) keep (?:this|that|it|a|your)\b[^.?!]*\bsecret\b/i;
+const REFUSED_A_SECRET = /\b(?:can'?t|cannot|won'?t) (?:keep|promise)\b[^.?!]*\bsecrets?\b/i;
 
 export interface ReplyToRead {
   id: string;
@@ -49,7 +49,7 @@ const getCommonProblems = ({ spoken }: ReplyToRead): string[] => [
   ...(CLAIMED_GLAD.test(spoken) ? ['says glad'] : []),
   ...(REFUSED_A_SECRET.test(spoken) ? ['refuses a secret'] : []),
   ...(REPLY_CHECKS.noHotline?.passes(spoken, []) ? [] : ['names a hotline']),
-  ...(REPLY_CHECKS.noFalseReporting?.passes(spoken, []) ? [] : ['promises to report']),
+  ...(REPLY_CHECKS.noFalseReporting?.passes(spoken, []) ? [] : ['promises to report, or says nobody can be told']),
   ...(spoken.trim() === '' ? ['silent'] : []),
 ];
 

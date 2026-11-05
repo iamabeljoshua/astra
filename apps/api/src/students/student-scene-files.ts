@@ -31,13 +31,13 @@ function listFolder(folder: string): string[] {
   return existsSync(folder) ? readdirSync(folder) : [];
 }
 
-function readRecord(path: string): StoredRecord | null {
-  if (!existsSync(path)) return null;
-  const text = readFileSync(path, 'utf8');
+// A record too damaged to read may be this student's, and nothing can be served from it, so it goes with their data and "deleted" stays true.
+function belongsToStudentOrIsDamaged(path: string, studentId: string, getOwnerId: (record: StoredRecord) => string | null | undefined): boolean {
+  if (!existsSync(path)) return false;
   try {
-    return JSON.parse(text) as StoredRecord;
+    return getOwnerId(JSON.parse(readFileSync(path, 'utf8')) as StoredRecord) === studentId;
   } catch {
-    return null;
+    return true;
   }
 }
 
@@ -45,7 +45,7 @@ function findOwnedSceneFolders(storeRoot: string, studentId: string): string[] {
   const scenesRoot = join(storeRoot, SCENES_FOLDER);
   return listFolder(scenesRoot)
     .map((sceneId) => join(scenesRoot, sceneId))
-    .filter((folder) => readRecord(join(folder, 'scene.json'))?.ownerId === studentId);
+    .filter((folder) => belongsToStudentOrIsDamaged(join(folder, 'scene.json'), studentId, (record) => record.ownerId));
 }
 
 function findOwnedKeyedRecords(storeRoot: string, studentId: string): string[] {
@@ -53,7 +53,7 @@ function findOwnedKeyedRecords(storeRoot: string, studentId: string): string[] {
     const folder = join(storeRoot, folderName);
     return listFolder(folder)
       .map((fileName) => join(folder, fileName))
-      .filter((path) => readRecord(path)?.key?.ownerId === studentId);
+      .filter((path) => belongsToStudentOrIsDamaged(path, studentId, (record) => record.key?.ownerId));
   });
 }
 
@@ -61,7 +61,7 @@ function isLineOfStudent(line: string, studentId: string): boolean {
   try {
     return (JSON.parse(line) as { studentId?: string }).studentId === studentId;
   } catch {
-    return false;
+    return line.includes(studentId);
   }
 }
 
