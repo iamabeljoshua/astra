@@ -16,7 +16,7 @@ export interface LessonPlanner {
   noteStudentWords(heard: HeardWords): void;
   noteCommand(command: SceneCommand): void;
   noteWorkChecked(checked: Pick<CheckedWork, 'closesTask'>, work: StudentWork): void;
-  noteReplyEnded(reply: { wasSafety: boolean; wasLead?: boolean; spoken?: string }): void;
+  noteReplyEnded(reply: { wasSafety: boolean; wasLead: boolean; spoken: string }): void;
   noteCardLesson(plan: LessonPlan): void;
   /** A page that reloaded lost the title it was told. */
   tellTitleAgain(): void;
@@ -198,7 +198,7 @@ export function createLessonPlanner({ ask, askMore, canSpend, charge, onTitleCha
     },
     noteCommand: (command) => noteEvent(toEvent(command)),
     noteWorkChecked: (checked, work) => noteEvent(getWorkEvent(checked, work)),
-    noteReplyEnded({ wasSafety, wasLead = false, spoken = '' }) {
+    noteReplyEnded({ wasSafety, wasLead, spoken }) {
       saidSoFar = `${saidSoFar} ${spoken}`.slice(-MOST_CHARACTERS_OF_WHAT_WAS_SAID);
       noteEvent(wasSafety ? 'safetyReplyEnded' : wasLead ? 'leadEnded' : 'replyEnded');
     },

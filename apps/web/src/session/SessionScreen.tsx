@@ -323,6 +323,7 @@ function ReplyBox({ sessionId, liveVoice, hold, isConnecting, carryOnLine, files
             <p className="text-fine text-ink-2">{reply.didFail ? SESSION_LABELS.replyNotSent : SESSION_LABELS.replyWaiting}</p>
           </>
         )}
+        {view?.showsSafetyHelp && <p role="status" className="text-fine text-ink-1">{VOICE_LABELS.safetyHelp}</p>}
         {voiceNote && <p className="text-fine text-ink-2">{voiceNote}</p>}
         {hold.hasHitLimit && <p className="text-fine text-ink-2">{VOICE_LABELS.holdLimit}</p>}
         {canTalkNow(liveVoice) && <NoisePrompt sessionId={sessionId} isRoomNoisy={view?.isRoomNoisy ?? false} isHolding={hold.isHolding} />}

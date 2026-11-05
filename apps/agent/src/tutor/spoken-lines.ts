@@ -21,6 +21,8 @@ export const SPOKEN_LINES = {
   noToolAnswer: [`I couldn't work that out just now. ${IF_WORRIED} Could you ask me that another way?`],
   notHeard: ["I didn't catch any words in that. Could you try again?"],
   safetyHelp: ['Please tell an adult you trust now, or call your local emergency number if you are in danger.'],
+  safetyStop: ['That sounds serious. Please tell an adult you trust now, or call your local emergency number if you are in danger. Are you safe right now?'],
+  safetyStopHurt: ['That sounds serious, and it is not your fault. Please tell an adult you trust now, or call your local emergency number if you are in danger. Are you safe right now?'],
   sessionLimit: [`That's as far as I can go in this session. Please start a new session to carry on. ${IF_WORRIED}`],
   dailyLimit: [`That's all the tutor time for now. It resets once a day, so please try again later. ${IF_WORRIED}`],
   broken: [`Something's gone wrong on my side, and I can't fix it from here. Please start a new session to carry on. ${IF_WORRIED}`],

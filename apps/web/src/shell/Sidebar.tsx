@@ -2,7 +2,8 @@ import { NavLink } from 'react-router';
 import { SignOutButton } from '../auth/SignOutButton';
 import { useAccount } from '../auth/useAccount';
 import { RecentSessions } from '../sessions/RecentSessions';
-import { ACCOUNT_LABELS, PRODUCT_NAME, SIDEBAR_LABELS } from '../strings';
+import { LEGAL_PATHS } from '../legal/legalPaths';
+import { ACCOUNT_LABELS, LEGAL_PAGES, PRODUCT_NAME, SIDEBAR_LABELS } from '../strings';
 import { ThemeToggle } from '../theme/ThemeToggle';
 import { MENU } from './menu';
 import { PROFILE_PATH } from './profilePath';
@@ -47,6 +48,9 @@ function AccountRow({ onChoosePage }: { onChoosePage: () => void }) {
         <div className="leading-tight font-medium">{account?.student?.name ?? ACCOUNT_LABELS.unnamedStudent}</div>
         <NavLink to={PROFILE_PATH} onClick={onChoosePage} className="block text-fine whitespace-nowrap text-ink-2 hover:text-ink">
           {ACCOUNT_LABELS.profile}
+        </NavLink>
+        <NavLink to={LEGAL_PATHS.credits} onClick={onChoosePage} className="block text-fine whitespace-nowrap text-ink-2 hover:text-ink">
+          {LEGAL_PAGES.credits.title}
         </NavLink>
         <SignOutButton className="block text-fine whitespace-nowrap text-ink-2 hover:text-ink" />
       </div>

@@ -21,6 +21,8 @@
     "math-load": "node src/lab/proof/math-load.ts",
     "eval:tutor": "node src/tutor/eval/run-eval.ts",
     "eval:groups": "node src/tutor/eval/run-groups.ts",
+    "eval:safety": "node src/safety/eval/run-wordings.ts",
+    "eval:safety-check": "node src/safety/eval/run-check.ts",
     "eval:board": "node src/tutor/eval/run-groups.ts --file board --spend .eval-spend/board.jsonl",
     "eval:switch": "node src/tutor/eval/run-groups.ts --file switch --spend .eval-spend/switch.jsonl",
     "eval:plans": "node src/lesson-plan/eval/run-plan-table.ts",

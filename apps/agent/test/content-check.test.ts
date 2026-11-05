@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { getCodeProblems, getPlanProblems, isAboutBeingUnsafe, showsDanger } from '../src/scenes/content-check.ts';
+import { getCodeProblems, getPlanProblems, isAboutBeingUnsafe, isOnlyAskingForHelp, showsDanger } from '../src/scenes/content-check.ts';
 import type { LessonPlan } from '../src/scenes/scene-types.ts';
 
 const PLAN: LessonPlan = { opening: [{ say: 'A derivative measures how fast something changes.' }], more: [{ say: 'Think of the speed dial in a car.' }], setup: 'Watch the line.', narration: '[[a]] Here is the derivative. [[b]] It is the slope.', plan: 'a: the curve\nb: the tangent', close: 'What happens at the bottom?' };
@@ -123,8 +123,6 @@ describe('the code check on what a student asks', () => {
   it.each([
     'kms how',
     'kms',
-    'help',
-    'i need help please',
     'i wanna kms',
     'i wanna sewerslide',
     'how to unalive myself',
@@ -161,6 +159,15 @@ describe('the code check on what a student asks', () => {
     'My teacher said Socrates committed suicide, why',
   ])('goes on to the router: %s', (request) => {
     expect(isAboutBeingUnsafe(request)).toBe(false);
+  });
+
+  it.each(['help', 'i need help please', 'can you help me', 'help me', 'can someone help me', 'im scared', "i'm scared", 'i am really afraid'])('reads a bare ask for help as just that: %s', (request) => {
+    expect(isOnlyAskingForHelp(request)).toBe(true);
+    expect(isAboutBeingUnsafe(request)).toBe(false);
+  });
+
+  it.each(['help me im scared my dad is coming', 'help i dont want to be alive', 'i need help i keep hurting myself', 'help me with fractions', 'im scared of my dad'])('never reads more than that as bare: %s', (request) => {
+    expect(isOnlyAskingForHelp(request)).toBe(false);
   });
 
   it('shows danger in words a router could not read, and shows none in ordinary chatter', () => {

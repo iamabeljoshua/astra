@@ -16,6 +16,7 @@ import { isAboutSafety } from '../tutor/beat-text-reader.ts';
 import type { RecapFacts } from '../recap/recap-facts.ts';
 import { getRecapBeats } from '../recap/recap-rules.ts';
 import { getSessionEnding } from '../recap/write-recap.ts';
+import type { SessionReading } from '../safety/safety-watch.ts';
 import type { TutorBeat, TutorBrain, TutorRequest } from '../tutor/brain.ts';
 import { createBoardWork } from '../tutor/watcher/board-work.ts';
 import type { HeardTurn, RecordTurn } from './heard-recorder.ts';
@@ -85,6 +86,7 @@ export interface LiveSessionOptions {
   waitForPicture?(): Promise<boolean>;
   onLogWritten?(event: SessionEvent): void;
   writeRecap?(facts: RecapFacts): Promise<SessionRecap | null>;
+  readSafety?(): Promise<SessionReading>;
   /** A recap has been written. Memory can note here that a `gentle` ending needs a person, and a model's `lesson` lines are not for its notes. */
   onRecap?(recap: SessionRecap): void;
   /** The student pressed End, so whatever was going to teach next has lost its moment. */
@@ -206,7 +208,7 @@ function recordingTo(heard: HeardTurn, messenger: TurnMessenger): TurnMessenger 
   };
 }
 
-export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, endLine = () => {}, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn, onPause, onStudentTurn, getOpeningScene, onLinkChange, waitForPicture = async () => true, onLogWritten, writeRecap = async () => null, onRecap = () => {}, onEnding, onEndingOver = () => {}, leadTimings = LEAD_TIMINGS }: LiveSessionOptions): LiveSession {
+export function createLiveSession({ messenger, line, voice, tutor, takes, allTakes, setTurnCap, endLine = () => {}, onQuietLimit = () => {}, quietLimitMs = QUIET_ROOM_LIMIT_MS, getNowMs = getSteadyNowMs, trace = () => {}, readMeaning = async () => null, readStrokes = async () => null, readSpokenWords = async () => ({ kind: 'talk', costUsd: 0 }), getCostSoFar, recordTurn, onPause, onStudentTurn, getOpeningScene, onLinkChange, waitForPicture = async () => true, onLogWritten, writeRecap = async () => null, readSafety, onRecap = () => {}, onEnding, onEndingOver = () => {}, leadTimings = LEAD_TIMINGS }: LiveSessionOptions): LiveSession {
   const startedAtMs = getNowMs();
   // A new job in the same room restarts this count, and a page ignores a turn it has seen, so each job's turns carry their own name.
   const jobTag = randomUUID().slice(0, 8);
@@ -746,7 +748,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     typedGate.close();
     isEnding = true;
     setThinking(true);
-    const recap = await getSessionEnding({ log: log.getEvents(), opening: openingLine, writeRecap });
+    const recap = await getSessionEnding({ log: log.getEvents(), opening: openingLine, writeRecap, ...(readSafety ? { readSafety } : {}) });
     setThinking(false);
     trace('recapDecided', { kind: recap?.kind ?? 'none' });
     messenger.send({ type: 'recap', recap });

@@ -47,6 +47,19 @@ describe('a tutor that has closed', () => {
     expect(screen.queryByText(VOICE_LABELS.micOn)).toBeNull();
   });
 
+  it('shows the help in words beside any other note, with no number or hotline', async () => {
+    renderOpenRoom({ showsSafetyHelp: true, mic: 'on' });
+    expect(await screen.findByText(VOICE_LABELS.safetyHelp)).toBeTruthy();
+    expect(screen.getByText(VOICE_LABELS.micOn)).toBeTruthy();
+    expect(VOICE_LABELS.safetyHelp).not.toMatch(/\d|hotline|helpline/i);
+  });
+
+  it('shows no help on an ordinary lesson', async () => {
+    renderOpenRoom({ mic: 'off' });
+    await screen.findByRole('textbox', { name: REPLY_BOX_LABELS.label });
+    expect(screen.queryByText(VOICE_LABELS.safetyHelp)).toBeNull();
+  });
+
   it('stills the dot, even if the last words are still playing', async () => {
     renderOpenRoom({ closedBecause: 'broken', isTutorSpeaking: true, isThinking: true });
 

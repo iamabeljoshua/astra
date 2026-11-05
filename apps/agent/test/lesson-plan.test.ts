@@ -508,9 +508,9 @@ describe('when the exercise is due', () => {
     const { planner } = plannerWith([newPlan(FRACTIONS)]);
     planner.noteStudentWords(heard('teach me fractions', true));
     await planner.whenSettled();
-    planner.noteReplyEnded({ wasSafety: false });
+    planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
     expect(note(planner).exercise_due).toBeUndefined();
-    planner.noteReplyEnded({ wasSafety: false });
+    planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
     expect(note(planner).exercise_due).toBe(true);
   });
 
@@ -518,7 +518,7 @@ describe('when the exercise is due', () => {
     const { planner } = plannerWith([newPlan(SOLVING)]);
     planner.noteStudentWords(heard('solve it', true));
     await planner.whenSettled();
-    planner.noteReplyEnded({ wasSafety: false });
+    planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
     expect(note(planner).exercise_due).toBe(true);
   });
 
@@ -526,11 +526,11 @@ describe('when the exercise is due', () => {
     const { planner } = plannerWith([newPlan(FRACTIONS)]);
     planner.noteStudentWords(heard('teach me fractions', true));
     await planner.whenSettled();
-    planner.noteReplyEnded({ wasSafety: false });
-    planner.noteReplyEnded({ wasSafety: true });
+    planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
+    planner.noteReplyEnded({ wasSafety: true, wasLead: false, spoken: '' });
     expect(note(planner).exercise_due).toBeUndefined();
-    planner.noteReplyEnded({ wasSafety: false });
-    planner.noteReplyEnded({ wasSafety: false });
+    planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
+    planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
     planner.noteCommand(TASK);
     expect(note(planner).exercise_due).toBeUndefined();
   });
@@ -541,8 +541,8 @@ describe('when the exercise is due', () => {
     await planner.whenSettled();
     planner.noteStudentWords(heard('no exercises please, just explain'));
     await planner.whenSettled();
-    planner.noteReplyEnded({ wasSafety: false });
-    planner.noteReplyEnded({ wasSafety: false });
+    planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
+    planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
     expect(note(planner).exercise_due).toBeUndefined();
     planner.noteStudentWords(heard('let me try one now'));
     await planner.whenSettled();

@@ -108,7 +108,7 @@ describe('asking to be taught', () => {
   function plannerAtDue(wants: string | null = null) {
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, wants, costUsd: 0 }) as never, canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
     planner.noteCardLesson(PLAN);
-    for (let reply = 0; reply < 3; reply += 1) planner.noteReplyEnded({ wasSafety: false });
+    for (let reply = 0; reply < 3; reply += 1) planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
     expect(planner.getStepNote()).toMatchObject({ exercise_due: true });
     return planner;
   }
@@ -170,7 +170,7 @@ describe('what a student never hears or sees', () => {
     const summaries: TurnSummary[] = [];
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
     planner.noteCardLesson(PLAN);
-    for (let replies = 0; replies < 3; replies += 1) planner.noteReplyEnded({ wasSafety: false });
+    for (let replies = 0; replies < 3; replies += 1) planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
     const brain = createTutorBrain({ model: reply([GIVES_IT_AWAY, ONLY_THE_PROBLEM]), timeouts: QUICK_TIMES, lessonPlanner: planner, onTurnEnd: (summary) => summaries.push(summary) });
     for await (const beat of brain.reply({ text: 'i see' }, new AbortController().signal)) void beat;
     expect(getMath(summaries[0] as TurnSummary)).toEqual(['100 - 30']);
@@ -215,7 +215,7 @@ describe('a lesson that runs on', () => {
     const askMore = vi.fn<(request: unknown) => Promise<{ steps: { teach: string; exercise: string }[]; costUsd: number }>>(async () => ({ steps: [{ teach: 'Gravity assists', exercise: 'Pick one' }], costUsd: 0 }));
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), askMore, canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
     planner.noteCardLesson(PLAN);
-    planner.noteReplyEnded({ wasSafety: false, spoken: 'Empty tanks are dead weight.' });
+    planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: 'Empty tanks are dead weight.' });
     expect(askMore).not.toHaveBeenCalled();
     planner.noteCommand({ kind: 'task', id: 'a1', way: 'write', reads: 'words' } as never);
     planner.noteCommand({ kind: 'boardMode', mode: 'teach' } as never);
@@ -231,7 +231,7 @@ describe('a lesson that runs on', () => {
     const askMore = vi.fn(async () => ({ steps: [], costUsd: 0 }));
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), askMore, canSpend: () => false, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
     planner.noteCardLesson({ ...PLAN, steps: PLAN.steps.slice(0, 1) });
-    planner.noteReplyEnded({ wasSafety: false });
+    planner.noteReplyEnded({ wasSafety: false, wasLead: false, spoken: '' });
     expect(askMore).not.toHaveBeenCalled();
   });
 });
@@ -628,7 +628,7 @@ describe('the brain in a lead', () => {
   const onExerciseStep = (replies: readonly string[], seen: string[] = []) => {
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
     planner.noteCardLesson(NUMBERS_PLAN);
-    for (let index = 0; index < 7; index += 1) planner.noteReplyEnded({ wasSafety: false, wasLead: true });
+    for (let index = 0; index < 7; index += 1) planner.noteReplyEnded({ wasSafety: false, wasLead: true, spoken: '' });
     let index = 0;
     const model = { stream: async function* (request: { turns: { text?: string }[] }) { seen.push(JSON.stringify(request.turns)); yield { type: 'text', text: replies[Math.min(index++, replies.length - 1)] as string, isNewBlock: false }; yield { type: 'finished', stopReason: 'finished', usage: { inputTokens: 1, outputTokens: 1, cacheReadTokens: 0, cacheWriteTokens: 0 } }; }, getCostUsd: () => 0, compact: async () => null, warm: async () => {} } as never;
     return createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner });

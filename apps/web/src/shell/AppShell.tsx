@@ -1,6 +1,8 @@
 import type { RefObject } from 'react';
 import { Navigate, Route, Routes, useLocation } from 'react-router';
 import { ProfilePage } from '../onboarding/ProfilePage';
+import { ReviewPage } from '../review/ReviewPage';
+import { REVIEW_PATH } from '../review/reviewPath';
 import { PRODUCT_NAME, SIDEBAR_LABELS } from '../strings';
 import { MENU } from './menu';
 import { PROFILE_PATH } from './profilePath';
@@ -60,6 +62,7 @@ function CurrentPage() {
           <Route key={path} path={path} element={<Page />} />
         ))}
         <Route path={PROFILE_PATH} element={<ProfilePage />} />
+        <Route path={REVIEW_PATH} element={<ReviewPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

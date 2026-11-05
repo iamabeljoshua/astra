@@ -9,6 +9,8 @@ import { createSessionDigest } from '../learner-record/session-digest.ts';
 import { writeRecordOfRoom } from '../learner-record/write-record.ts';
 import { makeRecordedTutorModel } from '../providers/fake-model.ts';
 import { createStandInTutor } from '../live/stand-in-tutor.ts';
+import { makeAnthropicSafetyCheck } from '../safety/safety-check.ts';
+import { createSafetyWatch, type SessionReading } from '../safety/safety-watch.ts';
 import type { RecapFacts } from '../recap/recap-facts.ts';
 import { getRecapLines } from '../recap/recap-rules.ts';
 import { writeLessonRecap } from '../recap/write-recap.ts';
@@ -148,11 +150,17 @@ export interface MadeBrain {
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
   readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
   writeRecap?(facts: RecapFacts): Promise<SessionRecap | null>;
+  readSafety?(): Promise<SessionReading>;
   getSpentUsd?(): number;
   /** Runs the after-session pass as the room closes. It cannot throw. */
   writeRecord?(): Promise<void>;
   /** A gentle ending means no notes from this room, however the ending decided it. */
   noteNeedsAPerson?(): void;
+}
+
+function makeSafetyWatch({ name, link, showHelp, trace, onCost }: { name: string; link: ApiLink | null; showHelp(): void; trace: TraceNote; onCost(usd: number): void }) {
+  if (name === RECORDED) return undefined;
+  return createSafetyWatch({ check: makeAnthropicSafetyCheck({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost }), addFlag: (flag) => link?.addFlag(flag) ?? Promise.resolve(), showHelp, trace });
 }
 
 export interface SceneHooks {
@@ -184,7 +192,7 @@ function makeLessonPlanner({ link, caps, trace, onSessionTitle, sceneHooks }: { 
   });
 }
 
-export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => {}, sceneHooks }: { roomName: string; jobId: string; trace: TraceNote; onSessionTitle?(title: string): void; sceneHooks?: SceneHooks }): MadeBrain {
+export function makeTutorBrain({ roomName, jobId, trace, showSafetyHelp, onSessionTitle = () => {}, sceneHooks }: { roomName: string; jobId: string; trace: TraceNote; showSafetyHelp(): void; onSessionTitle?(title: string): void; sceneHooks?: SceneHooks }): MadeBrain {
   const name = process.env.ASTRA_TUTOR_MODEL ?? DEFAULT_MODEL;
   if (name === STAND_IN) return { brain: createStandInTutor(), flushSpend: async () => {} };
   if (name !== RECORDED && !TUTOR_MODEL_NAMES.includes(name as TutorModelName)) throw new Error(`ASTRA_TUTOR_MODEL is ${name}. Choose ${[STAND_IN, RECORDED, ...TUTOR_MODEL_NAMES].join(', ')}`);
@@ -197,6 +205,7 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
     sessionVoiceLimitCharacters: Number(process.env.ASTRA_SESSION_VOICE_LIMIT_CHARACTERS ?? DEFAULT_SESSION_VOICE_LIMIT_CHARACTERS),
   });
   const model = name === RECORDED ? makeRecordedTutorModel() : makeAnthropicTutorModel({ name: name as TutorModelName, apiKey: readKey('ANTHROPIC_API_KEY') });
+  let checkUsd = 0;
   const digest = createSessionDigest();
   const onTurnEnd = (summary: TurnSummary) => {
     digest.addTurn(summary);
@@ -204,8 +213,13 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
   };
   const reportTurn = ({ firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, beats, spokenText }: TurnSummary) => {
     trace('turnWritten', { firstTextMs, firstBeatMs, attempts, endedAs, costUsd, usage, refused, refusalCategory, isUsageEstimated, words: spokenText.split(/\s+/).length });
-    caps.addTurn({ usd: costUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
+    caps.addTurn({ usd: costUsd + checkUsd, voiceCharacters: beats.map(getBeatText).join(' ').length });
+    checkUsd = 0;
     sceneHooks?.onTurnWritten?.({ firstTextMs, spokenText, refusalCategory });
+  };
+  const safety = makeSafetyWatch({ name, link, showHelp: showSafetyHelp, trace, onCost: (usd) => (checkUsd += usd) });
+  const flushSpend = async () => {
+    await Promise.all([caps.flush(), safety?.flush()]);
   };
   let movedTo: string | null = null;
   const lessonPlanner = name === RECORDED ? undefined : makeLessonPlanner({ link, caps, trace, onSessionTitle(title) {
@@ -227,8 +241,8 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
       }
     : undefined;
   if (!loadProfile) queueMicrotask(() => sceneHooks?.onCardKnown?.(null));
-  const brain = createTutorBrain({ model, prompt: sceneHooks ? withScenes(getLivePrompt()) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(lessonPlanner ? { lessonPlanner } : {}), ...(sceneHooks ? { onAskScene: sceneHooks.onAskScene } : {}), ...(sceneHooks?.onSafetyReply ? { onSafetyReply: sceneHooks.onSafetyReply } : {}), ...(sceneHooks?.onStudentWords ? { onStudentWords: sceneHooks.onStudentWords } : {}) });
-  if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, flushSpend: caps.flush };
+  const brain = createTutorBrain({ model, prompt: sceneHooks ? withScenes(getLivePrompt()) : getLivePrompt(), ...(findSource ? { findSource } : {}), loadProfile, loadMemory, onWorkNoted: digest.addWork, trace, onTurnEnd, getSpendLimit: caps.getSpendLimit, ...(safety ? { safety } : {}), ...(lessonPlanner ? { lessonPlanner } : {}), ...(sceneHooks ? { onAskScene: sceneHooks.onAskScene } : {}), ...(sceneHooks?.onSafetyReply ? { onSafetyReply: sceneHooks.onSafetyReply } : {}), ...(sceneHooks?.onStudentWords ? { onStudentWords: sceneHooks.onStudentWords } : {}) });
+  if (name === RECORDED) return { brain, caps, cardTitle: () => cardTitle, flushSpend };
   const wordsModel = makeAnthropicTutorModel({ name: WORDS_MODEL, apiKey: readKey('ANTHROPIC_API_KEY') });
   const readMeaning = async (words: string) => {
     if (caps.getSpendLimit()) return null;
@@ -257,9 +271,11 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
     caps.addTurn({ usd: costUsd, voiceCharacters: recap ? getRecapLines(recap).join(' ').length : 0 });
     return recap;
   };
+  // A student who closes the tab gets no recap to carry this, and a read of danger still means no notes from this room.
   const writeRecord = link
-    ? () =>
-        writeRecordOfRoom({
+    ? async () => {
+        if ((await safety?.readSession()) === 'danger') digest.noteNeedsAPerson();
+        await writeRecordOfRoom({
           digest,
           model: wordsModel,
           writeNotes: link.writeNotes,
@@ -267,7 +283,8 @@ export function makeTutorBrain({ roomName, jobId, trace, onSessionTitle = () => 
           isOverDailyLimit: () => caps.getSpendLimit() === 'dailyLimit',
           addCost: (usd) => caps.addTurn({ usd, voiceCharacters: 0 }),
           trace,
-        })
+        });
+      }
     : undefined;
-  return { brain, ...(lessonPlanner ? { lessonPlanner } : {}), caps, cardTitle: () => cardTitle, flushSpend: caps.flush, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords, writeRecap, noteNeedsAPerson: digest.noteNeedsAPerson, ...(writeRecord ? { writeRecord } : {}) };
+  return { brain, ...(lessonPlanner ? { lessonPlanner } : {}), caps, cardTitle: () => cardTitle, flushSpend, getSpentUsd: caps.getSpentUsd, readMeaning, readStrokes, readSpokenWords, writeRecap, noteNeedsAPerson: digest.noteNeedsAPerson, ...(safety ? { readSafety: safety.readSession } : {}), ...(writeRecord ? { writeRecord } : {}) };
 }

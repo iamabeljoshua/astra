@@ -72,6 +72,8 @@ export type AgentMessage =
   | { type: 'sessionTitle'; title: string }
   /** The tutor has said why it stopped, and will not speak again, so the page can keep saying why it is quiet. */
   | { type: 'tutorClosed'; reason: TutorClosedReason }
+  /** This turn may be about the student's safety, so the page shows the help in words, which still reach them if the voice fails. */
+  | { type: 'safetyHelp' }
   /** Sent every half second on the lossy channel, so the browser knows the agent can still reach it. */
   | { type: 'pulse' }
   /** This microphone's sound now reaches a transcriber that has answered, so the browser lets go of what it held. */

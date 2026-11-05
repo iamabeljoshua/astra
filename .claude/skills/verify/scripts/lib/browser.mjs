@@ -143,12 +143,13 @@ export async function getMainRegionCheck({ browser, page }) {
   return getScreenshotCheck({ browser, name, screenshot });
 }
 
-export function watchContextFailures(context) {
+export function watchContextFailures(context, expectedConsoleErrors = []) {
   const failures = [];
   const addFailure = (name, detail) => failures.push({ name, passed: false, detail });
   context.on('weberror', (webError) => addFailure('page error', webError.error().message));
   context.on('console', (message) => {
-    if (message.type() === 'error') addFailure('console error', `${message.text()} (${message.location().url})`);
+    const detail = `${message.text()} (${message.location().url})`;
+    if (message.type() === 'error' && !expectedConsoleErrors.some((expected) => expected.test(detail))) addFailure('console error', detail);
   });
   context.on('page', (page) => page.on('crash', () => addFailure('page crash', page.url())));
   return failures;
