@@ -52,10 +52,10 @@ const LESSONS: readonly LessonScript[] = [
   { name: 'history', card: 'How bread prices fed a revolution' },
   { name: 'photosynthesis', typed: 'teach me photosynthesis' },
   { name: 'rockets-typed', typed: 'rockets how they escape' },
+  { name: 'helicopters', typed: 'how helicopters fly' },
 ];
 
 const API_FOLDER = join(dirname(fileURLToPath(import.meta.url)), '../../../../api/src/picks');
-const PROFILE = { level: 'high_school', interests: ['space', 'basketball'], goal: 'curiosity' };
 const STAMP = { clockId: 'eval', browserMs: 1000, startedMsAgo: 0 };
 const OWN_WORDS = /\bown words\b|\bin your words\b|\bexplain (?:it )?back\b/i;
 const GIVE_UP_AFTER_SILENCE_MS = 75_000;
@@ -81,11 +81,13 @@ const { values: args } = parseArgs({
     out: { type: 'string', default: join(tmpdir(), 'astra-whole-lessons') },
     only: { type: 'string', default: '' },
     students: { type: 'string', default: 'quiet,nudging' },
+    level: { type: 'string', default: 'high_school' },
     together: { type: 'string', default: '4' },
     'dry-run': { type: 'boolean', default: false },
   },
 });
 
+const PROFILE = { level: args.level, interests: ['space', 'basketball'], goal: 'curiosity' };
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length;
 
@@ -455,3 +457,4 @@ async function main() {
 }
 
 await main();
+process.exit(0);

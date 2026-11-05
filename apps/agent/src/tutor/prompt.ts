@@ -3,6 +3,7 @@ import { PROMPT_V1 } from './prompts/v1.ts';
 import { PROMPT_V2, TURN_NOTE_V2 } from './prompts/v2.ts';
 import { LEVEL_LINES_V3, OPENING_NOTE_V3, PROMPT_V3, PROMPT_V3_FIND_SOURCE } from './prompts/v3.ts';
 import { LEAD_NOTES_V4, LEVEL_LINES_V4, OPENING_A_CARD_NOTE_V4, OPENING_NOTE_V4, PROMPT_V4, PROMPT_V4_FIND_SOURCE, TURN_NOTE_V4 } from './prompts/v4.ts';
+import { LEAD_NOTES_V5, LEVEL_LINES_V5, OPENING_A_CARD_NOTE_V5, OPENING_NOTE_V5, PROMPT_V5, PROMPT_V5_FIND_SOURCE, TURN_NOTE_V5 } from './prompts/v5.ts';
 
 export interface TutorPrompt {
   /** Frozen, because the prompt cache is a prefix match, so student and turn details go in a note. */
@@ -24,11 +25,13 @@ export const PROMPT_VERSIONS = {
   v3FindSource: { system: PROMPT_V3_FIND_SOURCE, turnNote: TURN_NOTE_V2, openingNote: OPENING_NOTE_V3, levelLines: LEVEL_LINES_V3 },
   v4: { system: PROMPT_V4, turnNote: TURN_NOTE_V4, openingNote: OPENING_NOTE_V4, levelLines: LEVEL_LINES_V4, leadNotes: LEAD_NOTES_V4, openingACardNote: OPENING_A_CARD_NOTE_V4 },
   v4FindSource: { system: PROMPT_V4_FIND_SOURCE, turnNote: TURN_NOTE_V4, openingNote: OPENING_NOTE_V4, levelLines: LEVEL_LINES_V4, leadNotes: LEAD_NOTES_V4, openingACardNote: OPENING_A_CARD_NOTE_V4 },
+  v5: { system: PROMPT_V5, turnNote: TURN_NOTE_V5, openingNote: OPENING_NOTE_V5, levelLines: LEVEL_LINES_V5, leadNotes: LEAD_NOTES_V5, openingACardNote: OPENING_A_CARD_NOTE_V5 },
+  v5FindSource: { system: PROMPT_V5_FIND_SOURCE, turnNote: TURN_NOTE_V5, openingNote: OPENING_NOTE_V5, levelLines: LEVEL_LINES_V5, leadNotes: LEAD_NOTES_V5, openingACardNote: OPENING_A_CARD_NOTE_V5 },
 } as const satisfies Record<string, TutorPrompt>;
 
 export type PromptVersion = keyof typeof PROMPT_VERSIONS;
 
-export const CURRENT_PROMPT: PromptVersion = 'v4';
+export const CURRENT_PROMPT: PromptVersion = 'v5';
 
 export const TUTOR_PROMPT: TutorPrompt = PROMPT_VERSIONS[CURRENT_PROMPT];
 
@@ -39,7 +42,7 @@ const PICTURES = `# Pictures
 
 {"kind":"askScene","topic":"what the slope of a line tells you"} Asks for a drawn, moving picture of one idea, in the background. Use it when a student wants to understand how or why something works in math, a graph, geometry, statistics, code, or a flat diagram of labelled parts, and watching it move would help. Ask once for one idea. Put it first in your reply, before your first words, then teach on as if you had not asked, with your voice and the board. Do not end that reply on a question about that idea, because the picture's words may answer it. topic is at most eight plain words any student could have asked, naming only the idea, with nothing about the student. If the student note has card_title and this is that idea, use card_title word for word. It does not suit a plain fact, an emotional moment, a short check, or a student's own working.
 
-Most asks come to nothing, and that is fine. Never say a picture, scene, animation, or video is coming, loading, or being made, and never say you asked for one. Only a scene_on_screen note means one is in front of the student. That note holds the words you already said over it, and any question among them, so carry on from them, never say them again, and never remark that a picture is there. The picture sits large on the right, and {"kind":"boardMode","mode":"handsOn"} moves it to the corner when you want the board. A task or anything you draw does that by itself. The student can click it to look again. clearBoard leaves the picture small in the corner.
+Most asks come to nothing, and that is fine. Never say a picture, scene, animation, or video is coming, loading, or being made, and never say you asked for one. Only a scene_on_screen note means one is in front of the student. That note holds the words you already said over it, and any question among them, so carry on from them, never say them again, and never remark that a picture is there. While it is there, your words talk about what it shows, the part they are looking at right then, and say nothing it does not show. The picture sits large on the right, and {"kind":"boardMode","mode":"handsOn"} moves it to the corner when you want the board. A task or anything you draw does that by itself. The student can click it to look again. clearBoard leaves the picture small in the corner.
 
 A lesson_plan note can name picture_topic, a picture of the next idea that can land right after you stop talking. When you go on to that idea, ask for it with exactly that topic at the start of your reply, keep that reply to a line or two with no question and no task in it, and leave the explaining to the picture. Say nothing about the picture until a scene_on_screen note comes.`;
 

@@ -1,14 +1,15 @@
 import { SAFETY_REPLY } from './safety-words.ts';
-import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem, LIVE_MESSAGE_MAX_BYTES, MATH_CLAIMS, parseSceneCommand, type SceneCommand } from '@astra/contracts';
+import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem, LIVE_MESSAGE_MAX_BYTES, MATH_CLAIMS, parseSceneCommand, type SceneCommand, VOICE_TAGS, type VoiceTag, type VoiceTagAt } from '@astra/contracts';
 import { type AttemptReport, parseAttemptReport } from './attempts.ts';
 import { parseToolCall, type ToolCall } from './tools/tool-call.ts';
 
-/** A turn wraps up at the next sentence end past this, which only stops a runaway, because the prompt asks for 40 to 70. */
-export const TURN_WORDS_TO_WRAP = 100;
+export const TURN_WORDS_TO_WRAP = 45;
+export const WORKED_EXAMPLE_WORDS_TO_WRAP = 100;
+const WORKED_EXAMPLE_WORDS_TO_CUT = 140;
 /** A line break after fewer words than this is only a new beat, because a pause after "Okay, look." sounds odd. */
 const FEWEST_WORDS_BEFORE_A_BREATH = 6;
 /** A sentence that never ends stops here, so a run-on cannot speak for a minute. */
-const TURN_WORDS_TO_CUT = 140;
+const TURN_WORDS_TO_CUT = 90;
 const WORDS_FOR_A_LATE_TASK = 'Over to you.';
 const WORDS_FOR_A_LATE_DRAWING = 'Have a look.';
 /** B2 gives a turn's first drawing 1 s from its first word, which is about three words. */
@@ -48,6 +49,7 @@ export interface WrittenBeatParts {
   expectsReply: boolean;
   /** This beat starts a new stretch of speech, so the student hears a breath before it. */
   startsStretch: boolean;
+  voiceTags: readonly VoiceTagAt[];
 }
 
 export type CommandVerdict = { ok: true } | { ok: false; problem: string; isWrongMath: boolean };
@@ -123,6 +125,8 @@ export class BeatTextReader {
   #board: BoardKinds;
   #held = '';
   #tag: string | null = null;
+  #voiceTag: string | null = null;
+  #voiceTags: VoiceTagAt[] = [];
   #privateTag: string | null = null;
   #command: string | null = null;
   #depth = 0;
@@ -140,6 +144,7 @@ export class BeatTextReader {
   #isSafetyReply = false;
   #hasToldSafety = false;
   #hasCommandThisTurn = false;
+  #hasMathThisTurn = false;
   #isHalted = false;
   #isTurnOver = false;
   #isQuestionHeld = false;
@@ -197,6 +202,7 @@ export class BeatTextReader {
     if (this.#brokenTail !== null) this.#releaseBrokenTail();
     if (this.#command !== null) this.#refuseCommand('the command never closed');
     if (this.#isHalted) return;
+    if (this.#voiceTag !== null) this.#speakHeldBracket();
     if (this.#tag !== null) this.#releaseTag();
     if (this.#cuesAwaitingWord.some(isDrawingCue) && this.#wordsThisTurn > 0 && !this.isSafetyReply) this.push(` ${WORDS_FOR_A_LATE_DRAWING}`);
     this.#held = '';
@@ -285,6 +291,7 @@ export class BeatTextReader {
   }
 
   #startBeat(): void {
+    this.#voiceTags = [];
     this.#startsStretch = false;
     this.#script = [];
     this.#cuesAwaitingWord = [];
@@ -301,6 +308,7 @@ export class BeatTextReader {
     if (this.#isTurnOver) this.#addAfterTurn(character);
     else if (this.#brokenTail !== null) this.#stepInBrokenTail(character);
     else if (this.#command !== null) this.#stepInCommand(character);
+    else if (this.#voiceTag !== null) this.#stepInVoiceTag(character);
     else if (this.#tag !== null) this.#stepInTag(character);
     else if (this.#privateTag !== null) this.#stepInPrivateTag(character);
     else this.#stepInSpeech(character);
@@ -340,7 +348,7 @@ export class BeatTextReader {
   }
 
   #isPastWordCut(): boolean {
-    return this.#wordsThisTurn >= TURN_WORDS_TO_CUT && !this.#isSafetyReply;
+    return this.#wordsThisTurn >= (this.#hasMathThisTurn ? WORKED_EXAMPLE_WORDS_TO_CUT : TURN_WORDS_TO_CUT) && !this.#isSafetyReply;
   }
 
   #isOneMarkTooMany(character: string): boolean {
@@ -352,9 +360,29 @@ export class BeatTextReader {
     if (this.#held !== '') this.#stepAfterOpenBrace(character);
     else if (character === '{') this.#held = character;
     else if (character === '<') this.#tag = character;
+    else if (character === '[') this.#voiceTag = character;
     else if (character === '\n' && this.#isQuestionHeld) this.#addAfterHeldQuestion(character);
     else if (character === '\n') this.#endLineOrHoldQuestion();
     else if (character !== '}' && !UNSPEAKABLE.test(character) && !this.#isOneMarkTooMany(character)) this.#speak(character);
+  }
+
+  #stepInVoiceTag(character: string): void {
+    const tag = `${this.#voiceTag}${character}`;
+    if (VOICE_TAGS.includes(tag as VoiceTag)) {
+      this.#voiceTag = null;
+      this.#voiceTags.push({ beforeWord: this.#wordCount, tag: tag as VoiceTag });
+    } else if (VOICE_TAGS.some((known) => known.startsWith(tag))) {
+      this.#voiceTag = tag;
+    } else {
+      this.#voiceTag = tag;
+      this.#speakHeldBracket();
+    }
+  }
+
+  #speakHeldBracket(): void {
+    const held = this.#voiceTag ?? '';
+    this.#voiceTag = null;
+    for (const character of held.slice(1)) this.#stepInSpeech(character);
   }
 
   // Held until it closes, because "x < 5" must still be spoken with its sign.
@@ -644,6 +672,7 @@ export class BeatTextReader {
     if (!verdict.ok) return this.#refuse(JSON.stringify(command), verdict.problem);
     this.#commandCount += 1;
     this.#hasCommandThisTurn = true;
+    this.#hasMathThisTurn ||= command.kind === 'writeMath' || command.kind === 'transformMath';
     if ('id' in command) this.#createdIds.add(command.id);
     this.#board = getBoardAfter(command, this.#board);
     this.#script.push(command);
@@ -680,9 +709,9 @@ export class BeatTextReader {
       this.#hasToldSafety = true;
       this.#options.onSafetyReply?.();
     }
-    this.#options.onBeatEnd({ script, wordCount: this.#wordCount, expectsReply, startsStretch: this.#startsStretch });
+    this.#options.onBeatEnd({ script, wordCount: this.#wordCount, expectsReply, startsStretch: this.#startsStretch, voiceTags: this.#voiceTags });
     const isAtCut = this.#isPastWordCut();
-    this.#isTurnOver = (expectsReply && !this.#isSafetyReply) || (endsSentence && this.#wordsThisTurn >= TURN_WORDS_TO_WRAP && !this.#isSafetyReply) || isAtCut;
+    this.#isTurnOver = (expectsReply && !this.#isSafetyReply) || (endsSentence && this.#wordsThisTurn >= (this.#hasMathThisTurn ? WORKED_EXAMPLE_WORDS_TO_WRAP : TURN_WORDS_TO_WRAP) && !this.#isSafetyReply) || isAtCut;
     this.#wasCutShort = isAtCut && !expectsReply && !endsSentence;
     this.#didLastBeatEndSentence = endsSentence || endsInQuestion;
     this.#startBeat();
