@@ -77,6 +77,10 @@ export interface RecipeWorkTools {
   trace(name: string, fields?: Record<string, unknown>): void;
 }
 
+const WORDS_NAMING_NOTHING = new Set(['a', 'about', 'actually', 'am', 'an', 'and', 'are', 'can', 'cause', 'causes', 'did', 'do', 'does', 'explain', 'has', 'have', 'how', 'in', 'is', 'it', 'its', 'me', 'of', 'on', 'really', 'show', 'so', 'tell', 'the', 'to', 'up', 'us', 'was', 'what', 'when', 'where', 'why', 'work', 'works']);
+
+const getWordKey = (text: string) => [...new Set((text.toLowerCase().match(/\p{L}+/gu) ?? []).filter((word) => !WORDS_NAMING_NOTHING.has(word)).map((word) => word.replace(/e?s$/, '')))].sort().join(' ');
+
 const getLevelValues = (level: string | null): Record<string, number> => ({ level: level === null ? -1 : LEVEL_KEYS.indexOf(level) });
 
 const getSharedKey = (topic: string, level: string | null) => getSceneKey(topic, { values: getLevelValues(level) });
@@ -89,7 +93,7 @@ function appendLine(root: string, file: string, line: object): void {
 const MISSES_FILE = 'part-misses.jsonl';
 const REVIEWS_FILE = 'recipe-reviews.jsonl';
 
-async function getCleanLines({ topic, says, nameReader, signal }: { topic: string; says: readonly RecipeLine[]; nameReader: NameReader; signal: AbortSignal }): Promise<{ says: readonly RecipeLine[]; problems: readonly string[] }> {
+export async function getCleanLines({ topic, says, nameReader, signal }: { topic: string; says: readonly RecipeLine[]; nameReader: NameReader; signal: AbortSignal }): Promise<{ says: readonly RecipeLine[]; problems: readonly string[] }> {
   const clean = says.map(({ m, text }) => ({ m, text: withoutFillerOpener(text) }));
   const names = [...new Set(clean.flatMap(({ text }) => getLineNames(topic, { say: text })))];
   const cleared = names.length > 0 ? await nameReader.clear(names, AbortSignal.any([AbortSignal.timeout(NAME_LIMIT_MS), signal])).catch(() => new Set<string>()) : new Set<string>();
@@ -161,6 +165,14 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     return liveRun.getScene();
   };
 
+  // The same words in another order ask the same thing, so a saved scene plays with no model read.
+  const findSavedBySameWords = async (): Promise<StoredScene | null> => {
+    const wanted = getWordKey(request);
+    if (wanted === '') return null;
+    const found = (await store.listShared()).find(({ topic }) => getWordKey(topic) === wanted);
+    return found ? findPlayable(found.topic) : null;
+  };
+
   const getFirstPicture = async (): Promise<MadeScene> => {
     if (!drawing || !matching) return { isOk: false, reasons: ['the saved scene is gone'] };
     try {
@@ -177,8 +189,8 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
 
   const getRoute = async (): Promise<SceneRoute> => {
     if (!isCard && (isOnlyAskingForHelp(request) || isAboutBeingUnsafe(request))) return { ...NO_ROUTE, kind: SAFETY_KIND };
-    const saved = findPlayable(request);
-    if (saved) return { ...SAVED_ROUTE, topic: request };
+    const saved = findPlayable(request) ?? (await findSavedBySameWords());
+    if (saved) return { ...SAVED_ROUTE, topic: saved.topic };
     drawing = draw();
     matching = match();
     drawing.catch(() => {});

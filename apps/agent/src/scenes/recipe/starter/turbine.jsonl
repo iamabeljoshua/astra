@@ -1,0 +1,16 @@
+{"t":"fit","in":true,"topic":"How a wind turbine makes electricity","stage":"studio"}
+{"t":"say","m":"turbine-wind-arrives","text":"Wind pushes against the blades, like a sail on a boat."}
+{"t":"part","id":"turb","part":"windTurbine","args":{},"in":"turbine-wind-arrives"}
+{"t":"cam","on":"turbine-wind-arrives","look":"turb.hub","view":"front","zoom":1}
+{"t":"move","item":"turb","motion":"spin","on":"turbine-wind-arrives"}
+{"t":"label","text":"Blade","at":"turb.blade","show":"turbine-wind-arrives"}
+{"t":"say","m":"turbine-shaft-turns","text":"The blades turn a shaft, and a gearbox speeds it up a lot."}
+{"t":"cam","on":"turbine-shaft-turns","look":"turb.gearbox","view":"cut","zoom":1.2}
+{"t":"label","text":"Gearbox","at":"turb.gearbox","show":"turbine-shaft-turns"}
+{"t":"say","m":"turbine-generator-spins","text":"The fast shaft spins a generator, which is a coil in a magnetic field."}
+{"t":"cam","on":"turbine-generator-spins","look":"turb.generator","view":"cut","zoom":1.4}
+{"t":"label","text":"Generator","at":"turb.generator","show":"turbine-generator-spins"}
+{"t":"say","m":"turbine-current-flows","text":"Spinning the coil pushes electric current down the cable in the tower."}
+{"t":"move","item":"turb","motion":"power","on":"turbine-current-flows"}
+{"t":"cam","on":"turbine-current-flows","look":"turb.cable","view":"cut","zoom":1}
+{"t":"label","text":"Current","at":"turb.cable","show":"turbine-current-flows"}

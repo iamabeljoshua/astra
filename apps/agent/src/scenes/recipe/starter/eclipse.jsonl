@@ -1,0 +1,13 @@
+{"t":"fit","in":true,"topic":"How a solar eclipse happens","stage":"space"}
+{"t":"say","m":"eclipse-setup","text":"Here we see the Sun, the Moon, and the Earth lined up in space."}
+{"t":"part","id":"ecl","part":"eclipse","args":{"kind":"solar"},"in":"eclipse-setup"}
+{"t":"label","text":"Sun","at":"ecl.sun","show":"eclipse-setup"}
+{"t":"label","text":"Moon","at":"ecl.moon","show":"eclipse-setup"}
+{"t":"label","text":"Earth","at":"ecl.earth","show":"eclipse-setup"}
+{"t":"cam","on":"eclipse-setup","look":"ecl.moon","view":"side","zoom":1}
+{"t":"say","m":"moon-slides-in","text":"The Moon drifts across the line between the Sun and Earth."}
+{"t":"move","item":"ecl","motion":"align","on":"moon-slides-in"}
+{"t":"say","m":"shadow-falls","text":"Its dark shadow falls onto Earth, where the Sun is blocked."}
+{"t":"label","text":"Shadow","at":"ecl.shadow","show":"shadow-falls"}
+{"t":"cam","on":"shadow-falls","look":"ecl.shadow","view":"front","zoom":1.2}
+{"t":"say","m":"dark-spot","text":"People in that narrow shadow see the Sun go dark for minutes."}

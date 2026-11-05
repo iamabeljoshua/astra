@@ -1,0 +1,12 @@
+{"t":"fit","in":true,"topic":"What causes ocean tides","stage":"space"}
+{"t":"say","m":"tides-seen-from-above","text":"Picture Earth from above the north pole, with the sea drawn larger than it is."}
+{"t":"say","m":"two-bulges","text":"The Moon's pull lifts the water on the near side into a bulge, toward the Moon."}
+{"t":"say","m":"far-bulge","text":"Earth is pulled away from the water on the far side, so a second bulge forms there too."}
+{"t":"say","m":"earth-turns","text":"As Earth turns under these two bulges, each coast passes through one high tide and one low tide."}
+{"t":"say","m":"lunar-day","text":"Because the Moon moves on, a full tide cycle takes about twelve hours and twenty-five minutes."}
+{"t":"part","id":"tide","part":"tides","in":"tides-seen-from-above"}
+{"t":"label","text":"Moon","at":"moon.surface","show":"tides-seen-from-above"}
+{"t":"label","text":"Near bulge","at":"tide.nearBulge","show":"two-bulges"}
+{"t":"label","text":"Far bulge","at":"tide.farBulge","show":"far-bulge"}
+{"t":"cam","on":"tides-seen-from-above","look":"tide.earth","view":"above","zoom":1}
+{"t":"move","item":"tide.earth","motion":"turn","on":"earth-turns"}

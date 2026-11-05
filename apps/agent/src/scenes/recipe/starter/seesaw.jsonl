@@ -1,0 +1,10 @@
+{"t":"fit","in":true,"topic":"How a lever balances a heavy load","stage":"studio"}
+{"t":"say","m":"lever-at-rest","text":"Picture a long plank that rests on a single point, like a seesaw."}
+{"t":"part","id":"lev","part":"lever","args":{"ratio":3},"in":"lever-at-rest"}
+{"t":"cam","on":"lever-at-rest","look":"lev.fulcrum","view":"front","zoom":1}
+{"t":"say","m":"load-labeled","text":"A heavy load sits on the short side, close to the pivot point."}
+{"t":"label","text":"Load","at":"lev.load","show":"load-labeled"}
+{"t":"say","m":"effort-pressing","text":"Pushing down on the far, long end is your effort, and it moves much farther."}
+{"t":"move","item":"lev","motion":"tip","on":"effort-pressing"}
+{"t":"label","text":"Effort","at":"lev.effort","show":"effort-pressing"}
+{"t":"say","m":"balanced","text":"Because the long arm is three times the short arm, a small push lifts the heavy load."}

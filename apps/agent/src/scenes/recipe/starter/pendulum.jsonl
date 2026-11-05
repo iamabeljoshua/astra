@@ -1,0 +1,11 @@
+{"t":"fit","in":true,"topic":"why a pendulum swings back and forth","stage":"studio"}
+{"t":"say","m":"pendulum-swinging","text":"This is a pendulum, a heavy bob hanging from a thin rod."}
+{"t":"part","id":"pend","part":"pendulum","args":{"length":1.2},"in":"pendulum-swinging"}
+{"t":"move","item":"pend","motion":"swing","on":"pendulum-swinging"}
+{"t":"cam","on":"pendulum-swinging","look":"pend.bob","view":"front","zoom":1}
+{"t":"say","m":"pendulum-lowest","text":"Gravity pulls the bob down, and it picks up speed on the way down."}
+{"t":"label","text":"Lowest point","at":"pend.lowest","show":"pendulum-lowest","hide":"pendulum-highest"}
+{"t":"say","m":"pendulum-highest","text":"At the top it is briefly still, then gravity pulls it back down again."}
+{"t":"label","text":"Highest point","at":"pend.highest","show":"pendulum-highest"}
+{"t":"say","m":"pendulum-swinging","text":"The rod keeps it on its arc, so it swings back and forth, over and over."}
+{"t":"say","m":"pendulum-swinging","text":"Its length sets how long each swing takes, about two seconds for one metre."}
