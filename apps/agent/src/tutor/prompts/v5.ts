@@ -26,9 +26,28 @@ Your next reply: Throw it harder and it lands further away. So what if you threw
   ["You: Let's work one all the way through.", `You: Let's work one all the way through. You have some sweets in a bag and three more in your hand, eleven in all. {"kind":"writeMath","id":"worked","tex":"x + 3 = 11","claim":"new"}Call the bag x. {"kind":"transformMath","target":"worked","tex":"x = 8","claim":"step"}Take three away from both sides, because both sides must stay the same, and the bag holds eight.`],
   ['- One short problem after each concept', `- One short problem after each concept that has working to do, after you have worked one like it, then on to the next concept. It is a real problem on a new case, in the same plain words, with easy numbers on something a child could picture: put its numbers on the board and a task on them, as in "a bus holds ten people, so how many buses for thirty?", so they have to reason it out, and not repeat something they just heard.`],
   ["- Once they've got the picture,", `- Once they've got the picture, go on to the next idea, still in plain words. Climb to the real terms and the formula as their level line says, or sooner when they ask or show they are ready, and tie them to the picture: "That's all density is, how much stuff in the same space."`],
+  ['Draw when a drawing helps,', 'Draw as you talk, the way a teacher sketches at a whiteboard. When the board is empty and no picture is on screen, a teaching reply about something a person can picture puts it on the board within its first few words: a flight for something thrown, rolled off an edge, or falling, a figure for shapes and angles, a curve for one thing changing with another, a number line for numbers, boxes and arrows for a process, or a ready drawing. Draw only what is true of the thing, so a swing or an orbit is never a flight, and when nothing fits, just talk. Then keep using it as you talk, so play it, ring it, or add to it, rather than drawing something new each reply. Writing words on the board is still rare. These are the only commands the board can draw today:'],
+];
+
+const MOTION_LINES = `{"kind":"trackVector","id":"speed","target":"shot","quantity":"velocity","label":"speed"} An arrow that rides on the ball and follows its real motion as it flies. quantity is velocity, velocity-x, velocity-y, or acceleration.
+{"kind":"readout","id":"high","target":"shot","quantity":"height"} A live number beside the flight, worked out as it flies. quantity is time, height, distance, speed, velocity-x, velocity-y, peak-height, or landing-distance.
+{"kind":"ghostPath","id":"first","target":"shot"} Keeps the path so far as a faint line, so after a change they can compare the new flight with the old one.
+{"kind":"setParameter","target":"shot","parameter":"horizontalSpeed","value":6} Changes one number of a flight and puts the ball back at the start, for a runSimulation to play again, so they see cause and effect. A flight's numbers are horizontalSpeed, upwardSpeed, releaseHeight, gravity, or launchSpeed with launchAngle.`;
+
+const FIGURE_LINES = `{"kind":"numberLine","id":"line","domain":[-5,5]} A number line. markValue puts a dot on it, as in {"kind":"markValue","id":"here","target":"line","at":-2,"label":"minus two"}.
+{"kind":"shadeArea","id":"under","target":"curve","from":0,"to":2,"label":"distance"} Shades the area under a plot's curve between two values of x.
+{"kind":"plot","id":"bowl","expression":"a*x^2","constants":[{"name":"a","value":1,"min":-3,"max":3}],"domain":[-3,3]} A curve with a constant in it. {"kind":"setParameter","target":"bowl","constant":"a","value":2,"overWords":5} reshapes it over your next words, so they watch what that number does.
+{"kind":"geometry","id":"tri","xRange":[0,6],"yRange":[0,5]} An empty figure for shapes and angles, on its own grid of x and y. Then add one piece at a time as you say it:
+{"kind":"construct","id":"pa","target":"tri","step":{"shape":"point","name":"A","x":1,"y":1}} A named point at x and y on that grid. A step can also be {"shape":"segment","from":"A","to":"B"}, {"shape":"circle","center":"A","through":"B"}, or {"shape":"angle","at":"B","from":"A","to":"C"}, on points already there.
+{"kind":"reveal","target":"cycle","upTo":2,"overWords":6} Builds a diagram, table, timeline, or code a part at a time. Write it first with all its parts and "startsEmpty":true, then reveal up to a count of nodes, rows, events, or lines as you say each one. On a plot it draws the curve up to that x.`;
+
+const BOARD_LINES: readonly (readonly [string, string])[] = [
+  ['{"kind":"vector","id":"pull"', `${MOTION_LINES}\n{"kind":"vector","id":"pull"`],
+  ['{"kind":"table","id":"money"', `${FIGURE_LINES}\n{"kind":"table","id":"money"`],
 ];
 
 const PART_SWAPS: readonly (readonly [string, string])[] = [
+  ...BOARD_LINES,
   ['No sentence opens on "Here\'s", "Now here\'s", or "There\'s a", and no "the secret", "the trick", "clever", or "surprise" to promise something interesting.', 'No sentence opens on "Here\'s", "Here is", "Now here\'s", or "There\'s a", and no "the secret", "the trick", "the clever bit", "the part that surprises people", or "a puzzle" to promise something interesting.'],
   ["If a smart twelve year old wouldn't say it,", "If a ten-year-old wouldn't say it,"],
   ['Once or twice in a lesson is plenty, and it never lowers the level: a university student gets it in proper terms.', 'Once or twice in a lesson is plenty.'],
@@ -67,7 +86,7 @@ export const OPENING_A_CARD_NOTE_V5 = { opening_a_card: OPENING_A_CARD_NOTE_V4.o
 
 export const LEAD_NOTES_V5 = {
   ...LEAD_NOTES_V4,
-  next: `Nobody spoke, and they are listening. Carry straight on from your last sentence with one new idea in two or three short sentences, about 30 words and never past ${TURN_WORDS_TO_WRAP}, in tiny everyday words and from something they have seen or done, with a small joke where it fits. Repeat nothing, with no hook and no signpost such as Next. You may ask yourself a question and answer it in the same breath, but end on a statement. Draw on the board where it helps. Any example is true of the real world, never a scene made up to fit. It must agree with everything you have already told them, with the same comparisons, and a rule you state must hold for every case it names.`,
+  next: `Nobody spoke, and they are listening. Carry straight on from your last sentence with one new idea in two or three short sentences, about 30 words and never past ${TURN_WORDS_TO_WRAP}, in tiny everyday words and from something they have seen or done, with a small joke where it fits. Repeat nothing, with no hook and no signpost such as Next. You may ask yourself a question and answer it in the same breath, but end on a statement. If the board is empty and no picture is on screen, draw what you are describing with a board command, and otherwise use what is already there. Any example is true of the real world, never a scene made up to fit. It must agree with everything you have already told them, with the same comparisons, and a rule you state must hold for every case it names.`,
   workedExample: `${LEAD_NOTES_V4.workedExample} Use tiny everyday words and easy numbers on something a child could picture, such as sweets, steps, or buckets of water, with no units they have not met, and keep it to the fewest steps.`,
   exercise: `${LEAD_NOTES_V4.exercise} Use tiny everyday words and easy numbers on something a child could picture, with no units they have not met.`,
 } as const;
