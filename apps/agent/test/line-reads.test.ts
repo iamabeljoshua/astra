@@ -859,15 +859,15 @@ describe('lines with no read to make', () => {
     expect(spokenTo(run, line).join(' ')).not.toMatch(/adult you trust|emergency/);
   });
 
-  it('a reply that asks on a line in another language adds no emergency line', async () => {
-    const line = 'kedu ka rocket si aga';
-    const reply = "You wrote in Igbo, I think. Could you try English?";
+  it('a reply that asks after them on a line read as another language still names help', async () => {
+    const line = 'jen peux plus';
+    const reply = "Ça veut dire quoi pour toi, qu'est-ce qui se passe ?";
     const run = startLesson({ safety: makeWatch(async () => 'school'), wishes: { [line]: 'other_language' }, promises: (spoken) => (spoken === reply ? 'asks' : false), answer: (words, index) => (words === line ? reply : BEAT(index)) });
     run.type('teach me rockets');
     await run.waitForLead();
     run.typeInBox(line);
     await delay(STILL_MS);
-    expect(spokenTo(run, line)).toEqual([reply]);
+    expect(spokenTo(run, line)[0]).toMatch(/adult you trust/);
   });
 
   it('a sentence about a line in another language is not a failed read', async () => {

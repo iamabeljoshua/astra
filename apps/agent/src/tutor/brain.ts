@@ -376,7 +376,7 @@ const getWishEvent = (wish: LineWish, words: string): LeadStopEvent | null => {
   return (wish === 'go_on' || asksToBeTaught(words)) && isMoreThanOneWord(words) ? 'askedToBeTaught' : 'saidSomething';
 };
 
-const WISHES_THAT_NEED_NO_HELP: ReadonlySet<LineRead | 'pending'> = new Set<LineRead | 'pending'>(['wait', 'go_on', 'slower', 'faster', 'filler', 'other_language']);
+const WISHES_THAT_NEED_NO_HELP: ReadonlySet<LineRead | 'pending'> = new Set<LineRead | 'pending'>(['wait', 'go_on', 'slower', 'faster', 'filler']);
 
 const getLineNote = (wish: LineRead | 'pending', wasPausedAtStart: boolean) => {
   if (wish === 'other_language') return OTHER_LANGUAGE_NOTE;
@@ -807,7 +807,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       draftToRead = null;
       turn.safetyReading = 'pending';
       turn.safetyAnswered = new Promise((resolve) => {
-        turn.safetyRead = withinReadLimit<StudentReading>(safety.readStudent(wordsForSafetyCheck, lastSpokenText, () => turn.lineRead.then(() => needsNoHelp(turn))), 'unread', timeouts.safetyReadLimitMs).then((reading) => {
+        turn.safetyRead = withinReadLimit<StudentReading>(safety.readStudent(wordsForSafetyCheck, lastSpokenText, () => turn.lineRead.then(() => needsNoHelp(turn) || turn.lineWish === 'other_language')), 'unread', timeouts.safetyReadLimitMs).then((reading) => {
           turn.safetyReading = reading;
           resolve(SAFETY_ANSWERED);
           if (isAboutSafety(reading)) {
