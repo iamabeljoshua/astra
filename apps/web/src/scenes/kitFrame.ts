@@ -2,7 +2,10 @@ import { SCENE_ENGINE_VERSIONS } from '@astra/contracts';
 import { buildKitFramePage, getNeededTextures, type KitFont, type KitFrameCommand, type KitFrameReply, type KitTake, type KitTheme } from '@astra/board/scene3d';
 import { fetchAppFile } from '../api/fetchAppFile';
 
-const KIT_BASE = `/scene-kit/${SCENE_ENGINE_VERSIONS.kit}`;
+export type FrameEngine = 'kit' | 'canvas';
+
+const RUNTIME_FILES: Record<FrameEngine, string> = { kit: `/scene-kit/${SCENE_ENGINE_VERSIONS.kit}/kit.js`, canvas: `/scene-kit/canvas-${SCENE_ENGINE_VERSIONS.canvas}/canvas.js` };
+const EARTH_TEXTURES = ['2k_earth_daymap', '2k_earth_clouds'];
 const FONT_WEIGHTS = [400, 500, 600];
 const PING_EVERY_MS = 500;
 const MOST_MISSED_PINGS = 4;
@@ -17,7 +20,7 @@ export interface KitFrame {
   dispose(): void;
 }
 
-let sharedFiles: Promise<{ kitBundle: string; fonts: KitFont[] }> | null = null;
+const sharedFiles = new Map<FrameEngine, Promise<{ kitBundle: string; fonts: KitFont[] }>>();
 const textureFiles = new Map<string, Promise<Blob>>();
 
 const getFonts = (): Promise<KitFont[]> =>
@@ -28,19 +31,22 @@ const getFonts = (): Promise<KitFont[]> =>
     }),
   );
 
-async function readSharedFiles(): Promise<{ kitBundle: string; fonts: KitFont[] }> {
-  const [kit, fonts] = await Promise.all([fetchAppFile(`${KIT_BASE}/kit.js`), getFonts()]);
+async function readSharedFiles(engine: FrameEngine): Promise<{ kitBundle: string; fonts: KitFont[] }> {
+  const [kit, fonts] = await Promise.all([fetchAppFile(RUNTIME_FILES[engine]), getFonts()]);
   return { kitBundle: new TextDecoder().decode(kit), fonts };
 }
 
-export const warmKitFiles = () => void getSharedFiles().catch(() => {});
+export const warmKitFiles = (engine: FrameEngine = 'kit') => void getSharedFiles(engine).catch(() => {});
 
-function getSharedFiles() {
-  sharedFiles ??= readSharedFiles().catch((error: unknown) => {
-    sharedFiles = null;
+function getSharedFiles(engine: FrameEngine) {
+  const kept = sharedFiles.get(engine);
+  if (kept) return kept;
+  const made = readSharedFiles(engine).catch((error: unknown) => {
+    sharedFiles.delete(engine);
     throw error;
   });
-  return sharedFiles;
+  sharedFiles.set(engine, made);
+  return made;
 }
 
 function getTexture(name: string): Promise<Blob> {
@@ -53,8 +59,8 @@ function getTexture(name: string): Promise<Blob> {
   return made;
 }
 
-async function getTextures(code: string): Promise<Record<string, Blob>> {
-  const names = getNeededTextures(code);
+async function getTextures(code: string, engine: FrameEngine): Promise<Record<string, Blob>> {
+  const names = engine === 'kit' ? getNeededTextures(code) : /\bearth\b/i.test(code) ? EARTH_TEXTURES : [];
   return Object.fromEntries(await Promise.all(names.map(async (name) => [name, await getTexture(name)] as const)));
 }
 
@@ -75,12 +81,13 @@ export interface OpenKitFrameInput {
   theme: KitTheme;
   limitMs: number;
   drawsFlat?: boolean;
+  engine?: FrameEngine;
   onLost(): void;
   onFirstDraw(): void;
 }
 
-export async function openKitFrame({ host, take, theme, limitMs, drawsFlat = false, onLost, onFirstDraw }: OpenKitFrameInput): Promise<KitFrame> {
-  const [{ kitBundle, fonts }, textures] = await Promise.all([getSharedFiles(), getTextures(take.code)]);
+export async function openKitFrame({ host, take, theme, limitMs, drawsFlat = false, engine = 'kit', onLost, onFirstDraw }: OpenKitFrameInput): Promise<KitFrame> {
+  const [{ kitBundle, fonts }, textures] = await Promise.all([getSharedFiles(engine), getTextures(take.code, engine)]);
   const page = buildKitFramePage({ kitBundle, fonts, code: take.code, drawsFlat });
   const iframe = createFrameElement(page);
   let currentTheme = theme;

@@ -35,6 +35,24 @@ class Lesson(Lesson2D):
         self.finish()
 `;
 
+const FAKE_DRAWING_CODE = `function scene(kit) {
+  return { parts: ['sun'], render(t) {
+    kit.sky({});
+    kit.sun({ x: 640, y: 300, r: 90 * kit.env(t, 'look', null, 0.5) });
+    kit.label('Sun', { x: 860, y: 200, to: { x: 700, y: 260 }, alpha: kit.env(t, 'why', null, 0.5) });
+  } };
+}`;
+
+const getFakeDrawingText = (topic: string) =>
+  [
+    JSON.stringify({ t: 'fit', in: true, topic }),
+    JSON.stringify({ t: 'say', m: 'look', text: 'So here is the sun, sitting up in a clear sky.' }),
+    JSON.stringify({ t: 'say', m: 'why', text: 'And that label shows you where the light comes from.' }),
+    '```js',
+    FAKE_DRAWING_CODE,
+    '```',
+  ].join('\n');
+
 const getFakeRecipeText = (topic: string) =>
   [
     { t: 'fit', in: true, topic, stage: 'space' },
@@ -69,6 +87,8 @@ export function makeFakeSceneModels(): SceneModels & RecipeModels {
       },
     },
     recipeReviewer: { read: async () => ({ isGood: true, reasons: [], ...FAKE_USAGE }) },
+    freshWriter: { write: async ({ topic }) => ({ text: getFakeDrawingText(topic), ...FAKE_USAGE }) },
+    freshReviewer: { read: async () => ({ isGood: true, reasons: [], ...FAKE_USAGE }) },
     planner: { plan: async (topic, _signal, hooks) => { const plan = getPlanFromText(FAKE_PLAN); hooks?.onSceneWords?.({ narration: plan.narration, plan: plan.plan }); return { ...plan, opening: [...plan.opening, { say: `And that is what this lesson on ${topic} is about.` }], ...FAKE_USAGE }; } },
   };
 }
