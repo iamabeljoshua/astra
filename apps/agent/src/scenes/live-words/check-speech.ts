@@ -33,6 +33,7 @@ const POINTS_AT_THE_MACHINERY: readonly RegExp[] = [/\b(?:loading|as you can see
 const getSpokenText = ({ setup, narration, close }: SceneSpeech) => [setup, readMarks(narration).text, close].filter(Boolean).join(' ');
 export const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length;
 const toWordKey = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
+const toNameKey = (word: string) => toWordKey(word.replace(/'s$/i, ''));
 
 function getShapeProblems(written: SceneSpeech): SpeechProblem[] {
   const fields = [written.setup, readMarks(written.narration).text, written.close];
@@ -60,14 +61,14 @@ function getNumberProblems(scene: StoredScene, written: SceneSpeech): SpeechProb
   return extra.length > 0 ? [{ kind: 'number', detail: `not in the saved words: ${[...new Set(extra)].join(', ')}` }] : [];
 }
 
-const getKnownWords = (scene: StoredScene, interests: readonly string[]) => new Set([getSpokenText(scene.plan), scene.plan.plan, scene.topic, ...interests].join(' ').split(/\s+/).map(toWordKey));
+const getKnownWords = (scene: StoredScene, interests: readonly string[]) => new Set([getSpokenText(scene.plan), scene.plan.plan, scene.topic, ...interests].join(' ').split(/\s+/).map(toNameKey));
 
 // A capital inside a sentence that the scene and the student's interests never used is a name no check has cleared.
 function getNameProblems(scene: StoredScene, written: SceneSpeech, interests: readonly string[]): SpeechProblem[] {
   const known = getKnownWords(scene, interests);
   const text = getSpokenText(written);
   const inside = text.split(/(?<=[.?!])\s+/).flatMap((sentence) => sentence.split(/\s+/).slice(1)).flatMap((word) => word.split('-'));
-  const names = inside.filter((word) => /^\p{Lu}/u.test(word) && !/^I(?:'|$)/.test(word) && !known.has(toWordKey(word)));
+  const names = inside.filter((word) => /^\p{Lu}/u.test(word) && !/^I(?:'|$)/.test(word) && !known.has(toNameKey(word)));
   const lineProblems = getLineProblems(scene.topic, { say: text });
   return [...(names.length > 0 ? [{ kind: 'name' as const, detail: names.join(', ') }] : []), ...lineProblems.map((detail) => ({ kind: 'banned' as const, detail }))];
 }

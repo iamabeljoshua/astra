@@ -6,7 +6,7 @@ import { TUTOR_PROMPT } from '../../tutor/prompt.ts';
 import { readMarks } from '../narration.ts';
 import { isSameTopic } from '../../tutor/scene-screen.ts';
 import type { StoredScene } from '../scene-types.ts';
-import { countWords, type SceneSpeech } from './check-speech.ts';
+import type { SceneSpeech } from './check-speech.ts';
 import { getNumbersSaid } from './number-words.ts';
 
 export interface StudentNote {
@@ -29,7 +29,7 @@ export interface SceneWordsAsk {
   askedAbout: string;
 }
 
-const MOST_TOKENS = 700;
+const MOST_TOKENS = 250;
 const LONGEST_SETUP_WORDS = 16;
 const WRITE_LIMIT_MS = 6000;
 const MOST_WORDS_JUST_SAID = 70;
@@ -50,40 +50,46 @@ function getSavedMoments(narration: string): Record<string, string> {
   return Object.fromEntries([...(before > 0 ? [[BEFORE_FIRST_MOMENT, words.slice(0, before).join(' ')] as const] : []), ...marks.map(({ id, atWord }, index) => [id, words.slice(atWord, marks[index + 1]?.atWord ?? words.length).join(' ')] as const)]);
 }
 
-const getWordCounts = ({ setup, narration, close }: SceneSpeech) => ({ setup: countWords(setup), moments: Object.fromEntries(Object.entries(getSavedMoments(narration)).map(([id, said]) => [id, countWords(said)])), close: countWords(close) });
-
-function getSchemaGuidedBySavedMoments({ setup, narration }: SceneSpeech) {
-  const saved = Object.entries(getSavedMoments(narration));
-  const moments = { type: 'object', additionalProperties: false, required: saved.map(([id]) => id), properties: Object.fromEntries(saved.map(([id, said]) => [id, { type: 'string', description: `Saved says: ${said} At most ${countWords(said)} words.` }])) };
-  return { type: 'object', additionalProperties: false, required: ['setup', 'moments', 'close'], properties: { setup: { type: 'string', description: `At most ${Math.max(LONGEST_SETUP_WORDS, countWords(setup))} words.` }, moments, close: { type: 'string' } } };
-}
-
-function toSceneSpeech(answer: unknown): unknown {
-  const { setup, moments, close } = (answer ?? {}) as Record<string, unknown>;
-  if (typeof moments !== 'object' || moments === null) return answer;
-  const narration = Object.entries(moments as Record<string, unknown>).map(([id, words]) => (id === BEFORE_FIRST_MOMENT ? String(words) : `[[${id}]] ${String(words)}`)).join(' ');
-  return { setup, narration, close };
-}
+// Two shapes that stay the same for every scene, so the provider compiles each once and the cached prompt survives.
+const SETUP_FIELD = { type: 'string', description: `One sentence of at most ${LONGEST_SETUP_WORDS} words.` };
+const SLOWER_FIELD = { type: 'object', additionalProperties: false, required: ['moment', 'words'], properties: { moment: { type: 'string' }, words: { type: 'string' } } };
+const SETUP_SCHEMA = { type: 'object', additionalProperties: false, required: ['setup'], properties: { setup: SETUP_FIELD } };
+const SLOWER_SCHEMA = { type: 'object', additionalProperties: false, required: ['setup', 'slower'], properties: { setup: SETUP_FIELD, slower: SLOWER_FIELD } };
 
 const getThisIdeaNotes = (notes: readonly StudentNote[], topic: string) => notes.filter(({ kind, about }) => WORK_KINDS.has(kind) && isSameTopic(about, topic)).map(({ kind, detail }) => ({ kind, ...(detail ? { detail } : {}) }));
 
-function getAskText({ scene, student, askedAbout }: SceneWordsAsk): string {
+const hasStruggled = (notes: readonly { kind: string }[]) => notes.some(({ kind }) => kind === 'struggled');
+
+const isWholeSentence = (words: string) => /[.?!]$/.test(words);
+
+function toSceneSpeech(answer: unknown, saved: SceneSpeech): unknown {
+  const { setup, slower } = (answer ?? {}) as { setup?: unknown; slower?: { moment?: unknown; words?: unknown } };
+  const moments = getSavedMoments(saved.narration);
+  if (slower !== undefined) {
+    if (typeof slower.moment !== 'string' || !(slower.moment in moments) || typeof slower.words !== 'string') return { setup, narration: '', close: saved.close };
+    if (isWholeSentence(moments[slower.moment] ?? '')) moments[slower.moment] = slower.words;
+  }
+  const narration = Object.entries(moments).map(([id, words]) => (id === BEFORE_FIRST_MOMENT ? words : `[[${id}]] ${words}`)).join(' ');
+  return { setup, narration, close: saved.close };
+}
+
+function getAskText({ scene, student, askedAbout }: SceneWordsAsk, notes: readonly { kind: string }[]): string {
   const { setup, narration, close, plan } = scene.plan;
   const ask = {
     topic: scene.topic,
-    saved: { setup, narration, close },
-    shows: { plan, parts: scene.parts, labels: scene.recipe?.labels.map(({ text, sub }) => (sub ? `${text}: ${sub}` : text)) ?? [], declared: scene.declared, values: scene.values },
-    word_counts: getWordCounts(scene.plan),
-    numbers_you_may_say: getAllowedNumberList(scene),
-    student: { level: student.level, interests: student.interests, notes_on_this_idea: getThisIdeaNotes(student.notes, scene.topic) },
+    saved: { setup, moments: getSavedMoments(narration), close },
+    shows: plan,
+    student: { level: student.level, notes_on_this_idea: notes },
     just_said: getLastWords(student.justSaid, MOST_WORDS_JUST_SAID),
     student_said: student.studentSaid.slice(0, MOST_STUDENT_CHARACTERS),
     asked_about: askedAbout.slice(0, MOST_STUDENT_CHARACTERS),
+    ...(hasStruggled(notes) ? { numbers_you_may_say: getAllowedNumberList(scene) } : {}),
   };
   return JSON.stringify(ask);
 }
 
 export async function writeSceneSpeech(reader: JsonReader, ask: SceneWordsAsk) {
-  const { answer, costUsd } = await reader.read({ system: getSystem(), text: getAskText(ask), schema: getSchemaGuidedBySavedMoments(ask.scene.plan), timeoutMs: WRITE_LIMIT_MS, mostTokens: MOST_TOKENS });
-  return { answer: toSceneSpeech(answer), costUsd };
+  const notes = getThisIdeaNotes(ask.student.notes, ask.scene.topic);
+  const { answer, costUsd } = await reader.read({ system: getSystem(), text: getAskText(ask, notes), schema: hasStruggled(notes) ? SLOWER_SCHEMA : SETUP_SCHEMA, timeoutMs: WRITE_LIMIT_MS, mostTokens: MOST_TOKENS });
+  return { answer: toSceneSpeech(answer, ask.scene.plan), costUsd };
 }
