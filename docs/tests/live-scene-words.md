@@ -10,7 +10,7 @@ Every picture that reaches a lesson comes through the same `ready` state, so thi
 
 ## The call
 
-There is one call for each scene played, started when the scene is matched or when the tutor asks for a scene the queue already holds. If the tutor's reply has written no words yet, the call waits for them, at most 1.5 s, so the new words can carry on from them. A queued scene is not written for ahead of its ask. Its words would no longer follow what was just said, and it may never play.
+There is one call for each scene played, started when the scene is matched or when the tutor asks for a scene the queue already holds. If the tutor's reply has written no words yet, the call waits for them, at most 1.5 s, so the new words can carry on from them. A queued scene is not written for ahead of its ask. Its words would no longer follow what was just said, and it may never play. For the same reason, words older than 30 s are not used. A scene asked again after that gets one new call.
 
 The call reads the saved words, what each moment shows, the moment ids, labels, `declared`, `values`, and the only numbers allowed. From the tutor it reads the student's level, interests, notes on this same idea, the last words said, and the student's last line. The voice rules come from the live prompt, so they change with it. The student's id and name are not in it. A note on another idea does not leave the tutor.
 
@@ -21,8 +21,8 @@ The call reads the saved words, what each moment shows, the moment ids, labels, 
 `check-speech.ts` reads every reply, and any problem means the saved words play.
 
 - **Marks.** The same ids, in the same order, each with words of its own, and no words before the first mark if the saved words have none.
-- **Numbers.** Every amount, in digits or words, must be in the saved words, `declared`, or `values`. "One" alone is usually a pronoun, so it counts only in front of a measure.
-- **Names.** A capital inside a sentence that the saved words never used is refused, and so is a listed name pair or a run of capitals. Clearing a name would be a second call.
+- **Numbers.** Every amount, in digits or words, must be in the saved words, `declared`, or `values`. A sign is not read. "One" alone is usually a pronoun, so it counts only in front of a measure or after a word such as minus.
+- **Names.** A capital inside a sentence that the scene's words, its plan, its topic, and the student's interests never used is refused, and so is a listed name pair or a run of capitals. Clearing a name would be a second call.
 - **Banned lines.** Anything that says what the tutor holds on a student, such as "since you like" or "last time". The tutor's own banned hype, and any line that claims a feeling, reads like a safety line, or points at an animation.
 - **Length and shape.** 0.7 to 1.4 of the saved length, a setup of at most 20 words, a close only if the scene has one, ending on a question, and no bracket, dash, or markup.
 
@@ -50,4 +50,4 @@ Each scene adds about $0.002 of model spending, booked through `caps.addScene`, 
 OPENAI_BASE_URL=<proxy>/v1 node apps/agent/src/scenes/proof/scene-words-proof.ts --model openai --store <store> --out <file.jsonl>
 ```
 
-The proof makes one call for each of 4 saved scenes and any scene named by `--scene` or `--topics`, for 3 students, with no voice and no writes to the store, and prints the fallback rate and call times.
+The proof makes one call for each scene, from the 4 it names or from `--topics`, plus any named by `--scene`, for 4 students: football with a line said before the scene, a struggle on this idea, nothing known, and football as the first thing heard. It uses no voice and does not write to the store, and it prints the fallback rate and call times.
