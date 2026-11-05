@@ -102,7 +102,7 @@ async function runSession(context: JobContext): Promise<void> {
       scenes?.queue?.noteSafetyReply();
     },
     onCardKnown: (title: string | null) => scenes?.noteCard(title),
-    onTurnWritten(turn: { firstTextMs: number | null; spokenText: string; refusalCategory: string | null }) {
+    onTurnWritten(turn: { wasLead: boolean; firstTextMs: number | null; spokenText: string; refusalCategory: string | null }) {
       lastFirstTextMs = turn.firstTextMs;
       scenes?.queue?.noteTutorReply(turn);
     },

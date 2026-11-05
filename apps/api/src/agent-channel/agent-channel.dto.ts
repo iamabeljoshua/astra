@@ -3,6 +3,7 @@ import { ArrayMaxSize, IsArray, IsDate, IsInt, IsNumber, IsObject, IsString, IsU
 import { IsStorableJson, IsStorableText } from '../is-storable-text';
 import { MAX_SESSION_TITLE_LENGTH } from '../sessions/session.dto';
 import type { StudentGoal, StudentInterest, StudentLevel } from '../students/student-profile-options';
+import type { CardMaterial } from '../scenes/scene-library';
 
 const LARGEST_CHARGE_USD = 10;
 const MOST_EVENTS_IN_A_SAVE = 500;
@@ -66,4 +67,5 @@ export interface TutorBrief {
   goal: StudentGoal | null;
   /** The library's title when a card started this session, and null for a typed question. */
   cardTitle: string | null;
+  cardMaterial?: CardMaterial;
 }

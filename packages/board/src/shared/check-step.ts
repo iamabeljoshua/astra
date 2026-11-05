@@ -107,12 +107,29 @@ export function checkAgainstGuess({ tex, problemTex, previousTex }: StepInput): 
   return isOutOfStep && !isOnlySlips ? { status: 'unknown', offProblem: problemTex } : UNKNOWN;
 }
 
+const NUMBER_WITH_SPELLED_UNIT = /^-?\d+(?:\.\d+)?(?:[a-zA-Z]{2,}|g|[a-zA-Z]+\/[a-zA-Z]+\d?|\\frac\{[a-zA-Z]+\}\{[a-zA-Z]+\d?\})(?:\/[a-zA-Z]+)*(?:\^\{?-?\d+\}?)?$/;
+
+export function isAnswerWithUnit(tex: string): boolean {
+  const sides = tex.split('=').map(compact);
+  return (sides.length === 1 || (sides.length === 2 && /^[A-Za-z]$/.test(sides[0] as string))) && NUMBER_WITH_SPELLED_UNIT.test(sides.at(-1) as string);
+}
+
+export function getWorkedSumAnswer(tex: string): string | null {
+  const sides = tex.split('=').map(compact);
+  if (sides.length < 2) return null;
+  const answer = sides.at(-1) as string;
+  return BARE_ANSWER.test(answer) && !/[A-Za-z]/.test((sides[0] as string).replace(/\\[a-zA-Z]+/g, '')) ? answer : null;
+}
+
 export function isFinishedAnswer(tex: string): boolean {
   const sides = tex.split('=').map(compact);
   if (sides.length < 2) return false;
   const [left, right] = [sides[0] as string, sides.at(-1) as string];
   return (/^[A-Za-z]$/.test(left) && BARE_ANSWER.test(right)) || (/^[A-Za-z]$/.test(right) && BARE_ANSWER.test(left));
 }
+
+/** A number on its own line is the student's answer. It closes the task only when code reads it right, and a step on the way to one always has a letter or a sum beside it. */
+export const isBareAnswer = (tex: string) => BARE_ANSWER.test(compact(tex));
 
 export function getLinearAnswer(tex: string): { letter: string; value: number } | null {
   const sides = tex.split('=');

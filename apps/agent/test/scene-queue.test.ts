@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { AHEAD_WRITE_GUIDE_USD, type AheadFacts, getPrepareRefusal, getWriteRefusal, MOST_WRITES_AHEAD } from '../src/scene-queue/ahead-budget.ts';
 import { matchLibrary, readMatches, type ShelfScene, toShelfScene } from '../src/scene-queue/library-match.ts';
 import { createSceneQueue } from '../src/scene-queue/scene-queue.ts';
-import { getStateAfterEvent, getStateAfterMove, type LessonState, NO_LESSON } from '../src/lesson-plan/plan-progress.ts';
+import { getStateAfterEvent, getStateAfterMove, getStateWithMoreSteps, type LessonState, NO_LESSON } from '../src/lesson-plan/plan-progress.ts';
 import type { LessonPlan } from '../src/lesson-plan/lesson-plan.ts';
 
 const RINGS: LessonPlan = {
@@ -506,5 +506,26 @@ describe('matching a plan to the saved library', () => {
 
   it('reads a scene without its timing marks', () => {
     expect(toShelfScene({ topic: 'A', plan: { setup: 'Watch.', narration: '[[a]] It climbs. [[b]] It falls.' } as never }).words).toBe('Watch. It climbs. It falls.');
+  });
+});
+
+describe('saved scenes for ideas added later', () => {
+  it('reads the shelf again for steps the planner adds, and keeps what it read', async () => {
+    const scenes = makeScenes();
+    const added = { teach: 'moons carve gaps', exercise: 'label the gap' };
+    const readLibrary = vi.fn(async ({ steps }: LessonPlan) => steps.map((step) => (step === added ? 'How small moons carve gaps in the rings' : null)));
+    const queue = createSceneQueue({ scenes, readLibrary, getFacts: () => ROOMY, canPlay: () => true, moveToNextStep: vi.fn(), trace: () => {} });
+    const twoSteps: LessonPlan = { ...RINGS, steps: RINGS.steps.slice(0, 2) };
+    const before = start(twoSteps);
+    queue.onLesson(before);
+    await flush();
+    expect(readLibrary).toHaveBeenCalledOnce();
+    const grown = getStateWithMoreSteps(before, RINGS.topic, [added]);
+    const atSecond = getStateAfterEvent(grown, 'movedOn');
+    queue.onLesson(atSecond);
+    await flush();
+    expect(readLibrary).toHaveBeenCalledTimes(2);
+    expect(readLibrary.mock.calls[1]?.[0].steps).toEqual([added]);
+    expect(prepared(scenes)).toContain('How small moons carve gaps in the rings');
   });
 });

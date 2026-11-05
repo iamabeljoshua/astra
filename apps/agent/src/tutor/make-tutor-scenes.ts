@@ -1,5 +1,6 @@
 import { cpus, loadavg } from 'node:os';
 import { readKey } from '../keys.ts';
+import { getCardPictures } from '../lesson-plan/card-lesson.ts';
 import { makeAnthropicJsonReader } from '../providers/anthropic.ts';
 import { makeAnthropicSceneModels, type SceneModels } from '../providers/anthropic.scenes.ts';
 import { matchLibrary, toShelfScene } from '../scene-queue/library-match.ts';
@@ -14,8 +15,8 @@ import { createTutorScenes, type TutorScenes, type TutorScenesOptions } from './
 
 /** About four fresh scenes. A saved scene costs nothing, so this only stops a session that keeps asking for new ones. */
 const DEFAULT_SCENE_LIMIT_USD = 0.8;
-/** About 67 credits a play, so one student's looping stays near a quarter of a 1,500 credit project day. */
-const DEFAULT_SHARED_PLAYS_A_DAY = 5;
+/** Three whole lessons of a card's six scenes. Each play is spoken again, at about 100 credits. */
+const DEFAULT_SHARED_PLAYS_A_DAY = 18;
 
 type SessionHooks = Pick<TutorScenesOptions, 'getCardTitle' | 'send' | 'speak' | 'canSpeak' | 'onShown' | 'trace'>;
 
@@ -63,9 +64,13 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, ...h
     const reader = isFake ? null : makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
     queue = createSceneQueue({
       scenes,
-      async readLibrary(plan) {
-        if (!reader || caps.getSpendLimit()) return [];
-        const { matches, costUsd } = await matchLibrary(reader, plan, (await store.listShared()).map(toShelfScene));
+      async readLibrary(plan, taken) {
+        if (caps.getSpendLimit()) return [];
+        const shelf = await store.listShared();
+        const pictures = getCardPictures(plan, shelf.map(({ topic }) => topic));
+        if (pictures) return pictures;
+        if (!reader) return [];
+        const { matches, costUsd } = await matchLibrary(reader, plan, shelf.filter(({ topic }) => !taken.includes(topic)).map(toShelfScene));
         caps.addTurn({ usd: costUsd, voiceCharacters: 0 });
         hooks.trace('sceneLibraryRead', { costUsd, matches: matches.filter(Boolean).length, steps: plan.steps.length });
         return matches;

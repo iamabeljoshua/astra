@@ -1,5 +1,5 @@
 import type { LineReading, StudentWork, WorkVerdict } from '@astra/contracts';
-import { type CheckedWork, getLineTex, isFinishedAnswer, isThinkingAloud } from '@astra/board/shared';
+import { type CheckedWork, getLineTex, isAnswerWithUnit, isBareAnswer, isFinishedAnswer, isThinkingAloud } from '@astra/board/shared';
 
 export interface WatchSituation {
   secondsPaused: number;
@@ -10,6 +10,7 @@ export interface WatchSituation {
   unanswered: { verdict: WorkVerdict; isSameWrongLineTwice: boolean } | null;
   hasOpenTask: boolean;
   hasLeanedInOnThisSilence: boolean;
+  isLeadStopped?: boolean;
 }
 
 export type WatchDecision = { act: 'stay'; why: string } | { act: 'speak'; why: string } | { act: 'readWords' };
@@ -17,13 +18,16 @@ export type WatchDecision = { act: 'stay'; why: string } | { act: 'speak'; why: 
 export const WATCH_SECONDS = { afterQuestion: 8, afterSpeakingUp: 20, askingForHelp: 3, wordsToRead: 3, builtOnWrongLine: 5, sameWrongLineTwice: 5, wrongLineSat: 10, unjudgedWorkSat: 10, nothingChanged: 30 } as const;
 
 const ASKING_FOR_HELP = /\b(help|stuck|don'?t (know|get)|no idea|confused|lost|is (this|that|it) (right|ok|correct))\b|\?\s*$/i;
-const HOLDS_WORDS = /[a-z]{3,}/i;
+const LATIN_WORD = '[a-z]{3,}';
+const NON_LATIN_WORD = String.raw`[^\P{L}\p{Script=Latin}]{2,}`;
+export const HOLDS_WORDS = new RegExp(`${LATIN_WORD}|${NON_LATIN_WORD}`, 'iu');
 
 const stay = (why: string): WatchDecision => ({ act: 'stay', why });
 const speak = (why: string): WatchDecision => ({ act: 'speak', why });
 
-export function getGate({ isTutorTalking, secondsSinceQuestion, secondsSinceSpokeUp }: WatchSituation): WatchDecision | null {
+export function getGate({ isTutorTalking, secondsSinceQuestion, secondsSinceSpokeUp, isLeadStopped = false }: WatchSituation): WatchDecision | null {
   if (isTutorTalking) return stay('the tutor is talking');
+  if (isLeadStopped) return stay('nothing goes on by itself now');
   if (secondsSinceQuestion !== null && secondsSinceQuestion < WATCH_SECONDS.afterQuestion) return stay('the student is still answering a question');
   if (secondsSinceSpokeUp !== null && secondsSinceSpokeUp < WATCH_SECONDS.afterSpeakingUp) return stay('the tutor spoke up a moment ago');
   return null;
@@ -77,9 +81,10 @@ function decideOnLine(text: string, reading: LineReading | undefined, checked: C
   const { status } = checked.verdict;
   if (status === 'wrong') return reply('code is certain the line is wrong');
   const tex = reading ? getLineTex(reading) : null;
-  if (status === 'right') return checked.closesTask || (tex !== null && isFinishedAnswer(tex)) ? reply('the student finished') : wait('a right line, and the student is working');
+  if (status === 'right') return checked.closesTask || checked.isWorkedSumNotWrong || (tex !== null && isFinishedAnswer(tex)) ? reply('the student finished') : wait('a right line, and the student is working');
   if (status === 'unknown' && checked.verdict.offProblem !== undefined) return reply('the line does not follow from the problem on the board');
-  return tex !== null && isFinishedAnswer(tex) ? reply('the student gave an answer code cannot judge') : wait('code cannot judge this line, so the tutor looks at a pause');
+  const isOnlyNumbers = !/\p{L}/u.test(text);
+  return tex !== null && (isFinishedAnswer(tex) || isBareAnswer(tex) || isAnswerWithUnit(tex) || isOnlyNumbers) ? reply('the student gave an answer code cannot judge') : wait('code cannot judge this line, so the tutor looks at a pause');
 }
 
 export function decideOnWork(work: StudentWork, checked: CheckedWork, hasTask: boolean): WorkDecision {

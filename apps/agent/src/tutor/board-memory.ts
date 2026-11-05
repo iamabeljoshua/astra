@@ -92,6 +92,39 @@ const getLineBefore = (command: SceneCommand & { kind: 'writeMath' | 'transformM
 
 const CAME_BACK_WHOLE = "nothing needs clearing, hiding, or writing again, because the student's page came back with every line and mark still on it";
 
+const MATH_WORDS = /\\text\{[^}]*\}|\\(?:times|div|cdot|frac|left|right|,|;|!)/g;
+
+/** "100 - 30 = 70" has nothing left to work out, and "2x + 3 = 11" and "100 - 30" do. */
+export function showsItsAnswer(tex: string): boolean {
+  const sides = tex.replace(MATH_WORDS, ' ').split(/=|\\approx/);
+  const [left = '', right = ''] = sides;
+  return sides.length === 2 && !/[a-zA-Z\\]/.test(left + right) && /\d\D+\d/.test(left.trim()) && /^\s*-?[\d.,]+\s*$/.test(right);
+}
+
+export const getAnswerShownProblem = (line: string) => `${line} shows the answer to the exercise. Put only the problem on the board, with no answer, and set the task on that.`;
+
+/** A task on an old worked example is fine when it brings its own problem, so a line only counts here if it names it or this reply just wrote it. */
+export function getGivenAwayProblem(command: SceneCommand, { lines, lastAssertedLine }: BoardMemory, atTurnStart: BoardMemory): string | null {
+  if (command.kind !== 'task' || command.way !== 'write') return null;
+  const lineId = command.on ?? (lastAssertedLine !== null && !atTurnStart.lines.has(lastAssertedLine) ? lastAssertedLine : null);
+  const line = lineId === null ? undefined : lines.get(lineId);
+  return line !== undefined && showsItsAnswer(line) ? getAnswerShownProblem(line) : null;
+}
+
+const isProblemOnTheBoard = (command: SceneCommand & { kind: 'task'; way: 'write' }, { lines, lastAssertedLine }: BoardMemory, atTurnStart: BoardMemory) => {
+  const lineId = command.on ?? (lastAssertedLine !== null && !atTurnStart.lines.has(lastAssertedLine) ? lastAssertedLine : null);
+  return command.reads !== 'words' && /\d/.test((lineId !== null && lines.get(lineId)) || '');
+};
+
+export const isWrittenWordsTask = (command: SceneCommand & { kind: 'task' }, memory: BoardMemory, atTurnStart: BoardMemory) => command.way === 'write' && !isProblemOnTheBoard(command, memory, atTurnStart);
+
+/** Code decides what a step's exercise must be, because a rule in the prompt gave 8 number problems in one run and 1 in the next. */
+export function getExerciseProblem(command: SceneCommand & { kind: 'task' }, wanted: 'problem' | 'board', wasLastWrittenWords: boolean, memory: BoardMemory, atTurnStart: BoardMemory): string | null {
+  const isProblem = command.way === 'pick' || (command.way === 'write' && isProblemOnTheBoard(command, memory, atTurnStart));
+  if (wanted === 'problem' && !isProblem) return 'This idea has numbers or working, so its exercise is a real problem, and the student did not hear what you were about to set. Write the problem with its numbers using writeMath, with no answer on the line, then set a write task on that line. A pick on a part of what is drawn also does.';
+  return wanted === 'board' && wasLastWrittenWords && isWrittenWordsTask(command, memory, atTurnStart) ? 'The last exercise was written words too, and the student did not hear what you were about to set. Set something on the board this time: a pick on a part of a diagram, things to put in order with a place task, or a sentence with a blank.' : null;
+}
+
 export function checkAgainstBoard(command: SceneCommand, memory: BoardMemory): CommandVerdict {
   const { lines } = memory;
   // The words after a clear lean on it, as "fresh start" does, so a refused one stops them too.

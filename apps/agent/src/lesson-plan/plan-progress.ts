@@ -1,4 +1,4 @@
-import type { LessonKind, LessonPlan, PlanMove } from './lesson-plan.ts';
+import { hasWorkingToDo, type LessonKind, type LessonPlan, type LessonStep, type PlanMove } from './lesson-plan.ts';
 
 interface ActivePlan {
   plan: LessonPlan;
@@ -6,6 +6,9 @@ interface ActivePlan {
   isExerciseOpen: boolean;
   /** How many replies had ended when this step began. */
   stepStartReply: number;
+  hasHadExercise?: boolean;
+  leadsOnStep?: number;
+  teachingAskedAtReply?: number;
 }
 
 /** The lesson now, and the ones the student left, newest first, so they can go back. */
@@ -27,15 +30,19 @@ export type LessonEvent =
   /** The tutor went back to teaching with an exercise open, which is how words with no answer key end. */
   | 'teachingAgain'
   | 'replyEnded'
+  | 'leadEnded'
   /** Help in a crisis is not teaching, so the step's count starts over. */
   | 'safetyReplyEnded'
   | 'exerciseDeclined'
   | 'exerciseWanted'
+  | 'teachingWanted'
   | 'movedOn'
   | 'skipped';
 
 /** The only part of a plan the tutor is told on a turn, because everything before it stays cached. */
-export type StepNote = { topic: string; kind: LessonKind; is_finished: true } | { topic: string; kind: LessonKind; step: string; teach_first: string | null; then_exercise: string; next_idea: string | null; exercise_due?: true; picture_topic?: string };
+export type ExerciseKind = 'problem' | 'board';
+
+export type StepNote = { topic: string; kind: LessonKind; is_finished: true } | { topic: string; kind: LessonKind; step: string; teach_first: string | null; then_exercise: string; next_idea: string | null; exercise_due?: true; exercise_kind?: ExerciseKind; material?: readonly string[]; picture_topic?: string; picture_coming?: true };
 
 export const NO_LESSON: LessonState = { active: null, shelved: [], repliesEnded: 0, isExerciseDeclined: false };
 
@@ -43,6 +50,18 @@ const MOST_SHELVED = 8;
 
 /** Short turns take a reply or two to teach one idea, and a direct question has none to teach. */
 const REPLIES_BEFORE_THE_EXERCISE: Record<LessonKind, number> = { handsOn: 1, teachFirst: 2 };
+const MOST_REPLIES_ON_A_STEP = 12;
+const REPLIES_ON_A_CARD_STEP = 3;
+const REPLIES_WHILE_LISTENING: Record<LessonKind, number> = { handsOn: 1, teachFirst: 6 };
+const REPLIES_WHILE_LISTENING_ON_A_CARD = 7;
+
+const getRepliesBeforeTheExercise = ({ plan, stepIndex }: ActivePlan) => (plan.steps[stepIndex]?.material ? REPLIES_ON_A_CARD_STEP : REPLIES_BEFORE_THE_EXERCISE[plan.kind]);
+
+const getRepliesWhileListening = ({ plan, stepIndex }: ActivePlan) => (plan.steps[stepIndex]?.material ? REPLIES_WHILE_LISTENING_ON_A_CARD : REPLIES_WHILE_LISTENING[plan.kind]);
+
+const isCountReached = (active: ActivePlan, replies: number) => replies - (active.leadsOnStep ?? 0) >= getRepliesBeforeTheExercise(active) || replies >= getRepliesWhileListening(active);
+
+const hasTaughtThisStep = (active: ActivePlan, repliesEnded: number) => active.hasHadExercise === true || isCountReached(active, repliesEnded - active.stepStartReply);
 
 const isNotTopic = (topic: string) => (other: ActivePlan) => other.plan.topic.toLowerCase() !== topic.toLowerCase();
 
@@ -64,14 +83,16 @@ export function getStateAfterMove(state: LessonState, move: PlanMove, startReply
 }
 
 function getActiveAfterEvent(active: ActivePlan, event: LessonEvent, repliesEnded: number): ActivePlan {
-  const nextStep = { ...active, stepIndex: active.stepIndex + 1, isExerciseOpen: false, stepStartReply: repliesEnded };
+  const nextStep = { ...active, stepIndex: Math.min(active.stepIndex + 1, active.plan.steps.length), isExerciseOpen: false, stepStartReply: repliesEnded, hasHadExercise: false, teachingAskedAtReply: 0, leadsOnStep: 0 };
   switch (event) {
     case 'exerciseSet':
-      return { ...active, isExerciseOpen: true };
+      return { ...active, isExerciseOpen: true, hasHadExercise: true };
     case 'exerciseLeft':
       return { ...active, isExerciseOpen: false, stepStartReply: repliesEnded };
     case 'exerciseDone':
       return nextStep;
+    case 'teachingWanted':
+      return hasTaughtThisStep(active, repliesEnded) ? nextStep : { ...active, isExerciseOpen: false, teachingAskedAtReply: repliesEnded };
     case 'teachingAgain':
       return active.isExerciseOpen ? nextStep : active;
     case 'movedOn':
@@ -79,20 +100,25 @@ function getActiveAfterEvent(active: ActivePlan, event: LessonEvent, repliesEnde
       return nextStep;
     case 'safetyReplyEnded':
       return { ...active, stepStartReply: repliesEnded };
+    case 'exerciseWanted':
+      return { ...active, stepStartReply: repliesEnded - getRepliesBeforeTheExercise(active), teachingAskedAtReply: 0, leadsOnStep: 0 };
+    case 'leadEnded':
+      return { ...active, leadsOnStep: (active.leadsOnStep ?? 0) + 1 };
     case 'replyEnded':
     case 'exerciseDeclined':
-    case 'exerciseWanted':
       return active;
   }
 }
 
 export function getStateAfterEvent(state: LessonState, event: LessonEvent): LessonState {
-  const repliesEnded = state.repliesEnded + (event === 'replyEnded' || event === 'safetyReplyEnded' ? 1 : 0);
+  const repliesEnded = state.repliesEnded + (event === 'replyEnded' || event === 'leadEnded' || event === 'safetyReplyEnded' ? 1 : 0);
   const isExerciseDeclined = event === 'exerciseDeclined' ? true : event === 'exerciseWanted' ? false : state.isExerciseDeclined;
-  return { ...state, repliesEnded, isExerciseDeclined, active: state.active && getActiveAfterEvent(state.active, event, repliesEnded) };
+  const active = state.active && getActiveAfterEvent(state.active, event, repliesEnded);
+  const isPastThisStep = active !== null && (event === 'replyEnded' || event === 'leadEnded') && !active.isExerciseOpen && active.plan.kind === 'teachFirst' && (repliesEnded - active.stepStartReply >= MOST_REPLIES_ON_A_STEP || (isExerciseDeclined && hasTaughtThisStep(active, repliesEnded)));
+  return { ...state, repliesEnded, isExerciseDeclined, active: isPastThisStep ? getActiveAfterEvent(active, 'movedOn', repliesEnded) : active };
 }
 
-const isExerciseDue = ({ active, repliesEnded, isExerciseDeclined }: LessonState) => active !== null && !isExerciseDeclined && !active.isExerciseOpen && repliesEnded - active.stepStartReply >= REPLIES_BEFORE_THE_EXERCISE[active.plan.kind];
+const isExerciseDue = ({ active, repliesEnded, isExerciseDeclined }: LessonState) => active !== null && !isExerciseDeclined && !active.isExerciseOpen && isCountReached(active, repliesEnded - Math.max(active.stepStartReply, active.teachingAskedAtReply ?? 0));
 
 export function getStepNote(state: LessonState): StepNote | null {
   const { active } = state;
@@ -100,7 +126,22 @@ export function getStepNote(state: LessonState): StepNote | null {
   const { plan, stepIndex } = active;
   const step = plan.steps[stepIndex];
   if (!step) return { topic: plan.topic, kind: plan.kind, is_finished: true };
-  return { topic: plan.topic, kind: plan.kind, step: `${stepIndex + 1} of ${plan.steps.length}`, teach_first: step.teach, then_exercise: step.exercise, next_idea: plan.steps[stepIndex + 1]?.teach ?? null, ...(isExerciseDue(state) ? { exercise_due: true as const } : {}) };
+  const isDue = isExerciseDue(state);
+  const isPictureComing = step.picture !== undefined && stepIndex > 0 && state.repliesEnded === active.stepStartReply;
+  return { topic: plan.topic, kind: plan.kind, step: `${stepIndex + 1} of ${plan.steps.length}`, teach_first: step.teach, then_exercise: step.exercise, next_idea: plan.steps[stepIndex + 1]?.teach ?? null, ...(isDue ? { exercise_due: true as const, exercise_kind: hasWorkingToDo(step) ? ('problem' as const) : ('board' as const) } : {}), ...(step.material && !isDue ? { material: step.material } : {}), ...(isPictureComing ? { picture_coming: true as const } : {}) };
 }
+
+export function getStateWithMoreSteps(state: LessonState, topic: string, steps: readonly LessonStep[]): LessonState {
+  if (state.active?.plan.topic !== topic) return state;
+  return { ...state, active: { ...state.active, plan: { ...state.active.plan, steps: [...state.active.plan.steps, ...steps] } } };
+}
+
+export const getStepsTaught = ({ active }: LessonState) => active?.plan.steps.flatMap(({ teach }) => teach ?? []) ?? [];
+
+export const getExercisesSet = ({ active }: LessonState) => active?.plan.steps.map(({ exercise }) => exercise) ?? [];
+
+export const isNearTheEnd = ({ active }: LessonState) => active !== null && active.plan.kind === 'teachFirst' && active.stepIndex >= active.plan.steps.length - 2;
+
+export const getStepCount = ({ active }: LessonState) => active?.plan.steps.length ?? 0;
 
 export const getShelvedTopics = ({ shelved }: LessonState) => shelved.map(({ plan }) => plan.topic);

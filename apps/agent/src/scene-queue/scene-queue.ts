@@ -2,7 +2,7 @@ import { isAboutBeingUnsafe } from '../scenes/content-check.ts';
 import type { LessonPlan, LessonStep } from '../lesson-plan/lesson-plan.ts';
 import type { LessonEvent, LessonState } from '../lesson-plan/plan-progress.ts';
 import { MAY_BE_ABOUT_SAFETY, PLAIN_REFUSALS, SAFETY_REPLY } from '../tutor/safety-words.ts';
-import { type AheadFacts, getPrepareRefusal, getWriteRefusal } from './ahead-budget.ts';
+import { type AheadFacts, getSavedRefusal, getWriteRefusal } from './ahead-budget.ts';
 
 export type SceneSource = 'library' | 'written';
 export type EntryState = 'making' | 'ready' | 'due' | 'asked' | 'shown';
@@ -27,7 +27,8 @@ export interface QueueScenes {
 
 export interface SceneQueueOptions {
   scenes: QueueScenes;
-  readLibrary(plan: LessonPlan): Promise<readonly (string | null)[]>;
+  /** `taken` holds titles earlier steps already use, so a later read cannot spend a step's picture on one. */
+  readLibrary(plan: LessonPlan, taken: readonly string[]): Promise<readonly (string | null)[]>;
   getFacts(): AheadFacts;
   canPlay(): boolean;
   moveToNextStep(): void;
@@ -40,7 +41,7 @@ export interface SceneQueue {
   onTutorAsk(topic: string): void;
   noteAhead(request: string, state: AheadNews): void;
   noteStudentWords(words: string): void;
-  noteTutorReply(reply: { spokenText: string; refusalCategory: string | null }): void;
+  noteTutorReply(reply: { wasLead?: boolean; spokenText: string; refusalCategory: string | null }): void;
   noteSafetyReply(): void;
   getPictureTopic(): string | null;
   getEntries(): readonly QueueEntry[];
@@ -74,12 +75,9 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
   let lateWrites = 0;
   let lastRefusal: string | null = null;
   const givenUp = new Set<string>();
-  const libraryByTopic = new Map<string, readonly (string | null)[] | 'reading'>();
+  const libraryByTopic = new Map<string, { titles: readonly (string | null)[] | null; isReading: boolean }>();
 
-  const getLibrary = (topic: string) => {
-    const known = libraryByTopic.get(topic);
-    return known === 'reading' ? undefined : known;
-  };
+  const getLibrary = (topic: string) => libraryByTopic.get(topic)?.titles ?? undefined;
 
   const getFactsNow = (): AheadFacts => ({ ...getFacts(), writesStarted });
 
@@ -99,7 +97,7 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
     const wanted = getWanted(lesson.plan.topic, lesson.plan.steps[stepIndex], library[stepIndex]);
     if (!wanted) return null;
     const facts = getFactsNow();
-    const refusal = wanted.source === 'library' ? getPrepareRefusal(facts) : getWriteRefusal(facts);
+    const refusal = wanted.source === 'library' ? getSavedRefusal(facts) : getWriteRefusal(facts);
     if (refusal) {
       if (refusal !== lastRefusal) trace('sceneAheadRefused', { refusal, source: wanted.source, stepIndex });
       lastRefusal = refusal;
@@ -166,12 +164,16 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
   };
 
   const startLibraryRead = (plan: LessonPlan) => {
-    if (libraryByTopic.has(plan.topic) || !canPrepare()) return;
-    libraryByTopic.set(plan.topic, 'reading');
-    void readLibrary(plan)
+    const known = libraryByTopic.get(plan.topic);
+    const stepsRead = known?.titles?.length ?? 0;
+    if (known?.isReading || (known && plan.steps.length <= stepsRead) || !canPrepare()) return;
+    const unread = plan.steps.slice(stepsRead);
+    const titlesSoFar = known?.titles ?? [];
+    libraryByTopic.set(plan.topic, { titles: known?.titles ?? null, isReading: true });
+    void readLibrary({ ...plan, steps: unread }, titlesSoFar.filter((title) => title !== null))
       .catch(() => [])
       .then((titles) => {
-        libraryByTopic.set(plan.topic, titles);
+        libraryByTopic.set(plan.topic, { titles: [...titlesSoFar, ...unread.map((_step, index) => titles[index] ?? null)], isReading: false });
         if (lesson?.plan.topic !== plan.topic) return;
         reachStep();
         fillAhead();
@@ -193,6 +195,8 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       const wasStep = lesson?.stepIndex ?? null;
       lesson = { plan: active.plan, stepIndex: active.stepIndex };
       if (isStopped) return;
+      // The tutor answers finished work next, and that turn would end whatever was asked for now.
+      if (event === 'exerciseDone') isReplying = true;
       const isSwitch = wasTopic !== active.plan.topic;
       if (isSwitch && wasTopic !== null) scenes.dropWaiting('switched');
       const isTutorsOwnMove = event === 'teachingAgain' || event === 'movedOn';
@@ -243,9 +247,10 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
       if (wasHeld && !isHeld && !isStopped) fillAhead();
     },
     noteSafetyReply: () => stopForGood(),
-    noteTutorReply({ spokenText, refusalCategory }) {
+    noteTutorReply({ wasLead = false, spokenText, refusalCategory }) {
       isReplying = false;
-      if (getFacts().isOverLimit || SAFETY_REPLY.test(spokenText) || (refusalCategory !== null && !PLAIN_REFUSALS.has(refusalCategory))) return stopForGood();
+      const wasAboutSafety = !wasLead && (SAFETY_REPLY.test(spokenText) || (refusalCategory !== null && !PLAIN_REFUSALS.has(refusalCategory)));
+      if (getFacts().isOverLimit || wasAboutSafety) return stopForGood();
       if (isStopped || isHeld) return;
       askDue();
       fillAhead();

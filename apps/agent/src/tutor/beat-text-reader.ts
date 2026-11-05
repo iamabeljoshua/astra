@@ -103,6 +103,16 @@ function getWithTransformOfWordsAsNewLine(command: SceneCommand, board: BoardKin
   return { kind: 'writeMath', id: target, tex, ...(overWords === undefined ? {} : { overWords }), ...(claim === undefined ? {} : { claim: claim === 'step' ? 'new' : claim }) };
 }
 
+const withWordsApart = (script: Beat['script']): Beat['script'] => {
+  let wordsBefore = '';
+  return script.map((part) => {
+    if (typeof part !== 'string') return part;
+    const spaced = /[.!?]$/.test(wordsBefore) && /^\p{L}/u.test(part) ? ` ${part}` : part;
+    wordsBefore = part;
+    return spaced;
+  });
+};
+
 const isDrawingCue = (part: Beat['script'][number]) => typeof part !== 'string' && KINDS_A_STUDENT_LOOKS_FOR.has(part.kind);
 
 const isShownCue = (part: Beat['script'][number]) => isDrawingCue(part) || (typeof part !== 'string' && (part.kind === 'writeMath' || part.kind === 'transformMath'));
@@ -250,6 +260,11 @@ export class BeatTextReader {
   dropAttempt(): void {
     this.#clearHalfRead();
     this.#startBeat();
+  }
+
+  forgetCommands(board: BoardKinds): void {
+    this.dropAttempt();
+    this.#board = board;
   }
 
   #clearHalfRead(): void {
@@ -663,7 +678,7 @@ export class BeatTextReader {
     }
     const expectsReply = ENDS_IN_QUESTION.test(this.#text);
     const endsSentence = isSentenceEnd(this.#text);
-    const script = this.#script.map((part) => (typeof part === 'string' ? part.normalize('NFC') : part));
+    const script = withWordsApart(this.#script).map((part) => (typeof part === 'string' ? part.normalize('NFC') : part));
     this.#isSafetyReply ||= SAFETY_REPLY.test(this.#text);
     if (this.#isSafetyReply && !this.#hasToldSafety) {
       this.#hasToldSafety = true;

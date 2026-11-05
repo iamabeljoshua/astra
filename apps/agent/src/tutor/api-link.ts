@@ -1,5 +1,6 @@
 import type { SafetyFlag } from '../safety/safety-watch.ts';
 import type { components, SessionEvent, SessionRecap } from '@astra/contracts';
+import { parseCardMaterial } from '../lesson-plan/card-lesson.ts';
 import type { StudentProfile } from './brain.ts';
 
 export type LearnerRecord = components['schemas']['LearnerRecordDto'];
@@ -45,8 +46,8 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
   };
   return {
     async fetchProfile() {
-      const { level, interests, goal, cardTitle } = (await call('brief')) as { level: unknown; interests: unknown; goal: unknown; cardTitle?: unknown };
-      return typeof level === 'string' && typeof goal === 'string' && Array.isArray(interests) ? { level, goal, interests: interests as string[], cardTitle: typeof cardTitle === 'string' ? cardTitle : null } : null;
+      const { level, interests, goal, cardTitle, cardMaterial } = (await call('brief')) as { level: unknown; interests: unknown; goal: unknown; cardTitle?: unknown; cardMaterial?: unknown };
+      return typeof level === 'string' && typeof goal === 'string' && Array.isArray(interests) ? { level, goal, interests: interests as string[], cardTitle: typeof cardTitle === 'string' ? cardTitle : null, cardMaterial: parseCardMaterial(cardMaterial) } : null;
     },
     async reportSpend(usd) {
       return (await call('spend', { method: 'POST', body: JSON.stringify({ usd }) })) as { isOverDailyLimit: boolean; leftTodayUsd: number };

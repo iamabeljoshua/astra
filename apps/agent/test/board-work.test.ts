@@ -7,7 +7,7 @@ import { TUTOR_SYSTEM } from '../src/tutor/prompt.ts';
 import { createBoardWork } from '../src/tutor/watcher/board-work.ts';
 import type { SpokenReading } from '../src/tutor/watcher/read-spoken.ts';
 
-const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 };
+const QUICK = { firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 };
 const HEAVY_TEST_MS = 30_000;
 const reply = (...pieces: string[]): FakeReply => ({ pieces });
 const id = (value: string) => value as ElementId;

@@ -9,6 +9,8 @@ export interface LessonStep {
   teach: string | null;
   /** One short thing to do together on the board. */
   exercise: string;
+  material?: readonly string[];
+  picture?: string;
 }
 
 export interface LessonPlan {
@@ -20,6 +22,11 @@ export interface LessonPlan {
 /** What one thing the student said does to the lesson. */
 export type PlanMove = { move: 'stay' } | { move: 'new'; plan: LessonPlan } | { move: 'back'; topic: string };
 
+const NAMES_A_QUANTITY = /\d|\b(?:hundred|thousand|million|billion|percent|speed|velocity|kilometers?|meters?|mass|momentum|force|thrust|fuel|equations?|formula|ratio|slope|derivative|angle|distance|squared?|multipl\w+|divid\w+)\b/i;
+
+/** A card's lines say what the idea holds. The planner writes numbers into an exercise where it sees working, and it knows a sonnet's fourteen lines are not working. */
+export const hasWorkingToDo = ({ teach, exercise, material }: LessonStep) => (material ? NAMES_A_QUANTITY.test([teach ?? '', ...material].join(' ')) : /\d/.test(exercise));
+
 const MOST_TOPIC_CHARACTERS = 80;
 const MOST_STEP_CHARACTERS = 160;
 const MOST_STEPS = 5;
@@ -27,12 +34,12 @@ const MOST_STEPS = 5;
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
 
 /** Trims to one clean line, because what the planner writes reaches the page and the database. Empty means nothing usable. */
-function toCleanLine(value: unknown, mostCharacters: number): string {
+export function toCleanLine(value: unknown, mostCharacters: number): string {
   if (typeof value !== 'string') return '';
   return Array.from(value.replace(/[\p{Cc}\p{Cf}\p{Cs}￼]/gu, ' ').replace(/\s+/g, ' ').trim()).slice(0, mostCharacters).join('').trim();
 }
 
-function parseStep(value: unknown): LessonStep | null {
+export function parseStep(value: unknown): LessonStep | null {
   if (!isRecord(value)) return null;
   const exercise = toCleanLine(value.exercise, MOST_STEP_CHARACTERS);
   return exercise === '' ? null : { teach: toCleanLine(value.teach, MOST_STEP_CHARACTERS) || null, exercise };

@@ -1,5 +1,5 @@
 import { evaluatePlotExpression, type ElementId, type LineReading, parsePlotExpression, type StudentWork, type Task, type WorkVerdict } from '@astra/contracts';
-import { checkAgainstGuess, checkStep, isFinishedAnswer } from './check-step.ts';
+import { checkAgainstGuess, checkStep, getWorkedSumAnswer, isBareAnswer, isFinishedAnswer } from './check-step.ts';
 import { getMathPickParts } from './pick-parts.ts';
 import { getLineTex, readLine } from './read-line.ts';
 
@@ -7,6 +7,7 @@ export interface CheckedWork {
   reading?: LineReading;
   verdict: WorkVerdict;
   closesTask?: ElementId;
+  isWorkedSumNotWrong?: boolean;
 }
 
 export interface WorkContext {
@@ -33,7 +34,7 @@ const toPartKey = (part: string) => part.replace(/\s/g, '').replace(/^\+/, '');
 
 const BARE_NUMBER = /^-?\d*\.?\d+$/;
 const PLEASANTRY = String.raw`(?:(?:ok|okay|so|actually|um|please|can we|could we|can you|could you|let'?s|lets|i want to|i'?d rather|i'?d like to|i wanna)[,\s]+)*`;
-const WANTS_SOMETHING_ELSE = new RegExp(String.raw`^\s*${PLEASANTRY}(?:teach me|learn(?: about)?|talk about|switch to|move on to|go back to|do something else|change (?:the )?(?:topic|subject)|new topic|another topic|different topic|something else|forget (?:this|that|it)|stop(?: here| now| this| that| it)|quit(?: this| that| it)?|move on|done with (?:this|that|it))\b(?!\s+(?:this|that|it|how to (?:do|solve) (?:this|that|it))\b)`, 'i');
+const WANTS_SOMETHING_ELSE = new RegExp(String.raw`^\s*${PLEASANTRY}(?:teach me|go on|keep going|carry on|tell me more|what'?s next|what is next|learn(?: about)?|talk about|switch to|move on to|go back to|do something else|change (?:the )?(?:topic|subject)|new topic|another topic|different topic|something else|forget (?:this|that|it)|stop(?: here| now| this| that| it)|quit(?: this| that| it)?|move on|done with (?:this|that|it))\b(?!\s+(?:this|that|it|how to (?:do|solve) (?:this|that|it))\b)`, 'i');
 
 export const wantsSomethingElse = (text: string) => WANTS_SOMETHING_ELSE.test(text);
 
@@ -56,7 +57,9 @@ function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTe
   const problemTex = problemLine === undefined ? boardProblemTex : getTex(problemLine);
   const verdict = problemLine === undefined ? checkAgainstGuess({ tex, problemTex, previousTex }) : checkStep({ tex, problemTex, previousTex });
   const answered = task?.way === 'write' || task?.way === 'pick' ? task : null;
-  return { verdict, ...closes(answered, verdict.status === 'right' && problemTex !== null && isFinishedAnswer(tex)) };
+  const sumAnswer = verdict.status === 'right' && problemLine !== undefined ? getWorkedSumAnswer(tex) : null;
+  const sumVerdict = sumAnswer === null ? null : checkStep({ tex: sumAnswer, problemTex, previousTex }).status;
+  return { verdict, ...(sumVerdict !== null && sumVerdict !== 'wrong' ? { isWorkedSumNotWrong: true } : {}), ...closes(answered, verdict.status === 'right' && problemTex !== null && (isFinishedAnswer(tex) || isBareAnswer(tex) || sumVerdict === 'right')) };
 }
 
 // An old words question must not hold later math as words, and a line that is only math is math.

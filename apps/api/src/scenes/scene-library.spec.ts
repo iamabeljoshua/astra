@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import deeperScenes from '../picks/deeper-scenes.json';
 import { LIBRARY } from '../picks/library';
-import { getLibraryScenes, getWeightedSample } from './scene-library';
+import { getCardMaterial, getLibraryScenes, getWeightedSample, setSceneFlag } from './scene-library';
 import { SceneLibraryController } from './scene-library.controller';
 import type { LibrarySceneDto } from './scene.dto';
 import { findCheckedTake } from './scene-takes';
@@ -91,5 +91,39 @@ describe('the scene library', () => {
   it('answers 404 for a scene off the list, even for a reviewer', () => {
     expect(() => controller.flagScene(REVIEWER_ID, { sceneId: getSceneId(200) })).toThrow(NotFoundException);
     expect(() => controller.getSheet(REVIEWER_ID, { sceneId: getSceneId(201) }, { setHeader: () => {} })).toThrow(NotFoundException);
+  });
+});
+
+describe('a card\'s lesson', () => {
+  const ROCKET = 'How a rocket escapes Earth';
+  const STAGES = 'Why rockets drop their empty stages';
+
+  function saveScene(storeRoot: string, topic: string, sceneId: string) {
+    mkdirSync(join(storeRoot, 'scenes', sceneId), { recursive: true });
+    writeFileSync(join(storeRoot, 'scenes', sceneId, 'scene.json'), JSON.stringify({ topic, status: 'checked', ownerId: null, plan: { opening: [{ say: `${topic} opens.` }], more: [{ say: `${topic} goes on.` }] } }));
+  }
+
+  it('teaches the card first, then its deeper ideas, with the lines written for each', () => {
+    const storeRoot = mkdtempSync(join(tmpdir(), 'card-material-'));
+    saveScene(storeRoot, ROCKET, `scene-${'a'.repeat(40)}`);
+    saveScene(storeRoot, STAGES, `scene-${'b'.repeat(40)}`);
+    const material = getCardMaterial(storeRoot, ROCKET);
+    expect(material?.ideas.map(({ title }) => title)).toEqual([ROCKET, 'Why rockets throw mass backward to go forward', 'What escape velocity really means', STAGES, 'Why rockets launch toward the east', 'How an orbit is really falling sideways']);
+    expect(material?.ideas[0]).toEqual({ title: ROCKET, lines: [`${ROCKET} opens.`, `${ROCKET} goes on.`], hasScene: true });
+    expect(material?.ideas[1]).toEqual({ title: 'Why rockets throw mass backward to go forward', lines: [], hasScene: false });
+  });
+
+  it('leaves a flagged scene out at once, even though the files are kept a while', () => {
+    const storeRoot = mkdtempSync(join(tmpdir(), 'card-material-'));
+    const sceneId = `scene-${'a'.repeat(40)}`;
+    saveScene(storeRoot, ROCKET, sceneId);
+    expect(getCardMaterial(storeRoot, ROCKET)?.ideas[0]?.hasScene).toBe(true);
+    setSceneFlag({ storeRoot, sceneId, flaggedBy: 'abel', isFlagged: true });
+    expect(getCardMaterial(storeRoot, ROCKET)?.ideas[0]).toEqual({ title: ROCKET, lines: [], hasScene: false });
+  });
+
+  it('has no material for a title off the list, and still names the ideas with no store', () => {
+    expect(getCardMaterial(undefined, 'teach me photosynthesis')).toBeNull();
+    expect(getCardMaterial(undefined, ROCKET)?.ideas).toHaveLength(6);
   });
 });

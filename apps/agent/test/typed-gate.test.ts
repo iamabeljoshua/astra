@@ -15,7 +15,7 @@ afterEach(() => void vi.useRealTimers());
 describe('the gate on typed messages', () => {
   it('lets a burst of three straight through', () => {
     const { gate, released, held } = setup();
-    ['one', 'two', 'three'].forEach(gate.offer);
+    ['one', 'two', 'three'].forEach((text) => gate.offer(text));
     expect(released).toEqual(['one', 'two', 'three']);
     expect(held).toEqual([]);
     gate.close();
@@ -23,7 +23,7 @@ describe('the gate on typed messages', () => {
 
   it('holds what comes too fast, and sends it together, with no words lost', async () => {
     const { gate, released } = setup();
-    ['one', 'two', 'three', 'four', 'five'].forEach(gate.offer);
+    ['one', 'two', 'three', 'four', 'five'].forEach((text) => gate.offer(text));
     expect(released).toEqual(['one', 'two', 'three']);
     await vi.advanceTimersByTimeAsync(120);
     expect(released).toEqual(['one', 'two', 'three', 'four\nfive']);

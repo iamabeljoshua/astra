@@ -136,6 +136,22 @@ describe('a typed message', () => {
   });
 });
 
+describe('a tab going out of sight', () => {
+  it('tells the tutor, and tells it again on coming back', async () => {
+    const { room } = await openVoice();
+    fromAgent(room, { type: 'pulse' });
+    const setVisibility = (state: DocumentVisibilityState) => {
+      vi.spyOn(document, 'visibilityState', 'get').mockReturnValue(state);
+      document.dispatchEvent(new Event('visibilitychange'));
+    };
+
+    setVisibility('hidden');
+    setVisibility('visible');
+
+    expect(getSentMessages(room).filter((message) => message.type === 'pageHidden').map((message) => (message as unknown as { isHidden: boolean }).isHidden)).toEqual([true, false]);
+  });
+});
+
 describe('when the tutor closes', () => {
   it('keeps the reason on the view, and stops saying it is thinking', async () => {
     const { room } = await openVoice();

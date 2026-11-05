@@ -7,7 +7,7 @@ import { createTutorBrain, type TurnSummary, type TutorBeat } from '../src/tutor
 import { TUTOR_SYSTEM } from '../src/tutor/prompt.ts';
 import { SPOKEN_LINES } from '../src/tutor/spoken-lines.ts';
 
-const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 30, checkingMathMs: 40 };
+const QUICK = { firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 30, checkingMathMs: 40 };
 
 const write = (id: string, tex: string, claim?: string) => JSON.stringify({ kind: 'writeMath', id, tex: tex, ...(claim ? { claim } : {}) });
 const rewrite = (target: string, tex: string, claim?: string) => JSON.stringify({ kind: 'transformMath', target, tex: tex, ...(claim ? { claim } : {}) });
@@ -139,7 +139,7 @@ describe('a claimed step that is certainly false', () => {
     const { brain } = setup((_request, attempt) => (attempt === 1 ? reply(`Right, here. ${write('s', '2 + 2 = 5', 'new')}Two and two.`) : { pieces: ['So two plus two is four.'], firstTextMs: 90 }));
     const said = say(await collect(brain, 'add them'));
     expect(said.match(/Hold on, let me check that\./g)).toHaveLength(1);
-    for (const filler of SPOKEN_LINES.stillWorking) expect(said).not.toContain(filler);
+    for (const filler of SPOKEN_LINES.stillThere) expect(said).not.toContain(filler);
   });
 
   it('does not count the time before the false line against the wait', async () => {

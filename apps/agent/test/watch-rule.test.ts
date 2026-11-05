@@ -96,3 +96,13 @@ describe('whether the tutor answers work now', () => {
     expect(decideOnWork({ way: 'drag', task, x: 3, samples: [] }, { verdict: { status: 'unknown' } }, WITH_TASK).act).toBe('reply');
   });
 });
+
+describe('a line sent from the box with a number in it', () => {
+  it.each(['20 m/s', '20m/s2', '0.5g', '2g', '11.2 / 2.4 = 4.7', '2*3', '11.2 km/s'])('%s goes to the tutor without waiting for a pause', (text) => {
+    expect(decideOnWork(line(text), { reading: readLine(text), verdict: { status: 'unknown' } }, true).act).toBe('reply');
+  });
+
+  it.each(['2x', '2x + 3', 'y = 2x', '3a'])('%s is a step, so it waits', (text) => {
+    expect(decideOnWork(line(text), { reading: readLine(text), verdict: { status: 'unknown' } }, true).act).toBe('wait');
+  });
+});

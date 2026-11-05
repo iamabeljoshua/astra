@@ -1,3 +1,4 @@
+import { LEAD_WORDS, type LeadKind } from './tutor-lead.ts';
 import { dropWordsAlreadyAnswered, hasWords, isFiller, isSmallReaction } from './turn-words.ts';
 
 /** Starting values from the design and the plan. `docs/tests/voice.md` holds what each was measured against. */
@@ -30,8 +31,8 @@ const TIMER_MS: Record<TimerName, number> = {
 
 export type FloorPhase = 'clear' | 'yielding' | 'held' | 'stopped' | 'away';
 export type TutorPhase = 'silent' | 'thinking' | 'speaking';
-export type StopReason = 'real word' | 'no words' | 'typed' | 'link lost';
-export type ReplyVia = 'final' | 'partial' | 'typed' | 'link back';
+export type StopReason = 'real word' | 'no words' | 'typed' | 'link lost' | 'lead stopped';
+export type ReplyVia = 'final' | 'partial' | 'typed' | 'link back' | 'lead' | 'code';
 
 export interface TurnState {
   phase: FloorPhase;
@@ -84,7 +85,8 @@ export type TurnEvent =
   /** The transcript matches what the tutor is saying, so the sound counts as heard and no one is interrupting. */
   | { type: 'echoHeard' }
   | { type: 'turnDecided'; text: string }
-  | { type: 'typed'; text: string }
+  | { type: 'typed'; text: string; isFromCode?: boolean }
+  | { type: 'leadDue'; lead: LeadKind }
   | { type: 'timer'; name: TimerName }
   | { type: 'tutorThinking' }
   | { type: 'tutorStarted'; isReply: boolean }
@@ -105,11 +107,12 @@ export type TurnAction =
   | { do: 'resume' }
   | { do: 'react' }
   /** `carried` is how `text` starts: the words of a reply that was cut before it finished, already asked once. */
-  | { do: 'reply'; text: string; carried: string; via: ReplyVia }
+  | { do: 'reply'; text: string; carried: string; via: ReplyVia; lead?: LeadKind }
   | { do: 'startTimer'; name: TimerName; ms: number }
   | { do: 'cancelTimer'; name: TimerName }
   | { do: 'setTurnCap'; ms: number }
-  | { do: 'promptAfterSilence' };
+  | { do: 'promptAfterSilence' }
+  | { do: 'noteQuietLine'; words: string };
 
 export interface TurnStep {
   state: TurnState;
@@ -217,14 +220,19 @@ function onTurnDecided(state: TurnState, { text }: { text: string }): TurnStep {
   const cleared = { ...state, answeredPartial: null, hasSpokenSinceAnswer: false };
   if (!hasWords(fresh)) return { state: cleared, actions: [] };
   if (isSmallReaction(fresh) && state.startedOverTutor && !state.isQuestionHeard) return { state: cleared, actions: [] };
-  if (isFiller(fresh)) return { state: { ...cleared, isWaitingOnStudent: true, partial: '', hasFinalWords: false }, actions: [startTimer('patience')] };
+  if (isFiller(fresh)) return { state: { ...cleared, isWaitingOnStudent: true, partial: '', hasFinalWords: false }, actions: [startTimer('patience'), { do: 'noteQuietLine', words: fresh }] };
   return startReply(cleared, { fresh, carried: state.unanswered, via: 'final' });
 }
 
-function onTyped(state: TurnState, { text }: { text: string }): TurnStep {
+function onTyped(state: TurnState, { text, isFromCode = false }: { text: string; isFromCode?: boolean }): TurnStep {
   const stopFirst: TurnAction[] = state.tutor === 'silent' ? [] : [{ do: 'stop', reason: 'typed', keepsThought: false }];
-  const step = startReply({ ...state, hasReacted: false }, { fresh: text, via: 'typed' });
+  const step = startReply({ ...state, hasReacted: false }, { fresh: text, via: isFromCode ? 'code' : 'typed' });
   return { state: step.state, actions: [...stopFirst, ...step.actions] };
+}
+
+function onLeadDue(state: TurnState, { lead }: { lead: LeadKind }): TurnStep {
+  if (state.phase !== 'clear' || state.tutor !== 'silent' || state.isVoiceOn || hasWords(state.partial)) return { state, actions: [] };
+  return { state: { ...INITIAL_TURN_STATE, tutor: 'thinking' }, actions: [...CANCEL_ALL, { do: 'setTurnCap', ms: TURN_TIMINGS.turnCapMs }, { do: 'reply', text: LEAD_WORDS[lead], carried: '', via: 'lead', lead }] };
 }
 
 function onTimer(state: TurnState, { name }: { name: TimerName }): TurnStep {
@@ -297,6 +305,8 @@ export function getNextTurnState(state: TurnState, event: TurnEvent): TurnStep {
       return onTurnDecided(state, event);
     case 'typed':
       return onTyped(state, event);
+    case 'leadDue':
+      return onLeadDue(state, event);
     case 'timer':
       return onTimer(state, event);
     case 'tutorThinking':
