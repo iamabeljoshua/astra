@@ -2,8 +2,8 @@ import { createReadStream } from 'node:fs';
 import { Controller, Get, HttpCode, NotFoundException, Param, Post, Res, StreamableFile } from '@nestjs/common';
 import { CurrentStudentId } from '../auth/route-access';
 import { SessionParamsDto } from '../sessions/session.dto';
-import { SceneLessonResponseDto, SceneTakeParamsDto } from './scene.dto';
-import { findCheckedTake } from './scene-takes';
+import { KitTakeDto, LibrarySceneParamsDto, SceneLessonResponseDto, SceneTakeParamsDto } from './scene.dto';
+import { findCheckedKitTake, findCheckedTake } from './scene-takes';
 import { ScenesService } from './scenes.service';
 
 const OK_STATUS = 200;
@@ -15,6 +15,14 @@ interface HeaderSetter {
 @Controller()
 export class ScenesController {
   constructor(private readonly scenesService: ScenesService) {}
+
+  /** Sends a checked scene's 3D take, for the page's sandbox. A topic with a reviewed kit scene has one beside its 2D take, under the same rules for who may see it. */
+  @Get('scene-takes/:sceneId/kit')
+  getKitTake(@CurrentStudentId() studentId: string, @Param() { sceneId }: LibrarySceneParamsDto): KitTakeDto {
+    const take = findCheckedKitTake({ storeRoot: process.env.SCENE_STORE_DIR, sceneId, studentId });
+    if (!take) throw new NotFoundException('This scene has no 3D take.');
+    return take;
+  }
 
   /** Sends one stored take of a checked scene. A scene from a library card goes to any student. A scene from a typed question goes only to the student who asked, and any other student gets 404. A take never changes, so the browser keeps it. */
   @Get('scene-takes/:sceneId/:theme')

@@ -2,6 +2,8 @@ import type { BoardState } from '@astra/board';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LiveVoice } from '../voice/liveVoice';
 import { getCanPlayScenes } from './sceneEngine';
+import { isKitSceneEnabled } from '../session/lessonFlag';
+import { createKitSceneStage } from './kitSceneStage';
 import { createSceneStage, type SceneStage } from './sceneStage';
 
 const PARKED_WIDTH = 960;
@@ -20,73 +22,133 @@ function createHost(): HTMLElement {
   return host;
 }
 
+/** Moving an iframe the plain way reloads it, so a frame prepared off screen keeps its scene only through an atomic move. */
+function moveInto(parent: HTMLElement, child: HTMLElement): void {
+  if (!('moveBefore' in parent)) return parent.append(child);
+  try {
+    (parent as HTMLElement & { moveBefore(node: Node, before: Node | null): void }).moveBefore(child, null);
+  } catch {
+    parent.append(child);
+  }
+}
+
 export interface TutorScene {
   stage: SceneStage | null;
   /** A take loads before it shows, so its canvas waits off screen and moves in when the scene lands. */
   onContainer(container: HTMLElement | null): void;
 }
 
-export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): TutorScene {
+function getLatestScene(board: BoardState) {
+  const content = [...board.elements.values()].filter((element) => element.content.kind === 'richScene').at(-1)?.content;
+  return content?.kind === 'richScene' ? content : null;
+}
+
+/** A stage with its parking place, for as long as the screen is open. */
+function useSceneHost(isEnabled: boolean): TutorScene {
   const [stage, setStage] = useState<SceneStage | null>(null);
   const parts = useRef<{ parking: HTMLElement; host: HTMLElement } | null>(null);
+  const [, noteStageChange] = useState(0);
 
   useEffect(() => {
-    if (!voice || !isEnabled) return undefined;
+    if (!isEnabled) return undefined;
+    const parking = createParking();
+    const host = createHost();
+    parking.append(host);
+    document.body.append(parking);
+    parts.current = { parking, host };
+    const made = isKitSceneEnabled() ? createKitSceneStage(host, () => noteStageChange((changes) => changes + 1)) : createSceneStage(host);
     let isGone = false;
-    let stopListening = () => {};
-    let freeStage = () => {};
-
-    const openStage = () => {
-      const parking = createParking();
-      const host = createHost();
-      parking.append(host);
-      document.body.append(parking);
-      parts.current = { parking, host };
-      const made = createSceneStage(host);
-      setStage(made);
-      stopListening = voice.onSceneMessage((message) => {
-        if (message.type === 'prepareScene') {
-          const { sceneId } = message;
-          void made.prepare(sceneId).then((isHeld) => {
-            if (!isGone) voice.sendScene({ type: isHeld ? 'scenePrepared' : 'sceneRefused', sceneId });
-          });
-          return;
-        }
-        if (message.type !== 'loadScene') return;
-        const { sceneId, durationSeconds } = message;
-        void made.load(sceneId, durationSeconds).then((isLoaded) => {
-          if (!isGone) voice.sendScene({ type: isLoaded ? 'sceneLoaded' : 'sceneRefused', sceneId });
-        });
-      });
-      freeStage = () => {
-        made.free();
-        parking.remove();
-        parts.current = null;
-        setStage(null);
-      };
-    };
-
-    void getCanPlayScenes().then((canPlay) => {
-      if (isGone) return;
-      if (canPlay) openStage();
-      voice.sendScene({ type: 'sceneDevice', canPlay });
+    queueMicrotask(() => {
+      if (!isGone) setStage(made);
     });
     return () => {
       isGone = true;
-      stopListening();
-      freeStage();
+      made.free();
+      parking.remove();
+      parts.current = null;
+      setStage(null);
     };
-  }, [voice, isEnabled]);
+  }, [isEnabled]);
 
   const onContainer = useCallback((container: HTMLElement | null) => {
     if (!parts.current) return;
-    (container ?? parts.current.parking).append(parts.current.host);
+    moveInto(container ?? parts.current.parking, parts.current.host);
   }, []);
 
   return { stage, onContainer };
 }
 
+export function useTutorScene(voice: LiveVoice | null, isEnabled: boolean): TutorScene {
+  const [canPlay, setCanPlay] = useState(false);
+  const scene = useSceneHost(canPlay && voice !== null && isEnabled);
+  const { stage } = scene;
+
+  useEffect(() => {
+    if (!voice || !isEnabled) return undefined;
+    let isGone = false;
+    void getCanPlayScenes().then((isAble) => {
+      if (isGone) return;
+      setCanPlay(isAble);
+      if (!isAble) voice.sendScene({ type: 'sceneDevice', canPlay: false });
+    });
+    return () => {
+      isGone = true;
+      setCanPlay(false);
+    };
+  }, [voice, isEnabled]);
+
+  useEffect(() => {
+    if (!voice || !stage) return undefined;
+    let isGone = false;
+    const stopListening = voice.onSceneMessage((message) => {
+      if (message.type === 'prepareScene') {
+        const { sceneId, engine } = message;
+        void stage.prepare(sceneId, engine).then((isHeld) => {
+          if (!isGone) voice.sendScene({ type: isHeld ? 'scenePrepared' : 'sceneRefused', sceneId });
+        });
+        return;
+      }
+      if (message.type !== 'loadScene') return;
+      const { sceneId, durationSeconds, engine } = message;
+      void stage.load(sceneId, durationSeconds, engine).then((isLoaded) => {
+        if (!isGone) voice.sendScene({ type: isLoaded ? 'sceneLoaded' : 'sceneRefused', sceneId });
+      });
+    });
+    voice.sendScene({ type: 'sceneDevice', canPlay: true });
+    return () => {
+      isGone = true;
+      stopListening();
+    };
+  }, [voice, stage]);
+
+  return scene;
+}
+
+export function useReplayScene(board: BoardState, isEnabled: boolean): TutorScene {
+  const [canPlay, setCanPlay] = useState(false);
+  const scene = useSceneHost(canPlay && isEnabled);
+  const { stage } = scene;
+  const { sceneId, durationSeconds, engine } = getLatestScene(board) ?? { sceneId: null, durationSeconds: 0, engine: undefined };
+
+  useEffect(() => {
+    if (!isEnabled) return undefined;
+    let isGone = false;
+    void getCanPlayScenes().then((isAble) => {
+      if (!isGone) setCanPlay(isAble);
+    });
+    return () => {
+      isGone = true;
+    };
+  }, [isEnabled]);
+
+  useEffect(() => {
+    if (stage && sceneId !== null) void stage.load(sceneId, durationSeconds, engine);
+  }, [stage, sceneId, durationSeconds, engine]);
+
+  return scene;
+}
+
 export function hasDrawableScene(board: BoardState, stage: SceneStage | null): boolean {
-  const scene = [...board.elements.values()].filter((element) => element.content.kind === 'richScene').at(-1)?.content;
-  return Boolean(stage && scene?.kind === 'richScene' && stage.canDraw(scene.sceneId));
+  const scene = getLatestScene(board);
+  return Boolean(stage && scene && stage.canDraw(scene.sceneId));
 }

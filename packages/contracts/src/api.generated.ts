@@ -227,6 +227,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/scene-takes/{sceneId}/kit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sends a checked scene's 3D take, for the page's sandbox. A topic with a reviewed kit scene has one beside its 2D take, under the same rules for who may see it. */
+        get: operations["ScenesController_getKitTake"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/scene-takes/{sceneId}/{theme}": {
         parameters: {
             query?: never;
@@ -616,6 +633,20 @@ export interface components {
              * @enum {string|null}
              */
             unavailableBecause: "notSetUp" | "dailyLimit" | null;
+        };
+        KitTakeTimingDto: {
+            /** @description Each named moment of the scene, in seconds. */
+            moments: {
+                [key: string]: number;
+            };
+            /** @description The scene's length in seconds. */
+            duration: number;
+        };
+        KitTakeDto: {
+            /** @description The scene's code, which runs only inside the page's sandbox. */
+            code: string;
+            /** @description The same times as the scene's 2D take, so both run on one clock. */
+            timing: components["schemas"]["KitTakeTimingDto"];
         };
         SceneLessonResponseDto: {
             /** @description The LiveKit address that the browser connects to. */
@@ -1070,6 +1101,28 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["LiveRoomResponseDto"];
+                };
+            };
+        };
+    };
+    ScenesController_getKitTake: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The stored scene. */
+                sceneId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KitTakeDto"];
                 };
             };
         };

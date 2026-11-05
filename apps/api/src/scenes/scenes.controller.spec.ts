@@ -52,6 +52,77 @@ describe('the scene routes', () => {
     expect(response.headers['x-content-type-options']).toBe('nosniff');
   });
 
+  describe('a 3D take', () => {
+    const SCENE_ID = 'rocket-9f8e';
+    const MOMENTS = { start: 0, liftoff: 2.5 };
+    const getKitTake = (sceneId: string, as: TestStudent = student) => request(testApp.app.getHttpServer()).get(`/scene-takes/${sceneId}/kit`).set('Authorization', `Bearer ${as.token}`);
+    const saveKitScene = (folder: string, record: object, code = 'function scene(kit) {}') => {
+      mkdirSync(join(storeRoot, 'kit', folder), { recursive: true });
+      writeFileSync(join(storeRoot, 'kit', folder, 'scene.js'), code);
+      writeFileSync(join(storeRoot, 'kit', folder, 'scene.json'), JSON.stringify(record));
+    };
+    const saveRecord = (id: string, fields: object) => {
+      mkdirSync(join(storeRoot, 'scenes', id), { recursive: true });
+      writeFileSync(join(storeRoot, 'scenes', id, 'scene.json'), JSON.stringify({ status: 'checked', ownerId: null, engine: 'manimgx', topic: 'Rockets', moments: MOMENTS, durationSeconds: 12, ...fields }));
+    };
+
+    it('sends a reviewed scene on the times of its 2D record, whatever its own file says', async () => {
+      saveRecord(SCENE_ID, {});
+      saveKitScene('rocket', { sceneId: SCENE_ID, reviewed: true, moments: { start: 0, liftoff: 99 }, durationSeconds: 99 });
+      const response = await getKitTake(SCENE_ID).expect(200);
+      expect(response.body).toEqual({ code: 'function scene(kit) {}', timing: { moments: MOMENTS, duration: 12 } });
+    });
+
+    it('refuses a scene not marked reviewed', async () => {
+      saveRecord('rocket-unreviewed', {});
+      saveKitScene('unreviewed', { sceneId: 'rocket-unreviewed', reviewed: false });
+      await getKitTake('rocket-unreviewed').expect(404);
+    });
+
+    it('refuses a scene whose reviewed mark is not exactly true', async () => {
+      saveRecord('rocket-truthy', {});
+      saveKitScene('truthy', { sceneId: 'rocket-truthy', reviewed: 'yes' });
+      await getKitTake('rocket-truthy').expect(404);
+    });
+
+    it('answers 404 for a topic with no kit scene', async () => {
+      saveRecord('flat-only', {});
+      await getKitTake('flat-only').expect(404);
+    });
+
+    it('does not take a kit scene with no id and no topic for a scene with an empty topic', async () => {
+      saveRecord('no-topic', { topic: '' });
+      saveKitScene('nameless', { reviewed: true });
+      await getKitTake('no-topic').expect(404);
+    });
+
+    it('sends a live scene from its own record, in the same shape', async () => {
+      saveRecord('live-1a2b', { engine: 'kit', reviewed: true, code: 'function scene(kit) { /* live */ }' });
+      const response = await getKitTake('live-1a2b').expect(200);
+      expect(response.body).toEqual({ code: 'function scene(kit) { /* live */ }', timing: { moments: MOMENTS, duration: 12 } });
+    });
+
+    it('answers 404 for a live scene nobody marked reviewed', async () => {
+      saveRecord('live-unread', { engine: 'kit', code: 'function scene(kit) {}' });
+      await getKitTake('live-unread').expect(404);
+    });
+
+    it('sends a typed scene to its own student only, and a flagged scene to nobody', async () => {
+      const owner = await createTestStudent(testApp);
+      saveRecord('live-owned', { engine: 'kit', reviewed: true, code: 'function scene(kit) {}', ownerId: owner.studentId });
+      await getKitTake('live-owned', owner).expect(200);
+      await getKitTake('live-owned', student).expect(404);
+      saveRecord('live-flagged', { engine: 'kit', reviewed: true, code: 'function scene(kit) {}' });
+      mkdirSync(join(storeRoot, 'flags'), { recursive: true });
+      writeFileSync(join(storeRoot, 'flags', 'live-flagged.json'), '{}');
+      await getKitTake('live-flagged').expect(404);
+    });
+
+    it('does not take the word kit for a theme on the route that sends a 2D take', async () => {
+      await getTake('/scene-takes/slope-1a2b/sepia').expect(400);
+    });
+  });
+
   it("sends a scene from a typed question to its own student only", async () => {
     const owner = await createTestStudent(testApp);
     const other = await createTestStudent(testApp);

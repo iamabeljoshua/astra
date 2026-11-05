@@ -84,10 +84,10 @@ export type SimulationMoment = (typeof SIMULATION_MOMENTS)[number];
 /** A named moment of the element's scene, or seconds of 0 or more. A simulation has its fixed moments, and a stored scene names its own. */
 export type SimulationPoint = string | number;
 
-export const SCENE_ENGINES = ['manimgx'] as const;
+export const SCENE_ENGINES = ['manimgx', 'kit'] as const;
 export type SceneEngine = (typeof SCENE_ENGINES)[number];
 
-export const SCENE_ENGINE_VERSIONS = { manimgx: '0.1.1' } as const satisfies Record<SceneEngine, string>;
+export const SCENE_ENGINE_VERSIONS = { manimgx: '0.1.1', kit: '0.1.0' } as const satisfies Record<SceneEngine, string>;
 
 /** Motion the engine computes from named values in SI units. */
 export interface ProjectileSimulation {
