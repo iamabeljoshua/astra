@@ -14,6 +14,7 @@ import { makeRenderedVoice } from '../src/providers/rendered-voice.ts';
 import type { SafetyWatch } from '../src/safety/safety-watch.ts';
 import type { StudentReading } from '../src/safety/student-reading.ts';
 import { createTutorBrain } from '../src/tutor/brain.ts';
+import { createLineReaders } from '../src/tutor/line-read/read-line.ts';
 
 initializeLogger({ pretty: false, level: 'silent' });
 
@@ -844,5 +845,35 @@ describe('the smaller things a read decides', () => {
     run.type('ok');
     await delay(STILL_MS);
     expect(asksFor(run, 'ok')[0]?.notes.join(' ')).toContain('exercise_open');
+  });
+});
+
+describe('lines with no read to make', () => {
+  it.each(['???', '...', ':)'])('%s is a sound, with no read and no help', async (line) => {
+    const run = startLesson({ wishes: { [line]: 'worrying' }, answer: (words, index) => (words === line ? 'Which part?' : BEAT(index)) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox(line);
+    await delay(STILL_MS);
+    expect(run.lineReads).not.toContain(line);
+    expect(spokenTo(run, line).join(' ')).not.toMatch(/adult you trust|emergency/);
+  });
+
+  it('a reply that asks on a line in another language adds no emergency line', async () => {
+    const line = 'kedu ka rocket si aga';
+    const reply = "You wrote in Igbo, I think. Could you try English?";
+    const run = startLesson({ safety: makeWatch(async () => 'school'), wishes: { [line]: 'other_language' }, promises: (spoken) => (spoken === reply ? 'asks' : false), answer: (words, index) => (words === line ? reply : BEAT(index)) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox(line);
+    await delay(STILL_MS);
+    expect(spokenTo(run, line)).toEqual([reply]);
+  });
+
+  it('a sentence about a line in another language is not a failed read', async () => {
+    const readers = createLineReaders(async () => 'The line is in Hindi');
+    expect(await readers.readLine('मुझे समझ आ गया', { tutorSaid: '' })).toBe('other_language');
+    expect(await readers.readLine('i have a question', { tutorSaid: '' })).toBe('unread');
+    expect(await createLineReaders(async () => null).readLine('मुझे समझ आ गया', { tutorSaid: '' })).toBe('unread');
   });
 });

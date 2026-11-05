@@ -1,3 +1,5 @@
+import { readsAsEnglish } from '../../safety/help-words.ts';
+
 export const LINE_WISHES = ['stop', 'wait', 'leave', 'lost', 'go_on', 'slower', 'faster', 'filler', 'other_language', 'worrying', 'talk'] as const;
 export type LineWish = (typeof LINE_WISHES)[number];
 export type LineRead = LineWish | 'unread';
@@ -36,10 +38,9 @@ const toWords = (answer: string | null) => (answer ?? '').trim().toLowerCase().s
 
 const toFirstWord = (answer: string | null) => toWords(answer)[0] ?? '';
 
-// Nothing in these words asks anything of the tutor, so all they say is that the student is speaking another language.
-const isChatInAnotherLanguage = ([wish, language]: readonly (string | undefined)[]) => language === 'other' && (wish === 'talk' || wish === 'filler');
+const isPlainLineInAnotherLanguage = ([wish, language]: readonly (string | undefined)[]) => language === 'other' && (wish === 'talk' || wish === 'filler');
 
-export const toLineRead = (answer: string | null): LineRead => (isChatInAnotherLanguage(toWords(answer)) ? 'other_language' : (LINE_WISHES.find((wish) => wish === toFirstWord(answer)) ?? 'unread'));
+export const toLineRead = (answer: string | null): LineRead => (isPlainLineInAnotherLanguage(toWords(answer)) ? 'other_language' : (LINE_WISHES.find((wish) => wish === toFirstWord(answer)) ?? 'unread'));
 
 export const toPromiseRead = (answer: string | null): PromiseRead => {
   const word = toFirstWord(answer);
@@ -53,7 +54,12 @@ export interface LineReaders {
 
 export function createLineReaders(readWord: (system: string, text: string) => Promise<string | null>): LineReaders {
   return {
-    readLine: async (line, facts) => toLineRead(await readWord(LINE_READ_RULES, toLineReadMessage(line, facts))),
+    readLine: async (line, facts) => {
+      const answer = await readWord(LINE_READ_RULES, toLineReadMessage(line, facts));
+      const read = toLineRead(answer);
+      // On another language the reader sometimes writes a sentence about the line, which is not a failed read.
+      return read === 'unread' && answer !== null && !readsAsEnglish(line) ? 'other_language' : read;
+    },
     readPromise: async (spoken) => toPromiseRead(await readWord(TUTOR_PROMISE_RULES, spoken)),
   };
 }

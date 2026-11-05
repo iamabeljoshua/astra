@@ -19,6 +19,7 @@ const OPENING_SOUND = /^(?:ok(?:ay)?|um+|uh+|hm+)\s+(?=\S)/;
 const toPlainLine = (words: string) => words.toLowerCase().replace(/[.,!?'’…]/g, '').replace(/\s+/g, ' ').trim();
 
 export function getPlainWish(words: string): LineWish | null {
+  if (!/[\p{L}\p{N}]/u.test(words)) return 'filler';
   const line = toPlainLine(words);
   const known = WISH_OF_LINE.get(line) ?? WISH_OF_LINE.get(line.replace(OPENING_SOUND, ''));
   if (known) return known;
@@ -29,5 +30,4 @@ export const isHoldWish = (wish: string | null) => wish === 'stop' || wish === '
 
 const JUST_A_SOUND = /^(?:h+m+|u+m+|u+h+|e+r+|m+|a+h+|o+h+|the|and)$/;
 
-/** A nod says they are with the tutor, and a sound may only be them thinking. */
 export const isJustASound = (words: string) => JUST_A_SOUND.test(toPlainLine(words));

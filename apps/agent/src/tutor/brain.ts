@@ -68,7 +68,6 @@ export interface TutorBrain {
   hasLessonLeft?(): boolean;
   noteLead?(kind: LeadKind): void;
   holdLeads?(): void;
-  /** A line that gets no reply, typed or spoken, still says what it says about the lesson. */
   noteQuietLine?(words: string): void;
   onLeadStopped?(listener: () => void): void;
   onReadSettled?(listener: () => void): void;
@@ -377,8 +376,7 @@ const getWishEvent = (wish: LineWish, words: string): LeadStopEvent | null => {
   return (wish === 'go_on' || asksToBeTaught(words)) && isMoreThanOneWord(words) ? 'askedToBeTaught' : 'saidSomething';
 };
 
-/** Words that ask only this of the lesson say nothing about the student, whatever a vague read made of them. A stop or a goodbye read by a model can mean more than the lesson, such as "make it stop". */
-const WISHES_ONLY_ABOUT_THE_LESSON: ReadonlySet<LineRead | 'pending'> = new Set<LineRead | 'pending'>(['wait', 'go_on', 'slower', 'faster', 'filler']);
+const WISHES_THAT_NEED_NO_HELP: ReadonlySet<LineRead | 'pending'> = new Set<LineRead | 'pending'>(['wait', 'go_on', 'slower', 'faster', 'filler', 'other_language']);
 
 const getLineNote = (wish: LineRead | 'pending', wasPausedAtStart: boolean) => {
   if (wish === 'other_language') return OTHER_LANGUAGE_NOTE;
@@ -520,13 +518,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
 
   const wasLineUnread = (turn: TurnWork) => !turn.hasPlainWish && ((readers !== undefined && turn.speaker === 'student' && turn.lineWish === 'unread') || (safety !== undefined && !didNobodySpeak(turn) && turn.safetyReading === 'unread'));
 
-  const onlySteersTheLesson = ({ lineWish, hasPlainWish }: TurnWork) => WISHES_ONLY_ABOUT_THE_LESSON.has(lineWish) || (hasPlainWish && lineWish !== 'leave');
+  const needsNoHelp = ({ lineWish, hasPlainWish }: TurnWork) => WISHES_THAT_NEED_NO_HELP.has(lineWish) || (hasPlainWish && lineWish !== 'leave');
 
-  // Asked for a moment while a reply is still coming, the words already out are enough, so nothing is taught first. A stop read by a model can mean more than the lesson, so that reply goes on.
   const isWaitHeard = (turn: TurnWork) => turn.lineWish === 'wait' && !turn.hasPlainWish && turn.beats.length > 0 && (turn.safetyReading === 'none' || turn.safetyReading === 'school') && !turn.reader.isSafetyReply;
 
-  // Past the wait a read still out counts as failed, because the student must hear why nothing comes next.
-  const isAReadOut = (turn: TurnWork) => wasLineUnread(turn) || turn.lineWish === 'pending';
+  const isReadFailedOrOut = (turn: TurnWork) => wasLineUnread(turn) || turn.lineWish === 'pending';
 
   const withinReadLimit = <T>(read: Promise<T>, unread: T, limitMs = timeouts.readLimitMs): Promise<T> =>
     new Promise((resolve) => {
@@ -811,7 +807,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       draftToRead = null;
       turn.safetyReading = 'pending';
       turn.safetyAnswered = new Promise((resolve) => {
-        turn.safetyRead = withinReadLimit<StudentReading>(safety.readStudent(wordsForSafetyCheck, lastSpokenText, () => turn.lineRead.then(() => onlySteersTheLesson(turn) || turn.lineWish === 'other_language')), 'unread', timeouts.safetyReadLimitMs).then((reading) => {
+        turn.safetyRead = withinReadLimit<StudentReading>(safety.readStudent(wordsForSafetyCheck, lastSpokenText, () => turn.lineRead.then(() => needsNoHelp(turn))), 'unread', timeouts.safetyReadLimitMs).then((reading) => {
           turn.safetyReading = reading;
           resolve(SAFETY_ANSWERED);
           if (isAboutSafety(reading)) {
@@ -1163,7 +1159,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     } else if (turn.reader.wasCutShort || turn.wasStoppedByLength) {
       sayLine(turn, 'cutShort');
     }
-    if (isAReadOut(turn) && !turn.reader.isSafetyReply) sayLine(turn, 'waitingAfterFailedRead');
+    if (isReadFailedOrOut(turn) && !turn.reader.isSafetyReply) sayLine(turn, 'waitingAfterFailedRead');
     return 'over';
   };
 
@@ -1348,7 +1344,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const reading = readTheReply(turn, words);
     if (isAboutSafety(turn.safetyReading) || namesHelp(words)) return;
     await waitUntil(reading, getNowMs() + timeouts.lineReadWaitMs, turn.signal, getNowMs);
-    if (turn.lineWish !== 'worrying' && (turn.replyRead !== 'asks' || onlySteersTheLesson(turn))) return;
+    if (turn.lineWish !== 'worrying' && (turn.replyRead !== 'asks' || needsNoHelp(turn))) return;
     trace('helpAdded');
     sayLine(turn, 'ifWorried');
     yield* takeReady(turn);
@@ -1473,7 +1469,6 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       if (Array.from(studentText).length >= TYPED_TEXT_MAX_CHARACTERS) turn.notes.push(JSON.stringify(CLIPPED_NOTE));
       try {
         closeIfSpent(turn);
-        // On a line in another language, or a word that may only be a nod, what the model should do hangs on the read, and the wait is about a second on these lines alone.
         if (closedReason === null && turn.speaker === 'student' && !turn.hasPlainWish && (turn.wasPausedAtStart || !readsAsEnglish(studentText))) {
           await waitUntil(turn.lineRead, turn.startedAtMs + timeouts.lineReadWaitMs, signal, getNowMs);
           const lineNote = getLineNote(turn.lineWish, turn.wasPausedAtStart);
