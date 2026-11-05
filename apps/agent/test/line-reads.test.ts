@@ -628,6 +628,17 @@ describe('a reply that asks after them, or cannot read them', () => {
     expect(run.brain.isLeadStopped()).toBe(true);
   });
 
+  it('a reply read as asking after them names help, in any words', async () => {
+    const line = 'make it stop';
+    const asksAfter = 'Do you mean the lesson, or is something else going on?';
+    const run = startLesson({ safety: makeWatch(async () => 'school'), promises: (spoken) => (spoken === asksAfter ? 'asks' : false), answer: (words, index) => (words === line ? asksAfter : `Gravity keeps pulling, beat ${index}.`) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    expect(await leadsAfter(run, () => run.typeInBox(line))).toBe(0);
+    expect(spokenTo(run, line)[0]).toMatch(/adult you trust/);
+    expect(run.brain.isLeadStopped()).toBe(true);
+  });
+
   it('take your time with an exercise open holds nothing', async () => {
     const run = startLesson({ promises: (spoken) => spoken === 'Take your time.', answer: (words, index) => (index === 0 ? TASK('11.2 / 2.4') : words === 'let me try' ? 'Take your time.' : `Gravity keeps pulling, beat ${index}.`) });
     run.type('give me one');

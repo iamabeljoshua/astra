@@ -234,6 +234,7 @@ interface TurnWork {
   speaker: Speaker;
   lineWish: LineRead | 'pending';
   lineRead: Promise<void>;
+  replyRead: PromiseRead | null;
   hasPlainWish: boolean;
   /** A nod or a sound during a stop, which nothing should answer. */
   isNothingToAnswer: boolean;
@@ -774,6 +775,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       safetyAnswered: createNever(),
       lineWish: plainWish ?? 'unread',
       lineRead: Promise.resolve(),
+      replyRead: null,
       hasPlainWish: plainWish !== null,
       isNothingToAnswer: wasHeldAtStart && plainWish === 'filler',
       hasStoppedForSafety: false,
@@ -1061,12 +1063,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return 'retry';
   };
 
-  // The model can stop at "are you thinking of hurting yourself?" with no help named, and the student may not answer, so code names it. A line it cannot read may be the same words.
+  // The model can stop at "are you thinking of hurting yourself?" with no help named, and the student may not answer, so code names it.
   const addHelpIfMissing = (turn: TurnWork) => {
-    const words = `${getWordsSaid(turn)} ${turn.raw}`;
-    const isUnreadByTutor = !turn.isLead && saysItCannotRead(words);
-    if ((!turn.reader.isSafetyReply && !isAboutSafety(turn.safetyReading) && !isUnreadByTutor) || namesHelp(words)) return;
-    const help = ` ${pickLine(isAboutSafety(turn.safetyReading) || turn.reader.isSafetyReply ? 'safetyHelp' : 'ifWorried')}`;
+    if ((!turn.reader.isSafetyReply && !isAboutSafety(turn.safetyReading)) || namesHelp(`${getWordsSaid(turn)} ${turn.raw}`)) return;
+    const help = ` ${pickLine('safetyHelp')}`;
     trace('helpAdded');
     turn.raw += help;
     turn.reader.push(help);
@@ -1295,17 +1295,32 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   };
 
   // With an exercise open, "take your time" is about the exercise, whose own wait goes on. A reply that asks after them, or cannot read them, needs their answer whatever is open.
-  const readWhetherItWaits = (turn: TurnWork) => {
-    if (leadStop !== 'none') return;
-    const isTaskOpen = getOpenTaskOnBoard(getBoardNow()) !== null;
-    if (saysItCannotRead(lastSpokenText) || (!isTaskOpen && promisesToWait(lastSpokenText))) return noteLeadStopEvent('hold');
-    if (!readers) return;
+  const readTheReply = (turn: TurnWork, words: string) => {
+    if (!readers) return Promise.resolve();
     linesBeingRead += 1;
-    void withinReadLimit<PromiseRead>(readers.readPromise(lastSpokenText), 'unread').then((read) => {
+    return withinReadLimit<PromiseRead>(readers.readPromise(words), 'unread').then((read) => {
       linesBeingRead -= 1;
-      if ((read === 'asks' || (read === 'waits' && !isTaskOpen)) && turn.id === turnCount) noteLeadStopEvent('hold');
+      turn.replyRead = read;
+      if ((read === 'asks' || (read === 'waits' && getOpenTaskOnBoard(getBoardNow()) === null)) && turn.id === turnCount) noteLeadStopEvent('hold');
       tellReadSettled();
     });
+  };
+
+  // Comes after the reply's words, so they never wait for the read. A line it cannot read may be a child in danger, in words nobody here knows.
+  async function* nameHelpIfItAsks(turn: TurnWork): AsyncGenerator<Beat> {
+    const words = getWordsSaid(turn);
+    if (turn.isLead || words === '') return;
+    const reading = readTheReply(turn, words);
+    if (isAboutSafety(turn.safetyReading) || namesHelp(words)) return;
+    await waitUntil(reading, getNowMs() + timeouts.lineReadWaitMs, turn.signal, getNowMs);
+    if (turn.replyRead !== 'asks' && !saysItCannotRead(words)) return;
+    trace('helpAdded');
+    sayLine(turn, 'ifWorried');
+    yield* takeReady(turn);
+  }
+
+  const noteWordsThatWait = () => {
+    if (saysItCannotRead(lastSpokenText) || (getOpenTaskOnBoard(getBoardNow()) === null && promisesToWait(lastSpokenText))) noteLeadStopEvent('hold');
   };
 
   // The check reads every line, so words that are only a lesson's, such as "call your local emergency number" on fires, stop nothing unless the tutor has asked after them.
@@ -1351,7 +1366,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     else if (ENDS_THAT_STOP_A_LEAD.has(turn.endedAs)) noteLeadStopEvent('replyFailed');
     else if (turn.endedAs === 'ended') noteLeadStopEvent('replyWorked');
     if (didNobodySpeak(turn) && turn.endedAs === 'ended') refusalsNobodyAskedFor = 0;
-    if (!turn.isLead && spoken !== '') readWhetherItWaits(turn);
+    if (!turn.isLead && spoken !== '') noteWordsThatWait();
     onTurnEnd?.({
       wasLead: turn.isLead,
       studentText: turn.studentText,
@@ -1439,7 +1454,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           const step = handleEnd(turn, end);
           turn.heldTry.isHolding = false;
           yield* takeReady(turn);
-          if (step === 'over') return;
+          if (step === 'over') {
+            if (end === 'ended') yield* nameHelpIfItAsks(turn);
+            return;
+          }
           if (turn.toolCall) await answerToolCall(turn, turn.toolCall);
         }
       } finally {
