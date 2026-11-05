@@ -30,6 +30,8 @@ Preconditions: `pnpm verify` does not start the lesson service, so start the sta
 
 The real session path has its own switch, `ASTRA_TUTOR_SCENES=1` on the agent and `VITE_TUTOR_SCENES=1` on the web build, with the same `SCENE_STORE_DIR` on the agent and the API.
 
+Live 3D writing has one more switch, `ASTRA_KIT_LIVE=1` on the agent, with `VITE_KIT_SCENES=1` on the web build. To drive it, run `node src/scenes/proof/tutor-scene-proof.ts --web <url> --realChrome --ask "how do volcanoes erupt" --out <folder>` from `apps/agent`, on a stack with its own student, because a proof ends the session it drives. `--realChrome` runs real Chrome, headed and muted, with none of the defaults a driver adds. Each fresh question costs about $0.30.
+
 - `tutor-scene`: from `apps/agent`, `node src/scenes/proof/tutor-scene-proof.ts --card "What a derivative really measures" --trace <trace folder> --out <folder>` passes when `summary.json` has a `sceneSeenAtS`, a `smallPlace` with `share` 0.3 and both insets 12, and a `clickedBack` with `isBigOverBoard` true. It sends a line that asks for a problem to work on, and the tutor's own `boardMode` or task moves the scene.
 - `--noGpu` and `--damageTake` give no scene and no word about one.
 - The seeded student's cards change, and a card needs a saved scene to land at once. A typed question writes a new scene, and on a loaded Mac that takes far longer than its window.

@@ -1,0 +1,11 @@
+{"t":"fit","in":true,"topic":"How gears turn each other","stage":"studio"}
+{"t":"say","m":"gears-meshing","text":"Gears are wheels with teeth, and the teeth fit into each other."}
+{"t":"part","id":"train","part":"gearTrain","args":{"teeth":[12,24,36]},"in":"gears-meshing"}
+{"t":"cam","on":"gears-meshing","look":"train.mesh","view":"front","zoom":1}
+{"t":"say","m":"gears-turn-opposite","text":"When one gear turns, the gear it meshes with turns the opposite way."}
+{"t":"move","item":"train","motion":"run","on":"gears-turn-opposite"}
+{"t":"label","text":"Mesh","at":"train.mesh","show":"gears-turn-opposite","hide":"gears-ratio"}
+{"t":"say","m":"gears-ratio","text":"A gear with fewer teeth spins faster than a gear with more teeth."}
+{"t":"label","text":"12 teeth","at":"train.gear0","show":"gears-ratio"}
+{"t":"label","text":"24 teeth","at":"train.gear1","show":"gears-ratio"}
+{"t":"say","m":"gears-use","text":"So gears trade speed for turning force, which lets machines like bikes work."}

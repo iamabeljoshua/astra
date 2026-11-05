@@ -1,8 +1,10 @@
-import type { FactError, RouteEngine, SceneRoute, SceneVerdict, SceneUsage } from './scene-types.ts';
+import type { FactError, FixedWords, RouteEngine, SceneRoute, SceneVerdict, SceneUsage } from './scene-types.ts';
 
 const ENGINES: readonly RouteEngine[] = ['manimgx', 'kit', 'none'];
 export const SAFETY_KIND = 'safety';
 export const DANGEROUS_KIND = 'dangerous';
+const KIT_KINDS: readonly string[] = ['physics-object', 'chemistry', 'biology', 'astronomy', 'earth-engineering'];
+const NEVER_A_SOLID_THING = /\b(solve|solving|equations?|derivatives?|integrals?|graphs?|plots?|algebra|fractions?|theorems?|probability|statistics|percent(age)?s?|formulas?|functions?|code|algorithm|programming|maps?|grids?|tables?|histor(y|ical)|wars?|politics|economy|feelings?|love)\b/i;
 const CLEARED_NAME_KINDS = ['place', 'event', 'thing', 'figure'];
 const MOST_TOPIC_CHARACTERS = 80;
 const POINTS_AT_A_PERSON = /@|https?:|\b(my|me|mine|our|we)\b|\bi['’](m|ve|d|ll)\b/i;
@@ -72,7 +74,28 @@ export function getRouteFromText(text: string): Omit<SceneRoute, keyof SceneUsag
   const engine = ENGINES.find((name) => name === reply.engine) ?? 'none';
   const topic = typeof reply.topic === 'string' ? reply.topic.trim().slice(0, MOST_TOPIC_CHARACTERS) : '';
   const isSafeTopic = topic !== '' && !pointsAtAPerson(topic);
-  return { engine: engine !== 'none' && !isSafeTopic ? 'none' : engine, kind: typeof reply.kind === 'string' ? reply.kind : 'unknown', topic: isSafeTopic ? topic : '' };
+  const kind = typeof reply.kind === 'string' ? reply.kind : 'unknown';
+  const isKitInDoubt = engine === 'kit' && (!KIT_KINDS.includes(kind) || NEVER_A_SOLID_THING.test(topic));
+  return { engine: (engine !== 'none' && !isSafeTopic) || isKitInDoubt ? 'none' : engine, kind, topic: isSafeTopic ? topic : '' };
+}
+
+const WORDS_NAMING_NO_IDEA = new Set('how why what when where which does do did is are was were has have had the and for from with that this into its their really work works working'.split(' '));
+const WORD_STEM_LETTERS = 4;
+const LEAST_SHARED_WORDS = 2;
+const getIdeaStems = (text: string) => (text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).filter((word) => !WORDS_NAMING_NO_IDEA.has(word) && word.length >= 3).map((word) => word.slice(0, WORD_STEM_LETTERS));
+
+// A reader can talk itself into a match on one word, as the Moon's spin for its phases, so most of the topic must be in the title.
+export function getFitFromText(topic: string, titles: readonly string[], text: string): string | null {
+  try {
+    const { title } = readJsonObject(text);
+    if (typeof title !== 'string' || !titles.includes(title)) return null;
+    const topicStems = [...new Set(getIdeaStems(topic))];
+    const titleStems = new Set(getIdeaStems(title));
+    const shared = topicStems.filter((stem) => titleStems.has(stem)).length;
+    return shared >= Math.max(LEAST_SHARED_WORDS, topicStems.length / 2) ? title : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Only a name it was asked about, of a kind a lesson may say, and a reply it cannot read clears nothing. */
@@ -83,6 +106,18 @@ export function getClearedNames(names: readonly string[], text: string): Readonl
     return new Set(names.filter((name) => entries.some((entry) => entry.name === name && typeof entry.kind === 'string' && CLEARED_NAME_KINDS.includes(entry.kind))));
   } catch {
     return new Set();
+  }
+}
+
+const WORD_FIELDS = ['setup', 'narration', 'close'] as const;
+
+export function getFixedWordsFromText(text: string): FixedWords | undefined {
+  try {
+    const reply = readJsonObject(text);
+    const words = Object.fromEntries(WORD_FIELDS.flatMap((field) => (typeof reply[field] === 'string' ? [[field, reply[field]]] : [])));
+    return Object.keys(words).length > 0 ? words : undefined;
+  } catch {
+    return undefined;
   }
 }
 

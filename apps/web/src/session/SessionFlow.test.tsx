@@ -327,6 +327,7 @@ describe('the session screen', () => {
 
     expect(screen.queryByText(/Live lessons open soon/)).toBeNull();
     screen.getByText(VOICE_LABELS.connecting);
+    expect(screen.getByTestId('connecting-title').textContent).toBe('Free-body diagrams');
 
     await room.release();
     await screen.findByText(VOICE_LABELS.unavailable);

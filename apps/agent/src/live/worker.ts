@@ -66,10 +66,10 @@ function makeLogSaver(link: ApiLink | null, trace: (name: string, fields?: Recor
   return createLogSaver({ save: (events) => link.saveLog({ runId, runStartedAt, events }), onFailed: (problem) => trace('logSaveFailed', { problem }) });
 }
 
-async function runSession(context: JobContext): Promise<void> {
+async function runSession(context: JobContext, enteredAtWallMs: number): Promise<void> {
   const { room } = context;
   const trace = makeTraceFile(room.name ?? 'room');
-  trace('jobStarted', { pid: process.pid });
+  trace('jobStarted', { pid: process.pid, wallMs: Date.now(), joinRoomMs: Date.now() - enteredAtWallMs });
   // Publishing fails once the room has gone, and a stray rejection would end the whole process.
   const publish = (message: AgentMessage, isReliable = true) => void room.localParticipant?.publishData(encoder.encode(JSON.stringify(message)), { reliable: isReliable, topic: LIVE_TOPIC }).catch((error: unknown) => trace('publishFailed', { problem: String(error) }));
   const source = new AudioSource(RENDERED_SAMPLE_RATE, 1, AUDIO_QUEUE_MS);
@@ -149,6 +149,8 @@ async function runSession(context: JobContext): Promise<void> {
     onEndingOver: () => void setTimeout(() => context.shutdown('the recap is over'), SAY_WHY_BEFORE_CLOSING_MS),
     ...(process.env.ASTRA_SAVE_HEARD && process.env.NODE_ENV !== 'production' ? { recordTurn: createHeardRecorder(process.env.ASTRA_SAVE_HEARD, room.name ?? 'room') } : {}),
     onPause: () => scenes?.notePause(),
+    onReactionOver: () => scenes?.noteReactionOver(),
+    holdFirstWord: () => scenes?.holdFirstWord() ?? Promise.resolve(),
     ...(hasTutorScenes()
       ? {
           onStudentTurn: () => scenes?.noteStudentTurn(),
@@ -178,6 +180,7 @@ async function runSession(context: JobContext): Promise<void> {
       speak: session.speakScene,
       canCutIn: session.canCutInScene,
       isInBreath: session.isInBreath,
+      isBeforeFirstWord: session.isBeforeFirstWord,
       cutIn: session.cutInScene,
       getLevel: () => brain.getStudentLevel?.() ?? null,
       ...(brain.getStudentFacts ? { getStudentFacts: brain.getStudentFacts } : {}),
@@ -192,6 +195,12 @@ async function runSession(context: JobContext): Promise<void> {
       trace,
     });
   }
+  // Asked as the job starts, so the picture is under way before the page joins, and the page's first messages need no wait.
+  let namedStudent: string | null = null;
+  void apiLink?.fetchOpening().then(({ studentId, question }) => {
+    namedStudent = `${STUDENT_IDENTITY_PREFIX}${studentId}`;
+    if (question) scenes?.noteEarlyQuestion(question, studentId);
+  }).catch((problem: unknown) => trace('openingNotRead', { problem: String(problem) }));
   ears = await startEars({ room, transcriber, vad: context.proc.userData.vad as inference.VAD, onEvent: session.onEars });
 
   const closing = createClosingWait({ leftOnPurposeMs: LEFT_ON_PURPOSE_MS, linkDroppedMs: LINK_DROPPED_MS, onClose: () => context.shutdown('the student left') });
@@ -220,12 +229,16 @@ async function runSession(context: JobContext): Promise<void> {
   };
   const earlyMessages = createEarlyMessages();
 
+  // The job hears a student's first messages up to 2 s before LiveKit says who sent them. The API named the one student this room's tokens go to, so those messages need not wait.
   room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
-    if (!participant) {
+    const identity = participant?.identity ?? namedStudent;
+    if (!identity) {
       if (kind === DataPacketKind.KIND_RELIABLE) earlyMessages.hold({ payload, topic });
       return;
     }
-    if (participant.identity.startsWith(STUDENT_IDENTITY_PREFIX)) readFromStudent(payload, participant.identity, topic);
+    if (!identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
+    for (const held of earlyMessages.take()) readFromStudent(held.payload, identity, held.topic);
+    readFromStudent(payload, identity, topic);
   });
   room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
     if (!participant.identity.startsWith(STUDENT_IDENTITY_PREFIX)) return;
@@ -273,9 +286,10 @@ export default defineAgent({
     process_.userData.vad = new inference.VAD(VAD_SETTINGS);
   },
   entry: async (context: JobContext) => {
+    const enteredAtWallMs = Date.now();
     warmTutorModel();
     await context.connect(undefined, AutoSubscribe.AUDIO_ONLY);
-    await runSession(context);
+    await runSession(context, enteredAtWallMs);
   },
 });
 

@@ -193,7 +193,7 @@ describe('what the student sees of a room', () => {
   });
 
   it('keeps the new topic in the bar after a reload, and no picture, once a card has moved off its own topic', async () => {
-    await openVoice(makeVoice(), { artwork: null, subject: 'Astronomy', title: 'A black hole' });
+    await openVoice(makeVoice(), { durationSeconds: 30, artwork: null, subject: 'Astronomy', title: 'A black hole' });
 
     expect(screen.getAllByText('A black hole')).toHaveLength(2);
     expect(screen.queryByText('Astronomy')).toBeNull();

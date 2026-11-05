@@ -1,0 +1,14 @@
+{"t":"fit","in":true,"topic":"How a suspension bridge holds its weight","stage":"studio"}
+{"t":"part","id":"bridge","part":"suspensionBridge","in":"load"}
+{"t":"say","m":"bridge-drawn","text":"This is a suspension bridge, and the deck hangs from cables."}
+{"t":"say","m":"bridge-drawn","text":"The weight of the road and the cars pulls down on the deck."}
+{"t":"move","item":"bridge","motion":"forces","on":"forces"}
+{"t":"say","m":"forces","text":"The deck pulls up on the hangers, and the hangers pull up on the main cable."}
+{"t":"label","text":"Cable","at":"bridge.cable","show":"forces"}
+{"t":"label","text":"Tower","at":"bridge.tower","show":"forces"}
+{"t":"label","text":"Anchorage","at":"bridge.anchorage","show":"forces"}
+{"t":"say","m":"forces","text":"The cable carries that pull over the towers and down into the anchorages in the ground."}
+{"t":"cam","on":"bridge-drawn","look":"bridge.deck","view":"front","zoom":1}
+{"t":"cam","on":"forces","look":"bridge.cable","view":"front","zoom":1}
+{"t":"say","m":"load","text":"So the cables carry the load, and the towers and ground take it in the end."}
+{"t":"move","item":"bridge","motion":"load","on":"load"}

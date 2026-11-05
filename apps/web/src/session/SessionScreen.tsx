@@ -9,7 +9,7 @@ import { type FilesComingSoon, useFilesComingSoon } from '../ui/useFilesComingSo
 import { BoardPicture, getSessionVisual } from './BoardPicture';
 import { type Session, useKeepSessionTitle, useSession } from './sessionQueries';
 import { BAR_ACTION, getBarSubject, SessionFacts, SessionFrame, SessionTitle } from './SessionFrame';
-import { isLessonEnabled, isTutorSceneEnabled } from './lessonFlag';
+import { isFastSceneEnabled, isLessonEnabled, isTutorSceneEnabled } from './lessonFlag';
 import { useSessionRun } from './useSessionRun';
 import { StudentCaption } from '../voice/Captions';
 import { BoardCaption } from '../board/BoardCaption';
@@ -95,6 +95,9 @@ function isTutorOnTheWay(status: LiveVoiceControls['status'], view: LiveVoiceVie
 /** Long enough for a student to think, so the prompt never hurries an answer on its way. */
 const ANSWER_PROMPT_AFTER_MS = 8000;
 const REPLY_BOX_BACK_AFTER_MS = 8000;
+/** The page opens about 0.7 s after the press, so the wait for a first picture ends 5 s after it. */
+const PICTURE_WAIT_MS = 4300;
+const SAY_WHY_NOT_CONNECTED_AFTER_MS = 15_000;
 
 // A change to startsOver begins the wait again.
 function useHasWaited(isWaiting: boolean, waitMs: number, startsOver = 0): boolean {
@@ -129,6 +132,13 @@ function useLeaveWhenNoRecap({ isEnding, isRecapping, view, leave }: { isEnding:
   }, [shouldLeave, leave]);
 }
 
+// A new lesson holds its calm opening until the first picture lands, for 5 s at most, even with the tutor already talking.
+function useIsPictureDue({ durationSeconds }: Pick<Session, 'durationSeconds'>, { isOnScreen }: TutorScene): boolean {
+  const [isNewLesson] = useState(durationSeconds === 0 && isFastSceneEnabled());
+  const hasWaited = useHasWaited(isNewLesson, PICTURE_WAIT_MS);
+  return isNewLesson && !hasWaited && !isOnScreen;
+}
+
 function RunningSession({ session }: { session: Session }) {
   const liveVoice = useLiveVoice({ sessionId: session.id });
   const { status, view, voice } = liveVoice;
@@ -147,6 +157,8 @@ function RunningSession({ session }: { session: Session }) {
   useOpeningMessage(session, liveVoice.sendOpening);
   const isConnecting = isTutorOnTheWay(status, view);
   const scene = useTutorScene(voice, isTutorSceneEnabled());
+  const isSlowToConnect = useHasWaited(isConnecting, SAY_WHY_NOT_CONNECTED_AFTER_MS);
+  const isPictureDue = useIsPictureDue(session, scene);
   useKeepSessionTitle(session.id, view?.sessionTitle ?? null);
   const filesComingSoon = useFilesComingSoon();
   const hold = useHoldToTalk({ heldMic: liveVoice.heldMic, isTalkOn: liveVoice.isTalkOn, toggleTalk: liveVoice.toggleTalk, isEnabled: canTalkNow(liveVoice) && !isEnding && !isRecapping });
@@ -174,13 +186,20 @@ function RunningSession({ session }: { session: Session }) {
               {view?.hasTutorStarted ? (
                 <BoardCaption heard={view.tutorHeard} coming={view.tutorComing} firstWord={view.firstWord} />
               ) : (
-                <div className="flex flex-1 flex-col justify-end font-voice text-voice">{isConnecting && <p role="status">{VOICE_LABELS.connecting}</p>}</div>
+                <div className="flex flex-1 flex-col justify-end gap-2">
+                  {isConnecting && (
+                    <>
+                      {session.durationSeconds === 0 && !view?.sessionTitle && <p aria-hidden data-testid="connecting-title" className="font-voice text-voice wrap-anywhere">{session.title}</p>}
+                      <p role="status" className="label text-ink-2">{isSlowToConnect ? VOICE_LABELS.slowToConnect : VOICE_LABELS.connecting}</p>
+                    </>
+                  )}
+                </div>
               )}
               <ReplyBox sessionId={session.id} liveVoice={liveVoice} hold={hold} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} filesComingSoon={filesComingSoon} />
             </>
           )}
         </div>
-        <ConnectingSaturn isConnecting={isConnecting} />
+        <ConnectingSaturn isConnecting={isConnecting || isPictureDue} />
         {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} getVisual={(frame) => getLiveVisual(artwork, frame, scene)} talkButtonProps={hold.buttonProps} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} isLookingBack={isRecapping} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
       </div>
     </SessionFrame>

@@ -1,0 +1,16 @@
+{"t":"fit","in":true,"topic":"How the heart pumps blood","stage":"studio"}
+{"t":"say","m":"heart-whole","text":"This is a heart, cut open so we can see inside it."}
+{"t":"say","m":"heart-whole","text":"It has four chambers, two on each side, with thick muscle walls."}
+{"t":"part","id":"heart","part":"heart","in":"heart-whole"}
+{"t":"label","text":"Right atrium","at":"heart.rightAtrium","show":"heart-whole"}
+{"t":"label","text":"Left ventricle","at":"heart.leftVentricle","show":"heart-whole"}
+{"t":"cam","on":"heart-whole","look":"heart","view":"front","zoom":1}
+{"t":"say","m":"heart-beat","text":"Each beat starts with the top two chambers squeezing first."}
+{"t":"say","m":"heart-beat","text":"Then the bottom two chambers squeeze hard and push blood out."}
+{"t":"move","item":"heart","motion":"beat","on":"heart-beat"}
+{"t":"label","text":"Atria squeeze","at":"heart.leftAtrium","show":"heart-beat","hide":"heart-flow"}
+{"t":"say","m":"heart-flow","text":"Valves open and shut so blood only moves in one direction."}
+{"t":"say","m":"heart-flow","text":"Blood from the body returns to the right side, goes to the lungs, then comes back to the left."}
+{"t":"move","item":"heart","motion":"flow","on":"heart-flow"}
+{"t":"label","text":"Aorta","at":"heart.aorta","show":"heart-flow"}
+{"t":"say","m":"heart-flow","text":"From the left ventricle, blood leaves through the aorta to the whole body."}

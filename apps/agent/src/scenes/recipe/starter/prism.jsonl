@@ -1,0 +1,10 @@
+{"t":"fit","in":true,"topic":"How a prism splits white light","stage":"studio"}
+{"t":"say","m":"prism-intro","text":"Here is a glass prism, a solid triangle that light can pass through."}
+{"t":"part","id":"pr","part":"prism","at":[0,0,0],"size":1,"in":"prism-intro"}
+{"t":"cam","on":"prism-intro","look":"pr.prism","view":"front","zoom":1}
+{"t":"say","m":"beam","text":"White light is really many colours mixed together in one beam."}
+{"t":"move","item":"pr","motion":"shine","on":"beam"}
+{"t":"say","m":"bend","text":"When the beam enters the glass it bends, and bends again on leaving."}
+{"t":"say","m":"fan-out","text":"Each colour bends by a different amount, so they fan apart into a spectrum."}
+{"t":"label","text":"Red","sub":"bends least","at":"pr.red","show":"fan-out"}
+{"t":"label","text":"Violet","sub":"bends most","at":"pr.violet","show":"fan-out"}

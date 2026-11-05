@@ -21,10 +21,14 @@ export interface SceneBrief {
 export interface SceneRepair {
   problems: readonly string[];
   code: string;
+  canChangeWords?: boolean;
 }
+
+export type FixedWords = Partial<Pick<LessonPlan, 'setup' | 'narration' | 'close'>>;
 
 export interface WrittenScene extends SceneUsage {
   code: string;
+  words?: FixedWords;
 }
 
 export interface SceneWriter {
@@ -66,6 +70,10 @@ export interface SceneRoute extends SceneUsage {
 
 export interface SceneRouter {
   route(request: string, signal: AbortSignal): Promise<SceneRoute>;
+}
+
+export interface SceneFitReader {
+  find(topic: string, titles: readonly string[], signal: AbortSignal): Promise<string | null>;
 }
 
 export interface OpeningLine {
@@ -168,6 +176,8 @@ export interface StoredScene {
   code: string;
   /** What this scene is made from, when it came from approved parts and not from written code. */
   recipe?: SceneRecipe;
+  /** On a live 3D scene, set once its frame check and review passed. The API serves a kit take only with this or a recipe. */
+  reviewed?: boolean;
   narration: string;
   plan: LessonPlan;
   moments: Readonly<Record<string, number>>;
@@ -194,4 +204,4 @@ export interface SceneTrace {
   problems: readonly string[];
 }
 
-export type UsageListener = (usage: SceneUsage & { role: 'writer' | 'reviewer' | 'router' | 'planner' | 'names' }) => void;
+export type UsageListener = (usage: SceneUsage & { role: 'writer' | 'reviewer' | 'router' | 'planner' | 'names' | 'fit' }) => void;
