@@ -14,6 +14,7 @@ const { values: args } = parseArgs({
     waitS: { type: 'string', default: '70' },
     headed: { type: 'boolean', default: false },
     student: { type: 'string', default: 'maya@astra.test' },
+    stopWhenEndedIn: { type: 'string' },
     noGpu: { type: 'boolean', default: false },
     damageTake: { type: 'boolean', default: false },
     phone: { type: 'boolean', default: false },
@@ -31,6 +32,15 @@ const { values: args } = parseArgs({
     replay: { type: 'boolean', default: false },
   },
 });
+
+const NO_ASK_LIMIT_S = 45;
+// A table run moves on once a scene can no longer come, or the tutor has asked for none by now.
+function hasAskEnded(folder: string): boolean {
+  const newest = readdirSync(folder).map((name) => ({ name, atMs: statSync(join(folder, name)).mtimeMs })).sort((first, second) => second.atMs - first.atMs)[0];
+  if (!newest) return false;
+  const text = readFileSync(join(folder, newest.name), 'utf8');
+  return !text.includes('"sceneAsked"') || (text.includes('"sceneEnded"') && !text.includes('"how":"landed"'));
+}
 
 const FLAGS = ['--enable-unsafe-webgpu', '--enable-features=Vulkan', '--use-angle=metal', '--enable-gpu', '--ignore-gpu-blocklist', '--use-mock-keychain', '--mute-audio', '--autoplay-policy=no-user-gesture-required'];
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
@@ -203,6 +213,7 @@ while (atS() < waitLimitS) {
     hasShotDrawing = true;
     await page.screenshot({ path: join(out, 'scene-after-1s.png') });
   }
+  if (args.stopWhenEndedIn && sceneSeenAtS === null && atS() >= NO_ASK_LIMIT_S && hasAskEnded(args.stopWhenEndedIn)) break;
   quietSinceS = read.isSpeaking || read.isThinking ? null : (quietSinceS ?? atS());
   if (sceneSeenAtS !== null && quietSinceS !== null && atS() > quietSinceS + 2.5 && (reloadedAtS === null || atS() > reloadedAtS + 15)) break;
   await delay(100);
