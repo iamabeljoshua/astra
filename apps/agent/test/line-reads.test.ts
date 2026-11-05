@@ -73,7 +73,7 @@ afterEach(async () => {
 type Wishes = Record<string, string>;
 
 // The fake read knows only the lines a test names, as a real read would answer them, and the page's box sends what the real one sends.
-function startLesson({ answer = (_words: string, index: number) => `Gravity keeps pulling, beat ${index}.`, wishes = {}, safety, promises = () => false, readMeaning, getNowMs }: { getNowMs?: () => number; answer?: (words: string, index: number) => string | null; wishes?: Wishes; safety?: SafetyWatch; promises?: (spoken: string) => boolean; readMeaning?: (words: string) => Promise<never> | Promise<'needsAPerson' | null> } = {}) {
+function startLesson({ answer = (_words: string, index: number) => `Gravity keeps pulling, beat ${index}.`, wishes = {}, safety, promises = () => false, readMeaning, getNowMs }: { getNowMs?: () => number; answer?: (words: string, index: number) => string | null; wishes?: Wishes; safety?: SafetyWatch; promises?: (spoken: string) => boolean; readMeaning?: (words: string) => Promise<'needsAPerson' | null> } = {}) {
   const { model, asked } = makeModel(answer);
   const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
   planner.noteCardLesson(LESSON);

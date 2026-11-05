@@ -488,6 +488,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   };
 
   const tellLeadStopped = () => leadStoppedListeners.forEach((listener) => listener());
+  const tellLineRead = () => lineReadListeners.forEach((listener) => listener());
 
   // A read of danger decides the line, whatever else it asks. A failed read with a word from the list stays stopped, and says so, because nothing here can tell it is safe to go on.
   const settleLine = (turn: TurnWork) => {
@@ -500,7 +501,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     }
     if (isUnreadWithDangerWord(turn)) noteLeadStopEvent('hold');
     if (leadStop !== 'none') tellLeadStopped();
-    lineReadListeners.forEach((listener) => listener());
+    tellLineRead();
   };
 
   const isUnreadWithDangerWord = (turn: TurnWork) => turn.safetyReading === 'unread' && MAY_BE_ABOUT_SAFETY.test(turn.studentText);
@@ -773,7 +774,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
             if (turn.isFinished) noteLateSafetyRead(turn);
           } else if (speaker === 'code' && didDraftRaiseCrisis && (reading === 'none' || reading === 'school')) {
             noteLeadStopEvent('cleanRead');
-            lineReadListeners.forEach((listener) => listener());
+            tellLineRead();
           }
           if (speaker === 'code') didDraftRaiseCrisis = false;
         });
@@ -788,8 +789,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const readLineOf = (turn: TurnWork, read: Promise<LineWish | null>) => {
     turn.lineWish = 'pending';
     linesBeingRead += 1;
-    const landed = (turn.lineRead = read.catch(() => null).then((wish) => {
+    const startedAtMs = getNowMs();
+    const landed = (turn.lineRead = read.then((wish) => {
       turn.lineWish = wish;
+      trace('lineRead', { wish, ms: Math.round(getNowMs() - startedAtMs) });
     }));
     turn.lineAnswered = new Promise((resolve) => {
       const giveUp = setTimeout(() => resolve(LINE_ANSWERED), timeouts.lineReadWaitMs);
@@ -1327,10 +1330,10 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     if (promisesToWait(lastSpokenText)) return noteLeadStopEvent('hold');
     if (!readers) return;
     linesBeingRead += 1;
-    void readers.readPromise(lastSpokenText).catch(() => null).then((promised) => {
+    void readers.readPromise(lastSpokenText).then((promised) => {
       linesBeingRead -= 1;
       if (promised && turn.id === turnCount) noteLeadStopEvent('hold');
-      lineReadListeners.forEach((listener) => listener());
+      tellLineRead();
     });
   };
 
