@@ -156,7 +156,7 @@ const toProblem = (status: number, problem: string): Reply => ({ status, type: '
 
 function getPartRows() {
   const approvals = readPartApprovals();
-  return [...getPartCatalogue().values()].map(({ source: _source, ...part }) => ({ ...part, isApproved: isPartApproved(part, approvals) }));
+  return [...getPartCatalogue().values()].map((part) => ({ name: part.name, doc: part.doc, args: part.args, anchors: part.anchors, motions: part.motions, views: part.views, stage: part.stage, alone: part.alone, hash: part.hash, isApproved: isPartApproved(part, approvals) }));
 }
 
 function getFrame(url: URL): Reply {

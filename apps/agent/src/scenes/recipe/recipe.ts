@@ -279,8 +279,7 @@ function isOnStageBy(target: string, moment: string, { items, momentOrder }: Che
 function keepKnownMoment<Shape extends object>(shape: Shape, field: keyof Shape, moments: ReadonlySet<string>): Shape {
   const moment = shape[field];
   if (moment === undefined || moments.has(moment as string)) return shape;
-  const { [field]: _unknown, ...kept } = shape;
-  return kept as Shape;
+  return Object.fromEntries(Object.entries(shape).filter(([name]) => name !== field)) as Shape;
 }
 
 function getWholeSceneItems(items: readonly RecipeItem[], parts: PartCatalogue, dropped: string[]): readonly RecipeItem[] {

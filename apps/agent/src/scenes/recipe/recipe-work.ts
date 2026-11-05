@@ -159,8 +159,9 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matchRe
   };
 
   const getFirstPicture = async (): Promise<MadeScene> => {
+    if (!drawing || !matching) return { isOk: false, reasons: ['the saved scene is gone'] };
     try {
-      const scene = await Promise.any([drawing as Promise<StoredScene>, (matching as Promise<StoredScene>).then((found) => (stopDrawing.abort(), found))]);
+      const scene = await Promise.any([drawing, matching.then((found) => (stopDrawing.abort(), found))]);
       return { isOk: true, scene };
     } catch (error) {
       const reasons = error instanceof AggregateError ? error.errors.map(String) : [String(error)];

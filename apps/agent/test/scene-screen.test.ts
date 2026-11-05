@@ -170,6 +170,6 @@ describe('the screen through a conversation', () => {
     const toLeaf = noteLessonTitle(landJetEngine(), LEAF_TITLE, toElementId(2));
     const onLeaf = land(toLeaf.screen, { scene: LEAF, number: 2, lessonTitle: LEAF_TITLE });
     const toJet = noteLessonTitle(onLeaf, JET_TITLE, toElementId(3));
-    expect(toJet.screen.owed.map(({ kind }) => kind)).toEqual(['hide', 'hide', 'richScene']);
+    expect(toJet.screen.owed.map(({ kind }) => kind)).toEqual(['hide', 'hide', 'richScene', 'runSimulation']);
   });
 });

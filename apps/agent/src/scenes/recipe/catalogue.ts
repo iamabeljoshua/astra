@@ -71,8 +71,8 @@ export function readPartApprovals(folder = PARTS_FOLDER): PartApprovals {
 export function writePartApproval({ name, isApproved, folder = PARTS_FOLDER, atIso = new Date().toISOString() }: { name: string; isApproved: boolean; folder?: string; atIso?: string }): void {
   const part = getPartCatalogue().get(name);
   if (!part) throw new Error(`no part named ${name}`);
-  const { [name]: _old, ...others } = readPartApprovals(folder);
-  const next = isApproved ? { ...others, [name]: { hash: part.hash, approvedAt: atIso } } : others;
+  const others = Object.entries(readPartApprovals(folder)).filter(([approved]) => approved !== name);
+  const next = Object.fromEntries(isApproved ? [...others, [name, { hash: part.hash, approvedAt: atIso }]] : others);
   writeFileSync(getApprovalsPath(folder), `${JSON.stringify(next, null, 2)}\n`);
 }
 

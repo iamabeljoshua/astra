@@ -87,9 +87,11 @@ const getBeatsAimedAt = (beats: readonly TutorBeat[], from: ElementId, to: Eleme
 
 const isAboutTitle = (one: ScreenScene, title: string) => (one.lessonTitle !== null && one.lessonTitle.trim().toLowerCase() === title.trim().toLowerCase()) || isSameTopic(one.scene.topic, title);
 
+// With no words left it was heard to its end, so it comes back on its last moment.
 function getBackCommands(back: ScreenScene, elementId: ElementId): SceneCommand[] {
   const place = getSceneCommand(back.scene, elementId);
-  return back.reachedMoment ? [place, { kind: 'runSimulation', target: elementId, action: 'seek', to: back.reachedMoment }] : [place];
+  const moment = back.left.length > 0 ? back.reachedMoment : (getReachedMoment(back.beats, []) ?? back.reachedMoment);
+  return moment ? [place, { kind: 'runSimulation', target: elementId, action: 'seek', to: moment }] : [place];
 }
 
 export type TitleMove = { kind: 'stayed' } | { kind: 'needsScene' } | { kind: 'back'; scene: StoredScene };
