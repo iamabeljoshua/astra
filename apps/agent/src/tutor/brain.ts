@@ -393,11 +393,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   };
 
   // The reply has ended with no word of this, and nothing that comes next may teach on as if the read had said nothing.
-  const noteLateSafetyRead = () => {
+  const noteLateSafetyRead = (turn: TurnWork) => {
     trace('lateSafetyRead');
     isAfterSafetyReply = true;
     lessonPlanner?.noteReplyEnded({ wasSafety: true });
-    onSafetyReply?.();
+    noteSafetyReply(turn, memory);
   };
 
   const takesSceneAside = (turn: TurnWork) => {
@@ -550,7 +550,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         turn.safetyRead = safety.readStudent(studentText, lastSpokenText).then((reading) => {
           turn.safetyReading = reading;
           resolve(SAFETY_ANSWERED);
-          if (turn.isFinished && isAboutSafety(reading)) noteLateSafetyRead();
+          if (turn.isFinished && isAboutSafety(reading)) noteLateSafetyRead(turn);
         });
       });
     }

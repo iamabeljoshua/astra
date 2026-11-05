@@ -131,6 +131,7 @@ async function startTalking(stack: VoiceStack, student: StudentPage): Promise<vo
 }
 
 async function typeReply(student: StudentPage, text: string): Promise<void> {
+  await student.page.waitForFunction(() => window.astraVoice !== undefined);
   await student.page.evaluate((words) => (window.astraVoice as unknown as { sendTyped(line: string): void }).sendTyped(words), text);
 }
 
