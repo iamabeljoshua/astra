@@ -136,7 +136,7 @@ What a real session measured on 4 and 5 November 2026, on real Chrome with a rea
 | End and leaving | The frame stays through the recap and is gone on leaving the page |
 | Memory, 2x display | With the kit on screen the GPU process held 995 MB and all of Chrome 1612 MB. On the 2D take it held 458 MB and 938 MB. After leaving it held 251 MB. So a kit scene costs about 670 MB here, far above the prototype's 180 MB, one run each, and two held frames would be about 1.3 GB by inference |
 | Bundle | The first page's JavaScript grew 143 bytes, 57 gzipped, for the two lines in `strings.ts`, and its CSS did not change. Three.js is in no chunk. `kit.js` is 785 KB and 206 KB gzipped, and the frame's code with its parser is a 124 KB chunk, both fetched only when a kit scene is about to play |
-| Flash | All 12 stored scenes passed, at most 2 flashes a second, on rocket-escape and seasons. A planted 12 Hz strobe read 6 and failed, and a planted scene that drifts between draws failed |
+| Flash | All 17 stored scenes passed, at most 2 flashes a second, on seasons. A planted 12 Hz strobe read 6 and failed, and a planted scene that drifts between draws failed |
 
 What the layout check cannot see inside a WebGL canvas. `scripts/check-layout.ts` measures DOM boxes, and a canvas is one box. So it cannot see a part that hides another, a subject that leaves the frame, a camera inside a solid, text drawn in the scene's own textures, a wrong color, or a wrong fact in a shape. The labels and instruments are DOM inside the sandbox, which that check does not enter. `check-kit-scene.ts` sees only whether something was drawn, and a person's review is the only check on what.
 

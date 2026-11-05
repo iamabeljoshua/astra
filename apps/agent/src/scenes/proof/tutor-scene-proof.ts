@@ -28,6 +28,7 @@ const { values: args } = parseArgs({
     kitStallsAfterFrames: { type: 'string' },
     seekTimes: { type: 'string' },
     replay: { type: 'boolean', default: false },
+    replayNoScene: { type: 'boolean', default: false },
   },
 });
 
@@ -307,6 +308,13 @@ await delay(1500);
 summary.framesAfterLeaving = await page.evaluate(() => document.querySelectorAll('iframe').length);
 
 async function watchReplay() {
+  if (args.replayNoScene) {
+    await page.route('**/api/scene-takes/**', (route) => route.fulfill({ status: 404, body: '{}' }));
+    await page.route('**/api/sessions/*', async (route) => {
+      const reply = await route.fetch();
+      await route.fulfill({ response: reply, json: { ...((await reply.json()) as object), artwork: null } });
+    });
+  }
   await page.goto(sessionPath);
   await page.locator('[data-testid="replay-transport"]').waitFor({ timeout: 45_000 });
   const seek = page.getByRole('slider', { name: 'Lesson timeline' });
