@@ -5,6 +5,11 @@ export interface KitTake {
   timing: { moments: Record<string, number>; duration: number };
 }
 
+export interface KitFont {
+  weight: number;
+  url: string;
+}
+
 export type KitFrameCommand =
   | { type: 'load'; timing: KitTake['timing']; textures: Record<string, Blob>; quality?: 'high' | 'med' | 'low'; theme: KitTheme }
   | { type: 'render'; seconds: number }
@@ -28,3 +33,8 @@ export type KitFrameReply =
   | { type: 'audit'; result: unknown[]; error?: string }
   | { type: 'flash'; result: { t: number; mean: number; tiles: number[] }[]; error?: string }
   | { type: 'picture'; url: string; id: number };
+
+export type KitOverlayOp = ['create', number, string, boolean] | ['append', number, number] | ['text', number, string] | ['attr' | 'style', number, string, string] | ['root', string, string];
+
+/** What a scene's worker says to its frame's page, which passes on to the app only replies it can stand behind. */
+export type KitWorkerMessage = KitFrameReply | { type: 'overlay'; ops: KitOverlayOp[] } | { type: 'beat'; id: number };

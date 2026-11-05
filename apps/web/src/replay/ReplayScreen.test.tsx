@@ -76,6 +76,7 @@ describe('the replay screen', () => {
 
     beforeEach(() => {
       vi.stubEnv('VITE_TUTOR_SCENES', '1');
+      vi.stubEnv('VITE_KIT_SCENES', '1');
       stage.canLoad = true;
       stage.loaded.clear();
       stage.load.mockClear();

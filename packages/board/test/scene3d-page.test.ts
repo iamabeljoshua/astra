@@ -1,50 +1,28 @@
 import { describe, expect, it } from 'vitest';
-import { buildKitFramePage, getNeededTextures, guardLoops } from '../src/scene3d/index.ts';
-
-const GUARD = '__guardTest';
-
-describe('guarding loops', () => {
-  it('puts a time check in every kind of loop', () => {
-    const guarded = guardLoops('for(;;){a()} while(b){c()} do{d()}while(e); for(const f of g){h()} for(const i in j){k()}', GUARD);
-    expect(guarded.split(`${GUARD}();`)).toHaveLength(6);
-  });
-
-  it('wraps a loop with a single statement body and keeps what it does', () => {
-    const guarded = guardLoops('let total = 0; for (let index = 0; index < 3; index += 1) total += index; total;', GUARD);
-    expect(new Function(GUARD, `return (function(){ ${guarded.replace('total;', 'return total;')} })()`)(() => {})).toBe(3);
-  });
-
-  it('guards a loop inside a function inside a function', () => {
-    expect(guardLoops('function scene(kit) { return { render() { while (true) {} } }; }', GUARD)).toContain(`while (true) {${GUARD}();}`);
-  });
-
-  it('refuses code that will not parse', () => {
-    expect(() => guardLoops('function scene( {', GUARD)).toThrow();
-  });
-
-  it('leaves a string that only looks like a loop alone', () => {
-    expect(guardLoops("const text = 'while (true) {}';", GUARD)).toBe("const text = 'while (true) {}';");
-  });
-});
+import { buildKitFramePage, getNeededTextures } from '../src/scene3d/index.ts';
 
 describe('the sandbox page', () => {
-  const page = (code: string) => buildKitFramePage({ kitBundle: 'window.kit = 1;', code });
+  const page = (code: string) => buildKitFramePage({ kitBundle: 'self.kit = 1;', code });
 
-  it('forbids the network, and every place a script could come from but its own text', () => {
+  it('forbids the network and every place a script could come from', () => {
     const scene = page('function scene(kit) {}');
-    for (const rule of ["default-src 'none'", "connect-src 'none'", "frame-src 'none'", "form-action 'none'", "worker-src 'none'"]) expect(scene).toContain(rule);
+    for (const rule of ["default-src 'none'", "connect-src 'none'", "frame-src 'none'", "form-action 'none'", "img-src 'none'", 'worker-src blob:']) expect(scene).toContain(rule);
     expect(scene).not.toContain('unsafe-eval');
+    expect(scene).not.toMatch(/script-src[^;]*unsafe-inline/);
   });
 
-  it('holds its guard under a name a scene cannot know', () => {
-    const [firstName, secondName] = [page('while(1){}'), page('while(1){}')].map((text) => text.match(/__guard[0-9a-f]{32}/)?.[0]);
-    expect(firstName).toBeDefined();
-    expect(firstName).not.toBe(secondName);
+  it('allows only its own script, under a nonce a scene cannot know', () => {
+    const [firstNonce, secondNonce] = [page(''), page('')].map((text) => text.match(/nonce="([0-9a-f]{32})"/)?.[1]);
+    expect(firstNonce).toBeDefined();
+    expect(firstNonce).not.toBe(secondNonce);
   });
 
-  it('cannot be closed early by a scene that writes the end of a script tag', () => {
-    const scene = page("const text = '</script><img src=x>';");
+  it('keeps scene code out of the page as anything but data', () => {
+    const scene = page("const text = '</script><img src=x>'; <!-- ");
     expect(scene).not.toContain('</script><img');
+    expect(scene).not.toContain("<!-- ");
+    const [data] = scene.match(/<script type="application\/json" id="frame-data">.*?<\/script>/s) ?? [''];
+    expect(JSON.parse(data.replace(/<[^>]*>/g, '')).source).toContain("const text = '</script><img src=x>'");
   });
 });
 

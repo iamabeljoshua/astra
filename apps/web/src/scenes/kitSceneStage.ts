@@ -9,7 +9,6 @@ import { createSceneStage, type SceneStage } from './sceneStage';
 const PHONE_WIDTH = 860;
 const MOST_HELD_FRAMES = 2;
 const KIT_LOAD_LIMIT_MS = 15_000;
-const CROSS_FADE_MS = 300;
 
 interface KitEntry {
   layer: HTMLElement;
@@ -17,9 +16,11 @@ interface KitEntry {
   opening: Promise<boolean>;
 }
 
-const hasWebGl = () => document.createElement('canvas').getContext('webgl2') !== null;
+const isMeasuredBrowser = () => 'userAgentData' in navigator;
 
-export const getCanPlayKit = () => isKitSceneEnabled() && window.innerWidth > PHONE_WIDTH && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && hasWebGl();
+const hasWorkerWebGl = () => typeof OffscreenCanvas === 'function' && new OffscreenCanvas(1, 1).getContext('webgl2') !== null;
+
+export const getCanPlayKit = () => isKitSceneEnabled() && window.innerWidth > PHONE_WIDTH && !window.matchMedia('(prefers-reduced-motion: reduce)').matches && isMeasuredBrowser() && hasWorkerWebGl();
 
 function createLayer(parent: HTMLElement): HTMLElement {
   const layer = document.createElement('div');
@@ -32,7 +33,6 @@ async function getKitTake(sceneId: string): Promise<KitTake> {
   return (await api.get('/scene-takes/{sceneId}/kit', { params: { path: { sceneId } } })) as KitTake;
 }
 
-/** A kit scene and its 2D take share one id and one clock, so the 2D take plays until the kit is ready, and stands in with no word whenever the kit cannot. */
 export function createKitSceneStage(container: HTMLElement, onChange: () => void = () => {}): SceneStage {
   const flatLayer = createLayer(container);
   const flat = createSceneStage(flatLayer);
@@ -87,7 +87,7 @@ export function createKitSceneStage(container: HTMLElement, onChange: () => void
     const held = entries.get(sceneId);
     if (held) return held.opening;
     const layer = createLayer(container);
-    Object.assign(layer.style, { opacity: '0', visibility: 'hidden', transition: `opacity ${CROSS_FADE_MS}ms` });
+    Object.assign(layer.style, { opacity: '0', visibility: 'hidden' });
     const entry: KitEntry = { layer, frame: null, opening: Promise.resolve(false) };
     entries.set(sceneId, entry);
     entry.opening = openEntry(sceneId, layer);

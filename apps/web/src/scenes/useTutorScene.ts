@@ -2,8 +2,9 @@ import type { BoardState } from '@astra/board';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { LiveVoice } from '../voice/liveVoice';
 import { getCanPlayScenes } from './sceneEngine';
+import { isKitSceneEnabled } from '../session/lessonFlag';
 import { createKitSceneStage } from './kitSceneStage';
-import type { SceneStage } from './sceneStage';
+import { createSceneStage, type SceneStage } from './sceneStage';
 
 const PARKED_WIDTH = 960;
 const PARKED_HEIGHT = 540;
@@ -55,7 +56,7 @@ function useSceneHost(isEnabled: boolean): TutorScene {
     parking.append(host);
     document.body.append(parking);
     parts.current = { parking, host };
-    const made = createKitSceneStage(host, () => noteStageChange((changes) => changes + 1));
+    const made = isKitSceneEnabled() ? createKitSceneStage(host, () => noteStageChange((changes) => changes + 1)) : createSceneStage(host);
     let isGone = false;
     queueMicrotask(() => {
       if (!isGone) setStage(made);

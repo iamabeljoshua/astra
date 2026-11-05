@@ -91,17 +91,22 @@ describe('the scene routes', () => {
     });
 
     it('sends a live scene from its own record, in the same shape', async () => {
-      saveRecord('live-1a2b', { engine: 'kit', code: 'function scene(kit) { /* live */ }' });
+      saveRecord('live-1a2b', { engine: 'kit', reviewed: true, code: 'function scene(kit) { /* live */ }' });
       const response = await getKitTake('live-1a2b').expect(200);
       expect(response.body).toEqual({ code: 'function scene(kit) { /* live */ }', timing: { moments: MOMENTS, duration: 12 } });
     });
 
+    it('answers 404 for a live scene nobody marked reviewed', async () => {
+      saveRecord('live-unread', { engine: 'kit', code: 'function scene(kit) {}' });
+      await getKitTake('live-unread').expect(404);
+    });
+
     it('sends a typed scene to its own student only, and a flagged scene to nobody', async () => {
       const owner = await createTestStudent(testApp);
-      saveRecord('live-owned', { engine: 'kit', code: 'function scene(kit) {}', ownerId: owner.studentId });
+      saveRecord('live-owned', { engine: 'kit', reviewed: true, code: 'function scene(kit) {}', ownerId: owner.studentId });
       await getKitTake('live-owned', owner).expect(200);
       await getKitTake('live-owned', student).expect(404);
-      saveRecord('live-flagged', { engine: 'kit', code: 'function scene(kit) {}' });
+      saveRecord('live-flagged', { engine: 'kit', reviewed: true, code: 'function scene(kit) {}' });
       mkdirSync(join(storeRoot, 'flags'), { recursive: true });
       writeFileSync(join(storeRoot, 'flags', 'live-flagged.json'), '{}');
       await getKitTake('live-flagged').expect(404);

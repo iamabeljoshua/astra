@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LiveVoice } from '../voice/liveVoice';
 import { hasDrawableScene, useTutorScene } from './useTutorScene';
 
-const engine = vi.hoisted(() => ({ canPlay: true, load: vi.fn(async () => true), prepare: vi.fn(async () => true), free: vi.fn(), createStage: vi.fn(), askedForDevice: vi.fn() }));
+const engine = vi.hoisted(() => ({ canPlay: true, load: vi.fn(async () => true), prepare: vi.fn(async () => true), free: vi.fn(), createStage: vi.fn(), createKitStage: vi.fn(), askedForDevice: vi.fn() }));
 
 vi.mock('./sceneEngine', () => ({
   getCanPlayScenes: async () => {
@@ -13,9 +13,15 @@ vi.mock('./sceneEngine', () => ({
     return engine.canPlay;
   },
 }));
+vi.mock('./sceneStage', () => ({
+  createSceneStage: (container: HTMLElement) => {
+    engine.createStage(container);
+    return { load: engine.load, prepare: engine.prepare, free: engine.free, draw: () => {}, canDraw: () => true };
+  },
+}));
 vi.mock('./kitSceneStage', () => ({
   createKitSceneStage: (container: HTMLElement) => {
-    engine.createStage(container);
+    engine.createKitStage(container);
     return { load: engine.load, prepare: engine.prepare, free: engine.free, draw: () => {}, canDraw: () => true };
   },
 }));
@@ -42,7 +48,10 @@ beforeEach(() => {
   engine.askedForDevice.mockReset();
 });
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.unstubAllEnvs();
+  vi.restoreAllMocks();
+});
 
 describe('with scenes off', () => {
   it('asks nothing of the graphics card, makes no stage, and listens to nothing', async () => {
@@ -93,6 +102,19 @@ describe('with scenes on', () => {
     await waitFor(() => expect(sent).toHaveLength(1));
     act(() => tell({ type: 'loadScene', sceneId: 'slope-1', durationSeconds: 5 }));
     await waitFor(() => expect(sent.at(-1)).toEqual({ type: 'sceneRefused', sceneId: 'slope-1' }));
+  });
+
+  it('makes a stage that can hold a 3D scene only with the kit flag on', async () => {
+    const { voice } = makeVoice();
+    const flagOff = renderHook(() => useTutorScene(voice, true));
+    await waitFor(() => expect(flagOff.result.current.stage).not.toBeNull());
+    expect(engine.createKitStage).not.toHaveBeenCalled();
+    flagOff.unmount();
+    vi.stubEnv('VITE_KIT_SCENES', '1');
+    const flagOn = renderHook(() => useTutorScene(voice, true));
+    await waitFor(() => expect(flagOn.result.current.stage).not.toBeNull());
+    expect(engine.createKitStage).toHaveBeenCalledTimes(1);
+    flagOn.unmount();
   });
 
   it('keeps the canvas off screen until it lands, moves it in, and parks it again', async () => {
