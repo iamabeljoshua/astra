@@ -14,7 +14,7 @@ export interface ElevenLabsVoiceOptions {
   preferredAlignment?: 'original' | 'normalized';
 }
 
-const DEFAULT_MODEL = 'eleven_flash_v2_5';
+const DEFAULT_MODEL = 'eleven_v4_turbo';
 /** The plugin's default of 22050 Hz runs slow on the wire, because LiveKit frames 10 ms as whole samples. The plugin's type leaves this rate out and its code reads any rate from the name. */
 export const VOICE_SAMPLE_RATE = 24000;
 const ENCODING = `pcm_${VOICE_SAMPLE_RATE}` as unknown as elevenlabs.TTSOptions['encoding'];
