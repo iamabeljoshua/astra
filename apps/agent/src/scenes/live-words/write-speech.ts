@@ -6,6 +6,7 @@ import { TUTOR_PROMPT } from '../../tutor/prompt.ts';
 import { readMarks } from '../narration.ts';
 import { isSameTopic } from '../../tutor/scene-screen.ts';
 import type { StoredScene } from '../scene-types.ts';
+import { countWords, type SceneSpeech } from './check-speech.ts';
 import { getNumbersSaid } from './number-words.ts';
 
 export interface StudentNote {
@@ -41,6 +42,13 @@ const getLastWords = (text: string, most: number) => text.split(/\s+/).filter(Bo
 
 const getAllowedNumberList = ({ plan, declared, values }: StoredScene) => [...new Set([...getNumbersSaid(`${plan.setup} ${readMarks(plan.narration).text} ${plan.close}`), ...Object.values(declared).flatMap(({ default: start, lo, hi }) => [start, lo, hi]), ...Object.values(values)])].sort((first, second) => first - second);
 
+function getWordCounts({ setup, narration, close }: SceneSpeech) {
+  const { text, marks } = readMarks(narration);
+  const narrationWords = countWords(text);
+  const moments = Object.fromEntries(marks.map(({ id, atWord }, index) => [id, (marks[index + 1]?.atWord ?? narrationWords) - atWord]));
+  return { setup: countWords(setup), moments, close: countWords(close), whole: countWords(setup) + narrationWords + countWords(close) };
+}
+
 const getThisIdeaNotes = (notes: readonly StudentNote[], topic: string) => notes.filter(({ kind, about }) => WORK_KINDS.has(kind) && isSameTopic(about, topic)).map(({ kind, detail }) => ({ kind, ...(detail ? { detail } : {}) }));
 
 function getAskText({ scene, student, askedAbout }: SceneWordsAsk): string {
@@ -50,6 +58,7 @@ function getAskText({ scene, student, askedAbout }: SceneWordsAsk): string {
     saved: { setup, narration, close },
     shows: { plan, parts: scene.parts, labels: scene.recipe?.labels.map(({ text, sub }) => (sub ? `${text}: ${sub}` : text)) ?? [], declared: scene.declared, values: scene.values },
     moments: readMarks(narration).marks.map(({ id }) => id),
+    word_counts: getWordCounts(scene.plan),
     numbers_you_may_say: getAllowedNumberList(scene),
     student: { level: student.level, interests: student.interests, notes_on_this_idea: getThisIdeaNotes(student.notes, scene.topic) },
     just_said: getLastWords(student.justSaid, MOST_WORDS_JUST_SAID),

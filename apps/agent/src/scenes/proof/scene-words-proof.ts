@@ -9,7 +9,6 @@ import type { StudentFacts } from '../live-words/write-speech.ts';
 import { getSceneKey, createSceneStore } from '../scene-store.ts';
 import type { StoredScene } from '../scene-types.ts';
 
-// node scene-words-proof.ts --model haiku|openai --store <dir> --out <file.jsonl> [--topics 'a|b'] [--scene <scene.json>] [--limit <n>]
 const SAVED_TOPICS = ['What a quadratic is really asking', 'How a rocket escapes Earth', 'Why a free kick curves', 'What really causes the seasons'];
 const NOTE_WORD: Readonly<Record<string, string>> = { 'What a quadratic is really asking': 'quadratic equations', 'How a rocket escapes Earth': 'rocket speed', 'Why a free kick curves': 'free kick spin', 'What really causes the seasons': 'seasons and tilt' };
 
@@ -46,7 +45,8 @@ async function runOne(scene: StoredScene, student: StudentFacts, reader: JsonRea
 
 async function main() {
   const model = getArgument('model') ?? 'openai';
-  const reader = model === 'openai' ? makeOpenAiJsonReader({ apiKey: readKey('OPENAI_API_KEY') }) : makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') });
+  const reader = model === 'openai' ? makeOpenAiJsonReader({ apiKey: readKey('OPENAI_API_KEY') }) : makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY'), model: model === 'sonnet' ? 'sonnet-5-5' : 'haiku-5-5' });
+  const studentNames = getArgument('students')?.split('|') ?? null;
   const out = getArgument('out') ?? '/dev/null';
   const store = createSceneStore(getArgument('store') ?? '');
   const scenePath = getArgument('scene');
@@ -58,7 +58,7 @@ async function main() {
   writeFileSync(out, '');
   const rows: Record<string, unknown>[] = [];
   for (const scene of scenes) {
-    for (const [name, student] of Object.entries(getStudents(scene, getJustSaid(scene)))) {
+    for (const [name, student] of Object.entries(getStudents(scene, getJustSaid(scene))).filter(([name]) => studentNames?.includes(name) ?? true)) {
       const result = await runOne(scene, student, reader);
       const row = { topic: scene.topic, student: name, model, ...result };
       rows.push(row);

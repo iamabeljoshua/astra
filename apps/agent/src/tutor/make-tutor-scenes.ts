@@ -38,10 +38,25 @@ const hasFreshDraw = () => process.env.ASTRA_FRESH_DRAW === '1';
 
 const hasLiveSceneWords = () => process.env.ASTRA_LIVE_SCENE_WORDS === '1';
 
-const HAIKU_WORDS_MODEL = 'haiku-5-5';
+const WORDS_READERS = {
+  'sonnet-5-5': () => makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY'), model: 'sonnet-5-5' }),
+  'haiku-5-5': () => makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY'), model: 'haiku-5-5' }),
+  'gpt-5.4-mini': () => makeOpenAiJsonReader({ apiKey: readKey('OPENAI_API_KEY') }),
+} satisfies Record<string, () => JsonReader>;
+
+type WordsModelName = keyof typeof WORDS_READERS;
+
+const DEFAULT_WORDS_MODEL: WordsModelName = 'sonnet-5-5';
+
+const isWordsModelName = (name: string | undefined): name is WordsModelName => name !== undefined && Object.hasOwn(WORDS_READERS, name);
 
 // A missing key costs a failed call and so the saved words, and never the session.
-const makeWordsReader = (): JsonReader => ({ read: (request) => (process.env.ASTRA_SCENE_WORDS_MODEL === HAIKU_WORDS_MODEL ? makeAnthropicJsonReader({ apiKey: readKey('ANTHROPIC_API_KEY') }) : makeOpenAiJsonReader({ apiKey: readKey('OPENAI_API_KEY') })).read(request) });
+export const makeWordsReader = (): JsonReader => ({
+  read: (request) => {
+    const name = process.env.ASTRA_SCENE_WORDS_MODEL;
+    return WORDS_READERS[isWordsModelName(name) ? name : DEFAULT_WORDS_MODEL]().read(request);
+  },
+});
 /** Words like these ask about something, so the drawing need not wait for the tutor to ask. The router still reads them first, and anything else waits for the tutor. */
 const ASKS_TO_BE_TAUGHT = /^(how|why|what|when|where|which|who|whose|explain|show|teach|tell me|can you|could you|do|does|did|is|are|i want to|i'd like to|what's|how's)\b|\?\s*$/i;
 const FEWEST_WORDS_IN_AN_ASK = 3;
