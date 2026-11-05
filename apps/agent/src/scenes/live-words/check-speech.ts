@@ -31,7 +31,7 @@ const TUTOR_NEVER_SAYS: readonly RegExp[] = [/\b(?:amazing|incredible|mind-blowi
 const POINTS_AT_THE_MACHINERY: readonly RegExp[] = [/\b(?:loading|as you can see|this (?:animation|video|scene)|the (?:animation|video|scene))\b/i];
 
 const getSpokenText = ({ setup, narration, close }: SceneSpeech) => [setup, readMarks(narration).text, close].filter(Boolean).join(' ');
-const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length;
+export const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length;
 const toWordKey = (word: string) => word.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 
 function getShapeProblems(written: SceneSpeech): SpeechProblem[] {

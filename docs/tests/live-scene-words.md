@@ -14,7 +14,7 @@ There is one call for each scene played, started when the scene is matched or wh
 
 The call reads the saved words, what each moment shows, the moment ids, labels, `declared`, `values`, and the only numbers allowed. From the tutor it reads the student's level, interests, notes on this same idea, the last words said, and the student's last line. The voice rules come from the live prompt, so they change with it. The student's id and name are not in it. A note on another idea does not leave the tutor.
 
-`ASTRA_SCENE_WORDS_MODEL` picks the model. The default is `gpt-5.4-mini`, and `haiku-5-5` is the other choice. The table below is why.
+`ASTRA_SCENE_WORDS_MODEL` picks the model. The default is `sonnet-5-5`, Sonnet 5.5 with thinking off, and `haiku-5-5` and `gpt-5.4-mini` are the other choices. The tables below are why. The call also reads how many words the saved setup, each moment, and the close use, because a model told only to keep about the same length writes long.
 
 ## What code checks
 
@@ -42,15 +42,17 @@ Nothing here calls the store. The live words live in the beats, which the sessio
 
 ## Cost
 
-Each scene adds about $0.002 of model spending, booked through `caps.addScene`, so it counts in the session's spend. A session never kept its voice, so a scene's words were always spoken fresh there, and live words add no characters beyond their length. What changes is who pays. Saved words on a shared scene count as a shared play. Live words are this student's, so they count on the student's own day and session and do not count toward the shared plays. The lesson service's stored lines are not used here.
+Each scene adds about $0.008 of model spending on Sonnet, and $0.002 on `gpt-5.4-mini`, booked through `caps.addScene`, so it counts in the session's spend. A session never kept its voice, so a scene's words were always spoken fresh there, and live words add no characters beyond their length. What changes is who pays. Saved words on a shared scene count as a shared play. Live words are this student's, so they count on the student's own day and session and do not count toward the shared plays. The lesson service's stored lines are not used here.
 
 ## Run it
 
 ```sh
-OPENAI_BASE_URL=<proxy>/v1 node apps/agent/src/scenes/proof/scene-words-proof.ts --model openai --store <store> --out <file.jsonl>
+ANTHROPIC_BASE_URL=<proxy> node apps/agent/src/scenes/proof/scene-words-proof.ts --model sonnet --store <store> --out <file.jsonl> --students 'football|struggled|nothingKnown'
 ```
 
-The proof makes one call for each scene, from the 4 it names or from `--topics`, plus any named by `--scene`, for 4 students: football with a line said before the scene, a struggle on this idea, nothing known, and football as the first thing heard. It uses no voice and does not write to the store, and it prints the fallback rate and call times.
+`--model` takes `sonnet`, `haiku`, or `openai`, and `openai` reads `OPENAI_BASE_URL`.
+
+The proof makes one call for each scene, from the 4 it names or from `--topics`, plus any named by `--scene`, for 4 students unless `--students` names fewer: football with a line said before the scene, a struggle on this idea, nothing known, and football as the first thing heard. `--limit` keeps the first n scenes. It uses no voice and does not write to the store, and it prints the fallback rate and call times.
 
 ## Measured
 
@@ -62,6 +64,17 @@ On 5 November 2026 on Abel's Mac, with load 7 to 14 on 12 cores, from a West Afr
 | --- | --- | --- | --- | --- |
 | Haiku 5.5 | 10 of 15 | 2472 ms | 2863 ms | $0.00036 |
 | `gpt-5.4-mini` | 1 of 15, on a number the check caught | 2028 ms | 2527 ms | $0.00166 |
+
+**Claude only.** Later the same day, with load 3 to 6, on the prompt that gives word counts and bans "Here is" and "There's a" even where the saved words use them. The same 5 scenes and 3 students, one run of 15 calls each, Haiku and Sonnet at the same time. "Ready" is the time from the call starting to checked words. "At the real wait" crosses those 15 times with the room each of 20 real scenes had, described under the wait below, and counts a reply that failed its check as a fallback in every scene. The cost is at the repo's prices.
+
+| Model | Failed a check | Ready p50 | Ready p90 | Falls back at the real wait | Cost a scene |
+| --- | --- | --- | --- | --- | --- |
+| Haiku 5.5 | 9 of 15: 5 for length, 4 for "Here's" | 2082 ms | 2942 ms | 62% | $0.00043 |
+| Sonnet 5.5, thinking off | 3 of 15, all for length, all on the rocket | 3303 ms | 3904 ms | 36%: 20% on checks, 16% late. 27% on early saved scenes | $0.0084 |
+
+Every Sonnet reply that passed kept its marks in the saved order. Read by eye, its words for a struggling student and for a student with nothing known held no false line. All of its faults came from the football interest: "It sinks and rises like a ball kicked up and coming back down" for a U, which is the wrong way up, "like a spiral that never wobbles" for Earth's tilt, a likeness the prompt rules out, and "like a winger cutting hard across the pitch" for violet light, which names a player. Haiku said the same wrong thing to a student with no interest at all, "Think of a ball tossed up and caught again. Our curve here is a U shape", and said "through water" of light in a glass prism. That is why Sonnet is the default, and why the interest likeness is the next thing to fix.
+
+**The room a call has.** 20 scenes from 17 real traces. For 15 of the 16 that were not queued, the call already starts within 3 ms of the first moment the scene is known: an early saved scene is known when it starts making, and a drawn one only exists at ready. Starting earlier gains 1 s in the remaining scene, which already had 10.4 s. The room ends 1.5 s after the scene could first land: at the end of the greeting for an early saved scene, and at the next break after the drawing for a drawn one. From the call's start that left 2.1 to 10.4 s, p50 3.9 s, for the 16, and 4.7 to 13.4 s for the 4 queued scenes. At an early saved scene the wait is silence, because the reply's first word waits for the picture.
 
 **Fallback.** 10 of 157 calls to `gpt-5.4-mini`, or 6%, over the prompt's 10 versions and 7 saved, starter, and fresh scenes. 7 were for length, 2 for a banned opener, and 1 for a number. The last version had 4 calls and none fell back. One real lesson fell back too, on a setup 24 words long. Every reply that passed played its marks in the saved order, read from the cues of all 157.
 
@@ -83,7 +96,8 @@ A call takes longer than the wait allows. So a scene that could land the moment 
 
 ## What this does not prove
 
-- That the words are true. Code reads marks, numbers, names, and banned lines, and no claim. Reading a full run of 20 by eye, on the version before the last two, found 2 false lines: "it's a lot of air to outrun" of a rocket in space, and "throwing a ball up is why this rocket needs a big start". It found 2 smaller faults: "Close, but not quite" to a student who had said no such thing, and "the ball turns sideways" for a ball that spins sideways. Nobody reviews live words before a student hears them, as a person's review and the scene review read only the saved words.
+- That Sonnet falls back at most 1 in 10. It falls back about 1 in 3 at the 1.5 s wait, as measured above.
+- That the words are true. Code reads marks, numbers, names, and banned lines, and no claim. Sonnet's false lines are above. On `gpt-5.4-mini`, reading a full run of 20 by eye, on the version before the last two, found 2 false lines: "it's a lot of air to outrun" of a rocket in space, and "throwing a ball up is why this rocket needs a big start". It found 2 smaller faults: "Close, but not quite" to a student who had said no such thing, and "the ball turns sideways" for a ball that spins sideways. Nobody reviews live words before a student hears them, as a person's review and the scene review read only the saved words.
 - That it sounds personal. On that run it connected to what was said far more often than it used what is known. An interest reached the words in 1 of 10 football cases on that run, and that one was empty: "like a football swerving round a gap". A struggling student sounds much like anyone else. None of the words read as creepy, on any run.
 - That the first thing heard is theirs. A lesson opened from Home often has nothing said yet, and on the page the words were close to the saved ones. On the last version, in Node, a football student's first words included "Think of a ball arcing up and back down. This curve is a U shape", and a ball's arc is not a U.
 - A crisis on a real page. The check is in tests here, and the budget went elsewhere.

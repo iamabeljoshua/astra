@@ -1,4 +1,6 @@
 import { mkdtempSync, readdirSync } from 'node:fs';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { type Beat, getBeatText, getCues, type SceneAgentMessage } from '@astra/contracts';
@@ -13,6 +15,7 @@ import type { LessonPlan, SceneRoute, StoredScene } from '../src/scenes/scene-ty
 import { toFreshScene } from '../src/scenes/recipe/fresh-drawing.ts';
 import { toRecipeScene } from '../src/scenes/recipe/recipe-scene.ts';
 import type { SceneRecipe } from '../src/scenes/recipe/recipe.ts';
+import { makeWordsReader } from '../src/tutor/make-tutor-scenes.ts';
 import { createTutorScenes, getTutorSceneBeats, LIVE_WORDS_WAIT_MS } from '../src/tutor/tutor-scenes.ts';
 
 const TOPIC = 'what the slope of a line tells you';
@@ -181,11 +184,12 @@ describe('a saved scene in a lesson', () => {
     const { scenes, read } = setUp();
     scenes.ask(TOPIC);
     await flush();
-    const ask = JSON.parse(read.mock.calls[0]?.[0].text ?? '{}') as { student: { interests: string[]; notes_on_this_idea: unknown[] }; numbers_you_may_say: number[]; moments: string[] };
+    const ask = JSON.parse(read.mock.calls[0]?.[0].text ?? '{}') as { student: { interests: string[]; notes_on_this_idea: unknown[] }; numbers_you_may_say: number[]; moments: string[]; word_counts: unknown };
     expect(ask.student.interests).toEqual(['football']);
     expect(ask.student.notes_on_this_idea).toEqual([{ kind: 'struggled' }]);
     expect(ask.moments).toEqual(['a', 'b']);
     expect(ask.numbers_you_may_say).toEqual([0, 2, 7, 9, 12]);
+    expect(ask.word_counts).toEqual({ setup: 4, moments: { a: 11, b: 10 }, close: 6, whole: 31 });
   });
 
   it(`waits ${LIVE_WORDS_WAIT_MS} ms at most at a pause, then says the saved words`, async () => {
@@ -295,3 +299,45 @@ describe('a saved scene in a lesson', () => {
     });
   });
 });
+
+describe('who writes the live words', () => {
+  const saved = { url: process.env.ANTHROPIC_BASE_URL, key: process.env.ANTHROPIC_API_KEY, model: process.env.ASTRA_SCENE_WORDS_MODEL };
+
+  afterEach(() => {
+    for (const [name, value] of [['ANTHROPIC_BASE_URL', saved.url], ['ANTHROPIC_API_KEY', saved.key], ['ASTRA_SCENE_WORDS_MODEL', saved.model]] as const) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
+  });
+
+  const askOnce = async (modelName: string | undefined) => {
+    const sent: { model: string; thinking: { type: string } }[] = [];
+    const server = createServer((request, response) => {
+      let body = '';
+      request.on('data', (chunk: Buffer) => (body += chunk.toString()));
+      request.on('end', () => {
+        sent.push(JSON.parse(body) as { model: string; thinking: { type: string } });
+        response.writeHead(200, { 'content-type': 'application/json' });
+        response.end(JSON.stringify({ id: 'm', type: 'message', role: 'assistant', model: 'fake', stop_reason: 'end_turn', stop_sequence: null, usage: { input_tokens: 1000, output_tokens: 100 }, content: [{ type: 'text', text: JSON.stringify(GOOD) }] }));
+      });
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    process.env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    process.env.ANTHROPIC_API_KEY = 'test-key';
+    if (modelName === undefined) delete process.env.ASTRA_SCENE_WORDS_MODEL;
+    else process.env.ASTRA_SCENE_WORDS_MODEL = modelName;
+    const { answer, costUsd } = await makeWordsReader().read({ system: 'write', text: '{}', schema: {}, timeoutMs: 2000, mostTokens: 700 });
+    server.close();
+    return { answer, costUsd, sent };
+  };
+
+  it('is Sonnet with thinking off unless ASTRA_SCENE_WORDS_MODEL names another', async () => {
+    const plain = await askOnce(undefined);
+    expect(plain.sent).toEqual([expect.objectContaining({ model: 'claude-sonnet-5-5', thinking: { type: 'between_tools' } })]);
+    expect(plain.answer).toEqual(GOOD);
+    expect(plain.costUsd).toBeCloseTo(0.003);
+    expect((await askOnce('nobody')).sent[0]?.model).toBe('claude-sonnet-5-5');
+    expect((await askOnce('haiku-5-5')).sent).toEqual([expect.objectContaining({ model: 'claude-haiku-5-5', thinking: { type: 'disabled' } })]);
+  });
+});
+
