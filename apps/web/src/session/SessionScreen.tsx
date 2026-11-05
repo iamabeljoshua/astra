@@ -17,8 +17,10 @@ import { SceneLayer } from '../scenes/SceneLayer';
 import { hasDrawableScene, type TutorScene, useTutorScene } from '../scenes/useTutorScene';
 import { type BoardFrame, LiveBoard } from '../voice/LiveBoard';
 import { isVoiceOver, type LiveVoiceView } from '../voice/liveVoice';
+import { NoisePrompt } from '../voice/NoisePrompt';
 import { ConnectingSaturn } from './ConnectingSaturn';
 import { type LiveVoiceControls, useLiveVoice } from '../voice/useLiveVoice';
+import { type HoldToTalk, useHoldToTalk } from '../voice/useHoldToTalk';
 
 const NOT_FOUND_STATUS = 404;
 const BAD_ID_STATUS = 400;
@@ -147,6 +149,7 @@ function RunningSession({ session }: { session: Session }) {
   const scene = useTutorScene(voice, isTutorSceneEnabled());
   useKeepSessionTitle(session.id, view?.sessionTitle ?? null);
   const filesComingSoon = useFilesComingSoon();
+  const hold = useHoldToTalk({ heldMic: liveVoice.heldMic, isTalkOn: liveVoice.isTalkOn, toggleTalk: liveVoice.toggleTalk, isEnabled: canTalkNow(liveVoice) && !isEnding && !isRecapping });
 
   // The card's picture belongs to the card's topic, so it goes when the student moves off it.
   const artwork = view?.sessionTitle ? null : findArtwork(session.artwork);
@@ -173,12 +176,12 @@ function RunningSession({ session }: { session: Session }) {
               ) : (
                 <div className="flex flex-1 flex-col justify-end font-voice text-voice">{isConnecting && <p role="status">{VOICE_LABELS.connecting}</p>}</div>
               )}
-              <ReplyBox liveVoice={liveVoice} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} filesComingSoon={filesComingSoon} />
+              <ReplyBox sessionId={session.id} liveVoice={liveVoice} hold={hold} isConnecting={isConnecting} carryOnLine={SESSION_LABELS.carryOnWith(session.title)} filesComingSoon={filesComingSoon} />
             </>
           )}
         </div>
         <ConnectingSaturn isConnecting={isConnecting} />
-        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} getVisual={(frame) => getLiveVisual(artwork, frame, scene)} onTalk={() => void liveVoice.toggleTalk()} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} isLookingBack={isRecapping} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
+        {voice ? <LiveBoard voice={voice} isConnecting={isConnecting} onTutorState={showTutorState} getVisual={(frame) => getLiveVisual(artwork, frame, scene)} talkButtonProps={hold.buttonProps} isTalkOn={view?.mic === 'on'} canTalk={!view?.closedBecause} isLookingBack={isRecapping} filesComingSoon={isConnecting ? undefined : filesComingSoon} /> : <div className="board-panel">{picture}</div>}
       </div>
     </SessionFrame>
   );
@@ -267,18 +270,28 @@ function getVoiceNote({ status, waitSeconds, view }: LiveVoiceControls, isAnswer
   return isAnswerDue ? VOICE_LABELS.answerPrompt : null;
 }
 
+function isSessionOver({ status, view }: LiveVoiceControls): boolean {
+  return status === 'finished' || status === 'tooSoon' || (view !== null && isVoiceOver(view.phase));
+}
+
+function canTalkNow(liveVoice: LiveVoiceControls): boolean {
+  return !isSessionOver(liveVoice) && liveVoice.status !== 'overLimit' && !liveVoice.view?.closedBecause;
+}
+
 interface ReplyBoxProps {
+  sessionId: string;
   liveVoice: LiveVoiceControls;
+  hold: HoldToTalk;
   isConnecting: boolean;
   carryOnLine: string;
   filesComingSoon: FilesComingSoon;
 }
 
 // The board's tools sit behind the connecting picture, so until the tutor arrives a file's note opens this box and shows here.
-function ReplyBox({ liveVoice, isConnecting, carryOnLine, filesComingSoon }: ReplyBoxProps) {
+function ReplyBox({ sessionId, liveVoice, hold, isConnecting, carryOnLine, filesComingSoon }: ReplyBoxProps) {
   const { status, view, voice, isTalkOn, sendTyped, toggleTalk, openAgain } = liveVoice;
   const isFinished = status === 'finished';
-  const isOver = isFinished || status === 'tooSoon' || (view !== null && isVoiceOver(view.phase));
+  const isOver = isSessionOver(liveVoice);
   // A tutor closed for spending is closed for this session too, and another room would only start it over.
   const canOpenAgain = isOver && !isFinished && status !== 'overLimit' && !view?.closedBecause;
   const [reply, setReply] = useState<{ text: string; didFail: boolean } | null>(null);
@@ -311,6 +324,8 @@ function ReplyBox({ liveVoice, isConnecting, carryOnLine, filesComingSoon }: Rep
           </>
         )}
         {voiceNote && <p className="text-fine text-ink-2">{voiceNote}</p>}
+        {hold.hasHitLimit && <p className="text-fine text-ink-2">{VOICE_LABELS.holdLimit}</p>}
+        {canTalkNow(liveVoice) && <NoisePrompt sessionId={sessionId} isRoomNoisy={view?.isRoomNoisy ?? false} isHolding={hold.isHolding} />}
       </div>
       {canOpenAgain && (
         <button type="button" onClick={() => void openAgain(carryOnLine)} className="button button-outline self-start">
@@ -335,7 +350,7 @@ function ReplyBox({ liveVoice, isConnecting, carryOnLine, filesComingSoon }: Rep
             clearsOnSend
             isSending={isOver}
             takesFocus={isBackWhileConnecting}
-            talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk() }}
+            talk={{ isOn: isTalkOn, onToggle: () => void toggleTalk(), buttonProps: hold.buttonProps }}
             onSend={(text) => void send(text)}
             onEdit={(draft) => {
               setDraftEdits((edits) => edits + 1);

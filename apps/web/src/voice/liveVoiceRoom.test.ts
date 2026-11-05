@@ -4,8 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LIVE_TOPIC, type RoomAccess, startLiveVoice } from './liveVoice';
 
 const TUTOR_WAIT_MS = 25_000;
-const ACCESS: RoomAccess = { url: 'wss://room', token: 'token', roomName: 'session-a-1', isTutorThere: false };
-const NEW_ACCESS: RoomAccess = { url: 'wss://room', token: 'token', roomName: 'session-a-2', isTutorThere: false };
+const ACCESS: RoomAccess = { url: 'wss://room', token: 'token', roomName: 'session-a-1', isTutorThere: false, invitesTalk: false };
+const NEW_ACCESS: RoomAccess = { url: 'wss://room', token: 'token', roomName: 'session-a-2', isTutorThere: false, invitesTalk: false };
 const ACCESS_WITH_TUTOR: RoomAccess = { ...ACCESS, isTutorThere: true };
 
 const fake = vi.hoisted(() => {
@@ -416,6 +416,134 @@ describe('the microphone when the page stops being in a room', () => {
     expect(captured.stop).not.toHaveBeenCalled();
     window.dispatchEvent(new Event('pagehide'));
     expect(captured.stop).toHaveBeenCalled();
+    await voice.close();
+  });
+});
+
+describe('holding to talk through the room', () => {
+  const sentTypes = (room: InstanceType<typeof fake.FakeRoom>) =>
+    room.localParticipant.publishData.mock.calls.flatMap((call: unknown[]) => {
+      const message = JSON.parse(new TextDecoder().decode(call[0] as Uint8Array)) as { type: string };
+      return message.type === 'pulse' ? [] : [message.type];
+    });
+
+  it('opens the capture as soon as the page can, before the room answers, and publishes once it has joined', async () => {
+    const captured = { stop: vi.fn() };
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => ({ getAudioTracks: () => [captured] }) } });
+    let answer: (access: RoomAccess) => void = () => {};
+    const opening = startLiveVoice({ getAccess: () => new Promise((resolve) => { answer = resolve; }), onMicReady: (controls) => void controls.setMic(true) });
+    await vi.advanceTimersByTimeAsync(0);
+    const room = fake.rooms.at(-1) as InstanceType<typeof fake.FakeRoom>;
+    expect(room.localParticipant.publishTrack).not.toHaveBeenCalled();
+    expect(room.connect).not.toHaveBeenCalled();
+    answer(ACCESS);
+    const voice = await opening;
+    expect(room.localParticipant.publishTrack).toHaveBeenCalledTimes(1);
+    expect(voice.getView().mic).toBe('on');
+    await voice.close();
+  });
+
+  it('ends the capture if the room never opens, so a hold before it leaves nothing on', async () => {
+    const captured = { stop: vi.fn() };
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => ({ getAudioTracks: () => [captured] }) } });
+    let refuse: (problem: Error) => void = () => {};
+    const opening = startLiveVoice({ getAccess: () => new Promise((_, reject) => { refuse = reject; }), onMicReady: (controls) => void controls.setMic(true) });
+    await vi.advanceTimersByTimeAsync(0);
+    refuse(new Error('no room'));
+    await expect(opening).rejects.toThrow('no room');
+    expect(captured.stop).toHaveBeenCalled();
+  });
+
+  it('says the line ended once the capture is off, and the dot shows at once', async () => {
+    const { voice, room, captured, tutorTrackArrives, hear } = await open();
+    tutorTrackArrives();
+    hear({ type: 'pulse' });
+    await voice.setMic(true);
+    voice.tellHoldStarted();
+    voice.endLine();
+    expect(captured.stop).toHaveBeenCalled();
+    expect(voice.getView().mic).toBe('off');
+    expect(voice.getView().isHeard).toBe(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sentTypes(room)).toEqual(expect.arrayContaining(['holdStarted', 'lineEnded']));
+    expect(room.localParticipant.unpublishTrack).toHaveBeenCalledTimes(1);
+    await voice.close();
+  });
+
+  it('still says the line ended when the capture never landed, or the agent waits on it', async () => {
+    const { voice, room, tutorTrackArrives, hear } = await open();
+    tutorTrackArrives();
+    hear({ type: 'pulse' });
+    voice.tellHoldStarted();
+    voice.endLine();
+    expect(voice.getView().isHeard).toBe(false);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sentTypes(room)).toContain('lineEnded');
+    await voice.close();
+  });
+
+  it('tells the agent once that the student pressed, so it does not then invite them', async () => {
+    const { voice, room, tutorTrackArrives, hear } = await open();
+    tutorTrackArrives();
+    hear({ type: 'pulse' });
+    await voice.setMic(true);
+    await voice.setMic(false);
+    await voice.setMic(true);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(sentTypes(room).filter((type) => type === 'talkPressed')).toHaveLength(1);
+    await voice.close();
+  });
+
+  it('does nothing to a microphone once the room is over', async () => {
+    const { voice, hear, tutorTrackArrives } = await open();
+    tutorTrackArrives();
+    hear({ type: 'closingForQuiet' });
+    await voice.setMic(true);
+    expect(voice.isMicOn()).toBe(false);
+    await voice.close();
+  });
+});
+
+describe('what the agent says about talking', () => {
+  it('passes on the server\'s word about inviting, and not after a press', async () => {
+    const captured = { stop: vi.fn() };
+    Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: { getUserMedia: async () => ({ getAudioTracks: () => [captured] }) } });
+    const voice = await startLiveVoice({ getAccess: async () => ({ ...ACCESS, invitesTalk: true }) });
+    const room = fake.rooms.at(-1) as InstanceType<typeof fake.FakeRoom>;
+    room.emit(RoomEvent.TrackSubscribed, { kind: Track.Kind.Audio });
+    const hellos = () => room.localParticipant.publishData.mock.calls.map((call: unknown[]) => JSON.parse(new TextDecoder().decode(call[0] as Uint8Array)) as { type: string; invitesTalk?: boolean }).filter((message) => message.type === 'hello');
+    expect(hellos().at(-1)?.invitesTalk).toBe(true);
+    await voice.setMic(true);
+    room.emit(RoomEvent.TrackSubscribed, { kind: Track.Kind.Audio });
+    expect(hellos().at(-1)?.invitesTalk).toBe(false);
+    await voice.close();
+  });
+
+  it('records that the invitation was said, and shows the room as noisy when the tutor keeps being cut', async () => {
+    const onTalkInvited = vi.fn();
+    const voice = await startLiveVoice({ getAccess: async () => ACCESS, onTalkInvited });
+    const room = fake.rooms.at(-1) as InstanceType<typeof fake.FakeRoom>;
+    const hear = (message: object) => room.emit(RoomEvent.DataReceived, encoder.encode(JSON.stringify(message)), undefined, undefined, LIVE_TOPIC);
+    hear({ type: 'talkInvited' });
+    expect(onTalkInvited).toHaveBeenCalledTimes(1);
+    expect(voice.getView().isRoomNoisy).toBe(false);
+    hear({ type: 'keptBeingCut' });
+    expect(voice.getView().isRoomNoisy).toBe(true);
+    expect(voice.getView().mic).toBe('off');
+    await voice.close();
+  });
+});
+
+
+describe('a hold on a tutor that has closed', () => {
+  it('leaves the microphone off, and off still works', async () => {
+    const { voice, hear, tutorTrackArrives } = await open();
+    tutorTrackArrives();
+    hear({ type: 'tutorClosed', reason: 'sessionLimit' });
+    await voice.setMic(true);
+    expect(voice.getView().mic).toBe('off');
+    await voice.setMic(false);
+    expect(voice.getView().mic).toBe('off');
     await voice.close();
   });
 });

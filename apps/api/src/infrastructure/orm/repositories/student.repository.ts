@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource } from 'typeorm';
+import { DataSource, IsNull } from 'typeorm';
 import type { EntityManager, Repository } from 'typeorm';
 import { ClosedAccountEntity } from '../entities/closed-account.entity';
 import { StudentProfileEntity } from '../entities/student-profile.entity';
@@ -40,6 +40,15 @@ export class StudentRepository {
   constructor(@InjectDataSource() private readonly dataSource: DataSource) {
     this.students = dataSource.getRepository(StudentEntity);
     this.profiles = dataSource.getRepository(StudentProfileEntity);
+  }
+
+  async hasBeenInvitedToTalk(studentId: string): Promise<boolean> {
+    const student = await this.dataSource.manager.findOneBy(StudentEntity, { id: studentId });
+    return student?.talkInvitedAt != null;
+  }
+
+  async noteInvitedToTalk(studentId: string): Promise<void> {
+    await this.dataSource.manager.update(StudentEntity, { id: studentId, talkInvitedAt: IsNull() }, { talkInvitedAt: new Date() });
   }
 
   findAccount(authUserId: string): Promise<StudentAccount> {

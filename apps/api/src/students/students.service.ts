@@ -47,6 +47,14 @@ export class StudentsService {
     return toAccountResponse(await this.students.saveBirthDateAnswer(authUserId, answer));
   }
 
+  hasBeenInvitedToTalk(studentId: string): Promise<boolean> {
+    return this.students.hasBeenInvitedToTalk(studentId);
+  }
+
+  noteInvitedToTalk(studentId: string): Promise<void> {
+    return this.students.noteInvitedToTalk(studentId);
+  }
+
   findStudentId(authUserId: string): Promise<string | null> {
     return this.students.findOpenStudentId(authUserId);
   }

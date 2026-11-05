@@ -69,6 +69,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/talk-invitation": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Records that the tutor told this student they can talk, so it is not said again. The first answer stands. */
+        put: operations["StudentsController_noteTalkInvitation"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/sessions": {
         parameters: {
             query?: never;
@@ -376,6 +393,13 @@ export interface components {
              */
             goal: "class" | "exam" | "curiosity";
         };
+        NoteTalkInvitationBodyDto: {
+            /**
+             * @description Always true. The tutor told this student they can talk.
+             * @enum {boolean}
+             */
+            heard: true;
+        };
         CreateSessionBodyDto: {
             /** @description What the session is about. When a card started this session, the API uses the title in its library and ignores this one. */
             title: string;
@@ -557,6 +581,8 @@ export interface components {
             token: string;
             /** @description The name of this session's room. */
             roomName: string;
+            /** @description True in a student's first session until the tutor has told them they can talk. */
+            invitesTalk: boolean;
             /** @description A tutor was in the room just now. A browser that joins and finds nobody got there after it closed, and should ask again. */
             isTutorThere: boolean;
         };
@@ -700,6 +726,27 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AccountResponseDto"];
                 };
+            };
+        };
+    };
+    StudentsController_noteTalkInvitation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NoteTalkInvitationBodyDto"];
+            };
+        };
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

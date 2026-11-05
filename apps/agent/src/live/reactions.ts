@@ -8,7 +8,7 @@ import type { VoiceAdapter } from '../providers/types.ts';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const TAKES_FOLDER = join(HERE, '../../assets/reactions');
 
-export type TakeUse = 'reaction' | 'nod' | 'working' | 'greeting' | 'prompt' | 'voiceLost';
+export type TakeUse = 'reaction' | 'nod' | 'working' | 'greeting' | 'prompt' | 'voiceLost' | 'talkInvitation';
 
 /** One recording in the tutor's voice, with the word times of that recording. */
 export interface StoredTake {
