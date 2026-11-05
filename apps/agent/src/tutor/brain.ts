@@ -15,7 +15,8 @@ import { type RequestAhead, startRequestAhead } from './request-ahead.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
 import { MAY_BE_ABOUT_SAFETY, PLAIN_REFUSALS } from './safety-words.ts';
 import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getRepeatedLineProblem, getAnswerShownProblem, getClaimProblem, getExerciseProblem, getGivenAwayProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getPictureProblem, getWordsProblem, isWrittenWordsTask, showsItsAnswer } from './board-memory.ts';
-import type { MemoryNote } from '../learner-record/memory-note.ts';
+import type { MemoryLine, MemoryNote } from '../learner-record/memory-note.ts';
+import type { StudentFacts } from '../scenes/live-words/write-speech.ts';
 import { TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
 import { createLinePicker, type SpokenLineUse } from './spoken-lines.ts';
 import { compute } from './tools/compute.ts';
@@ -57,6 +58,8 @@ export interface TutorBrain {
   /** A scene landed and its words are being said, so the next turn knows what is on screen and what was heard. */
   noteSceneTurn?(turn: { topic: string; beats: readonly Beat[] }): void;
   getStudentLevel?(): string | null;
+  getStudentFacts?(): Promise<StudentFacts>;
+  isReplyStarting?(): boolean;
   /** Checks the student's work against the board as the tutor knows it, and notes it for the next turn. Null if the work cannot stand, such as a line id already used. */
   noteWork?(work: StudentWork): { checked: CheckedWork; hadTask: boolean } | null;
   /** The page reloaded with the board in its hands, so the next reply is told and cannot wipe it. */
@@ -163,6 +166,7 @@ export interface TutorBrainOptions {
   onAskScene?(topic: string): void;
   onStudentWords?(words: string): void;
   onSafetyReply?(): void;
+  onFirstWords?(): void;
   onPreparedLeadDropped?(costUsd: number): void;
 }
 
@@ -419,12 +423,16 @@ const holdsAShowedNote = ({ memory: { notes } }: MemoryNote) => notes.some(({ ki
 
 const toProfileNote = ({ level, interests, goal, cardTitle }: StudentProfile) => ({ student: { level, interests, goal, ...(cardTitle ? { card_title: cardTitle } : {}) } });
 
-export function createTutorBrain({ model, profile = null, loadProfile, memory: knownMemory = null, loadMemory, onWorkNoted, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), prompt = TUTOR_PROMPT, findSource, lessonPlanner, safety, readers, onAskScene, onSafetyReply, onStudentWords, onPreparedLeadDropped }: TutorBrainOptions): Required<TutorBrain> {
+export function createTutorBrain({ model, profile = null, loadProfile, memory: knownMemory = null, loadMemory, onWorkNoted, timeouts: chosenTimeouts, trace = () => {}, onTurnEnd, onCompacted, compactAtTokens = COMPACT_AT_TOKENS, getSpendLimit = () => null, getNowMs = () => performance.now(), prompt = TUTOR_PROMPT, findSource, lessonPlanner, safety, readers, onAskScene, onSafetyReply, onStudentWords, onFirstWords, onPreparedLeadDropped }: TutorBrainOptions): Required<TutorBrain> {
   const timeouts: TutorTimeouts = { ...TUTOR_TIMEOUTS, ...chosenTimeouts };
   const attempts = createAttemptTracker();
   const pickLine = createLinePicker();
   let breathsTaken = 0;
   let profileNote: Record<string, unknown> | null = profile ? toProfileNote(profile) : null;
+  let knownInterests: readonly string[] = profile?.interests ?? [];
+  let knownNotes: readonly MemoryLine[] = knownMemory?.memory.notes ?? [];
+  let lastStudentWords = '';
+  let wordsThisTurn: readonly Beat[] | null = null;
   const reports = new Map<BeatId, BeatReport>();
   let turns: TutorTurn[] = [];
   let memory: BoardMemory = EMPTY_BOARD;
@@ -920,6 +928,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     turn.firstBeatMs ??= getNowMs() - turn.startedAtMs;
     turn.beats.push(beat);
     turn.ready.push(beat);
+    if (turn.beats.length === 1) onFirstWords?.();
     if (turn.heldTry.canBeSteered && turn.attempts < MAX_ATTEMPTS && beat.script.some((part) => typeof part !== 'string' && SHOWING_KINDS.has(part.kind))) turn.heldTry.isHolding = true;
   };
 
@@ -1554,6 +1563,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     (loaded) => {
       if (!loaded) return;
       profileNote = toProfileNote(loaded);
+      knownInterests = loaded.interests;
       studentLevel = loaded.level;
       pendingNotes.push(profileNote);
       isOnACard = Boolean(loaded.cardTitle);
@@ -1566,6 +1576,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
   const memoryLoading = loadMemory?.().then(
     (loaded) => {
       memoryNote = { ...loaded };
+      knownNotes = loaded.memory.notes;
       canFitTheStart = holdsWhereToStart(loaded);
       hasShowedNote = holdsAShowedNote(loaded);
       pendingNotes.push(memoryNote);
@@ -1593,6 +1604,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         return;
       }
       if (!lead) onStudentWords?.(studentText);
+      if (!lead && !isOpening) lastStudentWords = studentText;
       if (lead !== 'next') dropLeadAhead();
       // Skipped on words this list knows. Vaguer words reach the planner, whose `stay` and `getTrustedMove` hold them.
       // A student who cuts a card's opening scene speaks before the tutor has heard the card's title, so those are their own words.
@@ -1601,6 +1613,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       if (profileLoading || memoryLoading) await Promise.race([Promise.all([profileLoading, memoryLoading]), delay(timeouts.profileWaitMs)]);
       isTurnRunning = true;
       const turn = startTurn(studentText, lead, isFromCode, isOpening, signal);
+      wordsThisTurn = turn.beats;
       if (Array.from(studentText).length >= TYPED_TEXT_MAX_CHARACTERS) turn.notes.push(JSON.stringify(CLIPPED_NOTE));
       try {
         closeIfSpent(turn);
@@ -1634,6 +1647,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       } finally {
         finishTurn(turn);
         isTurnRunning = false;
+        wordsThisTurn = null;
         for (const noteIt of sceneTurnsWaiting.splice(0)) noteIt();
       }
     },
@@ -1671,6 +1685,12 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
       else noteIt();
     },
     getStudentLevel: () => studentLevel,
+    async getStudentFacts() {
+      if (profileLoading || memoryLoading) await Promise.race([Promise.all([profileLoading, memoryLoading]), delay(timeouts.profileWaitMs)]);
+      const caresAbout = knownNotes.filter(({ kind }) => kind === 'cares_about').map(({ about }) => about);
+      return { level: studentLevel, interests: [...new Set([...knownInterests, ...caresAbout])], notes: knownNotes, justSaid: [...lastBeats, ...(wordsThisTurn ?? [])].map(getBeatText).join(' '), studentSaid: lastStudentWords };
+    },
+    isReplyStarting: () => isTurnRunning && wordsThisTurn?.length === 0,
     noteCameBack() {
       dropLeadAhead();
       safety?.showHelpIfRaised?.();

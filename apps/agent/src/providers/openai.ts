@@ -7,7 +7,7 @@ const TOKENS_PER_MILLION = 1_000_000;
 const PERMANENT_STATUSES: ReadonlySet<number> = new Set([400, 401, 403, 404, 413, 422]);
 
 /** Dollars per million tokens, from OpenAI's model page, read 5 November 2026. */
-const OPENAI_PRICES = {
+export const OPENAI_PRICES = {
   'gpt-5.4-mini': { input: 0.75, cacheRead: 0.075, output: 4.5 },
 } as const;
 
