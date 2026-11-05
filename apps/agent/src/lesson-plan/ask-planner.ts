@@ -55,11 +55,13 @@ const MORE_SCHEMA = {
 
 const STEPS_ASKED_AT_ONCE = 4;
 
-const WORDS_NAMING_NO_IDEA = new Set(['with', 'that', 'this', 'from', 'what', 'when', 'wher', 'does', 'your', 'they', 'thei', 'abou', 'beca', 'into', 'more', 'than', 'real', 'make', 'most', 'much']);
+const WORDS_NAMING_NO_IDEA = new Set(['with', 'that', 'this', 'from', 'what', 'when', 'where', 'does', 'your', 'they', 'their', 'them', 'about', 'because', 'into', 'more', 'than', 'really', 'make', 'makes', 'most', 'much', 'near', 'over', 'through']);
 const MOST_SHARE_OF_AN_IDEA = 0.5;
 const FEWEST_WORDS_THAT_MAKE_A_REPEAT = 2;
 
-const getIdeaWords = (text: string, topicWords: ReadonlySet<string> = new Set()) => new Set((text.toLowerCase().match(/\p{L}{4,}/gu) ?? []).map((word) => word.slice(0, 4)).filter((word) => !WORDS_NAMING_NO_IDEA.has(word) && !topicWords.has(word)));
+const toStem = (word: string) => word.replace(/(?:ing|ed|es|s)$/, '').replace(/(.)\1$/, '$1').replace(/e$/, '');
+
+const getIdeaWords = (text: string, topicWords: ReadonlySet<string> = new Set()) => new Set((text.toLowerCase().match(/\p{L}{4,}/gu) ?? []).filter((word) => !WORDS_NAMING_NO_IDEA.has(word)).map(toStem).filter((word) => !topicWords.has(word)));
 
 /** The planner reaches the same idea in other words even when shown it, as "launch sites near the equator" after "why rockets launch toward the east". */
 export function dropRepeatedIdeas(steps: readonly LessonStep[], taught: readonly string[], topic: string): LessonStep[] {
@@ -80,7 +82,7 @@ export async function askMoreSteps(reader: JsonReader, { topic, taught, said, mo
   const count = Math.min(most, STEPS_ASKED_AT_ONCE);
   const { answer, costUsd } = await reader.read({ system: MORE_SYSTEM, text: JSON.stringify({ topic, already_taught: taught, already_said: said, how_many_steps: count }), schema: MORE_SCHEMA, timeoutMs: LONGEST_PLAN_MS, mostTokens: MOST_PLAN_TOKENS });
   const steps = (answer as { steps?: unknown } | null)?.steps;
-  const written = (Array.isArray(steps) ? steps : []).map(parseStep).filter((step) => step !== null && step.teach !== null).slice(0, count);
+  const written = (Array.isArray(steps) ? steps : []).map(parseStep).filter((step): step is LessonStep => step !== null && step.teach !== null).slice(0, count);
   return { steps: dropRepeatedIdeas(written, taught, topic), costUsd };
 }
 
