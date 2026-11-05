@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import SessionCost, { formatCost } from './SessionCost';
+import SessionCost, { formatCost, formatNaira } from './SessionCost';
 
 const run = promisify(execFile);
 const COST_LINE_MARK = 'session-cost';
@@ -27,12 +27,15 @@ async function buildHolds(extraEnv: Record<string, string>): Promise<boolean> {
 }
 
 describe('the cost line', () => {
-  it('says what it is, in small quiet numbers', () => {
+  it('says what it is, in dollars and naira, in small quiet numbers', () => {
     render(<SessionCost usd={0.0426} />);
     const cost = screen.getByTestId(COST_LINE_MARK);
-    expect(cost.textContent).toBe('$0.043');
+    expect(cost.textContent).toBe('$0.043 · ₦57');
     expect(cost.title).toContain('estimate');
+    expect(cost.title).toContain('₦1,330 to $1');
     expect(formatCost(1.5)).toBe('$1.50');
+    expect(formatNaira(1.5)).toBe('₦1,995');
+    expect(formatNaira(1.5, 1500)).toBe('₦2,250');
   });
 
   it('is in no build unless a tester asked for it', async () => {

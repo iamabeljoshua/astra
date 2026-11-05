@@ -145,7 +145,7 @@ The reply box and Talk stay away for a normal connection. After 8 s of connectin
 
 ## The cost line
 
-For Abel and testers. A small estimate beside the state line, for the session so far: the model from usage, the voice from characters at the recorded rate, and Muse from open time. The agent sends it at the end of a reply only with `ASTRA_SHOW_COST=1`, and the page shows it only in a build with `VITE_SHOW_COST=1`. `refuseCostLine` in `apps/web/build-guards.ts` fails any other build that holds it, and `SessionCost.test.tsx` runs real builds both ways.
+For Abel and testers. A small estimate beside the state line, for the session so far: the model from usage, the voice from characters at the recorded rate, and Muse from open time. It shows dollars and naira, as `$0.043 · ₦57`, at ₦1,330 to $1, the September 2026 rate set by hand. `VITE_NAIRA_PER_DOLLAR` changes the rate. The agent sends it at the end of a reply only with `ASTRA_SHOW_COST=1`, and the page shows it only in a build with `VITE_SHOW_COST=1`. `refuseCostLine` in `apps/web/build-guards.ts` fails any other build that holds it, and `SessionCost.test.tsx` runs real builds both ways.
 
 ## Hearing what left
 

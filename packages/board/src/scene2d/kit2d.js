@@ -956,10 +956,77 @@ export function makeKit({ ctx: c, timing, theme, images, pxScale }) {
     c.drawImage(s, -off, y - h - 8 + 8);
   }
 
+
+  // ---- Short forms, so a drawing written live takes few tokens ----
+  let now = 0;
+  const shown = ({ show, hide, alpha: a = 1 }) => (show === undefined ? a : a * env(now, show, hide ?? null));
+  const place = ({ x = 0, y = 0, rot = 0, scale = 1 }, draw) => scoped(() => { c.translate(x, y); c.rotate(rot); c.scale(scale, scale); draw(); });
+  function tracePoints(points, smooth, closed) {
+    c.beginPath();
+    if (!smooth) { points.forEach(([x, y], index) => (index === 0 ? c.moveTo(x, y) : c.lineTo(x, y))); if (closed) c.closePath(); return; }
+    const middle = (a, b) => [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    const last = points.length - 1;
+    const start = closed ? middle(points[last], points[0]) : points[0];
+    c.moveTo(start[0], start[1]);
+    points.forEach((point, index) => {
+      if (!closed && (index === 0 || index === last)) return;
+      const next = middle(point, points[(index + 1) % points.length]);
+      c.quadraticCurveTo(point[0], point[1], next[0], next[1]);
+    });
+    if (closed) c.closePath(); else c.lineTo(points[last][0], points[last][1]);
+  }
+  function shape(points, { fill, line, w = 3, smooth = true, closed = true, ...rest } = {}) {
+    const a = shown(rest);
+    if (a <= 0.01 || points.length < 2) return;
+    scoped(() => {
+      c.globalAlpha *= a;
+      tracePoints(points, smooth, closed);
+      if (fill) {
+        const ys = points.map((point) => point[1]);
+        c.fillStyle = grad(0, Math.min(...ys), 0, Math.max(...ys), [[0, lighten(fill, 0.16)], [1, darken(fill, 0.16)]]);
+        c.fill();
+      }
+      if (line) { c.strokeStyle = line; c.lineWidth = w; c.lineJoin = 'round'; c.stroke(); }
+    });
+  }
+  function bar(x1, y1, x2, y2, { w = 8, color = '#444444', ...rest } = {}) {
+    const a = shown(rest);
+    if (a <= 0.01) return;
+    scoped(() => { c.globalAlpha *= a; c.strokeStyle = color; c.lineWidth = w; c.lineCap = 'round'; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke(); });
+  }
+  function disc(x, y, r, { fill = '#888888', line, w = 3, ...rest } = {}) {
+    const a = shown(rest);
+    if (a <= 0.01) return;
+    scoped(() => {
+      c.globalAlpha *= a;
+      c.fillStyle = radial(x, y, r * 0.1, r, [[0, lighten(fill, 0.25)], [1, darken(fill, 0.12)]], x - r * 0.35, y - r * 0.35);
+      c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill();
+      if (line) { c.strokeStyle = line; c.lineWidth = w; c.stroke(); }
+    });
+  }
+  function flow(points, { t = now, count = 8, color = '#1f7ae0', size = 6, speed = 0.25, ...rest } = {}) {
+    const a = shown(rest);
+    if (a <= 0.01 || points.length < 2) return;
+    const lengths = points.slice(1).map((point, index) => Math.hypot(point[0] - points[index][0], point[1] - points[index][1]));
+    const total = lengths.reduce((sum, length) => sum + length, 0);
+    scoped(() => {
+      c.globalAlpha *= a;
+      c.fillStyle = color;
+      for (let dot = 0; dot < count; dot += 1) {
+        let along = (((t * speed + dot / count) % 1) + 1) % 1 * total;
+        let index = 0;
+        while (index < lengths.length - 1 && along > lengths[index]) { along -= lengths[index]; index += 1; }
+        const k = lengths[index] ? along / lengths[index] : 0;
+        c.beginPath(); c.arc(lerp(points[index][0], points[index + 1][0], k), lerp(points[index][1], points[index + 1][1], k), size, 0, TAU); c.fill();
+      }
+    });
+  }
+
   return {
     ctx: c, W, H, TAU, theme, dark, ink, inkSoft, paperColor: paper, pxScale,
     moments, duration, at, p, env, clamp01, clamp, lerp, ease, rng, noise, mix, alpha, lighten, darken, font: FONT, mathFont: MATH, scoped, linear: grad, radial, roundRect, cylLight,
     paper({ tone } = {}) { c.fillStyle = radial(W / 2, H * 0.42, 100, 900, [[0, tone || paper2], [1, tone ? darken(tone, 0.08) : paper]]); c.fillRect(0, 0, W, H); },
-    shadow, flame, rocket, rocketStage, stageHeights, stageRadii, noseHeight: (stages, length) => NOSE[stages] * (length / 1000), sky, space, stars, ground, road, cloud, earth, sun, moon, planet, ball, hand, person, gear, gearOutline, bicycle, chocolate, arrow, curvedArrow, label, readout, gauge, fraction, formula, weight, tree, house, car, water, mountains,
+    shadow, flame, rocket, rocketStage, stageHeights, stageRadii, noseHeight: (stages, length) => NOSE[stages] * (length / 1000), sky, space, stars, ground, road, cloud, earth, sun, moon, planet, ball, hand, person, gear, gearOutline, bicycle, chocolate, curvedArrow, readout, gauge, fraction, formula, weight, tree, house, car, water, mountains,
+    arrow: (options) => arrow({ ...options, alpha: shown(options) }), label: (text, options = {}) => label(text, { ...options, alpha: shown(options) }), shape, bar, disc, flow, place, shown, setNow: (seconds) => { now = seconds; },
   };
 }
