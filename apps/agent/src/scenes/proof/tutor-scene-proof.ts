@@ -101,7 +101,7 @@ function readTrace(folder: string | undefined) {
 }
 
 // The headless shell keeps a sandboxed frame in the page's own process, and real Chrome does not, so a stall means nothing on the shell.
-const browser = await chromium.launch({ ...(args.realChrome ? { channel: 'chrome' } : {}), headless: !args.headed, args: [...FLAGS, ...(args.noWebgl ? ['--disable-webgl', '--disable-webgl2'] : [])] });
+const browser = await chromium.launch({ ...(args.realChrome ? { channel: 'chrome' } : {}), headless: !args.headed, args: FLAGS });
 const context = await browser.newContext({ viewport: args.phone ? { width: 390, height: 844 } : { width: 1440, height: 900 }, colorScheme: 'light', baseURL: args.web as string, ...(args.reducedMotion ? { reducedMotion: 'reduce' as const } : {}) });
 const page = await context.newPage();
 const problems: string[] = [];
@@ -110,6 +110,8 @@ page.on('pageerror', (error) => problems.push(`pageerror: ${error.message}`));
 page.on('console', (message) => {
   if (message.type() === 'error' && !/data channel|DataChannel/.test(message.text())) problems.push(`console: ${message.text().slice(0, 300)}`);
 });
+// Chrome 156's --disable-webgl and --disable-webgl2 turn off WebGL on a canvas element but not on OffscreenCanvas, so the proof takes it away where the app asks for it.
+if (args.noWebgl) await page.addInitScript(() => { OffscreenCanvas.prototype.getContext = (() => null) as never; });
 if (args.noGpu) await page.addInitScript(() => Object.defineProperty(Navigator.prototype, 'gpu', { get: () => undefined }));
 if (args.damageTake) await page.route('**/api/scene-takes/**', (route) => route.fulfill({ status: 200, contentType: 'application/octet-stream', body: Buffer.from(Array.from({ length: 4096 }, (_, index) => (index * 37) % 256)) }));
 
