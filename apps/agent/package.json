@@ -44,13 +44,14 @@
     "@livekit/agents-plugin-elevenlabs": "1.9.5",
     "@livekit/agents-plugin-meta": "1.9.5",
     "@livekit/rtc-node": "1.2.1",
+    "acorn": "8.19.0",
     "livekit-server-sdk": "2.19.2",
+    "playwright": "^1.64.1",
     "ws": "8.22.1"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.2",
-    "playwright": "^1.64.1",
     "typescript": "catalog:",
     "vitest": "^5.1.0"
   }

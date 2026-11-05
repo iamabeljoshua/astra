@@ -34,3 +34,20 @@ describe('the agent link to the API', () => {
     expect(sent).toEqual([{ address: `http://api.test/agent/sessions/${SESSION}/title`, body: JSON.stringify({ title: 'Black holes' }) }]);
   });
 });
+
+describe('the job opening', () => {
+  const answer = (body: unknown) => vi.stubGlobal('fetch', vi.fn(async () => Response.json(body)));
+  const link = () => createApiLink({ apiUrl: 'http://api.test', agentKey: 'key', roomName: `session-${SESSION}` });
+
+  it('reads the student and a typed question, and treats blank words as none', async () => {
+    answer({ studentId: 'maya', question: 'How volcanoes erupt' });
+    await expect(link().fetchOpening()).resolves.toEqual({ studentId: 'maya', question: 'How volcanoes erupt' });
+    answer({ studentId: 'maya', question: '  ' });
+    await expect(link().fetchOpening()).resolves.toEqual({ studentId: 'maya', question: null });
+  });
+
+  it('names no student it was not told of', async () => {
+    answer({ question: 'How volcanoes erupt' });
+    await expect(link().fetchOpening()).rejects.toThrow(/no student/);
+  });
+});

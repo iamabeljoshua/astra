@@ -12,6 +12,7 @@ import { makeRenderedVoice } from '../src/providers/rendered-voice.ts';
 import { createSceneStore } from '../src/scenes/scene-store.ts';
 import type { LessonPlan, SceneRoute, StoredScene } from '../src/scenes/scene-types.ts';
 import type { TutorBeat, TutorBrain } from '../src/tutor/brain.ts';
+import { WATCHER_WORDS } from '../src/tutor/watcher/board-work.ts';
 import { createTutorScenes } from '../src/tutor/tutor-scenes.ts';
 
 initializeLogger({ pretty: false, level: 'silent' });
@@ -155,6 +156,16 @@ describe('a student turn while a scene is pending', () => {
     type(context.session, 'skip that, i do not want the picture');
     await until(() => heardScene(context.timeline).length > 0, 9000);
     expect(heardScene(context.timeline)).toEqual([]);
+  }, 20000);
+
+  it('stays when the tutor only spoke up on a silence, which is no turn of the student\'s', async () => {
+    const context = start({ reply: (text) => (text.includes('slope') ? (context.scenes.ask(TOPIC), [makeBeat('t1', LONG)]) : [makeBeat('t2', 'Need a hand with that?')]) });
+    type(context.session, 'why does slope matter');
+    await until(() => context.timeline.some(({ what }) => what.startsWith('words t1')), 3000);
+    type(context.session, WATCHER_WORDS);
+    await until(() => heardScene(context.timeline).length > 0, 12000);
+    expect(context.timeline.map(({ what }) => what)).not.toContain('sceneEnded studentTurn');
+    expect(heardScene(context.timeline).length).toBeGreaterThan(0);
   }, 20000);
 
   it('stays when that same turn asks for the scene', async () => {

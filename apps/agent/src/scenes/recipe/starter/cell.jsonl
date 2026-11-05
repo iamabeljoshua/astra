@@ -1,0 +1,15 @@
+{"t":"fit","in":true,"topic":"Inside an animal cell","stage":"studio"}
+{"t":"part","id":"cell","part":"animalCell","in":"m-cell"}
+{"t":"cam","on":"m-cell","look":"cell","view":"front","zoom":1}
+{"t":"say","m":"m-cell","text":"This is an animal cell, cut open so we can see its inside parts."}
+{"t":"label","text":"Membrane","at":"cell.membrane","show":"m-cell"}
+{"t":"label","text":"Nucleus","sub":"holds the DNA","at":"cell.nucleus","show":"m-cell"}
+{"t":"label","text":"Mitochondrion","sub":"makes energy","at":"cell.mitochondrion","show":"m-cell"}
+{"t":"say","m":"m-nucleus","text":"The nucleus is the control centre, and it holds the cell's DNA."}
+{"t":"cam","on":"m-nucleus","look":"cell.nucleus","view":"front","zoom":1.6}
+{"t":"say","m":"m-mito","text":"Mitochondria release energy from food, so cells can do their work."}
+{"t":"cam","on":"m-mito","look":"cell.mitochondrion","view":"front","zoom":1.6}
+{"t":"say","m":"m-parts","text":"Ribosomes and the folded reticulum help make and carry proteins."}
+{"t":"label","text":"Ribosome","sub":"builds proteins","at":"cell.ribosome","show":"m-parts"}
+{"t":"move","item":"cell","motion":"drift","on":"m-parts"}
+{"t":"say","m":"m-end","text":"Every cell works like this, with its parts doing jobs together."}

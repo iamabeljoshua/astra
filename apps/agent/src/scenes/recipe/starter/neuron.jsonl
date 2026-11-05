@@ -1,0 +1,13 @@
+{"t":"fit","in":true,"topic":"How a nerve cell sends a signal","stage":"studio"}
+{"t":"say","m":"neuron-appears","text":"This is a nerve cell, also called a neuron, the wire of the nervous system."}
+{"t":"part","id":"nerve","part":"neuron","at":[0,0,0],"size":1,"in":"neuron-appears"}
+{"t":"cam","on":"neuron-appears","look":"nerve","view":"front","zoom":1}
+{"t":"say","m":"pulse-starts","text":"Its branches on the left, the dendrites, collect messages from other cells."}
+{"t":"label","text":"Dendrites","at":"nerve.dendrite","show":"pulse-starts"}
+{"t":"say","m":"pulse-travels","text":"The signal is an electrical pulse that leaves the cell body and runs down the axon."}
+{"t":"move","item":"nerve","motion":"fire","on":"pulse-travels"}
+{"t":"label","text":"Axon","at":"nerve.axon","show":"pulse-travels"}
+{"t":"say","m":"jumps-gaps","text":"The axon is wrapped in myelin, so the pulse jumps from gap to gap, which is much faster."}
+{"t":"label","text":"Myelin","at":"nerve.myelin","show":"jumps-gaps"}
+{"t":"say","m":"reaches-end","text":"At the terminals, the pulse triggers chemicals that cross to the next cell and pass the message on."}
+{"t":"label","text":"Terminal","at":"nerve.terminal","show":"reaches-end"}

@@ -7,6 +7,7 @@ import { readFreshDrawing, toFreshScene } from '../src/scenes/recipe/fresh-drawi
 import { createRecipeWork, type FreshTools, type RecipeWriter } from '../src/scenes/recipe/recipe-work.ts';
 import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
 import type { SceneRoute } from '../src/scenes/scene-types.ts';
+import type { TopicRuns } from '../src/scenes/lesson/topic-runs.ts';
 import { isAskingToBeTaught } from '../src/tutor/make-tutor-scenes.ts';
 import { getTutorSceneBeats } from '../src/tutor/tutor-scenes.ts';
 
@@ -45,8 +46,9 @@ function setUp({ recipeText = NO_FIT, drawingText = DRAWING, isGood = true, canD
     canDraw: () => drawings < mostDrawings,
     noteDrawn,
   };
-  const makeWork = (studentId = STUDENT) =>
+  const makeWork = (studentId = STUDENT, live: { liveRuns?: TopicRuns; canWriteLive?: boolean } = {}) =>
     createRecipeWork({
+      ...live,
       router: { route: vi.fn(async () => ROUTE) },
       writer: { write },
       reviewer: { read: vi.fn(async () => ({ isGood: true, reasons: [], ...USAGE })) },
@@ -184,6 +186,33 @@ describe('the chain', () => {
   it('falls back to words when the writer cannot draw it', async () => {
     const { makeWork } = setUp({ drawingText: NO_FIT });
     expect((await runToPicture(makeWork())).kind).toBe('failed');
+  });
+});
+
+describe('live 3D, at the end of the chain', () => {
+  const makeLiveRuns = () => vi.fn<TopicRuns['join']>(() => ({ plan: Promise.resolve('nothing' as const), firstLine: Promise.resolve(null), getScene: async () => ({ isOk: false as const, reasons: ['refused'] }), leave: () => {} }));
+
+  it('stays out when a fresh drawing lands', async () => {
+    const { makeWork } = setUp();
+    const join = makeLiveRuns();
+    const work = makeWork(STUDENT, { liveRuns: { join }, canWriteLive: true });
+    work.desk.ask(work.request);
+    await flush();
+    await flush();
+    expect(work.desk.getState().kind).toBe('ready');
+    expect(join).not.toHaveBeenCalled();
+  });
+
+  it('writes only after parts and a fresh drawing have both come to nothing', async () => {
+    const { makeWork, write, writeDrawing } = setUp({ drawingText: NO_FIT });
+    const join = makeLiveRuns();
+    const work = makeWork(STUDENT, { liveRuns: { join }, canWriteLive: true });
+    work.desk.ask(work.request);
+    await flush();
+    await flush();
+    expect(write).toHaveBeenCalledTimes(1);
+    expect(writeDrawing).toHaveBeenCalledTimes(1);
+    expect(join).toHaveBeenCalledTimes(1);
   });
 });
 

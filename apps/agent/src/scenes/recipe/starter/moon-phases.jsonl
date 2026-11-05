@@ -1,0 +1,8 @@
+{"t":"fit","in":true,"topic":"Why the Moon has phases","stage":"space"}
+{"t":"say","m":"moon-lit-from-side","text":"We are looking at Earth with the Moon going round it, lit by the Sun."}
+{"t":"part","id":"phases","part":"moonPhases","args":{"phases":{"new-moon":"new","first-quarter-moon":"first-quarter","full-moon":"full","last-quarter-moon":"last-quarter"}},"in":"moon-lit-from-side"}
+{"t":"say","m":"half-of-moon-is-always-lit","text":"Sunlight always lights half of the Moon, the half facing the Sun."}
+{"t":"say","m":"new-moon","text":"When the Moon sits between us and the Sun, its lit side faces away from us."}
+{"t":"say","m":"full-moon","text":"When the Moon is on the far side of Earth, we see its whole lit face."}
+{"t":"say","m":"quarter-moons","text":"In between, we see only part of the lit half, so the Moon looks like a half circle."}
+{"t":"cam","on":"moon-lit-from-side","look":"phases.moon","view":"above","zoom":1}

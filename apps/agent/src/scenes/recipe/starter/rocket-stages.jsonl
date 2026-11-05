@@ -1,0 +1,12 @@
+{"t":"fit","in":true,"topic":"Why rockets have stages","stage":"space"}
+{"t":"say","m":"rocket-launch","text":"Here is a rocket climbing up past the curve of the Earth."}
+{"t":"part","id":"r","part":"rocket","in":"rocket-launch"}
+{"t":"move","item":"r","motion":"launch","on":"rocket-launch"}
+{"t":"cam","on":"rocket-launch","look":"r.flame","view":"low","zoom":1}
+{"t":"say","m":"rocket-stage-one","text":"Its heavy first stage burns fuel very fast to get off the ground."}
+{"t":"label","text":"First stage","sub":"heavy, burns fast","at":"r.firstStage","show":"rocket-stage-one","hide":"rocket-stage-off"}
+{"t":"say","m":"rocket-stage-off","text":"Once that fuel is gone, the empty first stage is dropped away."}
+{"t":"move","item":"r","motion":"stageOff","on":"rocket-stage-off"}
+{"t":"cam","on":"rocket-stage-off","look":"r.secondStage","view":"side","zoom":1}
+{"t":"say","m":"rocket-second","text":"The lighter second stage fires and keeps climbing with less weight to lift."}
+{"t":"label","text":"Second stage","sub":"light, keeps going","at":"r.secondStage","show":"rocket-stage-off"}

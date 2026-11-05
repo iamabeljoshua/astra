@@ -1,0 +1,11 @@
+{"t":"fit","in":true,"topic":"How a satellite stays up","stage":"space"}
+{"t":"say","m":"orbit-start","text":"A satellite is falling all the time, but it is also moving sideways very fast."}
+{"t":"part","id":"sat","part":"orbitBody","args":{"preset":"earth","height":0.8},"in":"orbit-start"}
+{"t":"cam","on":"orbit-start","look":"sat.planet","view":"front","zoom":1}
+{"t":"move","item":"sat.satellite","motion":"go","on":"orbit-start"}
+{"t":"say","m":"orbit-fall","text":"Gravity pulls it down toward Earth, bending its path as it goes."}
+{"t":"label","text":"Gravity","at":"sat.planet.surface","show":"orbit-fall"}
+{"t":"say","m":"orbit-sideways","text":"Its speed sideways is so high that the ground curves away as fast as it drops."}
+{"t":"label","text":"Sideways speed","at":"sat.satellite","show":"orbit-sideways"}
+{"t":"cam","on":"orbit-sideways","look":"sat.path","view":"above","zoom":1}
+{"t":"say","m":"orbit-result","text":"So it keeps falling around the planet and never lands. That is an orbit."}

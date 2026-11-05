@@ -3,12 +3,14 @@ import { readKey } from '../keys.ts';
 import { getCardPictures } from '../lesson-plan/card-lesson.ts';
 import { makeAnthropicJsonReader } from '../providers/anthropic.ts';
 import { makeAnthropicSceneModels, type RecipeModels, type SceneModels } from '../providers/anthropic.scenes.ts';
+import { getKitCodeProblems, getKitSpokenLines } from '../scenes/kit-code-check.ts';
+import { createKitWorker } from '../scenes/kit-worker.ts';
 import { matchLibrary, toShelfScene } from '../scene-queue/library-match.ts';
 import { createSceneQueue, type SceneQueue } from '../scene-queue/scene-queue.ts';
 import { makeFakeSceneModels } from '../scenes/lesson/fake-models.ts';
 import { createTopicRuns } from '../scenes/lesson/topic-runs.ts';
 import { createContainerWorker } from '../scenes/render-worker.ts';
-import { getSceneStoreRoot } from '../scenes/scene-settings.ts';
+import { getSceneStoreRoot, hasKitLive } from '../scenes/scene-settings.ts';
 import { createSceneStore } from '../scenes/scene-store.ts';
 import { getCoreSource, getUsableParts } from '../scenes/recipe/catalogue.ts';
 import { createRecipeWork } from '../scenes/recipe/recipe-work.ts';
@@ -48,10 +50,10 @@ const hasScenesAhead = () => process.env.ASTRA_SCENES_AHEAD !== '0';
 
 const getLoadPerCore = () => (loadavg()[0] ?? 0) / Math.max(cpus().length, 1);
 
-type MakeOptions = SessionHooks & { isTutorClosed?(): boolean; caps: Pick<SpendCaps, 'addScene' | 'addTurn' | 'getSceneUsd' | 'getSpendLimit' | 'getLeftTodayUsd' | 'getSharedPlaysToday'>; moveToNextStep(): void; getLastFirstTextMs(): number | null; canCutIn?(): boolean; isInBreath?(): boolean; cutIn?(beats: readonly TutorBeat[]): boolean; getLevel?(): string | null };
+type MakeOptions = SessionHooks & { isTutorClosed?(): boolean; caps: Pick<SpendCaps, 'addScene' | 'addTurn' | 'getSceneUsd' | 'getSpendLimit' | 'getLeftTodayUsd' | 'getSharedPlaysToday'>; moveToNextStep(): void; getLastFirstTextMs(): number | null; canCutIn?(): boolean; isInBreath?(): boolean; isBeforeFirstWord?(): boolean; cutIn?(beats: readonly TutorBeat[]): boolean; getLevel?(): string | null };
 
 // A scene's spending lands on the student's day through the same caps as the tutor's, and a scene past the limit is simply not written.
-export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canCutIn, isInBreath, cutIn, getLevel, ...hooks }: MakeOptions): SessionScenes {
+export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canCutIn, isInBreath, isBeforeFirstWord, cutIn, getLevel, ...hooks }: MakeOptions): SessionScenes {
   const limitUsd = Number(process.env.ASTRA_SCENE_SESSION_LIMIT_USD ?? DEFAULT_SCENE_LIMIT_USD);
   const sharedPlaysADay = Number(process.env.ASTRA_SHARED_PLAYS_A_DAY ?? DEFAULT_SHARED_PLAYS_A_DAY);
   if (!process.env.ASTRA_SPEND_FILE) process.stderr.write('ASTRA_SPEND_FILE is not set, so shared scenes have no project ceiling and no per-student cap past this session.\n');
@@ -62,7 +64,9 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
   const isFake = process.env.LESSON_FAKES === '1';
   const models: SceneModels & RecipeModels = isFake ? makeFakeSceneModels() : makeAnthropicSceneModels({ apiKey: readKey('ANTHROPIC_API_KEY'), onUsage: ({ costUsd }) => caps.addScene(costUsd), assertRoom });
   const store = createSceneStore(getSceneStoreRoot());
-  const runs = createTopicRuns({ planner: models.planner, nameReader: models.nameReader, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(process.env.ASTRA_SCENE_CONTAINERS ? { mostAtOnce: Number(process.env.ASTRA_SCENE_CONTAINERS) } : {}), store, warn: (line) => hooks.trace('sceneWarning', { problem: line }) });
+  const warn = (line: string) => hooks.trace('sceneWarning', { problem: line });
+  const runs = createTopicRuns({ planner: models.planner, nameReader: models.nameReader, writers: [models.writer, models.fallbackWriter], reviewer: models.reviewer, worker: createContainerWorker(process.env.ASTRA_SCENE_CONTAINERS ? { mostAtOnce: Number(process.env.ASTRA_SCENE_CONTAINERS) } : {}), store, warn });
+  const kitRuns = hasKitLive() ? createTopicRuns({ engine: 'kit', themes: ['dark'], checkCode: getKitCodeProblems, getLinesToReview: getKitSpokenLines, planner: models.planner, nameReader: models.nameReader, writers: [models.kitWriter, models.kitFallbackWriter], repairWriter: models.kitFallbackWriter, reviewer: models.kitReviewer, worker: createKitWorker(), store, warn }) : undefined;
   let queue: SceneQueue | null = null;
   let freshDrawings = 0;
   const freshTools = hasFreshDraw() ? { writer: models.freshWriter, reviewer: models.freshReviewer, canDraw: () => freshDrawings < MOST_FRESH_DRAWINGS, noteDrawn: () => void (freshDrawings += 1) } : null;
@@ -70,6 +74,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
     ? {
         canCutIn,
         isInBreath,
+        ...(isBeforeFirstWord ? { isBeforeFirstWord } : {}),
         cutIn,
         mostAsks: FAST_MOST_ASKS,
         askLimitMs: freshTools ? FRESH_ASK_LIMIT_MS : FAST_ASK_LIMIT_MS,
@@ -82,6 +87,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
             reviewer: models.recipeReviewer,
             nameReader: models.nameReader,
             matcher: models.sceneMatcher,
+            ...(kitRuns ? { liveRuns: kitRuns } : {}),
             store,
             storeRoot: getSceneStoreRoot(),
             getParts: getUsableParts,
@@ -95,6 +101,7 @@ export function makeTutorScenes({ caps, moveToNextStep, getLastFirstTextMs, canC
   const scenes = createTutorScenes({
     ...hooks,
     ...(fast ? { fast } : {}),
+    ...(kitRuns ? { kitRuns, fitReader: models.fitReader } : {}),
     isClosed,
     canPlayShared: (studentId) => caps.getSharedPlaysToday(studentId) < sharedPlaysADay,
     router: models.router,

@@ -9,6 +9,7 @@ import { DANGEROUS_KIND, SAFETY_KIND } from '../model-replies.ts';
 import { createSceneDesk, type SceneDesk, type SceneState } from '../scene-desk.ts';
 import { getSceneKey, type SceneStore } from '../scene-store.ts';
 import type { NameReader, SceneRoute, SceneRouter, SceneUsage, StoredScene } from '../scene-types.ts';
+import type { TopicRun, TopicRuns } from '../lesson/topic-runs.ts';
 import type { PartCatalogue } from './catalogue.ts';
 import { addRecipeLine, checkRecipe, compileRecipe, createRecipeDraft, type RecipeLine, type SceneRecipe } from './recipe.ts';
 import { readFreshDrawing, toFreshScene, type FreshDrawing } from './fresh-drawing.ts';
@@ -75,6 +76,9 @@ export interface SceneWorkInput {
   isCard: boolean;
   studentId: string;
   canPlayTakes: boolean;
+  /** The queue never pays for live 3D, so only a student's own ask may reach it. */
+  canWriteLive?: boolean;
+  onLiveWrite?(): void;
   canDrawRecipes?: boolean;
   getNowMs(): number;
   onChange(state: SceneState, atMs: number): void;
@@ -86,6 +90,8 @@ export interface RecipeWorkTools {
   reviewer: RecipeReviewer;
   nameReader: NameReader;
   matcher: SceneMatcher;
+  /** Set only with `ASTRA_KIT_LIVE`. The last try on the chain, after saved scenes and parts. */
+  liveRuns?: TopicRuns;
   store: SceneStore;
   storeRoot: string;
   getParts(): PartCatalogue;
@@ -94,6 +100,10 @@ export interface RecipeWorkTools {
   trace(name: string, fields?: Record<string, unknown>): void;
   fresh?: FreshTools | null;
 }
+
+const WORDS_NAMING_NOTHING = new Set(['a', 'about', 'actually', 'am', 'an', 'and', 'are', 'can', 'cause', 'causes', 'did', 'do', 'does', 'explain', 'has', 'have', 'how', 'in', 'is', 'it', 'its', 'me', 'of', 'on', 'really', 'show', 'so', 'tell', 'the', 'to', 'up', 'us', 'was', 'what', 'when', 'where', 'why', 'work', 'works']);
+
+const getWordKey = (text: string) => [...new Set((text.toLowerCase().match(/\p{L}+/gu) ?? []).filter((word) => !WORDS_NAMING_NOTHING.has(word)).map((word) => word.replace(/e?s$/, '')))].sort().join(' ');
 
 const getLevelValues = (level: string | null): Record<string, number> => ({ level: level === null ? -1 : LEVEL_KEYS.indexOf(level) });
 
@@ -107,7 +117,7 @@ function appendLine(root: string, file: string, line: object): void {
 const MISSES_FILE = 'part-misses.jsonl';
 const REVIEWS_FILE = 'recipe-reviews.jsonl';
 
-async function getCleanLines({ topic, says, nameReader, signal }: { topic: string; says: readonly RecipeLine[]; nameReader: NameReader; signal: AbortSignal }): Promise<{ says: readonly RecipeLine[]; problems: readonly string[] }> {
+export async function getCleanLines({ topic, says, nameReader, signal }: { topic: string; says: readonly RecipeLine[]; nameReader: NameReader; signal: AbortSignal }): Promise<{ says: readonly RecipeLine[]; problems: readonly string[] }> {
   const clean = says.map(({ m, text }) => ({ m, text: withoutFillerOpener(text) }));
   const names = [...new Set(clean.flatMap(({ text }) => getLineNames(topic, { say: text })))];
   const cleared = names.length > 0 ? await nameReader.clear(names, AbortSignal.any([AbortSignal.timeout(NAME_LIMIT_MS), signal])).catch(() => new Set<string>()) : new Set<string>();
@@ -115,8 +125,8 @@ async function getCleanLines({ topic, says, nameReader, signal }: { topic: strin
   return { says: clean, problems: [...clean.flatMap(({ text }) => [...getLineProblems(topic, { say: text }, cleared), ...(getClaimProblem(text) ? ['it claims a feeling'] : [])]), ...(refused.length > 0 ? [`names not cleared: ${refused.join(', ')}`] : [])] };
 }
 
-/** An exact saved scene if there is one, else whichever lands first of a matched saved scene and a new picture, from parts when a part fits and drawn fresh when none does. */
-export function createRecipeWork({ router, writer, reviewer, nameReader, matcher, store, storeRoot, getParts, getCore, getLevel, trace, fresh = null, request, isCard, studentId, canPlayTakes, canDrawRecipes = true, getNowMs, onChange }: RecipeWorkTools & SceneWorkInput): SceneWork {
+/** An exact saved scene if there is one, else whichever lands first of a matched saved scene and a new picture, from parts when a part fits and drawn fresh when none does. Live 3D comes last, on a student's own ask. */
+export function createRecipeWork({ router, writer, reviewer, nameReader, matcher, liveRuns, store, storeRoot, getParts, getCore, getLevel, trace, fresh = null, request, isCard, studentId, canPlayTakes, canDrawRecipes = true, canWriteLive = false, onLiveWrite, getNowMs, onChange }: RecipeWorkTools & SceneWorkInput): SceneWork {
   const leaving = new AbortController();
   const stopDrawing = new AbortController();
   const askedAtMs = getNowMs();
@@ -128,6 +138,8 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
   let drawing: Promise<StoredScene> | null = null;
   let matching: Promise<StoredScene> | null = null;
   let routedTopic = request;
+  let routedEngine: SceneRoute['engine'] = 'none';
+  let liveRun: TopicRun | null = null;
   let drawingOnPage: { scene: StoredScene; drawing: FreshDrawing } | null = null;
   const isStopping = () => leaving.signal.aborted || stopDrawing.signal.aborted;
   const noteTime = (name: string, fields: Record<string, unknown> = {}) => trace(name, { text: request, afterMs: Math.round(getNowMs() - askedAtMs), ...fields });
@@ -212,6 +224,22 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     return found;
   };
 
+  const writeLive = (): Promise<MadeScene> => {
+    if (!liveRuns) return Promise.resolve({ isOk: false, reasons: ['live 3D is off'] });
+    onLiveWrite?.();
+    noteTime('liveWriteStarted', { routed: routedTopic });
+    liveRun = liveRuns.join(ownKey(routedTopic));
+    return liveRun.getScene();
+  };
+
+  // The same words in another order ask the same thing, so a saved scene plays with no model read.
+  const findSavedBySameWords = async (): Promise<StoredScene | null> => {
+    const wanted = getWordKey(request);
+    if (wanted === '') return null;
+    const found = (await store.listShared()).find(({ topic }) => getWordKey(topic) === wanted);
+    return found ? findPlayable(found.topic) : null;
+  };
+
   const getFirstPicture = async (): Promise<MadeScene> => {
     if (!drawing || !matching) return { isOk: false, reasons: ['the saved scene is gone'] };
     try {
@@ -220,7 +248,7 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     } catch (error) {
       const reasons = error instanceof AggregateError ? error.errors.map(String) : [String(error)];
       noteTime('recipeNoPicture', { reasons });
-      return { isOk: false, reasons };
+      return canWriteLive && !isCard && routedEngine === 'kit' ? writeLive() : { isOk: false, reasons };
     }
   };
 
@@ -228,8 +256,8 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
 
   const getRoute = async (): Promise<SceneRoute> => {
     if (!isCard && (isOnlyAskingForHelp(request) || isAboutBeingUnsafe(request))) return { ...NO_ROUTE, kind: SAFETY_KIND };
-    const saved = findPlayable(request);
-    if (saved) return { ...SAVED_ROUTE, topic: request };
+    const saved = findPlayable(request) ?? (await findSavedBySameWords());
+    if (saved) return { ...SAVED_ROUTE, topic: saved.topic };
     drawing = draw();
     matching = match();
     drawing.catch(() => {});
@@ -241,13 +269,14 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
       return { ...route, engine: 'none', topic: '' };
     }
     routedTopic = route.topic;
+    routedEngine = route.engine;
     return { ...route, engine: 'kit', topic: isCard ? request : route.topic || request };
   };
 
   const desk = createSceneDesk({
     getNowMs,
     onChange,
-    drawsEngine: 'kit',
+    engines: ['kit'],
     route: getRoute,
     async make({ topic }) {
       const saved = findPlayable(topic);
@@ -264,6 +293,7 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     desk,
     leave() {
       leaving.abort();
+      liveRun?.leave();
     },
     notePage(isDrawn) {
       const waiting = drawingOnPage;

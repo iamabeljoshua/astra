@@ -88,6 +88,12 @@ describe('the scene routes', () => {
       await getKitTake('written-live').expect(404);
     });
 
+    it('sends a live scene its review passed, by the same record', async () => {
+      saveRecord('live-and-reviewed', { engine: 'kit', code: 'function scene(kit) {}', reviewed: true });
+      const { body } = await getKitTake('live-and-reviewed').expect(200);
+      expect(body).toEqual({ code: 'function scene(kit) {}', timing: { moments: MOMENTS, duration: expect.any(Number) } });
+    });
+
     it('refuses a scene not marked reviewed', async () => {
       saveRecord('rocket-unreviewed', {});
       saveKitScene('unreviewed', { sceneId: 'rocket-unreviewed', reviewed: false });

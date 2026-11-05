@@ -20,8 +20,15 @@ export interface ApiLinkOptions {
   roomName: string;
 }
 
+export interface JobOpening {
+  studentId: string;
+  question: string | null;
+}
+
 export interface ApiLink {
   fetchProfile(): Promise<StudentProfile | null>;
+  /** For the worker, and never in a prompt. */
+  fetchOpening(): Promise<JobOpening>;
   /** Adds to the student's total for today, and says whether that total is now over the daily limit. */
   reportSpend(usd: number): Promise<{ isOverDailyLimit: boolean; leftTodayUsd: number }>;
   addFlag(flag: SafetyFlag): Promise<void>;
@@ -48,6 +55,11 @@ export function createApiLink({ apiUrl, agentKey, roomName }: ApiLinkOptions): A
     async fetchProfile() {
       const { level, interests, goal, cardTitle, cardMaterial } = (await call('brief')) as { level: unknown; interests: unknown; goal: unknown; cardTitle?: unknown; cardMaterial?: unknown };
       return typeof level === 'string' && typeof goal === 'string' && Array.isArray(interests) ? { level, goal, interests: interests as string[], cardTitle: typeof cardTitle === 'string' ? cardTitle : null, cardMaterial: parseCardMaterial(cardMaterial) } : null;
+    },
+    async fetchOpening() {
+      const { studentId, question } = (await call('opening')) as { studentId?: unknown; question?: unknown };
+      if (typeof studentId !== 'string' || studentId === '') throw new Error('The API named no student for this room');
+      return { studentId, question: typeof question === 'string' && question.trim() !== '' ? question : null };
     },
     async reportSpend(usd) {
       return (await call('spend', { method: 'POST', body: JSON.stringify({ usd }) })) as { isOverDailyLimit: boolean; leftTodayUsd: number };

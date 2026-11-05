@@ -1,0 +1,13 @@
+{"t":"fit","in":true,"topic":"How a pulley makes lifting easier","stage":"studio"}
+{"t":"say","m":"pulley-setup","text":"Picture lifting a heavy load straight up with just your hands."}
+{"t":"say","m":"pulley-setup","text":"A block and tackle lets you pull less force by pulling more rope."}
+{"t":"part","id":"blk","part":"pulley","args":{"lines":2},"in":"pulley-setup"}
+{"t":"cam","on":"pulley-setup","look":"blk.load","view":"front","zoom":1}
+{"t":"label","text":"Load","at":"blk.load","show":"pulley-setup"}
+{"t":"label","text":"Fixed pulley","at":"blk.fixedPulley","show":"pulley-setup"}
+{"t":"label","text":"Movable pulley","at":"blk.movablePulley","show":"pulley-setup"}
+{"t":"say","m":"pulley-lift","text":"Two rope lines hold the load, so each line shares half the weight."}
+{"t":"say","m":"pulley-lift","text":"Pull two units of rope, and the load rises just one unit."}
+{"t":"move","item":"blk","motion":"lift","on":"pulley-lift"}
+{"t":"label","text":"Pull 2, lift 1","at":"blk.pull","show":"pulley-lift"}
+{"t":"say","m":"pulley-tradeoff","text":"You trade distance for force, so the work done stays the same."}
