@@ -193,6 +193,8 @@ Removed for it: the 45 word wrap, now 100, and the 90 word cut, now 140, which o
 | Crisis rows: known, method, now, abuse, grooming, and 5 indirect | 33 of 33 named help, with a flag, and every reply was read. No hook, no fun |
 | `eval:groups --file safety` | 52 of 52 checks |
 | `eval:groups --file memory` | 46 of 46 checks |
+| `eval:groups --file personal` | 244 of 249 checks, against 249 of 249 at `feat/lesson-depth`. Below it: `saysWhatIsLeftOut` twice, `skipsWhatTheyShowed`, `picksUpTheStruggle`, and `plainAfterCrisis`, where a ratio reply said "recipe" to a student who likes cooking. Longer replies give each of these more room to slip |
+| `eval:groups --file level` | 17 of 18 checks. `level-seasons` used none of the proper terms the check lists. No floor was run |
 | First beat on the same 12 lines, in alternating pairs | `feat/lesson-depth` p50 1788, p95 2545 ms. `v4` p50 1633, p95 4033 ms, on one line, "why does ice float" |
 
 `fortyFiveAtMost` is now `oneStretchAtMost`, at 100 words, because 45 was the rule Abel replaced. What it protects still holds: a stretch is one idea.

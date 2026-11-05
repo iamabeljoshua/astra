@@ -226,8 +226,8 @@ History, philosophy, art, music, and literature cards never owe an example, by t
 | --- | --- | --- |
 | Length | 17.4 min to the last word, 9 ideas | A reply failed at 11.6 min on 8 ideas, under a machine load of about 25, and the lesson held, as `replyFailed` does |
 | Characters | 16,149, so about 930 a minute, about 3,600 credits | 10,767 |
-| Cost | $0.031 a minute | Shared with the rocket's run, $0.59 for both |
-| Exercises | 7 problems, 1 pick, 1 place. 8 of 9 came after a worked reply | 5 board quizzes, 2 number problems from before that was steered |
+| Cost | $0.59 for both lessons, about $0.02 a minute | Shared with the rocket's run |
+| Exercises | 7 problems, 1 pick, 1 place. 6 came after an example of the same kind, 1 after an example of another kind, and 2 with none | 5 board quizzes, 2 number problems from before that was steered |
 | Waits | 32 s on the first exercise, 17 to 19 s on the rest, 10 s after a question | 32 s, then 17 to 20 s |
 
 The same history card again, on the final rules, with a student who answers: 14.0 minutes on 9 ideas, 10868 characters, $0.2963. Its 9 exercises: 3 written words, 4 place, 1 pick, 1 problem on the board. No worked example, and each sat on the board, such as "Flour got scarce, so bread cost ___" and "Three meanings, three words. Match each word to its meaning." Two asked for working anyway, with sous in them, as a sentence on the board and not a line of math, which the steer does not catch.
