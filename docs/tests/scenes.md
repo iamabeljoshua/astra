@@ -134,6 +134,7 @@ What a real session measured on 4 and 5 November 2026, on real Chrome with a rea
 | A crisis 8 s after first words | The scene's words stopped mid-sentence and never came back, the scene held its second, and the glide started on the help line's first words |
 | A reload | The scene came back about 2.4 s after the reload on the kit, held at its moment, and its words did not resume |
 | End and leaving | The frame stays through the recap and is gone on leaving the page |
+| The next scene | The queue held the next 3D scene in a second frame, and it landed about 29 s into the rocket card's lesson, on the kit, seen once |
 | Memory, 2x display | Home: GPU process 339 MB, all of Chrome 688 MB. The 2D take on screen: 458 MB and 938 MB. One kit frame: 904 MB and 1561 MB. Two held frames: 1323 MB and 2076 MB. After leaving: 252 MB and 931 MB, with no frame left. So one frame costs about 620 MB over the 2D take here, and the next about 515 MB, far above the prototype's 180 MB, one run each |
 | Bundle | The first page's JavaScript grew 143 bytes, 57 gzipped, for the two lines in `strings.ts`, and its CSS did not change. Three.js is in no chunk. `kit.js` is 785 KB and 206 KB gzipped, and the frame's code with its parser is a 124 KB chunk, both fetched only when a kit scene is about to play |
 | Flash | All 17 stored scenes passed, at most 2 flashes a second, on seasons. A planted 12 Hz strobe read 6 and failed, and a planted scene that drifts between draws failed |
