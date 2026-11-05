@@ -1,4 +1,4 @@
-import { isThinkingAloud, readLine } from '@astra/board/shared';
+import { readLine } from '@astra/board/shared';
 import type { LineWish } from '../tutor/line-read/read-line.ts';
 
 const WHOLE_LINES: Readonly<Partial<Record<LineWish, readonly string[]>>> = {
@@ -29,5 +29,5 @@ export const isHoldWish = (wish: string | null) => wish === 'stop' || wish === '
 
 const JUST_A_SOUND = /^(?:h+m+|u+m+|u+h+|e+r+|m+|a+h+|o+h+|the|and)$/;
 
-/** A nod says they are with the tutor, and a sound, however often it is on these lists, may only be them thinking. */
-export const isNod = (words: string) => !JUST_A_SOUND.test(toPlainLine(words)) && (getPlainWish(words) === 'filler' || isThinkingAloud(words));
+/** A nod says they are with the tutor, and a sound may only be them thinking. */
+export const isJustASound = (words: string) => JUST_A_SOUND.test(toPlainLine(words));

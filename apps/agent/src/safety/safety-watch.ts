@@ -92,8 +92,8 @@ export function createSafetyWatch({ check, addFlag, showHelp, trace, flagRetryWa
     readStudent(text, tutorSaid, onlySteersTheLesson) {
       const before = { studentSaid, tutorSaid };
       const read = check.readStudent(text, before).then(async (firstReading) => {
-        const heldBack = isSafetyKind(firstReading) && isInSchoolTalk && (await check.fitsSchoolTalk(text, before)) ? 'vague' : firstReading;
-        const studentReading = heldBack === 'vague' && sessionReading === 'none' && (await onlySteersTheLesson?.()) ? 'none' : heldBack;
+        const afterSchoolRead = isSafetyKind(firstReading) && isInSchoolTalk && (await check.fitsSchoolTalk(text, before)) ? 'vague' : firstReading;
+        const studentReading = afterSchoolRead === 'vague' && sessionReading === 'none' && (await onlySteersTheLesson?.()) ? 'none' : afterSchoolRead;
         trace('safetyRead', { reading: studentReading });
         const settled = settleReading(studentReading);
         if (isSafetyKind(settled) || settled === 'vague') {

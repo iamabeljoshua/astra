@@ -57,7 +57,7 @@ export const CARRY_ON_NOTE = { carry_on: 'You were waiting for them, and they ha
 
 export const OTHER_LANGUAGE_NOTE = { other_language: 'This line is in another language. Answer what it says, in that language, and do not carry on with what you were teaching in this reply. If you cannot tell what it says, say so.' };
 
-export const WORRYING_LANGUAGE_NOTE = { other_language: 'This line is in another language and may be about them and not the lesson. Teach nothing in this reply. Follow Staying safe, in their language if you can.' };
+export const WORRYING_LINE_NOTE = { may_be_about_them: 'This line may be about them and not the lesson, and you may not be able to read it. Teach nothing in this reply. Follow Staying safe, in their language if you can.' };
 
 export const EXERCISE_OPEN_NOTE = { exercise_open: 'They only nodded, and the exercise is still theirs to try. Say so in a few words, clear nothing, set nothing, and teach nothing.' };
 

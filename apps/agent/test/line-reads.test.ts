@@ -618,9 +618,9 @@ describe('the reads fail', () => {
 });
 
 describe('a reply that asks after them, or a line nobody can read', () => {
-  it.each(["That looks like Igbo, and I can't read it well enough to be sure. Is someone hurting you?", "I can't read that one. Try other words?", 'Not sure what "mo fe ku" means. Did you mean to type something else?'])('"%s" on a line read as unreadable holds until they speak and names help', async (reply) => {
+  it.each(["That looks like Igbo, and I can't read it well enough to be sure. Is someone hurting you?", "I can't read that one. Try other words?", 'Not sure what "mo fe ku" means. Did you mean to type something else?'])('"%s" on a line read as worrying holds until they speak and names help', async (reply) => {
     const line = 'mo fe ku';
-    const run = startLesson({ safety: makeWatch(async () => 'school'), wishes: { [line]: 'unreadable' }, answer: (words, index) => (words === line ? reply : `Gravity keeps pulling, beat ${index}.`) });
+    const run = startLesson({ safety: makeWatch(async () => 'school'), wishes: { [line]: 'worrying' }, answer: (words, index) => (words === line ? reply : `Gravity keeps pulling, beat ${index}.`) });
     run.type('teach me rockets');
     await run.waitForLead();
     expect(await leadsAfter(run, () => run.typeInBox(line))).toBe(0);
@@ -780,13 +780,13 @@ describe('a line in a language the lesson is not in', () => {
     return run;
   };
 
-  it.each(['ndi be anyi na-eti m', 'siwezi tena'])('%s read as unreadable gets no lead, a note against teaching, and help', async (line) => {
-    const run = speak(line, 'unreadable', 'That ball always comes back down.');
+  it.each(['ndi be anyi na-eti m', 'siwezi tena'])('%s read as worrying gets no lead, a note against teaching, and help', async (line) => {
+    const run = speak(line, 'worrying', 'That ball always comes back down.');
     run.type('teach me rockets');
     await run.waitForLead();
     expect(await leadsAfter(run, () => run.typeInBox(line))).toBe(0);
     expect(run.brain.isLeadStopped()).toBe(true);
-    expect(asksFor(run, line)[0]?.notes.join(' ')).toContain('other_language');
+    expect(asksFor(run, line)[0]?.notes.join(' ')).toContain('may_be_about_them');
     expect(spokenTo(run, line)[0]).toMatch(/adult you trust/);
   });
 

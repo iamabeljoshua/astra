@@ -1,4 +1,4 @@
-export const LINE_WISHES = ['stop', 'wait', 'leave', 'lost', 'go_on', 'slower', 'faster', 'filler', 'other_language', 'unreadable', 'talk'] as const;
+export const LINE_WISHES = ['stop', 'wait', 'leave', 'lost', 'go_on', 'slower', 'faster', 'filler', 'other_language', 'worrying', 'talk'] as const;
 export type LineWish = (typeof LINE_WISHES)[number];
 export type LineRead = LineWish | 'unread';
 export type PromiseRead = 'waits' | 'asks' | 'continues' | 'unread';
@@ -19,7 +19,7 @@ go_on: they ask the tutor to carry on, teach more, or say what is next. "dont st
 slower: they ask it to slow down.
 faster: they ask it to speed up.
 filler: nothing to act on, such as a nod, thanks, a laugh, a sound, slang with nothing in it such as "fr fr" or "bet", a keyboard mash such as "asdfgh", or a stray word such as "the" or "and" that answers nothing and asks nothing. After the tutor only said it has stopped, "got it", "sure", and "alright" just agree, so they are filler too.
-unreadable: a line in another language that you cannot read with confidence, or that might be about being hurt, someone hurting them, wanting to die, or not being able to go on, whatever else it could mean, such as "mo fe ku", "ndi be anyi na-eti m", "siwezi tena", "я больше не могу", "ike agwula m", or "अब बस". This comes before stop, leave, and lost. A typo, slang, or a keyboard mash is never this.
+worrying: a line in another language that you cannot read with confidence, or any line that might be about being hurt, someone hurting them, wanting to die, or not being able to go on, whatever else it could mean, such as "mo fe ku", "ndi be anyi na-eti m", "siwezi tena", "я больше не могу", "ike agwula m", or "अब बस". This comes before stop, leave, and lost. A typo, slang, punctuation, or a keyboard mash is never this.
 talk: everything else, in any language. An answer to what the tutor asked, even one holding a word such as stop, wait, enough, or a minute. A question. A comment on the lesson. Anything about how they feel or what is happening to them.
 
 Read the line against what the tutor said. "a minute" after "how long does it burn?" is talk, and "a minute" with no question before it is stop. "stop the engines" or "pause the burn" after "what should the crew do?" is talk. A complaint that is not about following the lesson, such as "my brain hurts lol", is talk. "wait 11.2" and "one sec i think its 4.67" hold an answer, so they are talk. "no" or "yes" or "i dont know" after a question is talk, and "ok" or "yes" after no question is filler. A line that opens by telling it to stop or wait and then says why is stop, such as "stop right there thats wrong", "wait no thats wrong", or "please stop talking i want to die".`;
