@@ -746,17 +746,20 @@ describe('the brain in a lead', () => {
     expect(seen.at(-1)).toContain('4.66667');
   });
 
-  it('stops leading at the end of a plan, and says so through what it holds', async () => {
+  it('leads once more at the end of a plan to close it, and then holds', async () => {
     const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
     planner.noteCardLesson({ topic: 'Gravity', kind: 'teachFirst', steps: [{ teach: 'why it falls', exercise: 'x' }] });
-    const brain = createTutorBrain({ model: reply(['Gravity pulls back.', 'That is the idea.']), timeouts: QUICK, lessonPlanner: planner });
+    const brain = createTutorBrain({ model: reply(['Gravity pulls back.', 'That is the idea.', 'You can now say why things fall. I am right here when you want more.']), timeouts: QUICK, lessonPlanner: planner });
     await run(brain, 'Gravity');
     expect(brain.canLead()).toBe(true);
     expect(brain.hasLessonLeft()).toBe(true);
     brain.noteLead('taskLeft');
     await run(brain, LEAD_WORDS.taskLeft);
-    expect(brain.hasLessonLeft()).toBe(false);
+    expect(brain.hasLessonLeft()).toBe(true);
+    expect(brain.canLead()).toBe(true);
+    await run(brain, LEAD_WORDS.next);
     expect(brain.canLead()).toBe(false);
+    expect(brain.isLeadStopped()).toBe(true);
   });
 
   it('cannot lead once the tutor has closed for spending', async () => {

@@ -23,6 +23,7 @@ export const LEAD_NOTES = {
   exercise: 'Nobody spoke, and this idea has been taught. Set the exercise in this reply, of the exercise_kind in the plan note: a few words, what it needs on the board, never its answer, then its task command. A new problem, never one they have already had in this lesson and never a sum you have just said the answer to, so use numbers you have not said. Settle the numbers before you speak, simple enough to work in their head, so you never correct yourself aloud.',
   noAnswer: 'They did not answer. Say the answer yourself in a line, with no fuss, and teach on, asking nothing in this reply.',
   taskLeft: 'They have not finished it, so finish it yourself now in a line or two, building on any line they wrote and ending on the answer. code_worked_it, when it is here, is the true number for that problem: use it, to at most three figures, and never a looser one. Never say skip, fine, or that they left it. Then {"kind":"boardMode","mode":"teach"} and on to the next idea.',
+  closing: 'Nobody spoke, and you have taken this topic as far as it goes for now. If you just asked them something, say the answer in a line. Then close warmly in two or three short sentences: name one thing they can now explain, and say you are right here whenever they want to go further. Start no new idea, ask nothing, and set nothing.',
 } as const;
 
 export const OPENING_A_CARD_NOTE = { opening_a_card: 'Open on the idea itself, in a reply that ends with no question. Their level is in the student note, so never ask what they have done or know.' };

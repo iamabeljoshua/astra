@@ -190,6 +190,7 @@ type AttemptEnd = 'ended' | 'noWords' | 'aborted' | 'stalledBeforeText' | 'stall
 interface TurnWork {
   sceneAside?: 'due' | 'moved';
   isLead: boolean;
+  isClosing: boolean;
   wordsForSafetyCheck: string;
   heldTry: HeldTry;
   id: number;
@@ -624,8 +625,11 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return Boolean(step && 'worked_example_due' in step);
   };
 
+  // An exercise left open is still finished first, and the close comes on the lead after it.
+  const isClosingLead = (lead: LeadKind) => isLessonOver() && (lead === 'next' || lead === 'noAnswer');
+
   const getLeadNote = (lead: LeadKind) => {
-    const stage = lead !== 'next' ? lead : isExerciseDueNow() ? 'exercise' : isExampleDueNow() ? 'workedExample' : 'next';
+    const stage = isClosingLead(lead) ? 'closing' : lead !== 'next' ? lead : isExerciseDueNow() ? 'exercise' : isExampleDueNow() ? 'workedExample' : 'next';
     return leadNotes[stage] ?? leadNotes[lead];
   };
 
@@ -639,7 +643,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return step && 'exercise_kind' in step ? (step.exercise_kind ?? null) : null;
   };
 
-  const canLead = () => hasHadAReply && leadStop === 'none' && linesBeingRead === 0 && closedReason === null && !isLessonOver();
+  const canLead = () => hasHadAReply && leadStop === 'none' && linesBeingRead === 0 && closedReason === null;
 
   const hasLessonLeft = () => {
     const step = lessonPlanner?.getStepNote();
@@ -723,6 +727,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
         },
       },
       isLead: lead !== null,
+      isClosing: lead !== null && isClosingLead(lead),
       id: turnCount,
       studentText,
       signal,
@@ -1537,6 +1542,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     if (didNobodySpeak(turn) && turn.endedAs === 'refused' && refusalsNobodyAskedFor < MOST_REFUSALS_NOBODY_ASKED_FOR) noteLeadStopEvent('replyWorked');
     else if (ENDS_THAT_STOP_A_LEAD.has(turn.endedAs)) noteLeadStopEvent('replyFailed');
     else if (turn.endedAs === 'ended') noteLeadStopEvent('replyWorked');
+    if (turn.isClosing && turn.endedAs === 'ended') noteLeadStopEvent('hold');
     if (didNobodySpeak(turn) && turn.endedAs === 'ended') refusalsNobodyAskedFor = 0;
     if (!turn.isLead && spoken !== '') noteWordsThatWait();
     onTurnEnd?.({
@@ -1750,7 +1756,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     },
     onLeadStopped: (listener) => void leadStoppedListeners.push(listener),
     onReadSettled: (listener) => void readSettledListeners.push(listener),
-    hasLessonLeft,
+    // A finished plan still owes its close, and a student who only listened is long past the quiet limit by then.
+    hasLessonLeft: () => hasLessonLeft() || isLessonOver(),
     noteLead(kind) {
       workedForLead = kind === 'taskLeft' ? getWorkedOpenProblem() : null;
       if (kind === 'taskLeft' || kind === 'taskTried') lessonPlanner?.moveToNextStep();
