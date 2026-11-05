@@ -257,6 +257,15 @@ describe('a saved scene in a lesson', () => {
     expect(read).toHaveBeenCalledTimes(1);
   });
 
+  it('does not wait for first words that an early picture will replace', async () => {
+    vi.useFakeTimers();
+    const { read, state, liveWords } = setUp();
+    state.isReplyStarting = true;
+    liveWords.startOnce(SCENE, { askedAbout: TOPIC, canWaitForFirstWords: false });
+    await flush();
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
   describe('and a student in danger', () => {
     it('makes no call on words that may be about their safety', async () => {
       vi.useFakeTimers();
@@ -280,7 +289,7 @@ describe('a saved scene in a lesson', () => {
       expect(liveWords.read(SCENE.id)).toEqual({ kind: 'saved' });
       expect(spoken).toEqual([]);
       scenes.noteStudentTurn();
-      liveWords.startOnce({ ...SCENE, id: `scene-${'b'.repeat(40)}` }, TOPIC);
+      liveWords.startOnce({ ...SCENE, id: `scene-${'b'.repeat(40)}` }, { askedAbout: TOPIC, canWaitForFirstWords: true });
       await flush();
       expect(read).toHaveBeenCalledTimes(1);
     });

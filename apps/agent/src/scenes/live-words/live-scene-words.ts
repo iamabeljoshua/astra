@@ -29,8 +29,13 @@ export interface LiveSceneWordsOptions {
   trace(name: string, fields?: Record<string, unknown>): void;
 }
 
+export interface WordsAsk {
+  askedAbout: string;
+  canWaitForFirstWords: boolean;
+}
+
 export interface LiveSceneWords {
-  startOnce(scene: StoredScene, askedAbout: string): void;
+  startOnce(scene: StoredScene, ask: WordsAsk): void;
   read(sceneId: string): SceneWordsRead;
   noteFirstWords(): void;
   noteSafetyReply(): void;
@@ -72,14 +77,14 @@ export function createLiveSceneWords({ reader, getStudent, isReplyStarting, canS
   const isFresh = (run: WordsRun | undefined) => run !== undefined && getNowMs() - run.startedAtMs <= WORDS_STAY_FRESH_MS;
 
   return {
-    startOnce(scene, askedAbout) {
+    startOnce(scene, { askedAbout, canWaitForFirstWords }) {
       if (isFresh(runs.get(scene.id))) return;
       const startedAtMs = getNowMs();
       if (isPlainForGood) {
         runs.set(scene.id, { kind: 'saved', startedAtMs, why: 'safety' });
         return;
       }
-      if (!isReplyStarting()) return startWriting(scene, askedAbout, startedAtMs);
+      if (!canWaitForFirstWords || !isReplyStarting()) return startWriting(scene, askedAbout, startedAtMs);
       const limit = setTimeout(() => startWriting(scene, askedAbout, startedAtMs), FIRST_WORDS_WAIT_MS);
       runs.set(scene.id, { kind: 'waitingForFirstWords', startedAtMs, scene, askedAbout, limit });
     },

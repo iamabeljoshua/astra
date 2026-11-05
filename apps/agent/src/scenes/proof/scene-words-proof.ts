@@ -37,7 +37,7 @@ async function runOne(scene: StoredScene, student: StudentFacts, reader: JsonRea
   let settle = () => {};
   const settled = new Promise<void>((resolve) => (settle = resolve));
   const words = createLiveSceneWords({ reader, getStudent: async () => student, isReplyStarting: () => false, canSpend: () => true, onCost: (usd) => (fields.costUsd = usd), onSettled: () => settle(), getNowMs: () => performance.now(), trace: (_name, traced = {}) => Object.assign(fields, traced) });
-  words.startOnce(scene, scene.topic.toLowerCase());
+  words.startOnce(scene, { askedAbout: scene.topic.toLowerCase(), canWaitForFirstWords: false });
   await settled;
   const read = words.read(scene.id);
   const beats = getTutorSceneBeats({ plan: read.kind === 'live' ? read.speech : scene.plan, scene, number: 1 });

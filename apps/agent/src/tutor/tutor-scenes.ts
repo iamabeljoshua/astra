@@ -215,6 +215,9 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
     return words?.kind === 'live' ? { speech: words.speech, isLive: true } : { speech: scene.plan, isLive: false };
   };
 
+  // An early picture lands before the reply's first word is heard, so there is nothing to carry on from.
+  const startWords = (ask: SceneAsk, scene: StoredScene) => liveWords?.startOnce(scene, { askedAbout: ask.topic, canWaitForFirstWords: !ask.isEarly });
+
   const holdForWords = (ask: SceneAsk, scene: StoredScene) => {
     if (liveWords?.read(scene.id).kind !== 'writing') return false;
     ask.heldForWordsSinceMs ??= getNowMs();
@@ -314,7 +317,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
       return;
     }
     if (!fast && ((state.kind === 'making' && state.route.engine === 'kit') || (state.kind === 'ready' && state.scene.engine === 'kit' && !ask.isKit))) keepAskForKit(ask);
-    if (state.kind === 'ready') liveWords?.startOnce(state.scene, ask.topic);
+    if (state.kind === 'ready') startWords(ask, state.scene);
     if (state.kind === 'ready' && device !== 'unknown') loadInPage(ask, state.scene);
     if (state.kind === 'declined' || state.kind === 'failed') end(ask, state.kind);
   };
@@ -360,7 +363,7 @@ export function createTutorScenes({ router, runs, kitRuns, fitReader, store, get
     startClock(ask);
     const state = ask.work.desk.getState();
     if (state.kind === 'ready') {
-      liveWords?.startOnce(state.scene, ask.topic);
+      startWords(ask, state.scene);
       land(ask);
     } else if (state.kind === 'declined' || state.kind === 'failed') end(ask, state.kind);
   };
