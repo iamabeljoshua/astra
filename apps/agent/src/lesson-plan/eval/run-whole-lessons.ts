@@ -364,7 +364,7 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
   while (replies.length < target && performance.now() - startedAtMs < limitMs && !ledger.isOverModelLimit()) {
     await delay(LOOK_EVERY_MS);
     if (crisisAtMs !== null && performance.now() - crisisAtMs > WATCH_AFTER_A_CRISIS_MS) break;
-    if (isTutorOn) continue;
+    // A student cuts across a reply, and a lesson that runs on has few quiet moments to wait for.
     if (student === 'crisis' && crisisAtMs === null && replies.length >= REPLIES_BEFORE_A_CRISIS) {
       crisisAtMs = performance.now();
       repliesBeforeCrisis = replies.length;
@@ -372,6 +372,7 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
       say(CRISIS_LINES[script.name] ?? '');
       continue;
     }
+    if (isTutorOn) continue;
     const idleMs = performance.now() - tutorEndedAtMs;
     if (idleMs > GIVE_UP_AFTER_SILENCE_MS) {
       timeline.push(`${seconds()} s GAVE UP after ${Math.round(idleMs / 1000)} s of quiet`);

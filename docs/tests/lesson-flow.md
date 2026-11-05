@@ -48,7 +48,7 @@ Ahead-of-time writes go through the same caps as any scene, so they count agains
 - **A closed tutor.** A reply that closes the tutor stops the queue for good, and any write ahead with it. A scene's next model call also refuses once the tutor is closed.
 - **End.** An End press ends all of it before the recap. Nothing lands from then on, the session is never at a pause again, and a plan that arrives after it reads no library.
 - **A flag.** The list of saved titles leaves out a flagged scene. It is read once for a topic, so a title can be flagged after that read, and then it is not prepared. A scene flagged while it waits ready does not land and takes no first frame.
-- **The limits.** A shared scene counts when it would land, whoever asked for it, so one readied before a student's last play does not play past it. A student's own scene still plays. A next scene counts toward the 6 asks when it is asked for, and past 6 nothing is readied, because it could never land.
+- **The limits.** A shared scene counts when it would land, whoever asked for it, so one readied before a student's last play does not play past it. A student's own scene still plays. A new write counts toward the 6 asks when it is asked for, and past 6 no new write is readied, because it could never land. A saved scene does not count, and the student's shared plays a day cap it.
 - **A page that cannot play one.** No library is read, nothing is prepared, and nothing is written.
 - **No running lesson.** No plan means no queue. Nothing is prepared before a student arrives, and that is on purpose: no worker prepares scenes per student ahead of them. That is post-MVP.
 
@@ -112,7 +112,7 @@ Abel: "why lessons are so short and only teach for like 1 minute or 30 seconds? 
 - **Exercises.** A student listening hears 7 replies on a card's idea, or 6 on a planned one, before the exercise. One who is talking gets there after 3 or 2. In a reply that sets the exercise, a line that shows its own answer, such as `100 - 30 = 70`, is stopped before the student sees it, and elsewhere a task on such a line is refused.
 - **Code picks the kind.** `hasWorkingToDo` reads a card's lines for a number or a quantity, and a planned step's exercise for a digit, and the note then says `exercise_kind`. `problem` means a write task on a math line with numbers, or a pick. `board` means anything but a second written answer in a row. Any other task, or a bare question with no task, goes back once, and no filler plays. The second try stands, so a student always has something to do. Words already spoken stay spoken, so a reply that had started on another kind can sound like two starts.
 - **Numbers.** On a problem nobody tried, the lead note carries `code_worked_it`, the value `compute` gets for the line. The tutor is told to use it to at most three figures. What it says aloud is still not checked.
-- **Words.** A reply that opens on "Next,", "Time for a quick one.", "Fair enough.", or "Fine, skip it." has them taken off in code, with no wait. A reply that announces a correction goes back once, and says what is true as a plain line.
+- **Words.** A reply that opens on "Next,", "Time for a quick one.", "Fair enough.", or "Fine, skip it." has them taken off in code, with no wait, and "Next," goes from the start of any sentence. A reply that announces a correction goes back once, and says what is true as a plain line.
 
 One lesson on the rocket card, real Sonnet and Haiku, the fake voice in real time, in Node, with a student who answers tasks and says nothing else:
 
@@ -134,6 +134,7 @@ pnpm --filter @astra/agent eval:library-match
 pnpm --filter @astra/agent eval:whole-lessons --out <folder> --spend <new ledger> --students quiet,nudging --replies 13
 pnpm --filter @astra/agent eval:whole-lessons --out <folder> --spend <new ledger> --only rocket --students tasks --replies 9999 --minutes 22
 node apps/agent/src/lesson-plan/eval/whole-lesson-page.ts --web <your stack> --out <folder> --trace <ASTRA_VOICE_TRACE folder> --says "6:teach me more" --replies 12
+node apps/agent/src/lesson-plan/eval/whole-lesson-page.ts --web <your stack> --out <folder> --trace <ASTRA_VOICE_TRACE folder> --hide-after 3 --hide-for 40 --replies 7
 ```
 
 `ASTRA_SCENES_AHEAD=0` turns the queue off, so a session asks for what it asks for and nothing more. The proof takes `--event skip@1`, `reload@1`, `switch@1:<words>`, `crisisWhenReady`, or `endWhenReady`, and saves each landing as a picture.

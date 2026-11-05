@@ -35,10 +35,15 @@ export function getLessonWordsProblem(text: string): string | null {
   return ANNOUNCES_A_CORRECTION.test(text) ? 'Never announce a correction. If something you said was really false, say what is true as your next line, as a plain statement. If it was true, carry on to something new.' : null;
 }
 
-const OPENING_TIC = /^\s*(?:(?:fair enough|no problem|no worries|that'?s (?:ok(?:ay)?|fine|all right))[,.!]|(?:and\s+)?next(?:\s+up)?\s*[,:.]|time (?:for|to) (?:a |an |another |one |try |the next )*(?:short|quick|try|one|problem|exercise|practice)\b[^,.:?!]*[,.:]|(?:(?:fine|ok(?:ay)?|alright|all right|right|sure)[,.]\s+)?(?:let'?s\s+)?skip(?:ping)?\s+(?:it|that|this)(?:\s+one)?[.!,]?)\s*/i;
+const OPENING_TIC = /^\s*(?:(?:fair enough|all good|no problem|no worries|that'?s (?:ok(?:ay)?|fine|all right))[,.!]|(?:and\s+)?next(?:\s+up)?\s*[,:.]|time (?:for|to) (?:a |an |another |one |try |the next )*(?:short|quick|try|one|problem|exercise|practice)\b[^,.:?!]*[,.:]|(?:(?:fine|ok(?:ay)?|alright|all right|right|sure)[,.]\s+)?(?:let'?s\s+)?skip(?:ping)?\s+(?:it|that|this)(?:\s+one)?[.!,]?)\s*/i;
 
 /** The words a reply opens on and comes back to, which read as a tic across a long lesson. Taken off in code, because a request again would add a wait. */
 export const withoutOpeningTic = (text: string) => text.replace(OPENING_TIC, '');
+
+const NEXT_SIGNPOST = /(^|[.!?]\s+)next,\s+(\p{L})/giu;
+
+/** The tutor is told to go on to the next idea, and says so at the start of a sentence in most worked answers. */
+export const withoutNextSignpost = (text: string) => text.replace(NEXT_SIGNPOST, (_whole, before: string, letter: string) => `${before}${letter.toUpperCase()}`);
 
 /** Goes with the short turn, so a reply can stay short and still set an exercise. */
 export const LESSON_TURN_NOTE = {

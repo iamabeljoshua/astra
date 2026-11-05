@@ -596,6 +596,12 @@ describe('the brain in a lead', () => {
     }
   });
 
+  it('takes "Next," off a sentence later in a reply', async () => {
+    const brain = createTutorBrain({ model: reply(['A hundred minus thirty is seventy. Next, why rockets launch east.']), timeouts: QUICK });
+    brain.noteLead('taskLeft');
+    expect(await run(brain, LEAD_WORDS.taskLeft)).toBe('A hundred minus thirty is seventy. Why rockets launch east.');
+  });
+
   it('takes the tic off a reply that opens on a command too', async () => {
     const brain = createTutorBrain({ model: reply([' {"kind":"boardMode","mode":"teach"}Time for a quick one. The exhaust pushes back.']), timeouts: QUICK });
     brain.noteLead('next');

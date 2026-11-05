@@ -15,6 +15,8 @@ const { values: args } = parseArgs({
     says: { type: 'string', default: '' },
     replies: { type: 'string', default: '8' },
     seconds: { type: 'string', default: '420' },
+    'hide-after': { type: 'string' },
+    'hide-for': { type: 'string', default: '40' },
   },
 });
 if (!args.web || !args.out || !args.trace) throw new Error('Give --web, --out, and --trace.');
@@ -71,6 +73,13 @@ const captions: { atS: number; words: string }[] = [];
 const said: { atS: number; words: string }[] = [];
 const toSay = (args.says ?? '').split('|').filter(Boolean).map((one) => ({ afterReplies: Number(one.split(':')[0]), words: one.split(':').slice(1).join(':') }));
 const getAtS = () => Math.round((Date.now() - startedAtWallMs) / 100) / 10;
+const setPageHidden = (isHidden: boolean) =>
+  page.evaluate((hidden) => {
+    Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (hidden ? 'hidden' : 'visible') });
+    document.dispatchEvent(new Event('visibilitychange'));
+  }, isHidden);
+const hideAfter = args['hide-after'] === undefined ? null : Number(args['hide-after']);
+let hidden: { atReplies: number; atS: number; repliesOnBack?: number; backAtS?: number } | null = null;
 const target = Number(args.replies);
 const limitAtMs = Date.now() + Number(args.seconds) * 1000;
 let replies = 0;
@@ -92,6 +101,15 @@ while (Date.now() < limitAtMs) {
     await page.getByRole('textbox').first().press('Enter');
     said.push({ atS: getAtS(), words: next.words });
   }
+  if (hideAfter !== null && hidden === null && replies >= hideAfter) {
+    await setPageHidden(true);
+    hidden = { atReplies: replies, atS: getAtS() };
+  }
+  if (hidden && hidden.backAtS === undefined && getAtS() - hidden.atS >= Number(args['hide-for'])) {
+    hidden.repliesOnBack = replies;
+    hidden.backAtS = getAtS();
+    await setPageHidden(false);
+  }
   if (replies >= target) reachedAtMs ??= Date.now();
   if (reachedAtMs !== null && Date.now() - reachedAtMs > AFTER_THE_LAST_REPLY_MS) break;
 }
@@ -103,6 +121,7 @@ const summary = {
   leads: trace.filter((line) => line.name === 'replyDecided' && line.via === 'lead').map((line) => line.text),
   sceneEvents: trace.filter((line) => line.name === 'sceneEnded' || line.name === 'sceneCue').map((line) => [line.name, line.how ?? line.text]),
   said,
+  hidden,
   problems,
 };
 writeFileSync(join(OUT, 'summary.json'), `${JSON.stringify({ ...summary, captions }, null, 1)}\n`);

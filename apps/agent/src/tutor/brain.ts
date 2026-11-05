@@ -3,7 +3,7 @@ import { type BoardOperation, type BoardState, type CheckedWork, checkWorkOnBoar
 import { type FindSource, type ModelEvent, ModelRejectedError, type ModelUsage, type TutorModelAdapter, type TutorModelRequest, type TutorTurn } from '../providers/types.ts';
 import { toCardPlan, type CardMaterial } from '../lesson-plan/card-lesson.ts';
 import { asksToBeTaught, getProblemNote, getTeachFirstNote, type LessonPlanner } from '../lesson-plan/lesson-planner.ts';
-import { getLessonWordsProblem, LEAD_NOTES, OPENING_A_CARD_NOTE, withoutOpeningTic } from '../lesson-plan/lesson-rules.ts';
+import { getLessonWordsProblem, LEAD_NOTES, OPENING_A_CARD_NOTE, withoutNextSignpost, withoutOpeningTic } from '../lesson-plan/lesson-rules.ts';
 import type { LeadKind } from '../live/tutor-lead.ts';
 import { createAttemptTracker } from './attempts.ts';
 import { BeatTextReader, NAMES_HELP, type WrittenBeatParts } from './beat-text-reader.ts';
@@ -520,7 +520,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
             turn.lostOpeningBeat = true;
             return;
           }
-          const beat = getWrittenBeat(turn.startsAfterNod && turn.beats.length === 0 ? withoutOpeningNod(opening) : opening, `t${turnCount}-b${turn.beats.length}`, turn.refused);
+          const unsignposted = { ...opening, script: opening.script.map((part) => (typeof part === 'string' ? withoutNextSignpost(part) : part)) };
+          const beat = getWrittenBeat(turn.startsAfterNod && turn.beats.length === 0 ? withoutOpeningNod(unsignposted) : unsignposted, `t${turnCount}-b${turn.beats.length}`, turn.refused);
           if (!beat) return;
           turn.hasModelWords = true;
           turn.hasWordsSinceToolResult = true;
