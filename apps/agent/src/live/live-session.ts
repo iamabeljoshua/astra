@@ -12,6 +12,7 @@ import { createMessageGate } from './message-gate.ts';
 import { createSessionLog, isFurtherReport } from './session-log.ts';
 import { createTypedGate } from './typed-gate.ts';
 import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
+import { readStudentWish } from '../lesson-plan/student-wish.ts';
 import { isAboutSafety } from '../tutor/beat-text-reader.ts';
 import type { RecapFacts } from '../recap/recap-facts.ts';
 import { getRecapBeats } from '../recap/recap-rules.ts';
@@ -413,7 +414,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   function checkLead(): void {
     if (isEnding || !tutor.canLead?.() || isTutorTalking() || thought || cut || heldReply) return;
     const nowMs = getNowMs();
-    if (isThinking || !audioRunning || holdGate.isHolding() || state.phase !== 'clear' || state.tutor !== 'silent' || state.isVoiceOn || state.isWaitingOnStudent || hasWords(state.partial) || boardWork.isWriting(leadTimings.afterKeyMs)) return armLead(LEAD_RECHECK_MS);
+    if (isThinking || !audioRunning || holdGate.isHolding() || state.phase !== 'clear' || state.tutor !== 'silent' || state.isVoiceOn || hasWords(state.partial) || boardWork.isWriting(leadTimings.afterKeyMs)) return armLead(LEAD_RECHECK_MS);
     const lead = getLead({ isQuestionOpen, hasOpenTask: boardWork.hasOpenTask(), hasTriedTask: boardWork.hasTriedOpenTask(), unansweredInARow, isPageHidden, quietForMs: nowMs - Math.max(lastStudentSignAtMs, startedAtMs), hasLessonLeft: tutor.hasLessonLeft?.() ?? false, isPaceSlow: tutor.isPaceSlow?.() ?? false }, leadTimings);
     if (!lead) return;
     const leftMs = Math.max(lastSpokeAtMs + lead.afterMs, lastStudentSignAtMs + Math.max(lead.afterMs, leadTimings.firstWordAfterMs)) - nowMs;
@@ -916,6 +917,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (event.type === 'lineFlushed') return onLineFlushed();
       trace(event.type, event.type === 'words' ? { isFinal: event.isFinal, words: event.text.split(/\s+/).length, text: event.text } : {});
       if (event.type === 'voiceStarted') voiceStartedAtMs ??= getNowMs();
+      // "Let me think" keeps the student's turn open and never reaches the model, so the stop is noted here.
+      if (event.type === 'turnDecided' && readStudentWish(event.text) === 'hold') tutor.noteAskedToHold?.();
       if (event.type !== 'words' || hasWords(event.text)) noteStudentSign();
       if (event.type === 'words' && state.tutor === 'speaking' && echo.isEcho(event.text, getNowMs())) {
         trace('echoHeard');

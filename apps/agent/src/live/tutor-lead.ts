@@ -37,13 +37,15 @@ export type LeadStopEvent =
   | 'askedToBeTaught'
   | 'saidSomething'
   | 'workedOnBoard'
-  | 'replyFailed';
+  | 'replyFailed'
+  | 'replyWorked';
 
 export function getLeadStopAfter(stop: LeadStop, event: LeadStopEvent): LeadStop {
   if (event === 'crisis') return 'crisis';
   if (stop === 'crisis') return event === 'askedToBeTaught' ? 'none' : 'crisis';
   if (event === 'askedToStop') return 'asked';
   if (event === 'replyFailed') return stop === 'none' ? 'replyFailed' : stop;
+  if (event === 'replyWorked') return stop === 'replyFailed' ? 'none' : stop;
   return 'none';
 }
 

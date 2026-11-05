@@ -273,7 +273,19 @@ describe('their words stop it', () => {
     expect(brain.canLead()).toBe(false);
   });
 
-  it('holds once the stored "Take your time." has played', async () => {
+  it('goes on past a spoken "okay" between leads', async () => {
+    const { session, type, asked, leadsAsked } = startLesson({ answer: (_words, index) => (index === 0 ? 'Which way does it pull?' : `Gravity keeps pulling, beat ${index}.`), leadTimings: { ...FAST, afterQuestionMs: 100 } });
+    type('teach me rockets');
+    await vi.waitFor(() => expect(asked).toHaveLength(1), { timeout: 2000 });
+    await delay(20);
+    session.onEars({ type: 'voiceStarted' });
+    session.onEars({ type: 'words', text: 'okay', isFinal: true });
+    session.onEars({ type: 'voiceEnded' });
+    session.onEars({ type: 'turnDecided', text: 'okay' });
+    await vi.waitFor(() => expect(leadsAsked()).toBeGreaterThan(0), { timeout: 1000 });
+  });
+
+  it('holds on a spoken "let me think", which never reaches the model', async () => {
     const { session, type, asked, leadsAsked } = startLesson({ answer: (_words, index) => (index === 0 ? 'Which way does it pull?' : `Gravity keeps pulling, beat ${index}.`), leadTimings: { ...FAST, afterQuestionMs: 100 } });
     type('teach me rockets');
     await vi.waitFor(() => expect(asked).toHaveLength(1), { timeout: 2000 });

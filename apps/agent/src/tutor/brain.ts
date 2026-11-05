@@ -1213,6 +1213,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     isAfterSafetyReply = wasSafetyReply || (isAfterSafetyReply && !turn.hasModelWords);
     if (wasSafetyReply) noteLeadStopEvent('crisis');
     if (ENDS_THAT_STOP_A_LEAD.has(turn.endedAs)) noteLeadStopEvent('replyFailed');
+    else if (turn.endedAs === 'ended') noteLeadStopEvent('replyWorked');
     if (!turn.isLead && !memory.openTask && !getOpenTaskOnBoard(getBoardNow()) && promisesToWait(lastSpokenText)) noteLeadStopEvent('askedToStop');
     onTurnEnd?.({
       studentText: turn.studentText,
