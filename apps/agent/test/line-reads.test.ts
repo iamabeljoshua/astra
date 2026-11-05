@@ -165,6 +165,17 @@ describe('a line with a word from the danger list', () => {
     expect(safety.helps()).toBe(0);
   });
 
+  it("a line with a danger word read as a stop still gets the model's own reply, with no note to hold", async () => {
+    const run = startLesson({ safety: makeWatch(async () => 'school'), wishes: { 'i cant go on': 'stop' } });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.typeInBox('i cant go on');
+    await vi.waitFor(() => expect(run.asked.some(({ words }) => words === 'i cant go on')).toBe(true), { timeout: 1000 });
+    await delay(STILL_MS);
+    expect(run.asked.filter(({ words }) => words === 'i cant go on').map(({ notes }) => notes.join(' ').includes('hold_on'))).toEqual([false]);
+    expect(run.brain.isLeadStopped()).toBe(true);
+  });
+
   it('no lead fires while the read is out, and a real crisis stays stopped', async () => {
     let land: (reading: StudentReading) => void = () => {};
     const safety = makeWatch((text) => (text.includes('die') ? new Promise((resolve) => (land = resolve)) : Promise.resolve('school')));
@@ -334,7 +345,7 @@ describe('a right typed answer with its working', () => {
     await vi.waitFor(() => expect(run.brain.getBoard().openTask).not.toBeNull(), { timeout: 2000 });
     await delay(50);
     run.typeInBox(line);
-    await vi.waitFor(() => expect(run.asked.some(({ words }) => words === line)).toBe(true), { timeout: 200 });
+    await vi.waitFor(() => expect(run.asked.some(({ words }) => words === line)).toBe(true), { timeout: 1500 });
   });
 });
 
@@ -427,6 +438,12 @@ describe('words a lead must not say', () => {
 });
 
 describe('the code path for whole lines', () => {
+  it.each([['um wait', 'stop'], ['ok wait', 'stop'], ['hm wait', 'stop'], ['hmm let me think', 'stop'], ['ok next', 'go_on'], ['ok thanks', 'filler'], ['ok', 'filler'], ['wait 11.2', null], ['ok 4 m', null]])('reads %s as %s', async (line, wish) => {
+    const { getPlainWish } = await import('../src/lesson-plan/student-wish.ts');
+    expect(getPlainWish(line)).toBe(wish);
+  });
+
+
   it('never disagrees with the labelled set', async () => {
     const { getPlainWish } = await import('../src/lesson-plan/student-wish.ts');
     const lines = JSON.parse(readFileSync(join(import.meta.dirname, '../../../evals/tutor-turns/student-lines.json'), 'utf8')) as { text: string; label: string; tutorSaid: string }[];

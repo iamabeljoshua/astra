@@ -806,8 +806,9 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     settleLinesInOrder(turn);
   };
 
-  const getWishEnd = ({ lineWish, isAskedToHold, wasHeldAtStart }: TurnWork): 'readAsHold' | 'readAsNothing' | null => {
-    if (lineWish === 'pending') return null;
+  // Words on the danger list get the model's own reply, because a read of school talk can be wrong on "i cant go on", and being told to hold would answer it in two words.
+  const getWishEnd = ({ lineWish, isAskedToHold, wasHeldAtStart, studentText }: TurnWork): 'readAsHold' | 'readAsNothing' | null => {
+    if (lineWish === 'pending' || MAY_BE_ABOUT_SAFETY.test(studentText)) return null;
     if (isHoldWish(lineWish) && !isAskedToHold) return 'readAsHold';
     return lineWish === 'filler' && wasHeldAtStart ? 'readAsNothing' : null;
   };

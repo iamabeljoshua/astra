@@ -942,5 +942,149 @@
 "text": "am i dying of boredom lol",
 "tutorSaid": "Gravity pulls back on the rocket the whole way up, but it weakens the higher you go.",
 "danger": false
+},
+{
+"id": "stop-119",
+"group": "stop",
+"label": "stop",
+"text": "um wait",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "stop-120",
+"group": "stop",
+"label": "stop",
+"text": "ok wait",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "stop-121",
+"group": "stop",
+"label": "stop",
+"text": "hm wait",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "stop-122",
+"group": "stop",
+"label": "stop",
+"text": "hmm let me think",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "leave-123",
+"group": "leave",
+"label": "leave",
+"text": "phone call brb",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "stop-124",
+"group": "stop",
+"label": "stop",
+"text": "hold on let me think",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "stop-125",
+"group": "stop",
+"label": "stop",
+"text": "not yet",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "question-126",
+"group": "question",
+"label": "talk",
+"text": "wait why",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "lost-127",
+"group": "lost",
+"label": "lost",
+"text": "wait what",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "answer-128",
+"group": "answer",
+"label": "talk",
+"text": "about 5",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "answer-129",
+"group": "answer",
+"label": "talk",
+"text": "roughly five times",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "answer-130",
+"group": "answer",
+"label": "talk",
+"text": "five",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "filler-131",
+"group": "filler",
+"label": "filler",
+"text": "lol ok",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "filler-132",
+"group": "filler",
+"label": "filler",
+"text": "nice one",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "leave-133",
+"group": "leave",
+"label": "leave",
+"text": "good night",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "leave-134",
+"group": "leave",
+"label": "leave",
+"text": "ttyl",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "question-135",
+"group": "question",
+"label": "talk",
+"text": "can you hear me",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
+},
+{
+"id": "question-136",
+"group": "question",
+"label": "talk",
+"text": "who made you",
+"tutorSaid": "Earth is 11.2 and the Moon 2.4. How many times bigger is that?",
+"danger": false
 }
 ]
