@@ -45,5 +45,10 @@
 {"text":"Good, that works. Is it clear why the tank drops away?","promises":false},
 {"text":"The crew were not hurt when the seal failed.","promises":false},
 {"text":"Not sure what \"mo fe ku\" means. Did you mean to type something else?","promises":true},
-{"text":"Sorry, that didn't come through. Try again?","promises":true}
+{"text":"Sorry, that didn't come through. Try again?","promises":true},
+{"text":"Siwezi tena maana yake nini?","promises":true},
+{"text":"Что ты имеешь в виду, говоря «не могу»?","promises":true},
+{"text":"What do you mean by that?","promises":true},
+{"text":"What does escape speed really mean?","promises":false},
+{"text":"What do you think that number means for the rocket?","promises":false}
 ]
