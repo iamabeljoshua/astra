@@ -23,7 +23,6 @@ export interface LessonPlanner {
   tellTitleAgain(): void;
   getStepNote(): StepNote | null;
   moveToNextStep(): void;
-  /** A read of their line says they want to be taught on, in whatever words or language. */
   noteTeachingWanted(): void;
   takeNewClaims(): readonly string[] | null;
   /** Settles when no plan is on its way, for an evaluation that reads the next step straight after. */

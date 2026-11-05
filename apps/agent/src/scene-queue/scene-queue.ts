@@ -249,7 +249,6 @@ export function createSceneQueue({ scenes, readLibrary, getFacts, canPlay, moveT
     noteSafetyReply: () => stopForGood(),
     noteTutorReply({ wasLead = false, spokenText, refusalCategory }) {
       isReplying = false;
-      // Nobody spoke before a lead, so "an adult you trust" there is the lesson's own line.
       const wasAboutSafety = !wasLead && (SAFETY_REPLY.test(spokenText) || (refusalCategory !== null && !PLAIN_REFUSALS.has(refusalCategory)));
       if (getFacts().isOverLimit || wasAboutSafety) return stopForGood();
       if (isStopped || isHeld) return;

@@ -15,11 +15,10 @@ const WISH_OF_LINE: ReadonlyMap<string, LineWish> = new Map(Object.entries(WHOLE
 
 const toPlainLine = (words: string) => words.toLowerCase().replace(/[.,!?'’…]/g, '').replace(/\s+/g, ' ').trim();
 
-/** Only what code reads exactly: a whole line on this list, or a line of pure math. Everything else waits for a read. `run-line-reads.ts` holds the numbers that chose this. */
 export function getPlainWish(words: string): LineWish | null {
   const known = WISH_OF_LINE.get(toPlainLine(words));
   if (known) return known;
   return readLine(words).kind === 'math' ? 'talk' : null;
 }
 
-export const isHoldWish = (wish: LineWish | null | undefined) => wish === 'stop' || wish === 'leave' || wish === 'lost';
+export const isHoldWish = (wish: string | null) => wish === 'stop' || wish === 'leave' || wish === 'lost';

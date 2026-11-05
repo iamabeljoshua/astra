@@ -269,9 +269,9 @@ export function makeTutorBrain({ roomName, jobId, trace, showSafetyHelp, onSessi
     caps.addTurn({ usd: reading.costUsd, voiceCharacters: 0 });
     return reading;
   };
-  // One small read as the room ends, so a student who taught right up to the session's limit still gets their recap. A day that is spent gets none.
+  const isDaySpent = () => caps.getSpendLimit() === 'dailyLimit';
   const writeRecap = async (facts: RecapFacts) => {
-    if (caps.getSpendLimit() === 'dailyLimit') return null;
+    if (isDaySpent()) return null;
     const { recap, costUsd } = await writeLessonRecap(wordsModel, { ...facts, movedTo });
     caps.addTurn({ usd: costUsd, voiceCharacters: recap ? getRecapLines(recap).join(' ').length : 0 });
     return recap;

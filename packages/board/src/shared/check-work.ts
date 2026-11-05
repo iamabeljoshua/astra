@@ -7,8 +7,7 @@ export interface CheckedWork {
   reading?: LineReading;
   verdict: WorkVerdict;
   closesTask?: ElementId;
-  /** A sum worked through to a number that does not contradict the problem, so the student has said their answer. */
-  isWorkedThrough?: boolean;
+  isWorkedSumNotWrong?: boolean;
 }
 
 export interface WorkContext {
@@ -60,7 +59,7 @@ function checkMathLineOfWork(tex: string, { task, getLineTex: getTex, previousTe
   const answered = task?.way === 'write' || task?.way === 'pick' ? task : null;
   const sumAnswer = verdict.status === 'right' && problemLine !== undefined ? getWorkedSumAnswer(tex) : null;
   const sumVerdict = sumAnswer === null ? null : checkStep({ tex: sumAnswer, problemTex, previousTex }).status;
-  return { verdict, ...(sumVerdict !== null && sumVerdict !== 'wrong' ? { isWorkedThrough: true } : {}), ...closes(answered, verdict.status === 'right' && problemTex !== null && (isFinishedAnswer(tex) || isBareAnswer(tex) || sumVerdict === 'right')) };
+  return { verdict, ...(sumVerdict !== null && sumVerdict !== 'wrong' ? { isWorkedSumNotWrong: true } : {}), ...closes(answered, verdict.status === 'right' && problemTex !== null && (isFinishedAnswer(tex) || isBareAnswer(tex) || sumVerdict === 'right')) };
 }
 
 // An old words question must not hold later math as words, and a line that is only math is math.

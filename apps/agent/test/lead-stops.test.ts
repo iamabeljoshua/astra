@@ -62,7 +62,7 @@ function makeModel(answer: (words: string, index: number) => string, latencyMs =
 
 const makePlanner = (fields: Record<string, unknown> = {}) => createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {}, ...fields });
 const HOLD_LINES: readonly string[] = ['hold on let me think for a minute', 'please dont go on', 'dont teach me more', 'i dont want you to carry on', 'stop, dont keep going', 'dont move on yet i dont get it', 'brb gimme a bit'];
-const fakeReaders = { readLine: async (line: string): Promise<LineWish> => (HOLD_LINES.includes(line) ? 'stop' : 'talk'), readPromise: async () => false };
+const fakeReaders = { readLine: async (line: string): Promise<LineWish> => (HOLD_LINES.includes(line) ? 'stop' : 'talk'), readPromise: async () => 'continues' as const };
 const LESSON = { topic: 'Rockets', kind: 'teachFirst' as const, steps: Array.from({ length: 8 }, (_, index) => ({ teach: `idea ${index}`, exercise: `work out ${index} plus 1` })) };
 
 const makeWatch = (read: (text: string) => Promise<StudentReading>): SafetyWatch & { reads: string[] } => {
@@ -193,7 +193,7 @@ describe('a lead is never the student', () => {
   it('reads a student who types brackets, whatever they look like', async () => {
     const safety = makeWatch(async () => 'none');
     const { model } = makeModel(() => 'Gravity keeps pulling.');
-    const brain = createTutorBrain({ model, timeouts: QUICK, safety, readers: { readLine: async (line) => (line === '(stop talking)' ? 'stop' : 'talk'), readPromise: async () => false } });
+    const brain = createTutorBrain({ model, timeouts: QUICK, safety, readers: { readLine: async (line) => (line === '(stop talking)' ? 'stop' : 'talk'), readPromise: async () => 'continues' as const } });
     await say(brain, '(picked i want to die)');
     await say(brain, '(has paused)');
     expect(safety.reads).toEqual(['(picked i want to die)', '(has paused)']);
@@ -284,7 +284,7 @@ describe('their words stop it', () => {
 
   it('holds the reply until the read lands, and answers a stop in another language as a stop', async () => {
     let landRead: (wish: LineWish) => void = () => {};
-    const readers = { readLine: (line: string) => (line === 'para por favor' ? new Promise<LineWish>((resolve) => (landRead = resolve)) : Promise.resolve<LineWish>('talk')), readPromise: async () => false };
+    const readers = { readLine: (line: string) => (line === 'para por favor' ? new Promise<LineWish>((resolve) => (landRead = resolve)) : Promise.resolve<LineWish>('talk')), readPromise: async () => 'continues' as const };
     const { asked, type, leadsAsked, brain } = startLesson({ latencyMs: 20, brain: { readers, timeouts: { ...QUICK, lineReadWaitMs: 2000 } } });
     type('teach me rockets');
     await vi.waitFor(() => expect(leadsAsked()).toBeGreaterThan(0), { timeout: 1000 });
@@ -302,7 +302,7 @@ describe('their words stop it', () => {
 
   it('asks for the idea again when they are lost, and tells them to wait with no words of danger', async () => {
     const { model, asked } = makeModel(() => 'Think of it this way.');
-    const brain = createTutorBrain({ model, timeouts: QUICK, readers: { readLine: async (line) => (line.includes('dont get it') ? 'lost' : 'talk'), readPromise: async () => false } });
+    const brain = createTutorBrain({ model, timeouts: QUICK, readers: { readLine: async (line) => (line.includes('dont get it') ? 'lost' : 'talk'), readPromise: async () => 'continues' as const } });
     await say(brain, 'dont move on yet i dont get it');
     expect(asked.at(-1)?.notes.join(' ')).toContain('again');
     expect(brain.canLead()).toBe(false);

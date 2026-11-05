@@ -779,6 +779,16 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     wasLastCutWordless = false;
   };
 
+  const canOpeningLineSpeak = (text: string) => {
+    openingLine ??= text;
+    if (tutor.isLeadStopped?.()) {
+      messenger.send({ type: 'heard' });
+      return false;
+    }
+    pageLine = text;
+    return true;
+  };
+
   const takesPageLine = (text: string) => {
     const isPageLine = text === pageLine;
     if (isPageLine) pageLine = null;
@@ -864,7 +874,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const dispatchAll = (events: TurnEvent[]) => events.forEach(dispatch);
 
   tutor.onLeadStopped?.(stopRunningLead);
-  tutor.onLineRead?.(() => armLead(0));
+  tutor.onReadSettled?.(() => armLead(0));
 
   const onHoldStarted = (clockId: string) => {
     hasEverHeld = true;
@@ -961,12 +971,8 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (message.type === 'typed') {
         noteSomethingHappened();
         boardWork.noteLineSent();
-        if (message.isOpening) {
-          openingLine ??= message.text;
-          // A reload sends this line again, and it is the page's own: it must not end a stop or start a reply over one.
-          if (tutor.isLeadStopped?.()) return messenger.send({ type: 'heard' });
-          pageLine = message.text;
-        } else log.write(message);
+        if (!message.isOpening) log.write(message);
+        else if (!canOpeningLineSpeak(message.text)) return;
         return typedGate.offer(message.text);
       }
       if (message.type === 'played') return onReport(message);

@@ -12,7 +12,7 @@ import { isSafetyKind } from '../../safety/student-reading.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
 import { TUTOR_PROMPT } from '../prompt.ts';
 import { MAY_BE_ABOUT_SAFETY } from '../safety-words.ts';
-import { LINE_READ_RULES, TUTOR_PROMISE_RULES, toLineReadMessage, toLineWish, toPromise } from '../line-read/read-line.ts';
+import { LINE_READ_RULES, type PromiseRead, TUTOR_PROMISE_RULES, toLineRead, toLineReadMessage, toPromiseRead } from '../line-read/read-line.ts';
 
 interface Line {
   id: string;
@@ -53,21 +53,24 @@ const haikuRows: Row[] = [];
 await inParallel(lines.flatMap((line) => Array.from({ length: Number(args.reps) }, (_, rep) => ({ line, rep }))), async ({ line, rep }) => {
   const startedAt = performance.now();
   const answer = await readWord(LINE_READ_RULES, toLineReadMessage(line.text, line.tutorSaid));
-  haikuRows.push({ line, rep, ms: performance.now() - startedAt, read: toLineWish(answer) ?? 'failed' });
+  haikuRows.push({ line, rep, ms: performance.now() - startedAt, read: toLineRead(answer) });
 });
 const safetyRows: { line: Line; read: string; ms: number }[] = [];
-// Through the watch and after a line of school talk, as a running lesson reads it, because the watch excuses `vague` there and asks the narrower second question.
-await inParallel(lines, async (line) => {
+const makeWatchInSchoolTalk = async () => {
   const watch = createSafetyWatch({ check: safety, addFlag: async () => {}, showHelp: () => {}, trace: () => {} });
   await watch.readStudent("I'd like to learn about rockets", '');
+  return watch;
+};
+await inParallel(lines, async (line) => {
+  const watch = await makeWatchInSchoolTalk();
   const startedAt = performance.now();
   const read = await watch.readStudent(line.text, line.tutorSaid);
   safetyRows.push({ line, read, ms: performance.now() - startedAt });
 });
-const promiseRows: { row: (typeof promises)[number]; read: boolean | null; ms: number }[] = [];
+const promiseRows: { row: (typeof promises)[number]; read: PromiseRead; ms: number }[] = [];
 await inParallel(promises, async (row) => {
   const startedAt = performance.now();
-  promiseRows.push({ row, read: toPromise(await readWord(TUTOR_PROMISE_RULES, row.text)), ms: performance.now() - startedAt });
+  promiseRows.push({ row, read: toPromiseRead(await readWord(TUTOR_PROMISE_RULES, row.text)), ms: performance.now() - startedAt });
 });
 const tutorRows: Row[] = [];
 const readTag = async (line: Line) => {
@@ -139,7 +142,7 @@ for (const { line, read } of readMissed) console.log(`  MISS ${JSON.stringify(li
 for (const { line, read } of readFalse) console.log(`  FALSE ${JSON.stringify(line.text)} read ${read}`);
 
 const listPromises = promises.filter((row) => promisesToWait(row.text) !== row.promises);
-const readPromises = promiseRows.filter(({ row, read }) => read !== row.promises);
+const readPromises = promiseRows.filter(({ row, read }) => read !== (row.promises ? 'waits' : 'continues'));
 console.log(`\nTutor promises: word list wrong on ${listPromises.length} of ${promises.length}, Haiku wrong on ${readPromises.length} of ${promises.length}, p50 ${Math.round(getPercentile(promiseRows.map(({ ms }) => ms), 0.5))} ms`);
 for (const { text, promises: says } of listPromises) console.log(`  LIST ${says ? 'MISS' : 'FALSE'} ${JSON.stringify(text)}`);
 for (const { row, read } of readPromises) console.log(`  READ ${row.promises ? 'MISS' : 'FALSE'} ${JSON.stringify(row.text)} read ${read}`);

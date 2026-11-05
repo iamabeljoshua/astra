@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { isAnswerWithUnit } from '@astra/board/shared';
 import { initializeLogger, tts } from '@livekit/agents';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createLessonPlanner } from '../src/lesson-plan/lesson-planner.ts';
@@ -59,7 +60,7 @@ function makeModel(answer: (words: string, index: number) => string | null) {
 
 const makeWatch = (read: (text: string) => Promise<StudentReading>): SafetyWatch & { helps: () => number } => {
   let shown = 0;
-  return { helps: () => shown, readStudent: read, noteTurnEnd: () => {}, showHelp: () => void (shown += 1), showHelpAgain: () => void (shown += 1), readSession: async () => 'none', flush: async () => {} };
+  return { helps: () => shown, readStudent: read, noteTurnEnd: () => {}, showHelp: () => void (shown += 1), showHelpIfRaised: () => void (shown += 1), readSession: async () => 'none', flush: async () => {} };
 };
 
 const LESSON = { topic: 'Rockets', kind: 'teachFirst' as const, steps: Array.from({ length: 8 }, (_, index) => ({ teach: `idea ${index}`, exercise: `work out ${index} plus 1` })) };
@@ -72,7 +73,6 @@ afterEach(async () => {
 
 type Wishes = Record<string, string>;
 
-// The fake read knows only the lines a test names, as a real read would answer them, and the page's box sends what the real one sends.
 function startLesson({ answer = (_words: string, index: number) => `Gravity keeps pulling, beat ${index}.`, wishes = {}, safety, promises = () => false, readMeaning, getNowMs }: { getNowMs?: () => number; answer?: (words: string, index: number) => string | null; wishes?: Wishes; safety?: SafetyWatch; promises?: (spoken: string) => boolean; readMeaning?: (words: string) => Promise<'needsAPerson' | null> } = {}) {
   const { model, asked } = makeModel(answer);
   const planner = createLessonPlanner({ ask: async () => ({ move: { move: 'stay' }, costUsd: 0 }), canSpend: () => true, charge: () => {}, onTitleChange: () => {}, trace: () => {} });
@@ -83,7 +83,7 @@ function startLesson({ answer = (_words: string, index: number) => `Gravity keep
       lineReads.push(line);
       return (wishes[line] ?? 'talk') as never;
     },
-    readPromise: async (spoken: string) => promises(spoken),
+    readPromise: async (spoken: string) => (promises(spoken) ? ('waits' as const) : ('continues' as const)),
   };
   const decided: { name: string; fields: Record<string, unknown> }[] = [];
   const trace = (name: string, fields: Record<string, unknown> = {}) => void decided.push({ name, fields });
@@ -209,6 +209,41 @@ describe('an unsent draft read as danger', () => {
   });
 });
 
+describe('a reply beside a line that read as ordinary', () => {
+  it('names an emergency number in a lesson, and the lesson goes on', async () => {
+    const safety = makeWatch(async () => 'school');
+    const run = startLesson({ safety, answer: (words, index) => (words === 'what do i do if a fire starts' ? 'Leave the room and call your local emergency number.' : `Gravity keeps pulling, beat ${index}.`) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    const before = run.leadsAsked();
+    run.typeInBox('what do i do if a fire starts');
+    await vi.waitFor(() => expect(run.leadsAsked()).toBeGreaterThan(before), { timeout: 3000 });
+  });
+
+  it('asks whether they are alright, and waits for them', async () => {
+    const safety = makeWatch(async () => 'school');
+    const run = startLesson({ safety, answer: (words, index) => (words === 'i hate this' ? 'Is everything okay? If anything is worrying you, tell an adult you trust.' : `Gravity keeps pulling, beat ${index}.`) });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    expect(await leadsAfter(run, () => run.typeInBox('i hate this'))).toBe(0);
+    expect(run.brain.isLeadStopped()).toBe(true);
+  });
+});
+
+describe('a line code writes about the board', () => {
+  it('holds a board word from the danger list and is not a failed read', async () => {
+    const safety = makeWatch(async () => 'school');
+    const run = startLesson({ safety });
+    run.type('teach me rockets');
+    await run.waitForLead();
+    run.decided.length = 0;
+    await run.session.onBrowser({ type: 'worked', ...STAMP, work: { way: 'pick', part: 'hits' } } as never);
+    await delay(STILL_MS);
+    expect(run.decided.filter(({ name, fields }) => name === 'lineSpoken' && fields.use === 'waitingAfterFailedRead')).toEqual([]);
+    expect(run.brain.isLeadStopped()).toBe(false);
+  });
+});
+
 describe('a plain answer that opens on a stop word', () => {
   it.each(['enough speed to escape', 'a second stage', 'a bit more than eleven', 'a minute', 'no more fuel', 'stop the engines', 'wait 11.2', 'one sec i think its 4.67'])('%s gets an answer and the lesson goes on', async (line) => {
     const run = startLesson();
@@ -286,6 +321,10 @@ describe('what the page writes is not the student', () => {
     run.session.onBrowser({ type: 'hello', ...STAMP, clockId: 'second' } as never);
     expect(safety.helps()).toBeGreaterThan(shown);
   });
+});
+
+describe('an answer with a spelled unit', () => {
+  it.each([['20m/s^{2}', true], ['a=20m/s^{2}', true], ['5km', true], ['2x', false], ['5m', false], ['y=2x', false]])('%s reads as %s', (tex, reads) => expect(isAnswerWithUnit(tex)).toBe(reads));
 });
 
 describe('a right typed answer with its working', () => {

@@ -34,7 +34,6 @@ interface Unanswered {
 const MOST_STROKES_HELD = 400;
 const MOST_INK_READS = 300;
 const MOST_DRAFT_READS = 60;
-/** A draft left this long with no change was forgotten, or is being thought over, and either way the lesson goes on. A key stops it again. */
 const DRAFT_HOLDS_FOR_MS = 60_000;
 const HOLD_WHILE_TYPING_MS = 1200;
 const HOLD_LOOKS_EVERY_MS = 50;
@@ -143,7 +142,6 @@ export function createBoardWork({ tutor, writeLog, speakUp, speakUpAsCode = spea
       else speakUpAsCode(getWorkWords(message.work));
     } else {
       unanswered = { checked, keys: wrongKeys };
-      // "wait" or "let me think" in the box asks for quiet and needs no answer.
       if (message.work.way === 'write' && isHoldWish(getPlainWish(message.work.text))) tutor.holdLeads?.();
     }
   };
