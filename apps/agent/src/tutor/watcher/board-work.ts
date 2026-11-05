@@ -7,6 +7,9 @@ import { decideSpoken, type SpokenDecision, type SpokenExpected, type SpokenPart
 import type { TutorBrain } from '../brain.ts';
 import { decideOnReading, decideOnWork, decideWatch, getGate, getWorkWords, type WatchDecision, type WatchSituation, type WordMeaning, decideOnSpokenWork } from './watch-rule.ts';
 
+/** What the tutor is handed when it speaks up on a silence. The student said nothing. */
+export const WATCHER_WORDS = '(has paused)';
+
 export interface BoardWorkOptions {
   tutor: Pick<TutorBrain, 'noteWork' | 'noteWatcher' | 'getBoard'>;
   writeLog(message: BrowserMessage & { type: 'worked' }, checked: CheckedWork): void;
@@ -220,7 +223,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, getS
     noteAnswered();
     tutor.noteWatcher?.({ why: decision.why, seconds_paused: seconds, ...(draftText ? { unsent_draft: cleanStudentText(draftText) } : {}) });
     trace('watcherSpoke', { why: decision.why, seconds });
-    speakUp('(has paused)');
+    speakUp(WATCHER_WORDS);
   };
 
   const onPaused = async ({ seconds, draft }: BrowserMessage & { type: 'paused' }) => {

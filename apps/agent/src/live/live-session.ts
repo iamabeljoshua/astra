@@ -17,7 +17,7 @@ import type { RecapFacts } from '../recap/recap-facts.ts';
 import { getRecapBeats } from '../recap/recap-rules.ts';
 import { getSessionEnding } from '../recap/write-recap.ts';
 import type { TutorBeat, TutorBrain, TutorRequest } from '../tutor/brain.ts';
-import { createBoardWork } from '../tutor/watcher/board-work.ts';
+import { createBoardWork, WATCHER_WORDS } from '../tutor/watcher/board-work.ts';
 import type { HeardTurn, RecordTurn } from './heard-recorder.ts';
 import type { SpokenReading } from '../tutor/watcher/read-spoken.ts';
 import type { SpokenExpected } from '../tutor/watcher/spoken-answer.ts';
@@ -730,7 +730,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       case 'reply':
         noteCutSettled(getWords(action.text).length - getWords(action.carried).length <= MOST_WORDS_IN_NOISE);
         trace('replyDecided', { via: action.via, words: action.text.split(/\s+/).length, text: action.text });
-        onStudentTurn?.();
+        if (action.text !== WATCHER_WORDS) onStudentTurn?.();
         if (action.via === 'final' || action.via === 'partial') noteStudentSaid(action.text.slice(action.carried.length).trim());
         // A closed tutor has nothing new to say, and the limit line a hold cut may be the only help this student hears.
         if (cut && tutor.getClosedReason?.()) return void resume();
