@@ -217,7 +217,7 @@ Goals are the codes `class`, `exam`, and `curiosity`, which `getPicksForStudent`
 
 ## Talk with the tutor
 
-A session's screen has a **Talk** button and a reply box. The screen joins the session's room as it opens, on a new session or one you come back to, and the tutor speaks first with no press. The microphone stays off until you press **Talk**. A stored reaction from code plays first, and then the tutor answers with Sonnet 5.5 in short spoken sentences, with math on its words on the board. If you do nothing for 8 s after the tutor stops, the page says you can press **Talk** or type, and the tutor does not say it aloud.
+A session's screen has a **Talk** button and a reply box. The screen joins the session's room as it opens, on a new session or one you come back to, and the tutor speaks first with no press. The microphone stays off until you press **Talk**. Holding **Talk**, or holding Space when focus is not in a text field, opens the microphone only while held, for a noisy room. A stored reaction from code plays first, and then the tutor answers with Sonnet 5.5 in short spoken sentences, with math on its words on the board. In a student's first session the tutor says once, after its first answer, that they can talk. If you do nothing for 8 s after the tutor stops, the page says you can press **Talk** or type, and the tutor does not say that aloud.
 
 To run it, give the API and the agent the same LiveKit project, then start the agent beside `pnpm dev`.
 
@@ -249,6 +249,8 @@ pnpm agent
 | `ASTRA_SPEND_FILE`, `ASTRA_SPEND_LIMIT_USD` | Agent | Adds each turn's real cost to a file, and past the limit, $8 by default, the tutor says it cannot reply. |
 | `ASTRA_TUTOR_SCENES=1` | Agent | Lets the tutor ask for ManimGX scenes in a session. Needs `SCENE_STORE_DIR`, the same on the API, the scene worker's image, and `VITE_TUTOR_SCENES=1` on the web build. Off, a session never mentions a picture and fetches no engine. See `docs/tests/scenes.md`. |
 | `ASTRA_SCENE_SESSION_LIMIT_USD` | Agent | What new scenes may cost in one session, $0.80 by default. Scene spending counts toward the student's day, and it never closes the tutor. |
+| `ASTRA_SCENES_AHEAD=0` | Agent | Stops the queue that gets the next idea's scene ready. It runs whenever `ASTRA_TUTOR_SCENES=1` is on, under the rule in `docs/tests/lesson-flow.md`. |
+| `ASTRA_SCENES_AHEAD_LOAD_PER_CORE` | Agent | The load per core above which the queue prepares nothing, 1.5 by default. |
 | `ASTRA_VOICE_TRACE=<folder>` | Agent | Writes each session's timings there, with no words. `ASTRA_VOICE_TRACE_WORDS=1` adds the words, for test speech only. |
 | `ASTRA_QUIET_LIMIT_MS=<ms>` | Agent | Replaces the 10 minutes a quiet room lasts, for a test. |
 

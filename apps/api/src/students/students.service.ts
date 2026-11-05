@@ -101,6 +101,14 @@ export class StudentsService {
     }
   }
 
+  hasBeenInvitedToTalk(studentId: string): Promise<boolean> {
+    return this.students.hasBeenInvitedToTalk(studentId);
+  }
+
+  noteInvitedToTalk(studentId: string): Promise<void> {
+    return this.students.noteInvitedToTalk(studentId);
+  }
+
   findStudentId(authUserId: string): Promise<string | null> {
     return this.students.findOpenStudentId(authUserId);
   }

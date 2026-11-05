@@ -3,7 +3,7 @@ import { DEFAULT_API_CONNECT_OPTIONS, stt } from '@livekit/agents';
 import * as meta from '@livekit/agents-plugin-meta';
 import { AudioFrame } from '@livekit/rtc-node';
 import { WebSocket } from 'ws';
-import type { TranscriberAdapter } from './types.ts';
+import type { LineTranscriber, TranscriberAdapter } from './types.ts';
 
 /** Meta's designation policy lists this name as a Standard Model, so using it is Standard Services, which do not train on content. Pinned, because Contributor Services do. */
 export const MUSE_MODEL = 'muse-voice-transcribe-1.0';
@@ -17,6 +17,10 @@ export interface MuseTimings {
   padAfterMs: number;
   /** With no frames for this long the microphone is off or the link is gone, so the session closes and costs nothing. It outlasts LiveKit's own retries of 3 to 5 s, and comes before Muse's own close at about 16 s, so the session ends on our word. */
   closeAfterQuietMs: number;
+  /** Keeps the next hold off a new handshake of 1.2 to 2.3 s. At $0.18 an hour, the silence costs at most $0.003 a line. */
+  closeAfterLineMs: number;
+  /** Audio took about 143 ms longer than a data message from agent to page, and by inference the other way, so the end of a line waits for it. */
+  lineTailMs: number;
   /** Muse caps a session at 60 minutes and the plugin only reports the close, so a new session opens before that. */
   rotateAtPauseAfterMs: number;
   rotateAnywayAfterMs: number;
@@ -24,7 +28,7 @@ export interface MuseTimings {
   longestRetryMs: number;
 }
 
-export const MUSE_TIMINGS: MuseTimings = { padAfterMs: 400, closeAfterQuietMs: 10_000, rotateAtPauseAfterMs: 50 * 60_000, rotateAnywayAfterMs: 55 * 60_000, retryAfterMs: 500, longestRetryMs: 30_000 };
+export const MUSE_TIMINGS: MuseTimings = { padAfterMs: 400, closeAfterQuietMs: 10_000, closeAfterLineMs: 60_000, lineTailMs: 200, rotateAtPauseAfterMs: 50 * 60_000, rotateAnywayAfterMs: 55 * 60_000, retryAfterMs: 500, longestRetryMs: 30_000 };
 
 export interface MuseOptions {
   apiKey: string;
@@ -33,7 +37,7 @@ export interface MuseOptions {
   onNote?(note: MuseNote): void;
 }
 
-export type MuseNote = { kind: 'opened'; atMs: number } | { kind: 'ready'; handshakeMs: number } | { kind: 'hearing' } | { kind: 'firstEvent'; openMs: number } | { kind: 'closed'; reason: string };
+export type MuseNote = { kind: 'opened'; atMs: number } | { kind: 'ready'; handshakeMs: number } | { kind: 'hearing' } | { kind: 'firstEvent'; openMs: number } | { kind: 'closed'; reason: string } | { kind: 'lineFlushed' };
 
 function makeSilence(): AudioFrame {
   return new AudioFrame(new Int16Array(SAMPLES_PER_FRAME), SAMPLE_RATE, 1, SAMPLES_PER_FRAME);
@@ -43,6 +47,7 @@ interface MuseSession {
   stream: stt.SpeechStream;
   openedAtMs: number;
   isReady: boolean;
+  isEndingLine: boolean;
 }
 
 // Holds one live Muse session at a time, opened by the first real frame so a typed session never opens one, and replaced before Muse's cap or after a close.
@@ -60,12 +65,33 @@ class MuseSpeechStream extends stt.SpeechStream {
   #failures = 0;
   #nextOpenAtMs = 0;
   #padTimer: ReturnType<typeof setInterval> | undefined;
+  #lineTailTimer: ReturnType<typeof setTimeout> | undefined;
+  #closeAfterQuietMs: number;
 
   constructor(transcriber: stt.STT, options: { newSession(onReady: () => void): stt.SpeechStream; timings: MuseTimings; onNote?(note: MuseNote): void; connOptions?: APIConnectOptions }) {
     super(transcriber, SAMPLE_RATE, options.connOptions ?? DEFAULT_API_CONNECT_OPTIONS);
     this.#newSession = options.newSession;
     this.#timings = options.timings;
     this.#onNote = options.onNote;
+    this.#closeAfterQuietMs = options.timings.closeAfterQuietMs;
+  }
+
+  // Muse's only word for this is `endStream`, which ends the session, so the next one opens now and stays warm on silence.
+  endLine(): void {
+    clearTimeout(this.#lineTailTimer);
+    this.#lineTailTimer = setTimeout(() => this.#endLineNow(), this.#timings.lineTailMs);
+  }
+
+  #endLineNow(): void {
+    const ending = this.#session;
+    if (!ending) return this.#onNote?.({ kind: 'lineFlushed' });
+    ending.isEndingLine = true;
+    this.#session = this.#nextSession ?? this.#open();
+    this.#nextSession = null;
+    this.#isHearing = false;
+    this.#isSpeaking = false;
+    this.#closeAfterQuietMs = this.#timings.closeAfterLineMs;
+    ending.stream.endInput();
   }
 
   #open(): MuseSession | null {
@@ -74,6 +100,7 @@ class MuseSpeechStream extends stt.SpeechStream {
     const session: MuseSession = {
       openedAtMs,
       isReady: false,
+      isEndingLine: false,
       stream: this.#newSession(() => {
         session.isReady = true;
         this.#onNote?.({ kind: 'ready', handshakeMs: Date.now() - openedAtMs });
@@ -100,6 +127,7 @@ class MuseSpeechStream extends stt.SpeechStream {
       closeReason = String(error);
     }
     this.#onNote?.({ kind: 'closed', reason: closeReason });
+    if (session.isEndingLine) this.#onNote?.({ kind: 'lineFlushed' });
     if (this.#nextSession === session) this.#nextSession = null;
     if (this.#session !== session) return;
     this.#session = null;
@@ -149,7 +177,7 @@ class MuseSpeechStream extends stt.SpeechStream {
     const quietMs = Date.now() - this.#lastFrameAtMs;
     if (quietMs < this.#timings.padAfterMs) return;
     this.#isHearing = false;
-    if (quietMs >= this.#timings.closeAfterQuietMs) this.#closeForQuiet();
+    if (quietMs >= this.#closeAfterQuietMs) this.#closeForQuiet();
     else this.#pushToMuse(makeSilence());
   };
 
@@ -169,6 +197,7 @@ class MuseSpeechStream extends stt.SpeechStream {
 
   override close(): void {
     clearInterval(this.#padTimer);
+    clearTimeout(this.#lineTailTimer);
     this.#session?.stream.close();
     this.#nextSession?.stream.close();
     this.#session = null;
@@ -177,12 +206,13 @@ class MuseSpeechStream extends stt.SpeechStream {
   }
 }
 
-class MuseTranscriber extends stt.STT {
+class MuseTranscriber extends stt.STT implements LineTranscriber {
   label = 'astra.muse';
   readonly #muse: meta.STT;
   readonly #timings: MuseTimings;
   readonly #onNote?: (note: MuseNote) => void;
   #onNextSocketReady: () => void = () => {};
+  #latestStream: MuseSpeechStream | null = null;
 
   constructor({ apiKey, timings, webSocketFactory, onNote }: MuseOptions) {
     super({ streaming: true, interimResults: true, diarization: false, alignedTranscript: false });
@@ -220,7 +250,13 @@ class MuseTranscriber extends stt.STT {
       this.#onNextSocketReady = onReady;
       return this.#muse.stream({ connOptions: { ...DEFAULT_API_CONNECT_OPTIONS, maxRetry: 0 } });
     };
-    return new MuseSpeechStream(this, { newSession, timings: this.#timings, onNote: this.#onNote, connOptions: options?.connOptions });
+    this.#latestStream = new MuseSpeechStream(this, { newSession, timings: this.#timings, onNote: this.#onNote, connOptions: options?.connOptions });
+    return this.#latestStream;
+  }
+
+  endLine(): void {
+    if (this.#latestStream) this.#latestStream.endLine();
+    else this.#onNote?.({ kind: 'lineFlushed' });
   }
 
   override async close(): Promise<void> {

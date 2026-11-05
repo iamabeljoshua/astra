@@ -19,6 +19,11 @@ function getDailyLimitMicroUsd({ ASTRA_DAILY_LIMIT_USD: configured }: NodeJS.Pro
 
 const isOverDailyLimit = (dayTotalMicroUsd: bigint) => dayTotalMicroUsd >= getDailyLimitMicroUsd(process.env);
 
+export interface SpendReply {
+  isOverDailyLimit: boolean;
+  leftTodayUsd: number;
+}
+
 @Injectable()
 export class TutorSpendService {
   constructor(private readonly spends: StudentSpendRepository) {}
@@ -27,8 +32,9 @@ export class TutorSpendService {
     return isOverDailyLimit(await this.spends.findDayTotal(studentId, getUtcDay(new Date())));
   }
 
-  async addSpend(studentId: string, usd: number): Promise<{ isOverDailyLimit: boolean }> {
+  async addSpend(studentId: string, usd: number): Promise<SpendReply> {
     const dayTotalMicroUsd = await this.spends.addToDayTotal({ studentId, spentOn: getUtcDay(new Date()), microUsd: toMicroUsd(usd) });
-    return { isOverDailyLimit: isOverDailyLimit(dayTotalMicroUsd) };
+    const leftMicroUsd = Math.max(getDailyLimitMicroUsd(process.env) - Number(dayTotalMicroUsd), 0);
+    return { isOverDailyLimit: isOverDailyLimit(dayTotalMicroUsd), leftTodayUsd: leftMicroUsd / MICRO_USD_PER_USD };
   }
 }

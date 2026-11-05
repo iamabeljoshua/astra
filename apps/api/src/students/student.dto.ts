@@ -39,6 +39,12 @@ export class AccountResponseDto {
   student!: StudentResponseDto | null;
 }
 
+export class NoteTalkInvitationBodyDto {
+  /** Always true. The tutor told this student they can talk. */
+  @IsIn([true])
+  heard!: true;
+}
+
 export class DeletedAccountResponseDto {
   /** Always true. Anything less answers with an error, and pressing delete again finishes the job. */
   deleted!: true;

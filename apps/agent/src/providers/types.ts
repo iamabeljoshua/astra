@@ -5,9 +5,13 @@ export interface VoiceAdapter {
   makeTts(): tts.TTS;
 }
 
+export interface LineTranscriber extends stt.STT {
+  endLine(): void;
+}
+
 export interface TranscriberAdapter {
   name: string;
-  makeStt(): stt.STT;
+  makeStt(): LineTranscriber;
 }
 
 /** `summary` is the API's compaction block, sent back exactly as it came. */

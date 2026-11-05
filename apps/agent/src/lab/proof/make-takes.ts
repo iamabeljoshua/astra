@@ -23,6 +23,7 @@ const LINES: { id: string; use: TakeUse; phrase: string }[] = [
   { id: 'greeting', use: 'greeting', phrase: 'Welcome, I am Astra, your personal AI tutor.' },
   { id: 'prompt-take-your-time', use: 'prompt', phrase: 'Take your time.' },
   { id: 'voice-lost', use: 'voiceLost', phrase: 'Sorry, I lost my voice for a moment. Say that again?' },
+  { id: 'talk-invitation', use: 'talkInvitation', phrase: 'You can talk to me any time, just press Talk.' },
 ];
 
 const ONLY = process.argv[2];

@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Post, Put } from '
 import { CurrentSignIn, CurrentStudentId, SignedInRoute } from '../auth/route-access';
 import type { SignIn } from '../auth/route-access';
 import { SaveStudentProfileBodyDto } from './student-profile.dto';
-import { AccountResponseDto, AnswerBirthDateBodyDto, DeletedAccountResponseDto } from './student.dto';
+import { AccountResponseDto, AnswerBirthDateBodyDto, DeletedAccountResponseDto, NoteTalkInvitationBodyDto } from './student.dto';
 import { StudentsService } from './students.service';
 
 @Controller('me')
@@ -42,5 +42,15 @@ export class StudentsController {
     @Body() body: SaveStudentProfileBodyDto,
   ): Promise<AccountResponseDto> {
     return this.studentsService.saveProfile(studentId, body);
+  }
+
+  /** Records that the tutor told this student they can talk, so it is not said again. The first answer stands. */
+  @Put('talk-invitation')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async noteTalkInvitation(
+    @CurrentStudentId() studentId: string,
+    @Body() { heard }: NoteTalkInvitationBodyDto,
+  ): Promise<void> {
+    if (heard) await this.studentsService.noteInvitedToTalk(studentId);
   }
 }

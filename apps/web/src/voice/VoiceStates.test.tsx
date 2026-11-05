@@ -12,7 +12,7 @@ vi.mock('../auth/useAccount', () => import('../test/activeAccount'));
 const startLiveVoice = vi.hoisted(() => vi.fn());
 vi.mock('./liveVoice', async (importOriginal) => ({ ...(await importOriginal<typeof import('./liveVoice')>()), startLiveVoice }));
 
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', showsSafetyHelp: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false };
+const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isRoomNoisy: false, showsSafetyHelp: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false };
 
 function makeVoice() {
   let view = BASE_VIEW;
@@ -41,6 +41,11 @@ function makeVoice() {
     reportMarkNotDrawn: vi.fn(),
     reportBoardProblem: vi.fn(),
     toggleMic: vi.fn(async () => {}),
+    isMicOn: () => false,
+    setMic: vi.fn(async () => {}),
+    endLine: vi.fn(),
+    lowerTutor: vi.fn(),
+    tellHoldStarted: vi.fn(),
     sayStillHere: vi.fn(),
     turnOnSound: vi.fn(),
     mark: vi.fn(),
@@ -348,7 +353,7 @@ describe('what the student sees of a room', () => {
       expect(voice.sendTyped).not.toHaveBeenCalledWith('Is it four?');
       await openRoom();
       await vi.waitFor(() => expect(voice.sendTyped).toHaveBeenCalledWith('Is it four?'));
-      await vi.waitFor(() => expect(voice.toggleMic).toHaveBeenCalledOnce());
+      await vi.waitFor(() => expect(voice.setMic).toHaveBeenCalledWith(true));
     });
   });
 
@@ -458,6 +463,16 @@ describe('what the student sees of a room', () => {
       expect(await screen.findByText(RECAP_LABELS.writing)).toBeTruthy();
       expect(screen.queryByRole('button', { name: BOARD_WORK_LABELS.pen })).toBeNull();
       expect(screen.queryByRole('textbox', { name: BOARD_WORK_LABELS.entry })).toBeNull();
+    });
+
+    it('opens no microphone on Space during the recap, because the tutor is no longer listening', async () => {
+      const { voice } = await openAndWatchRequests();
+      pressEnd();
+      await waitFor(() => expect(voice.askForRecap).toHaveBeenCalledOnce());
+      await screen.findByText(RECAP_LABELS.writing);
+      fireEvent.keyDown(document.body, { code: 'Space', key: ' ' });
+      fireEvent.keyUp(document.body, { code: 'Space', key: ' ' });
+      expect(voice.setMic).not.toHaveBeenCalled();
     });
 
     it('shows the recap under its three names, then leaves on Close', async () => {

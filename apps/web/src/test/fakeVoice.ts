@@ -1,11 +1,15 @@
 import { vi } from 'vitest';
 import type { LiveVoice, LiveVoiceView } from '../voice/liveVoice';
 
-const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', showsSafetyHelp: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false };
+const BASE_VIEW: LiveVoiceView = { phase: 'live', mic: 'off', isRoomNoisy: false, showsSafetyHelp: false, isSoundBlocked: false, isQuietWarning: false, isHeard: false, isThinking: false, isTutorSpeaking: false, closedBecause: null, firstWord: null, isStopped: false, typingNoteCount: 0, costUsd: null, sessionTitle: null, startedFresh: false, hasTutorStarted: false, studentLines: [], tutorHeard: [], tutorComing: [], recap: null, isRecapDecided: false };
 
 export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
   let current = { ...BASE_VIEW, ...view };
   const listeners = new Set<() => void>();
+  const setMic = (isOn: boolean) => {
+    current = { ...current, mic: isOn ? 'on' : 'off' };
+    listeners.forEach((listener) => listener());
+  };
   return {
     canAskForRecap: vi.fn(() => false),
     askForRecap: vi.fn(() => false),
@@ -30,10 +34,12 @@ export function makeFakeVoice(view: Partial<LiveVoiceView> = {}): LiveVoice {
     sendPause: vi.fn(),
     stopTutor: vi.fn(),
     getLoudness: () => 0,
-    toggleMic: vi.fn(async () => {
-      current = { ...current, mic: current.mic === 'on' ? 'off' : 'on' };
-      listeners.forEach((listener) => listener());
-    }),
+    toggleMic: vi.fn(async () => setMic(current.mic !== 'on')),
+    isMicOn: () => current.mic === 'on',
+    setMic: vi.fn(async (isOn: boolean) => setMic(isOn)),
+    endLine: vi.fn(() => setMic(false)),
+    lowerTutor: vi.fn(),
+    tellHoldStarted: vi.fn(),
     sayStillHere: vi.fn(),
     sendScene: () => {},
     onSceneMessage: () => () => {},

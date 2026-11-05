@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LiveVoice } from '../voice/liveVoice';
 import { hasDrawableScene, useTutorScene } from './useTutorScene';
 
-const engine = vi.hoisted(() => ({ canPlay: true, load: vi.fn(async () => true), free: vi.fn(), createStage: vi.fn(), askedForDevice: vi.fn() }));
+const engine = vi.hoisted(() => ({ canPlay: true, load: vi.fn(async () => true), prepare: vi.fn(async () => true), free: vi.fn(), createStage: vi.fn(), askedForDevice: vi.fn() }));
 
 vi.mock('./sceneEngine', () => ({
   getCanPlayScenes: async () => {
@@ -16,7 +16,7 @@ vi.mock('./sceneEngine', () => ({
 vi.mock('./sceneStage', () => ({
   createSceneStage: (container: HTMLElement) => {
     engine.createStage(container);
-    return { load: engine.load, free: engine.free, draw: () => {}, canDraw: () => true };
+    return { load: engine.load, prepare: engine.prepare, free: engine.free, draw: () => {}, canDraw: () => true };
   },
 }));
 
@@ -75,6 +75,17 @@ describe('with scenes on', () => {
     expect(engine.load).toHaveBeenCalledWith('slope-1', 5);
   });
 
+  it('holds the next take without touching the one on screen', async () => {
+    const { voice, sent, tell } = makeVoice();
+    renderHook(() => useTutorScene(voice, true));
+    await waitFor(() => expect(sent).toContainEqual({ type: 'sceneDevice', canPlay: true }));
+    engine.load.mockClear();
+    act(() => tell({ type: 'prepareScene', sceneId: 'next-1' }));
+    await waitFor(() => expect(sent).toContainEqual({ type: 'scenePrepared', sceneId: 'next-1' }));
+    expect(engine.prepare).toHaveBeenCalledWith('next-1');
+    expect(engine.load).not.toHaveBeenCalled();
+  });
+
   it('refuses a damaged take, and the session goes on with no word', async () => {
     engine.load.mockResolvedValue(false);
     const { voice, sent, tell } = makeVoice();
@@ -105,7 +116,7 @@ describe('with scenes on', () => {
 describe('whether a scene takes the visual', () => {
   const scene = { id: 'scene-1', content: { kind: 'richScene', sceneId: 'slope-1' } };
   const boardWith = (...elements: { id: string; content: object }[]) => ({ elements: new Map(elements.map((element) => [element.id, element])) }) as unknown as BoardState;
-  const stage = (canDraw: boolean) => ({ load: async () => true, draw: () => {}, free: () => {}, canDraw: () => canDraw });
+  const stage = (canDraw: boolean) => ({ load: async () => true, prepare: async () => true, draw: () => {}, free: () => {}, canDraw: () => canDraw });
 
   it('does once its take can draw', () => {
     expect(hasDrawableScene(boardWith(scene), stage(true))).toBe(true);

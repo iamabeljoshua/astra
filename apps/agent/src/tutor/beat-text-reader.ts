@@ -1,3 +1,4 @@
+import { SAFETY_REPLY } from './safety-words.ts';
 import { BEAT_LIMITS, type Beat, type BoardKinds, getBoardAfter, getBoardProblem, LIVE_MESSAGE_MAX_BYTES, MATH_CLAIMS, parseSceneCommand, type SceneCommand } from '@astra/contracts';
 import { type AttemptReport, parseAttemptReport } from './attempts.ts';
 import { parseToolCall, type ToolCall } from './tools/tool-call.ts';
@@ -15,6 +16,7 @@ const FEWEST_WORDS_BEFORE_A_BREATH = 6;
 /** A sentence that never ends stops here, so a run-on cannot speak for a minute. */
 const TURN_WORDS_TO_CUT = 90;
 const WORDS_FOR_A_LATE_TASK = 'Over to you.';
+const WORDS_FOR_A_LATE_DRAWING = 'Have a look.';
 /** B2 gives a turn's first drawing 1 s from its first word, which is about three words. */
 const DRAWING_GUARD_WORD = 3;
 const FEWEST_WORDS_BEFORE_A_COMMA = 4;
@@ -36,8 +38,14 @@ const ENDS_IN_ABBREVIATION = /(?:^|[\s("'])(?:mr|mrs|ms|dr|prof|st|vs|(?:[a-z]\.
 const ENDS_IN_ELLIPSIS = /\.{2,}["')]*\s*$/;
 /** A sentence can end inside a beat, when the words after a comma were too few to stand alone. */
 const HOLDS_SENTENCE_END = /[a-z][.!]["')]*\s+\S/i;
-/** Words only a safety reply uses, so that reply is never paused, wrapped, or ended at a question. Help must reach the student whole. A lesson can say the second group too, so those count only inside a question. */
-const SAFETY_REPLY = /\bare you (?:okay|ok)\s*\?|\b(?:that sounds[^.?!]*serious|right thing telling me|adult you trust|trusted adult|(?:your|local) emergency (?:number|services)|are you safe)\b|\b(?:feel safe|in danger|hurting yourself|hurt yourself|ending your life|not your fault)\b[^.?!]*\?/i;
+export const CLAIMS_A_DRAWING = /\b(here you go|there you go|here it is|here they are|here'?s|here is|here are|take a look|have a look|look at|see (?:the|this)|on the board|i'?ve (?:drawn|put|written|added)|i (?:drew|put|wrote)|this (?:table|timeline|diagram|picture|drawing|graph|plot|code|painting))\b/i;
+export const KINDS_A_STUDENT_LOOKS_FOR: ReadonlySet<string> = new Set(['table', 'timeline', 'code', 'image', 'drawing', 'diagram', 'plot', 'text', 'simulate']);
+const WRITTEN_KIND = /"kind"\s*:\s*"([A-Za-z]+)"/;
+const HAS_PARTS: ReadonlySet<string> = new Set(['table', 'timeline', 'code', 'drawing', 'diagram']);
+export const NAMES_HELP = /\b(?:adult|emergency)\b/i;
+
+/** A false match costs only a line of chat, so this leans toward counting a lesson that says "adult". */
+export const isAboutSafety = (words: string) => SAFETY_REPLY.test(words) || NAMES_HELP.test(words);
 const STILL_A_TAG = /^<\/?(?:[A-Za-z_][\w:.-]*(?:\s[^<>\n]*)?)?$/;
 const TAG_NAME = /^<(\/?)([A-Za-z_][\w:.-]*)/;
 const PRIVATE_TAGS: ReadonlySet<string> = new Set(['thinking', 'think', 'reasoning', 'scratchpad', 'analysis', 'reflection', 'function_calls', 'invoke', 'parameter', 'system', 'system-reminder']);
@@ -55,6 +63,8 @@ export type CommandVerdict = { ok: true } | { ok: false; problem: string; isWron
 export interface BeatTextReaderOptions {
   onBeatEnd(beat: WrittenBeatParts): void;
   onBadCommand(problem: string): void;
+  /** Stops the reply here so it can be asked for again. Left out when a reply must get out whatever it drew. */
+  onDrawingRefused?(problem: string): void;
   onWrongMath(problem: string): void;
   onCommandKept?(command: SceneCommand): void;
   /** A command already kept never reached the student. */
@@ -86,6 +96,23 @@ function withKnownClaim(value: unknown): unknown {
 }
 
 const isSceneAsk = (value: unknown): value is { kind: 'askScene'; topic: string } => typeof value === 'object' && value !== null && (value as { kind?: unknown }).kind === 'askScene' && typeof (value as { topic?: unknown }).topic === 'string';
+
+function getWithTransformOfWordsAsNewLine(command: SceneCommand, board: BoardKinds): SceneCommand {
+  if (command.kind !== 'transformMath' || board.get(command.target) !== 'text') return command;
+  const { target, tex, overWords, claim } = command;
+  return { kind: 'writeMath', id: target, tex, ...(overWords === undefined ? {} : { overWords }), ...(claim === undefined ? {} : { claim: claim === 'step' ? 'new' : claim }) };
+}
+
+const isDrawingCue = (part: Beat['script'][number]) => typeof part !== 'string' && KINDS_A_STUDENT_LOOKS_FOR.has(part.kind);
+
+const isShownCue = (part: Beat['script'][number]) => isDrawingCue(part) || (typeof part !== 'string' && (part.kind === 'writeMath' || part.kind === 'transformMath'));
+
+function withNoteOnAPartAsMark(value: unknown, board: BoardKinds): unknown {
+  if (typeof value !== 'object' || value === null) return value;
+  const { kind, id, target, text } = value as Record<string, unknown>;
+  if (kind !== 'note' || typeof target !== 'string' || !target.includes('.')) return value;
+  return HAS_PARTS.has(board.get(target.split('.')[0] as string) ?? '') ? { kind: 'annotate', id, target, mark: 'underline', label: text } : value;
+}
 
 const isPrivateTag = (name: string) => PRIVATE_TAGS.has(name.toLowerCase()) || name.toLowerCase().startsWith('antml:');
 
@@ -166,7 +193,9 @@ export class BeatTextReader {
   finish(): void {
     if (this.#brokenTail !== null) this.#releaseBrokenTail();
     if (this.#command !== null) this.#refuseCommand('the command never closed');
+    if (this.#isHalted) return;
     if (this.#tag !== null) this.#releaseTag();
+    if (this.#cuesAwaitingWord.some(isDrawingCue) && this.#wordsThisTurn > 0 && !this.isSafetyReply) this.push(` ${WORDS_FOR_A_LATE_DRAWING}`);
     this.#held = '';
     this.#endBeat();
     this.#landLateCommands();
@@ -362,7 +391,7 @@ export class BeatTextReader {
   #endLine(): void {
     const isQuestion = ENDS_IN_QUESTION.test(this.#text);
     const isTooShortForABeat = this.#wordCount < FEWEST_WORDS_IN_A_BEAT && !isQuestion;
-    if (this.#wordCount > 0 && (isTooShortForABeat || (isQuestion && this.isSafetyReply))) {
+    if (this.#wordCount > 0 && (isTooShortForABeat || this.#isClaimHeldForItsDrawing() || (isQuestion && this.isSafetyReply))) {
       if (!this.#isAfterSpace) this.#speak(' ');
       return;
     }
@@ -415,13 +444,19 @@ export class BeatTextReader {
 
   // Beats end at commas and sentence ends, because M3.2 measured mid-sentence flushes stretching the line.
   #isAtBeatBoundary(): boolean {
-    if (this.#cuesAwaitingWord.length > 0) return false;
+    if (this.#cuesAwaitingWord.length > 0 || this.#isClaimHeldForItsDrawing()) return false;
     // In a safety reply a question stays in its beat until more words or the end of the reply, so a student's "yes" cannot cut off the help after it.
     if (ENDS_IN_QUESTION.test(this.#text)) return !this.isSafetyReply;
     if (this.#wordCount < FEWEST_WORDS_IN_A_BEAT) return false;
     if (isSentenceEnd(this.#text)) return true;
     const isFirstBeat = this.#wordsThisTurn === this.#wordCount;
     return ENDS_IN_CLAUSE.test(this.#text) && this.#wordCount >= (isFirstBeat ? FEWEST_WORDS_IN_A_BEAT : FEWEST_WORDS_BEFORE_A_COMMA);
+  }
+
+  // "Here you go." waits for the next phrase, or the drawing written after it, so a refused drawing takes those words with it.
+  #isClaimHeldForItsDrawing(): boolean {
+    if (this.isSafetyReply || this.#script.some(isShownCue)) return false;
+    return CLAIMS_A_DRAWING.test(this.#text.trimEnd().split(/(?<=[.!?,;:])\s+/).at(-1) ?? '');
   }
 
   #addToScript(text: string): void {
@@ -447,7 +482,7 @@ export class BeatTextReader {
       this.#stepInJson(character);
     } else if (character === '\n') {
       this.#refuseCommand('the command never closed');
-      this.#endBeat();
+      if (!this.#isHalted) this.#endBeat();
     } else {
       this.#stepInString(character);
     }
@@ -519,14 +554,26 @@ export class BeatTextReader {
     this.#command = null;
     if (this.#isCommandTooLong) {
       this.#isCommandTooLong = false;
-      this.#options.onBadCommand('the command is too long');
+      this.#refuse(text, 'the command is too long');
       return;
     }
     const value = this.#readJson(text);
     if (value === undefined || this.#takeTutorCall(value)) return;
-    const parsed = parseSceneCommand(withKnownClaim(value));
+    const parsed = parseSceneCommand(withKnownClaim(withNoteOnAPartAsMark(value, this.#board)));
     if (parsed.ok) this.#keepCommand(parsed.value);
-    else this.#options.onBadCommand(parsed.problem);
+    else this.#refuse(text, parsed.problem);
+  }
+
+  #refuse(written: string, problem: string): void {
+    const kind = WRITTEN_KIND.exec(written)?.[1] ?? '';
+    if (!this.#options.onDrawingRefused || !KINDS_A_STUDENT_LOOKS_FOR.has(kind) || this.isSafetyReply) return this.#options.onBadCommand(problem);
+    this.#haltWithoutHeldClaim();
+    this.#options.onDrawingRefused(problem);
+  }
+
+  #haltWithoutHeldClaim(): void {
+    if (this.#isClaimHeldForItsDrawing()) this.#dropWordsKeepingCommands();
+    this.#isHalted = true;
   }
 
   // These go to code and never to the board, so a tool or a report can draw nothing.
@@ -555,7 +602,7 @@ export class BeatTextReader {
     try {
       return JSON.parse(text);
     } catch (error) {
-      this.#options.onBadCommand(`the command is not valid JSON, so write each backslash twice: ${(error as Error).message}`);
+      this.#refuse(text, `the command is not valid JSON, so write each backslash twice: ${(error as Error).message}`);
       return undefined;
     }
   }
@@ -567,15 +614,16 @@ export class BeatTextReader {
     return 'id' in command && this.#createdIds.has(command.id) ? 'id already created in this beat' : null;
   }
 
-  #keepCommand(command: SceneCommand): void {
+  #keepCommand(written: SceneCommand): void {
+    const command = getWithTransformOfWordsAsNewLine(written, this.#board);
     const problem = this.#getCommandProblem(command);
-    if (problem !== null) return this.#options.onBadCommand(problem);
+    if (problem !== null) return this.#refuse(JSON.stringify(command), problem);
     const verdict = this.#options.checkCommand?.(command) ?? { ok: true };
     if (!verdict.ok && verdict.isWrongMath) {
-      this.#isHalted = true;
+      this.#haltWithoutHeldClaim();
       return this.#options.onWrongMath(verdict.problem);
     }
-    if (!verdict.ok) return this.#options.onBadCommand(verdict.problem);
+    if (!verdict.ok) return this.#refuse(JSON.stringify(command), verdict.problem);
     this.#commandCount += 1;
     this.#hasCommandThisTurn = true;
     if ('id' in command) this.#createdIds.add(command.id);
@@ -586,9 +634,11 @@ export class BeatTextReader {
   }
 
   #refuseCommand(problem: string): void {
-    this.#options.onBadCommand(this.#isCommandTooLong ? 'the command is too long' : problem);
+    const written = this.#command ?? '';
+    const said = this.#isCommandTooLong ? 'the command is too long' : problem;
     this.#isCommandTooLong = false;
     this.#command = null;
+    this.#refuse(written, said);
   }
 
   #isStretchFull(): boolean {

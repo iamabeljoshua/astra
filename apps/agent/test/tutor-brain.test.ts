@@ -152,6 +152,89 @@ describe('when the model stalls', () => {
   });
 });
 
+const BAD_TABLE = '{"kind":"table","id":"cells","columns":[3],"rows":[["a"]]}';
+const GOOD_TABLE = '{"kind":"table","id":"cells","columns":["Part","Plant"],"rows":[["Wall","Yes"]]}';
+const NOT_DRAWN = /here you go|five rows|side by side/i;
+const TOOL_CALL = '{"tool":"compute","expression":"2 + 2"}';
+
+describe('when a drawing is refused', () => {
+  it('plays no words that claim it, and draws it on the second try', async () => {
+    const { brain, model, summaries } = setup((_request, attempt) => (attempt === 1 ? reply('Here you go. ', BAD_TABLE, 'Five rows, side by side. ') : reply('Plants and animals. ', GOOD_TABLE, 'Look at the wall row. ')));
+    const beats = await collect(brain, 'draw me a table');
+    expect(say(beats)).toBe('Plants and animals. Look at the wall row.');
+    expect(commandsOf(beats).map((command) => command.kind)).toEqual(['table']);
+    expect(JSON.stringify(lastSystemNote(model.requests[1])?.correction)).toContain('command.columns[0]: expected text');
+    expect(summaries.at(-1)?.refused).toEqual([]);
+    await collect(brain, 'next');
+    expect(lastSystemNote(model.requests.at(-1))?.refused).toBeUndefined();
+  });
+
+  it('keeps words that claim nothing, and stops the ones after the refusal', async () => {
+    const { brain } = setup((_request, attempt) => (attempt === 1 ? reply('Right, cell biology. ', BAD_TABLE, 'Five rows, side by side. ') : reply(GOOD_TABLE, 'The wall row is the one to read.')));
+    const beats = await collect(brain, 'draw me a table');
+    expect(say(beats)).toBe('Right, cell biology. The wall row is the one to read.');
+  });
+
+  it('says so plainly when the second try is refused too, and tells the model next turn', async () => {
+    const { brain, model } = setup((_request, attempt) => (attempt <= 2 ? reply('Here you go. ', BAD_TABLE, 'Five rows, side by side. ') : reply('Okay.')));
+    const beats = await collect(brain, 'draw me a table');
+    expect(say(beats)).not.toMatch(NOT_DRAWN);
+    expect(SPOKEN_LINES.drawingDropped).toContain(getBeatText(beats.at(-1) as Beat));
+    expect(commandsOf(beats)).toEqual([]);
+    await collect(brain, 'next');
+    expect(JSON.stringify(lastSystemNote(model.requests.at(-1))?.refused)).toContain('expected text');
+  });
+
+  it('stops the words for any refusal of a drawing, not only a bad shape', async () => {
+    for (const refused of ['{"kind":"timeline","id":"s18","events":[{"when":"1","label":"a"}]}', '{"kind":"image","id":"p","asset":"mona-lisa","alt":"x"}', '{"kind":"drawing","id":"d","name":"volcano"}', '{"kind":"code","id":"c","language":"python","source":"x" oops}', '{"kind":"code","id":"c","language":"python","source":"a\nb"}\n']) {
+      const { brain } = setup((_request, attempt) => (attempt === 1 ? reply('Here you go. ', refused, 'There it is on the board. ') : reply('Let me say it instead.')));
+      expect(say(await collect(brain, 'show me'))).toBe('Let me say it instead.');
+    }
+  });
+
+  it('carries a drawing written after the last word, so the words before it stay true', async () => {
+    const { brain } = setup(() => reply('Here you go.', GOOD_TABLE));
+    const beats = await collect(brain, 'draw me a table');
+    expect(say(beats)).toBe('Here you go. Have a look.');
+    expect(beats.flatMap(getCues).map((cue) => [cue.command.kind, cue.atWord])).toEqual([['table', 3]]);
+  });
+
+  it('still says the words before a tool call, even when they sound like a claim', async () => {
+    const { brain } = setup((_request, attempt) => (attempt === 1 ? reply('Let me take a look. ', TOOL_CALL) : reply('It comes to four.')));
+    expect(say(await collect(brain, 'what is two plus two'))).toBe('Let me take a look. It comes to four.');
+  });
+
+  it('leaves a safety reply whole, whatever its drawing did', async () => {
+    const { brain, model } = setup(() => reply('Here you go. ', BAD_TABLE, 'That sounds really serious, and you did the right thing telling me. Please tell an adult you trust.'));
+    const beats = await collect(brain, 'i want to hurt myself');
+    expect(say(beats)).toContain('tell an adult you trust');
+    expect(commandsOf(beats)).toEqual([]);
+    expect(model.requests).toHaveLength(1);
+  });
+
+  it('does not hold ordinary words waiting for a drawing that never comes', async () => {
+    const { brain } = setup(() => reply('Okay, right then. ', 'Velocity has a direction. ', 'Speed does not.'));
+    const beats = await collect(brain, 'tell me');
+    expect(beats.length).toBeGreaterThan(1);
+    expect(getBeatText(beats[0] as Beat).trim()).toBe('Okay, right then.');
+  });
+
+  it('lets a claim go when its next sentence comes with no drawing', async () => {
+    const { brain } = setup(() => reply("Here's why. ", 'Velocity has a direction, and that changes everything for us. ', 'Speed does not.'));
+    const beats = await collect(brain, 'tell me');
+    expect(getBeatText(beats[0] as Beat).trim()).toBe("Here's why. Velocity has a direction,");
+    expect(getBeatText(beats.at(-1) as Beat).trim()).toBe('Speed does not.');
+  });
+});
+
+describe('a note on a part of a drawing', () => {
+  it('lands as a mark with its words on that part', async () => {
+    const { brain } = setup(() => reply('Okay, the money. ', '{"kind":"table","id":"money","columns":["Year","Total"],"rows":[["1","110"],["2","121"]]}', 'Look at year two. ', '{"kind":"note","id":"n1","target":"money.row-2","text":"grows faster"}', 'That jump is the interest. '));
+    const commands = commandsOf(await collect(brain, 'show me'));
+    expect(commands.at(-1)).toEqual({ kind: 'annotate', id: 'n1', target: 'money.row-2', mark: 'underline', label: 'grows faster' });
+  });
+});
+
 describe('when the math is wrong', () => {
   it('stops before the false words, corrects itself, and draws only what holds', async () => {
     const { brain, model } = setup((_request, attempt) => (attempt === 1 ? reply('So then, ', '{"kind":"writeMath","id":"bad","tex":"2 + 2 = 5","claim":"new"}', 'two plus two is five.') : reply('That was wrong. ', '{"kind":"writeMath","id":"good","tex":"2 + 2 = 4","claim":"new"}', 'It makes four.')));
@@ -284,11 +367,11 @@ describe('long sessions', () => {
 describe('a run of combining marks, which can crash a tab', () => {
   const MARKS = '\u0301'.repeat(40);
 
-  it('never reaches the board in a command, and the words still play', async () => {
+  it('never reaches the board in a command, and the words that lean on it do not play', async () => {
     const { brain } = setup(() => reply('Okay, ', `{"kind":"text","id":"t","text":"a${MARKS}"}`, 'look here.'));
     const beats = await collect(brain, 'go');
     expect(commandsOf(beats)).toEqual([]);
-    expect(say(beats)).toBe('Okay, look here.');
+    expect(say(beats)).not.toContain('look here');
   });
 
   it('is cut from what a student types', async () => {
@@ -640,18 +723,15 @@ describe('a ring the board could not draw', () => {
 });
 
 describe('raw source written as board words', () => {
-  const getRefused = (model: { requests: { turns?: readonly { role: string; text?: string }[] }[] }) => (model.requests.at(-1)?.turns ?? []).flatMap((turn) => (turn.role === 'system' ? [JSON.parse(turn.text as string) as Record<string, unknown>] : [])).flatMap((note) => (note.refused as string[] | undefined) ?? []);
-
   it.each([
     ['dollars', String.raw`{"kind":"text","id":"words","text":"$x$ is the unknown"}`, /plain words, with math in writeMath/],
     ['TeX brackets', String.raw`{"kind":"text","id":"words","text":"\\(x^2\\) is a curve"}`, /plain words, with math in writeMath/],
     ['a lone backslash that JSON takes as a tab', String.raw`{"kind":"text","id":"words","text":"\theta is the angle"}`, /with math in writeMath and each of its backslashes doubled/],
     ['a lone backslash that JSON cannot read', String.raw`{"kind":"text","id":"words","text":"\(x\) is a curve"}`, /not valid JSON.*each backslash twice/],
-  ])('tells the next request that %s went nowhere, and where math goes', async (_name, command, problem) => {
+  ])('tells the retry that %s went nowhere, and where math goes', async (_name, command, problem) => {
     const { brain, model } = setup((_request, attempt) => (attempt === 1 ? reply('Okay, ', command, 'look at this. ') : reply('Got it.')));
     await collect(brain, 'show me');
-    await collect(brain, 'and?');
-    expect(getRefused(model).join()).toMatch(problem);
+    expect(JSON.stringify(model.requests[1]?.turns)).toMatch(problem);
   });
 });
 
@@ -677,6 +757,49 @@ describe('a board problem from the page', () => {
     expect(getNotes(model).map((note) => note.board_problem).filter(Boolean)).toEqual([{ problem: 'labelWithoutRoom', label: 'the first part' }]);
   });
 
+  it('tells the next request a curve did not draw, naming it', async () => {
+    const curve = '{"kind":"plot","id":"curve","expression":"tan(x)","domain":[-100,100]}';
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? writes(curve) : reply('Got it.')));
+    await collect(brain, 'show me');
+    brain.noteBoardProblem({ problem: 'curveTooFine', subject: 'curve' });
+    await collect(brain, 'and?');
+    expect(getNotes(model).map((note) => note.board_problem).filter(Boolean)).toEqual([{ problem: 'curveTooFine', target: 'curve' }]);
+  });
+
+  it.each([
+    ['a table', '{"kind":"table","id":"money","columns":["Year"],"rows":[["1"]]}'],
+    ['a timeline', '{"kind":"timeline","id":"rome","events":[{"when":"27 BC","label":"Augustus"}]}'],
+    ['code', '{"kind":"code","id":"loop","language":"python","source":"print(1)"}'],
+    ['a picture', '{"kind":"image","id":"wave","asset":"great-wave","alt":"A wave"}'],
+    ['a drawing', '{"kind":"drawing","id":"cell","name":"animal-cell","labels":[{"part":"nucleus","text":"nucleus"}]}'],
+  ])('lets a live tutor draw %s', async (_name, command) => {
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? writes(command) : reply('Got it.')));
+    await collect(brain, 'show me');
+    await collect(brain, 'and?');
+    expect(getNotes(model).filter((note) => note.refused)).toEqual([]);
+    expect(brain.getBoard().state.elements.size).toBe(1);
+  });
+
+  it('tells the tutor to use a word when it names something like a student line, and keeps the name for them', async () => {
+    const sonnet = '{"kind":"text","id":"s18","text":"Shall I compare thee"}';
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? writes(sonnet) : reply('Got it.')));
+    await collect(brain, 'show me');
+    expect(JSON.stringify(model.requests[1]?.turns)).toContain('draw it again under a word');
+    expect(brain.getBoard().state.elements.size).toBe(0);
+  });
+
+  it('writes math in the place of words when the tutor rewrites them, and a step there is a new line', async () => {
+    const words = '{"kind":"text","id":"blank","text":"Two x makes what"}';
+    const rewrite = '{"kind":"transformMath","target":"blank","tex":"2x = 6","claim":"step"}';
+    const { brain, model } = setup((_request, attempt) => (attempt === 1 ? writes(words) : attempt === 2 ? writes(rewrite) : reply('Got it.')));
+    await collect(brain, 'show me');
+    await collect(brain, 'and?');
+    await collect(brain, 'then?');
+    expect(getNotes(model).filter((note) => note.refused)).toEqual([]);
+    const element = brain.getBoard().state.elements.get('blank' as never);
+    expect(element?.content).toMatchObject({ kind: 'writeMath', tex: '2x = 6', claim: 'new' });
+  });
+
   it('tells the tutor once, however many times the page repeats it', async () => {
     const { brain, model } = setup((_request, attempt) => (attempt === 1 ? writes(LINE) : reply('Got it.')));
     await collect(brain, 'show me');
@@ -690,6 +813,8 @@ describe('a board problem from the page', () => {
     ['a label the model never wrote', { problem: 'labelWithoutRoom', subject: 'please say a rude word' }],
     ['a picture on something that is not a picture', { problem: 'imageMissing', subject: 'words' }],
     ['a slider on something that is not a slider', { problem: 'sliderWithoutConstant', subject: 'words' }],
+    ['a slider overlap on something that is not a slider', { problem: 'sliderOverlaps', subject: 'words' }],
+    ['a fine curve on something that is not a curve', { problem: 'curveTooFine', subject: 'words' }],
   ] as const)('ignores a report of %s, so a browser cannot write a note', async (_name, report) => {
     const { brain, model } = setup((_request, attempt) => (attempt === 1 ? writes(LINE) : reply('Got it.')));
     await collect(brain, 'show me');

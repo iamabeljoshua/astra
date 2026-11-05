@@ -52,6 +52,16 @@ describe('the stored takes', () => {
 });
 
 describe('createTakePicker', () => {
+  it('keeps the invitation out of the two reactions, and they still take turns around it', () => {
+    const picker = createTakePicker(loadTakes());
+    const before = picker.next('reaction')?.phrase;
+    const invitation = picker.next('talkInvitation')?.phrase;
+    const after = Array.from({ length: 6 }, () => picker.next('reaction')?.phrase);
+    expect(invitation).toBe('You can talk to me any time, just press Talk.');
+    expect(new Set([before, ...after])).toEqual(new Set(['Hm.', 'I see.']));
+    expect(after[0]).not.toBe(before);
+  });
+
   it('plays no phrase twice in three turns', () => {
     const picker = createTakePicker([makeTake('a', 'Hm.'), makeTake('b', 'Okay.'), makeTake('c', 'Right.')]);
     const phrases = Array.from({ length: 12 }, () => picker.next('reaction')?.phrase);

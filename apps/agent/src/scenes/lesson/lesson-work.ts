@@ -52,6 +52,7 @@ export function createLessonWork({ router, runs, store, request, isCard, student
   });
   void plan.then((settled) => settleFirstLine(typeof settled === 'string' ? null : (settled.opening[0] ?? null)));
   let run: TopicRun | null = null;
+  const leaving = new AbortController();
   let voiceShelf: VoiceShelf = isCard ? { kind: 'shared' } : { kind: 'nowhere' };
 
   const getOwnKey = (topic: string) => getSceneKey(topic, { ownerId });
@@ -90,7 +91,7 @@ export function createLessonWork({ router, runs, store, request, isCard, student
 
   // A card has its title, so it can teach whatever the router does. A typed question has only what the router says about it.
   const askRouter = (): Promise<SceneRoute> => {
-    const asked = router.route(request, AbortSignal.timeout(ROUTER_LIMIT_MS));
+    const asked = router.route(request, AbortSignal.any([AbortSignal.timeout(ROUTER_LIMIT_MS), leaving.signal]));
     return isCard ? asked.catch(() => NO_ROUTE) : asked;
   };
 
@@ -109,6 +110,11 @@ export function createLessonWork({ router, runs, store, request, isCard, student
       return { ...SAVED_ROUTE, topic: request };
     }
     const route = await askRouter();
+    // A leave can only reach a run that exists, so an answer that comes after one must not start the write nobody is left for.
+    if (leaving.signal.aborted) {
+      settlePlan('nothing');
+      return NO_ROUTE;
+    }
     if (!isCard && (route.kind === SAFETY_KIND || isAboutBeingUnsafe(route.topic))) {
       settlePlan('unsafe');
       return { ...route, engine: 'none', topic: '' };
@@ -156,6 +162,10 @@ export function createLessonWork({ router, runs, store, request, isCard, student
     firstLine,
     planWithoutScene: () => void getRoute().catch(settleWithNoRoute),
     getVoiceShelf: () => voiceShelf,
-    leave: () => run?.leave(),
+    leave() {
+      if (leaving.signal.aborted) return;
+      leaving.abort();
+      run?.leave();
+    },
   };
 }

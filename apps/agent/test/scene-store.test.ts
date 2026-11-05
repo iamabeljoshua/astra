@@ -27,6 +27,19 @@ describe('a scene id', () => {
   });
 });
 
+describe('the list of shared scenes', () => {
+  it('leaves out a scene a person has flagged, because the queue offers what it lists', async () => {
+    const root = makeRoot();
+    const store = createSceneStore(root);
+    const scene = makeScene();
+    await store.saveChecked(scene, TAKES, []);
+    await expect(store.listShared()).resolves.toMatchObject([{ id: scene.id }]);
+    mkdirSync(join(root, 'flags'), { recursive: true });
+    writeFileSync(join(root, 'flags', `${scene.id}.json`), '{}');
+    await expect(store.listShared()).resolves.toEqual([]);
+  });
+});
+
 describe('finding a scene', () => {
   it('compares the stored topic, so a key that lands on another scene finds nothing', async () => {
     const root = makeRoot();

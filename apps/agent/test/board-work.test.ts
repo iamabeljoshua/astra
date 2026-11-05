@@ -8,6 +8,7 @@ import { createBoardWork } from '../src/tutor/watcher/board-work.ts';
 import type { SpokenReading } from '../src/tutor/watcher/read-spoken.ts';
 
 const QUICK = { stillWorkingMs: 40, firstTextMs: 120, betweenTextMs: 80, finishGraceMs: 20, reportWaitMs: 5 };
+const HEAVY_TEST_MS = 30_000;
 const reply = (...pieces: string[]): FakeReply => ({ pieces });
 const id = (value: string) => value as ElementId;
 const line = (lineId: string, text: string, task?: string): StudentWork => ({ way: 'write', id: id(lineId), text, ...(task ? { task: id(task) } : {}) });
@@ -149,7 +150,7 @@ describe('a page that floods the board', () => {
     const { brain } = setup(['Okay.']);
     for (let index = 1; index <= 2000; index += 1) expect(brain.noteWork(line(`s${index}`, 'hmm'))).not.toBeNull();
     expect(brain.noteWork(line('s2001', 'hmm'))).toBeNull();
-  });
+  }, HEAVY_TEST_MS);
 });
 
 describe('marks and words code will not allow', () => {

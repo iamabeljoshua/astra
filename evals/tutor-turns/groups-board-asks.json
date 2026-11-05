@@ -1,0 +1,10 @@
+[
+ {"name":"t1","turns":[{"text":"draw me a table comparing mitosis and meiosis"}]},
+ {"name":"t2","turns":[{"text":"put a table on the board comparing plant and animal cells"}]},
+ {"name":"t3","turns":[{"text":"show me a table comparing igneous, sedimentary and metamorphic rocks"}]},
+ {"name":"t4","turns":[{"text":"make a table of the differences between speed and velocity"}]},
+ {"name":"t5","turns":[{"text":"table please, comparing WW1 and WW2"}]},
+ {"name":"t6","turns":[{"text":"show me a table of french verbs etre and avoir in the present tense"}]},
+ {"name":"r1","turns":[{"text":"now a timeline of the roman empire please"}]},
+ {"name":"r2","turns":[{"text":"give me a timeline of the space race"}]}
+]

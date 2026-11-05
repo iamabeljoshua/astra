@@ -530,7 +530,7 @@ describe('the messages a held microphone and a quiet room add', () => {
     expect(parseAgentMessage({ type: 'quietWarning' }).ok).toBe(false);
   });
 
-  it.each(['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant'])('reads a board problem of %s', (problem) => {
+  it.each(['tooSmallToRead', 'labelWithoutRoom', 'imageMissing', 'sliderWithoutConstant', 'sliderOverlaps', 'curveTooFine'])('reads a board problem of %s', (problem) => {
     const message = { type: 'boardProblem', problem, subject: 'words', clockId: 'c', browserMs: 1, startedMsAgo: 0 };
     expect(parseBrowserMessage(message)).toEqual({ ok: true, value: message });
   });
@@ -547,6 +547,17 @@ describe('the messages a held microphone and a quiet room add', () => {
     const stamp = { clockId: 'page-1', browserMs: 5000, startedMsAgo: 0 };
     expect(parseBrowserMessage({ type: 'stillHere', ...stamp })).toEqual({ ok: true, value: { type: 'stillHere', ...stamp } });
     expect(parseBrowserMessage({ type: 'stillHere' }).ok).toBe(false);
+  });
+
+  it('reads what holding to talk and the invitation send', () => {
+    const stamp = { clockId: 'page-1', browserMs: 5000, startedMsAgo: 0 };
+    for (const type of ['holdStarted', 'lineEnded', 'talkPressed']) {
+      expect(parseBrowserMessage({ type, ...stamp })).toEqual({ ok: true, value: { type, ...stamp } });
+      expect(parseBrowserMessage({ type }).ok).toBe(false);
+    }
+    for (const type of ['keptBeingCut', 'talkInvited']) expect(parseAgentMessage({ type })).toEqual({ ok: true, value: { type } });
+    expect(parseBrowserMessage({ type: 'hello', ...stamp, wantsGreeting: true, invitesTalk: true }).ok).toBe(true);
+    expect(parseBrowserMessage({ type: 'hello', ...stamp, wantsGreeting: true }).ok).toBe(false);
   });
 });
 

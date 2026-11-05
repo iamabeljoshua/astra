@@ -6,6 +6,7 @@ export function getShownWords(content: BoardElement['content'], isRevealedInStep
   if (isRevealedInSteps) return [];
   switch (content.kind) {
     case 'text':
+    case 'note':
       return [content.text];
     case 'table':
       return [...content.columns, ...content.rows.flat()];
