@@ -134,7 +134,7 @@ export function isAboutBeingUnsafe(request: string): boolean {
   return KMS.test(lowered) || SELF_HARM.test(lowered) || SOMEONE_THEY_KNOW.test(lowered) || SUICIDE_FOR_SOMEONE.test(lowered) || (DRUG_AMOUNT.test(withoutConversion) && BODY_OR_PILL.test(withoutConversion)) || CUT_ANATOMY.some((pattern) => pattern.test(request));
 }
 
-/** "help" or "im scared" with nothing else says nothing yet, and most often opens a homework question, so it gets its own line that asks what they need. */
+/** "help" or "im scared" alone says nothing yet, so it gets its own line that asks what they need. */
 export const isOnlyAskingForHelp = (request: string): boolean => ONLY_ASKS_FOR_HELP.test(asPlainLetters(request));
 
 /** For a request no router could read. It is broad on purpose, because the cost of a wrong yes here is a help line and the cost of a wrong no is a child told there is no lesson. */

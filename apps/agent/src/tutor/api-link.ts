@@ -23,7 +23,6 @@ export interface ApiLink {
   fetchProfile(): Promise<StudentProfile | null>;
   /** Adds to the student's total for today, and says whether that total is now over the daily limit. */
   reportSpend(usd: number): Promise<{ isOverDailyLimit: boolean; leftTodayUsd: number }>;
-  /** Adds to the queue a named person reviews. It holds a kind and a source, and never the student's words. */
   addFlag(flag: SafetyFlag): Promise<void>;
   saveLog(run: { runId: string; runStartedAt: Date; events: readonly SessionEvent[] }): Promise<void>;
   saveRecap(recap: SessionRecap): Promise<void>;

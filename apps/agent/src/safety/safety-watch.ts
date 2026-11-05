@@ -9,20 +9,17 @@ export type FlagKind = SafetyKind | 'vague' | 'tutor_slip';
 /** The most worrying thing raised in this room. `danger` means a person is needed, and `vague` that nothing plain was read. */
 export type SessionReading = 'danger' | 'vague' | 'none';
 
-/** What goes to the review queue. It has no field that could hold a word of what was said. */
 export interface SafetyFlag {
   kind: FlagKind;
   source: FlagSource;
 }
 
 export interface SafetyWatch {
-  /** Reads the student's words beside the reply. A kind, or `vague` outside a school talk, has already raised a flag and shown the help by the time it resolves. Vague words in a school talk resolve as `school`, and they are the model's to answer. */
+  /** A kind, or `vague` outside a school talk, has raised a flag and shown the help by the time this resolves, and `vague` in a school talk resolves as `school`. */
   readStudent(text: string, tutorSaid: string): Promise<StudentReading>;
   noteTurnEnd(turn: { spoken: string; safetyRead: Promise<void>; getKind(): SafetyKind | null }): void;
   showHelp(): void;
-  /** Waits for the reads still running, because the student can press End right after saying it. */
   readSession(): Promise<SessionReading>;
-  /** Sends what the API has not heard yet, so a room closing does not lose a flag. */
   flush(): Promise<void>;
 }
 
@@ -34,12 +31,11 @@ export interface SafetyWatchOptions {
   flagRetryWaitMs?: number;
 }
 
-/** Long enough for a passing network fault to clear, and short enough for a closing room. */
 const FLAG_RETRY_WAIT_MS = 1000;
 
 const getFlagKey = ({ kind, source }: SafetyFlag) => `${kind}/${source}`;
 
-// One room's safety reads. It raises each kind of flag once, and keeps any the API has not taken. Traces name a reading and never the words.
+// One room's safety reads. Each kind of flag is raised once and kept until the API takes it, and traces never hold the words.
 export function createSafetyWatch({ check, addFlag, showHelp, trace, flagRetryWaitMs = FLAG_RETRY_WAIT_MS }: SafetyWatchOptions): SafetyWatch {
   const raised = new Set<string>();
   let unsent: SafetyFlag[] = [];

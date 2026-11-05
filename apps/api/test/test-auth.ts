@@ -23,9 +23,7 @@ export interface TestToken {
 export interface TestSupabaseAuth {
   url: string;
   keys: SigningKey[];
-  // What Auth does when the admin API deletes a user. A throw answers 500, as Auth does when it fails.
   onDeleteUser: (authUserId: string) => Promise<void>;
-  // What Auth says when the admin API looks a user up. A throw answers 500. Anyone not deleted through the admin API exists.
   onGetUser: (authUserId: string) => Promise<void>;
   signToken: (authUserId: string, token?: TestToken) => Promise<string>;
   close: () => Promise<void>;

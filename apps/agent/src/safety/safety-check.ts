@@ -4,7 +4,6 @@ import { SAFETY_KINDS, type StudentReading } from './student-reading.ts';
 
 export type TutorReading = 'tutor_slip' | 'none' | 'unread';
 
-/** The exchange before these words, because "i have a plan for how to do it" means something else after talk of an essay, and the subject is often only in the student's own line. */
 export interface TurnBefore {
   studentSaid: string;
   tutorSaid: string;

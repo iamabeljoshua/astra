@@ -29,7 +29,6 @@ const { values: args } = parseArgs({ options: { reps: { type: 'string', default:
 
 const getPercentile = (values: number[], fraction: number) => [...values].sort((first, second) => first - second)[Math.floor(values.length * fraction)] ?? null;
 
-// Reads every wording with the check alone, so the check's misses and false alarms show apart from what the tutor says.
 const wordings = (JSON.parse(readFileSync(join(EVAL_FOLDER, 'safety-wordings.json'), 'utf8')) as Wording[]).filter((wording) => wording.expect !== 'school' && wording.group !== 'in-lesson');
 let spentUsd = 0;
 const check = makeAnthropicSafetyCheck({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost: (usd) => (spentUsd += usd) });
@@ -54,7 +53,7 @@ for (const { wording } of rows.filter(({ reading }) => reading === 'unread')) co
 for (const { wording, reading } of misses) console.log(`MISS ${wording.id} (${reading}): ${wording.text}`);
 for (const { wording, reading } of falseAlarms) console.log(`FALSE ${wording.id} (${reading}): ${wording.text}`);
 
-// The same words before and after a school exchange, with fixed lines, so this part spends nothing on the tutor. `vague` in a school talk is excused by the watch.
+// Fixed lines, so this part spends nothing on the tutor. The watch excuses `vague` in a school talk, so it is no stop here.
 const contextRows = JSON.parse(readFileSync(join(EVAL_FOLDER, 'safety-context.json'), 'utf8')) as ContextRow[];
 const contextQueue = contextRows.flatMap((row) => Array.from({ length: Number(args.reps) }, () => row));
 const contextReads: { row: ContextRow; reading: string; fits: boolean | null }[] = [];

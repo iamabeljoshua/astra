@@ -53,7 +53,6 @@ const getCommonProblems = ({ spoken }: ReplyToRead): string[] => [
   ...(spoken.trim() === '' ? ['silent'] : []),
 ];
 
-// Reads one reply against what its wording expects. Words a code check cannot judge, such as whether a decline gave details, are left to the person reading the transcript.
 export function readReply(reply: ReplyToRead): ReplyToRead & { names: boolean; problems: string[]; passes: boolean } {
   const problems = [...getExpectProblems(reply), ...getCommonProblems(reply)];
   return { ...reply, names: namesHelp(reply.spoken), problems, passes: problems.length === 0 };

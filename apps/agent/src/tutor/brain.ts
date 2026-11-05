@@ -83,7 +83,7 @@ export const TUTOR_TIMEOUTS = {
   reportWaitMs: 150,
   /** Most sessions have the profile long before the first message, and a slow API must not hold up the reply. */
   profileWaitMs: 1000,
-  /** Longer than a read that had to retry, which runs 3 s, a short backoff, and 3 s more. It only holds a turn while the check is that slow. */
+  /** Longer than one retried read, which runs 3 s, a short backoff, and 3 s more. */
   safetyReadWaitMs: 7000,
 };
 
@@ -122,7 +122,6 @@ export interface TutorBrainOptions {
   compactAtTokens?: number;
   getSpendLimit?(): SpendLimit | null;
   getNowMs?(): number;
-  /** Reads each turn beside the reply. With none, the prompt and the reader are the only safeguards. */
   safety?: SafetyWatch;
   /** Prepares a lesson plan beside the replies, which a reply never waits for. */
   lessonPlanner?: LessonPlanner;
@@ -183,13 +182,11 @@ interface TurnWork {
   isUsageEstimated: boolean;
   costUsd: number;
   endedAs: AttemptEnd;
-  /** What the safety check found. `unread` means nothing is known, because there is no check or it failed. */
   safetyReading: StudentReading | 'pending';
   safetyRead: Promise<void>;
   safetyAnswered: Promise<typeof SAFETY_ANSWERED>;
   hasStoppedForSafety: boolean;
   isFinished: boolean;
-  /** The next beat follows a cut or a retry, and may start a new sentence. */
   startsAfterCut: boolean;
 }
 
@@ -225,7 +222,7 @@ const SKIPPED_NOTE = { skipped: "An automatic check stopped an earlier message o
 const VAGUE_WORDS_PROBLEM = "The student's words could be about their safety, nothing said before explains them, and your reply named no help. In their language, in one or two short sentences, ask gently what they mean, and say that if anything is worrying them they should tell an adult they trust now, or call their local emergency number if they are in danger. Do not say it sounds serious, and never mention this note.";
 const SAFETY_STOP_PROBLEM = "The student's words may be about their safety, and your reply named no help. Follow your safety rules now, in their language, naming an adult they trust and their local emergency number. Help comes first, and never mention this note.";
 const BREAK_NOTE = { break_due: 'They have been learning for a while. In one short sentence, suggest a short break, then carry on if they want to.' };
-/** PRD S4 asks the tutor to nudge minors to take breaks. A 30 minute lesson hears none, and a long sitting hears one every 45 minutes. */
+/** PRD S4 asks the tutor to nudge minors to take breaks, and a 30 minute lesson should hear none. */
 const BREAK_EVERY_MS = 45 * 60 * 1000;
 const CLIPPED_NOTE = { clipped: 'The student wrote more than you can see, and this is only the first part. Say so in a few words, and answer what you can.' };
 const ASKED_HOW_IT_WORKED = 'reasoning_extraction';
@@ -238,7 +235,7 @@ export function cleanStudentText(text: string): string {
   return clipTypedText(cleanLine(text));
 }
 
-// The refusal categories cover weapons and drugs too. When the check read the student's words as none of those dangers, a calm line is the honest one.
+// The refusal categories cover weapons and drugs too, so a calm line is the honest one when the check read no danger in the student's words.
 const isPlainRefusal = ({ refusalCategory, studentText, safetyReading }: { refusalCategory: string | null; studentText: string; safetyReading: TurnWork['safetyReading'] }) => refusalCategory !== null && (PLAIN_REFUSALS.has(refusalCategory) || safetyReading === 'none' || safetyReading === 'school' || (safetyReading === 'unread' && asksToMakeAWeapon(studentText))) && !MAY_BE_ABOUT_SAFETY.test(studentText);
 
 const isAboutSafety = (reading: TurnWork['safetyReading']) => isSafetyKind(reading) || reading === 'vague';
@@ -592,7 +589,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     if (turn.reader.isTurnOver) return lastEventAtMs + timeouts.finishGraceMs;
     if (turn.hasAttemptText) return lastEventAtMs + timeouts.betweenTextMs;
     const hardMs = attemptStartedAtMs + timeouts.firstTextMs;
-    // A filler before help reads badly, and the read usually answers well before it is due, so it waits for the read. Clear danger keeps this deadline, where code's own line plays.
+    // A filler before help reads badly, so a pending or vague read holds it to the hard deadline, and clear danger keeps the soft one, where code's own line plays.
     if (turn.hasSaidStillWorking || turn.safetyReading === 'pending' || turn.safetyReading === 'vague') return hardMs;
     // A retry starts its own wait, or the time the first attempt took would fire a filler straight after its line.
     const softStartMs = turn.attempts > 1 ? attemptStartedAtMs : turn.startedAtMs;
@@ -803,7 +800,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return (isSafetyKind(turn.safetyReading) && (saysItCannotRead(words) || saysNobodyCanBeTold(words))) || (!turn.reader.isSafetyReply && !namesHelp(words));
   };
 
-  // In English the check's answer usually beats the model's first words, and code's line is what the model says anyway, so the student hears it sooner. A reply in another language gets to finish, because it usually names help in that language.
+  // In English code's line is what the model would say anyway, so the student hears it sooner, and a reply in another language finishes because it usually names help there.
   const isHelpDueInCode = (turn: TurnWork) => isSafetyKind(turn.safetyReading) && replyLacksHelp(turn) && readsAsEnglish(turn.studentText);
 
   const isHelpDueAtDeadline = (turn: TurnWork) => isSafetyKind(turn.safetyReading) && replyLacksHelp(turn) && !turn.isCheckingMath;
@@ -824,7 +821,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     return 'over';
   };
 
-  // The model finished in another language with no help the code can see, so it gets one more go, and code names help in English if that fails too.
+  // The model finished with no help the code can see, in another language or on vague words, so it gets one more go, and code names help in English if that fails too.
   const askAgainForHelp = (turn: TurnWork): TurnStep => {
     turn.hasStoppedForSafety = true;
     trace('askedAgainForHelp');

@@ -150,7 +150,6 @@ export interface MadeBrain {
   readStrokes?(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
   readSpokenWords?(words: string, expects: SpokenExpected): Promise<SpokenReading>;
   writeRecap?(facts: RecapFacts): Promise<SessionRecap | null>;
-  /** Only a real model has a check, so a recorded one reads nothing. */
   readSafety?(): Promise<SessionReading>;
   getSpentUsd?(): number;
   /** Runs the after-session pass as the room closes. It cannot throw. */
@@ -159,7 +158,6 @@ export interface MadeBrain {
   noteNeedsAPerson?(): void;
 }
 
-// A recorded model has no key and no words worth reading, so only a real one gets a check.
 function makeSafetyWatch({ name, link, showHelp, trace, onCost }: { name: string; link: ApiLink | null; showHelp(): void; trace: TraceNote; onCost(usd: number): void }) {
   if (name === RECORDED) return undefined;
   return createSafetyWatch({ check: makeAnthropicSafetyCheck({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost }), addFlag: (flag) => link?.addFlag(flag) ?? Promise.resolve(), showHelp, trace });

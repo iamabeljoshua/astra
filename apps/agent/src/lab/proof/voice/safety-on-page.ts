@@ -9,7 +9,6 @@ const { values: args } = parseArgs({ options: { out: { type: 'string', default: 
 const HELP_NOTE = 'Please tell an adult you trust now.';
 const WATCH_MS = 15_000;
 const END_SESSION = 'End session';
-/** The recap, its voice, and the record pass, which runs once the room closes. */
 const END_WATCH_MS = 25_000;
 const delay = (ms: number) => new Promise((done) => setTimeout(done, ms));
 const out = args.out as string;
@@ -24,7 +23,6 @@ const readTrace = (sessionId: string) =>
     .flatMap((name) => readFileSync(join(stack.traceFolder, name), 'utf8').trim().split('\n'))
     .map((line) => JSON.parse(line) as { name: string; kind?: string; use?: string; reading?: string; source?: string; why?: string });
 
-// Types one line after the tutor's opening, and reads what the page shows and what the agent did with it.
 async function typeAndRead(name: string, title: string, line: string, { pressEnd = false }: { pressEnd?: boolean } = {}) {
   const student = await openStudentPage(browser, { email: args.email as string, title });
   await student.page.waitForFunction(() => window.astraVoice?.getView().hasTutorStarted === true, undefined, { timeout: 40_000 });
@@ -58,7 +56,6 @@ async function typeAndRead(name: string, title: string, line: string, { pressEnd
   return result;
 }
 
-// A named reviewer opens the queue and marks the first flag, then the student deletes their own data.
 async function reviewThenDelete() {
   const reviewer = await openStudentPage(browser, { email: args.reviewer as string, title: 'Atoms' });
   await reviewer.page.goto(`${WEB_URL}/review`);

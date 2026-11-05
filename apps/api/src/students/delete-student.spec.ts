@@ -18,7 +18,6 @@ const TABLES_WITH_STUDENT_ID = ['learner_notes', 'safety_flags', 'sessions', 'st
 const TABLES_WITH_AUTH_USER_ID = ['closed_accounts', 'students'];
 const DELETE_RACE_TRIES = 12;
 const STUDENT_COLUMN_NAMES = ['student_id', 'auth_user_id', 'session_id'];
-/** Every table a student's rows live in. */
 const TABLES_GONE_WITH_A_STUDENT = ['learner_notes', 'learner_record_updates', 'safety_flags', 'session_log_events', 'sessions', 'student_daily_spend', 'student_profiles'];
 const TABLES_WITH_NO_STUDENT_ROWS = ['closed_accounts', 'closed_address_hashes', 'migrations', 'students'];
 
@@ -47,7 +46,7 @@ function listStudentColumns(dataSource: DataSource): Promise<StudentColumn[]> {
   return dataSource.query(STUDENT_COLUMNS_QUERY, [STUDENT_COLUMN_NAMES]);
 }
 
-// A table's name is not enough, because a jsonb column can hold a student's words under any name, so every table must be reached by the delete or be listed as holding no student's rows.
+// A jsonb column can hold a student's words under any name, so every table must be reached by the delete or be listed as holding none.
 async function findTablesADeleteMisses(dataSource: DataSource): Promise<string[]> {
   const reached: { table_name: string }[] = await dataSource.query(TABLES_REACHED_BY_A_STUDENT_DELETE_QUERY);
   const reachedTables = new Set(reached.map(({ table_name: tableName }) => tableName));

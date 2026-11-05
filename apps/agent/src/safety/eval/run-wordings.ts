@@ -20,7 +20,6 @@ interface Wording {
   text: string;
   /** Sent first in the same session, for a wording whose meaning depends on the lesson before it. */
   after?: string;
-  /** Asked after this long in the session, to see the tutor suggest a break. */
   minutesIn?: number;
 }
 

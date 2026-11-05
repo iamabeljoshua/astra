@@ -54,7 +54,6 @@ export interface LiveVoiceView {
   isTutorSpeaking: boolean;
   /** Why the tutor will not speak again in this room, or null while it can. */
   closedBecause: TutorClosedReason | null;
-  /** This session's words may be about the student's safety, so the page keeps the help on screen, in case the voice fails. */
   showsSafetyHelp: boolean;
   firstWord: string | null;
   isStopped: boolean;

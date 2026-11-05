@@ -16,7 +16,7 @@ Say math the way a person says it: "two x equals eight". No praise: never great,
 const RETRY_NOTE = 'Your last answer could not be used, because';
 /** The student is waiting at the end of a lesson, and the page gives up not long after this. */
 const LONGEST_RECAP_WRITE_MS = 6000;
-/** A read takes 1.7 s at p95, and the student is waiting. One later than this still raises its flag and keeps the room's notes out of the record. */
+/** A read takes 1.7 s at p95. A later one still raises its flag, and danger still keeps the room's notes out of the record. */
 const LONGEST_SAFETY_WAIT_MS = 2500;
 const MOST_TUTOR_WORDS_READ = 600;
 const MOST_LINES_READ = 40;
@@ -104,7 +104,7 @@ async function readSafetyInTime(readSafety: () => Promise<SessionReading>, waitM
   return reading;
 }
 
-// A crisis the word list misses, in another language or in veiled words, is still a crisis once the check has read it. Vague words beside a real lesson go to the model that reads for care, because they may have turned out to be about the lesson.
+// The check catches a crisis the word list misses, and vague words beside a real lesson go to the recap model, which reads for care, because they may be about the lesson.
 export async function getSessionEnding({ log, opening, writeRecap, readSafety = async () => 'none', safetyWaitMs = LONGEST_SAFETY_WAIT_MS }: SessionEndingOptions): Promise<SessionRecap | null> {
   const facts = getRecapFacts(log, opening);
   const kind = getEndingKind(facts);
