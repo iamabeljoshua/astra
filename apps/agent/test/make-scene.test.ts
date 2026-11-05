@@ -1,7 +1,8 @@
 import { existsSync, mkdtempSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { getKitSpokenLines } from '../src/scenes/kit-code-check.ts';
 import { canTryAfterRefusal, makeScene } from '../src/scenes/make-scene.ts';
 import type { RenderResult, RenderWorker } from '../src/scenes/render-worker.ts';
 import { createSceneStore, getSceneKey } from '../src/scenes/scene-store.ts';
@@ -298,5 +299,88 @@ describe('a line through a label', () => {
     const { store, worker } = setUp({ renders: [CUT] });
     const made = await makeScene({ writers: [makeWriter('w')], reviewer: passing, worker, store, warn: () => {} }, { ...WORDS, ownerId: 'maya' });
     expect(made.isOk).toBe(false);
+  });
+});
+
+describe('a kit scene the review refuses', () => {
+  const KIT_RENDER: RenderResult = { isOk: true, takes: [], parts: ['ball'], sheets: [{ theme: 'dark', bytes: Buffer.from('jpg') }], layoutProblems: [], layoutNotes: [], declared: {}, ms: 5 };
+  const kitMaker = (reviewer: SceneReviewer, repairNotes: string[]) => {
+    const { store } = setUp();
+    const repairWriter: SceneWriter = { name: 'repair', write: async (_brief, repair) => { repairNotes.push(...(repair?.problems ?? [])); return { code: 'function scene(kit) { /* fixed */ }', model: 'repair', ms: 1, costUsd: 0.03 }; } };
+    return { engine: 'kit' as const, themes: ['dark'] as const, writers: [makeWriter('first')], repairWriter, reviewer, worker: async () => KIT_RENDER, store };
+  };
+
+  it('saves a passing scene as a kit scene with no take, marked unchecked by a person', async () => {
+    const maker = kitMaker(passing, []);
+    const made = await makeScene(maker, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
+    expect(made).toMatchObject({ isOk: true, scene: { engine: 'kit', engineVersion: '0.1.0', ownerId: 'ada', parts: ['ball'], isCheckedByPerson: false } });
+  });
+
+  it('keeps the word check whatever a maker adds to the code check', async () => {
+    const worker = vi.fn(async () => KIT_RENDER);
+    const made = await makeScene({ ...kitMaker(passing, []), worker, repairWriter: undefined, checkCode: () => [], writers: [makeWriter('first', 'see www.example.com')] }, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
+    expect(made.isOk).toBe(false);
+    expect(worker).not.toHaveBeenCalled();
+  });
+
+  it('reviews only the lines a student could hear over it', async () => {
+    const seen: (readonly string[])[] = [];
+    const reviewer: SceneReviewer = { review: async ({ spokenLines }) => { seen.push(spokenLines); return { isPass: true, errors: [], model: 'fake', ms: 1, costUsd: 0.01 }; } };
+    await makeScene({ ...kitMaker(reviewer, []), getLinesToReview: getKitSpokenLines }, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
+    expect(seen[0]).toEqual([PLAN.setup, 'Here is the curve. And here is its slope at one point.', PLAN.close]);
+  });
+
+  it('gives the repair writer what the review reported, and the review reads the rewrite', async () => {
+    const notes: string[] = [];
+    const seen: string[] = [];
+    let reviews = 0;
+    const reviewer: SceneReviewer = { review: async ({ code }) => { seen.push(code); reviews += 1; return reviews === 1 ? { isPass: false, errors: [{ moment: 'a', what: 'the turbine spins backward', truth: 'it spins with the compressor', confidence: 'medium' }], model: 'fake', ms: 1, costUsd: 0.01 } : { isPass: true, errors: [], model: 'fake', ms: 1, costUsd: 0.01 }; } };
+    const made = await makeScene(kitMaker(reviewer, notes), { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
+    expect(made.isOk).toBe(true);
+    expect(notes).toEqual(['the turbine spins backward What is true: it spins with the compressor']);
+    expect(seen[1]).toContain('fixed');
+    expect(made.isOk && made.scene.code).toContain('fixed');
+  });
+
+  describe('when the review finds the narration false', () => {
+    const REFUSED = { isPass: false, errors: [{ moment: 'tangent', what: 'the tutor says the slope is three', truth: 'it is two', confidence: 'high' }], model: 'fake', ms: 1, costUsd: 0.01 };
+    const rewrite = (words: Record<string, string>) => {
+      const seen: { narration: string; moments: Readonly<Record<string, number>> }[] = [];
+      let reviews = 0;
+      const reviewer: SceneReviewer = { review: async ({ brief, spokenLines }) => { seen.push(brief); reviews += 1; return reviews === 1 ? REFUSED : { isPass: spokenLines.join(' ').includes('Here'), errors: [], model: 'fake', ms: 1, costUsd: 0.01 }; } };
+      const repairs: unknown[] = [];
+      const repairWriter: SceneWriter = { name: 'repair', write: async (_brief, repair) => { repairs.push(repair); return { code: 'function scene(kit) { /* fixed */ }', words, model: 'repair', ms: 1, costUsd: 0.03 }; } };
+      return { maker: { ...kitMaker(reviewer, []), repairWriter }, seen, repairs };
+    };
+
+    it('lets the rewrite correct its words, moves the moments with them, and saves what was reviewed', async () => {
+      const narration = '[[curve]] Here is the curve, drawn out slowly and with some care. [[tangent]] And here is its slope at one point.';
+      const { maker, seen, repairs } = rewrite({ narration });
+      const made = await makeScene(maker, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
+      expect(repairs[0]).toMatchObject({ canChangeWords: true });
+      expect(seen[1]?.narration).toBe(narration);
+      expect(seen[1]?.moments.tangent).toBeGreaterThan(seen[0]?.moments.tangent ?? Infinity);
+      expect(made).toMatchObject({ isOk: true, scene: { narration, plan: { narration } } });
+      expect(made.isOk && made.scene.moments.tangent).toBe(seen[1]?.moments.tangent);
+    });
+
+    it.each([
+      ['moved its marks', { narration: '[[other]] Here is the curve. [[tangent]] And here is its slope.' }],
+      ['dropped a mark', { narration: '[[curve]] Here is the curve and its slope.' }],
+      ['named a person', { narration: '[[curve]] Here is what Tom Smith drew. [[tangent]] And here is its slope.' }],
+      ['added an address', { close: 'See www.example.com for more?' }],
+    ])('keeps the old words when the rewrite %s, so the review still has them to refuse', async (_name, words) => {
+      const { maker, seen } = rewrite(words);
+      await makeScene(maker, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
+      expect(seen[1]?.narration).toBe(PLAN.narration);
+    });
+  });
+
+  it('shows nothing when the rewrite is refused too, and keeps only its words', async () => {
+    const maker = kitMaker(failing, []);
+    const made = await makeScene(maker, { topic: 'What a derivative measures', ownerId: 'ada', plan: PLAN });
+    expect(made.isOk).toBe(false);
+    expect(maker.store.find(getSceneKey('What a derivative measures', { ownerId: 'ada' }))).toBeNull();
+    expect(maker.store.findRefusal(getSceneKey('What a derivative measures', { ownerId: 'ada' }))?.code).toContain('fixed');
   });
 });

@@ -8,6 +8,9 @@ import { MAY_BE_ABOUT_SAFETY } from '../safety-words.ts';
 import type { TutorBrain } from '../brain.ts';
 import { decideOnReading, decideOnWork, decideWatch, getGate, getWorkWords, HOLDS_WORDS, type WatchDecision, type WatchSituation, type WordMeaning, decideOnSpokenWork } from './watch-rule.ts';
 
+/** What the tutor is handed when it speaks up on a silence. The student said nothing. */
+export const WATCHER_WORDS = '(has paused)';
+
 export interface BoardWorkOptions {
   tutor: Pick<TutorBrain, 'noteWork' | 'noteWatcher' | 'getBoard' | 'noteQuietLine'>;
   writeLog(message: BrowserMessage & { type: 'worked' }, checked: CheckedWork): void;
@@ -270,7 +273,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, speakUpAsCode = spea
     noteAnswered();
     tutor.noteWatcher?.({ why: decision.why, seconds_paused: seconds, ...(draftText ? { unsent_draft: cleanStudentText(draftText) } : {}) });
     trace('watcherSpoke', { why: decision.why, seconds });
-    speakUpAsCode('(has paused)');
+    speakUpAsCode(WATCHER_WORDS);
   };
 
   const readDraftOnce = (text: string): Promise<WordMeaning | null> => {

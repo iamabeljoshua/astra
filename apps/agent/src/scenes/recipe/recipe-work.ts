@@ -9,6 +9,7 @@ import { DANGEROUS_KIND, SAFETY_KIND } from '../model-replies.ts';
 import { createSceneDesk, type SceneDesk, type SceneState } from '../scene-desk.ts';
 import { getSceneKey, type SceneStore } from '../scene-store.ts';
 import type { NameReader, SceneRoute, SceneRouter, SceneUsage, StoredScene } from '../scene-types.ts';
+import type { TopicRun, TopicRuns } from '../lesson/topic-runs.ts';
 import type { PartCatalogue } from './catalogue.ts';
 import { addRecipeLine, checkRecipe, compileRecipe, createRecipeDraft, type RecipeLine, type SceneRecipe } from './recipe.ts';
 import { toRecipeScene } from './recipe-scene.ts';
@@ -53,6 +54,9 @@ export interface SceneWorkInput {
   isCard: boolean;
   studentId: string;
   canPlayTakes: boolean;
+  /** The queue never pays for live 3D, so only a student's own ask may reach it. */
+  canWriteLive?: boolean;
+  onLiveWrite?(): void;
   getNowMs(): number;
   onChange(state: SceneState, atMs: number): void;
 }
@@ -63,6 +67,8 @@ export interface RecipeWorkTools {
   reviewer: RecipeReviewer;
   nameReader: NameReader;
   matcher: SceneMatcher;
+  /** Set only with `ASTRA_KIT_LIVE`. The last try on the chain, after saved scenes and parts. */
+  liveRuns?: TopicRuns;
   store: SceneStore;
   storeRoot: string;
   getParts(): PartCatalogue;
@@ -92,7 +98,7 @@ async function getCleanLines({ topic, says, nameReader, signal }: { topic: strin
 }
 
 /** An exact saved scene if there is one, else whichever lands first of a matched saved scene and a fresh recipe. */
-export function createRecipeWork({ router, writer, reviewer, nameReader, matcher, store, storeRoot, getParts, getCore, getLevel, trace, request, isCard, studentId, canPlayTakes, getNowMs, onChange }: RecipeWorkTools & SceneWorkInput): SceneWork {
+export function createRecipeWork({ router, writer, reviewer, nameReader, matcher, liveRuns, store, storeRoot, getParts, getCore, getLevel, trace, request, isCard, studentId, canPlayTakes, canWriteLive = false, onLiveWrite, getNowMs, onChange }: RecipeWorkTools & SceneWorkInput): SceneWork {
   const leaving = new AbortController();
   const stopDrawing = new AbortController();
   const askedAtMs = getNowMs();
@@ -103,6 +109,8 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
   let drawing: Promise<StoredScene> | null = null;
   let matching: Promise<StoredScene> | null = null;
   let routedTopic = request;
+  let routedEngine: SceneRoute['engine'] = 'none';
+  let liveRun: TopicRun | null = null;
   const noteTime = (name: string, fields: Record<string, unknown> = {}) => trace(name, { text: request, afterMs: Math.round(getNowMs() - askedAtMs), ...fields });
 
   const reviewBehind = async (scene: StoredScene, recipe: SceneRecipe) => {
@@ -145,6 +153,14 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     return found;
   };
 
+  const writeLive = (): Promise<MadeScene> => {
+    if (!liveRuns) return Promise.resolve({ isOk: false, reasons: ['live 3D is off'] });
+    onLiveWrite?.();
+    noteTime('liveWriteStarted', { routed: routedTopic });
+    liveRun = liveRuns.join(ownKey(routedTopic));
+    return liveRun.getScene();
+  };
+
   const getFirstPicture = async (): Promise<MadeScene> => {
     if (!drawing || !matching) return { isOk: false, reasons: ['the saved scene is gone'] };
     try {
@@ -153,7 +169,7 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     } catch (error) {
       const reasons = error instanceof AggregateError ? error.errors.map(String) : [String(error)];
       noteTime('recipeNoPicture', { reasons });
-      return { isOk: false, reasons };
+      return canWriteLive && !isCard && routedEngine === 'kit' ? writeLive() : { isOk: false, reasons };
     }
   };
 
@@ -174,13 +190,14 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
       return { ...route, engine: 'none', topic: '' };
     }
     routedTopic = route.topic;
+    routedEngine = route.engine;
     return { ...route, engine: 'kit', topic: isCard ? request : route.topic || request };
   };
 
   const desk = createSceneDesk({
     getNowMs,
     onChange,
-    drawsEngine: 'kit',
+    engines: ['kit'],
     route: getRoute,
     async make({ topic }) {
       const saved = findPlayable(topic);
@@ -197,6 +214,7 @@ export function createRecipeWork({ router, writer, reviewer, nameReader, matcher
     desk,
     leave() {
       leaving.abort();
+      liveRun?.leave();
     },
   };
 }
