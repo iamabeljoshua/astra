@@ -1,6 +1,6 @@
 import { type CheckedWork, readLine, wantsSomethingElse } from '@astra/board/shared';
 import type { SceneCommand, StudentWork } from '@astra/contracts';
-import type { FactsAnswer, FactsAsk, MoreAnswer, MoreAsk, PlanAnswer, PlanAsk, PlanWants } from './ask-planner.ts';
+import type { ClaimsAnswer, ClaimsAsk, MoreAnswer, MoreAsk, PlanAnswer, PlanAsk, PlanWants } from './ask-planner.ts';
 import { getTrustedMove, isSensitive, type LessonPlan, type PlanMove } from './lesson-plan.ts';
 import { readStudentWish } from './student-wish.ts';
 import { getShelvedTopics, getStateAfterEvent, getStateAfterMove, getStateWithMoreSteps, getStepCount, getStepsTaught, getStepNote, isNearTheEnd, type LessonEvent, type LessonState, NO_LESSON, type StepNote } from './plan-progress.ts';
@@ -23,10 +23,8 @@ export interface LessonPlanner {
   tellTitleAgain(): void;
   getStepNote(): StepNote | null;
   moveToNextStep(): void;
-  /** The planner read a wish to stop or wait, in any language, a moment after the reply began. */
   onAskedToHold(listener: () => void): void;
-  /** What this lesson has said so far, when it has changed since the last time this was asked. */
-  takeNewFacts(): readonly string[] | null;
+  takeNewClaims(): readonly string[] | null;
   /** Settles when no plan is on its way, for an evaluation that reads the next step straight after. */
   whenSettled(): Promise<void>;
 }
@@ -34,7 +32,7 @@ export interface LessonPlanner {
 export interface LessonPlannerOptions {
   ask(request: PlanAsk): Promise<PlanAnswer>;
   askMore?(request: MoreAsk): Promise<MoreAnswer>;
-  askFacts?(request: FactsAsk): Promise<FactsAnswer>;
+  askClaims?(request: ClaimsAsk): Promise<ClaimsAnswer>;
   canSpend(): boolean;
   charge(usd: number): void;
   /** The lesson changed to another topic in the same session. */
@@ -65,8 +63,7 @@ const FEWEST_STEPS_ON_A_CARD = 3;
 const MOST_STEPS_IN_A_LESSON = 16;
 const MOST_CHARACTERS_OF_WHAT_WAS_SAID = 6000;
 const MOST_TIMES_ASKED_FOR_MORE = 6;
-/** About six replies, so a 20 minute lesson asks about 15 times, for under a cent in all. */
-const WORDS_BETWEEN_FACTS = 120;
+const WORDS_BETWEEN_CLAIMS = 120;
 
 const NAMES_A_PROBLEM = /\d\s*[-+*/×÷=^%]|=|->|_{2,}|\bm\/s\b|\b(?:solve|balance|simplify|calculate|work out|factori[sz]e|derivative of|integral of|slope of|which came first)\b/i;
 const ASKS_TO_BE_TAUGHT = /^\s*(?:please\s+)?(?:teach|explain|help me (?:understand|get)|give me a lesson|i(?:'d like| would like| want| wanna)(?: to)? (?:learn|understand))\b/i;
@@ -113,7 +110,7 @@ const getWorkEvent = ({ closesTask }: Pick<CheckedWork, 'closesTask'>, work: Stu
 };
 
 // Holds the lesson in code. One plan runs at a time and only the latest words wait, so a flood of lines costs one call at a time.
-export function createLessonPlanner({ ask, askMore, askFacts, canSpend, charge, onTitleChange, onLessonChange, getPictureTopic, trace, getNowMs = () => performance.now() }: LessonPlannerOptions): LessonPlanner {
+export function createLessonPlanner({ ask, askMore, askClaims, canSpend, charge, onTitleChange, onLessonChange, getPictureTopic, trace, getNowMs = () => performance.now() }: LessonPlannerOptions): LessonPlanner {
   let state: LessonState = NO_LESSON;
   let waiting: (HeardWords & { startReply: number }) | null = null;
   let asking: Promise<void> | null = null;
@@ -121,10 +118,10 @@ export function createLessonPlanner({ ask, askMore, askFacts, canSpend, charge, 
   let toldTitle: string | null = null;
   let card: LessonPlan | null = null;
   let onHold = () => {};
-  let factsSaid: readonly string[] = [];
-  let hasNewFacts = false;
-  let wordsSinceFacts = '';
-  let isAskingFacts = false;
+  let claimsSaid: readonly string[] = [];
+  let hasNewClaims = false;
+  let wordsSinceClaims = '';
+  let isAskingClaims = false;
 
   const adopt = (move: PlanMove, { words, isOpening, startReply }: { words: string; isOpening: boolean; startReply: number }) => {
     if (card && isOpening) {
@@ -193,22 +190,22 @@ export function createLessonPlanner({ ask, askMore, askFacts, canSpend, charge, 
       });
   };
 
-  const askForFactsIfDue = () => {
-    if (!askFacts || isAskingFacts || !state.active || !canSpend() || wordsSinceFacts.split(/\s+/).length < WORDS_BETWEEN_FACTS) return;
-    isAskingFacts = true;
-    const said = wordsSinceFacts;
-    wordsSinceFacts = '';
-    void askFacts({ known: factsSaid, said })
-      .then(({ facts, costUsd }) => {
+  const askForClaimsIfDue = () => {
+    if (!askClaims || isAskingClaims || !state.active || !canSpend() || wordsSinceClaims.split(/\s+/).length < WORDS_BETWEEN_CLAIMS) return;
+    isAskingClaims = true;
+    const said = wordsSinceClaims;
+    wordsSinceClaims = '';
+    void askClaims({ known: claimsSaid, said })
+      .then(({ claims, costUsd }) => {
         charge(costUsd);
-        trace('factsNoted', { facts: facts.length, costUsd });
-        if (facts.length === 0) return;
-        factsSaid = facts;
-        hasNewFacts = true;
+        trace('claimsNoted', { claims: claims.length, costUsd });
+        if (claims.length === 0) return;
+        claimsSaid = claims;
+        hasNewClaims = true;
       })
-      .catch((error: unknown) => trace('factsFailed', { problem: String(error) }))
+      .catch((error: unknown) => trace('claimsFailed', { problem: String(error) }))
       .finally(() => {
-        isAskingFacts = false;
+        isAskingClaims = false;
       });
   };
 
@@ -231,8 +228,8 @@ export function createLessonPlanner({ ask, askMore, askFacts, canSpend, charge, 
     noteWorkChecked: (checked, work) => noteEvent(getWorkEvent(checked, work)),
     noteReplyEnded({ wasSafety, wasLead, spoken }) {
       saidSoFar = `${saidSoFar} ${spoken}`.slice(-MOST_CHARACTERS_OF_WHAT_WAS_SAID);
-      wordsSinceFacts = `${wordsSinceFacts} ${spoken}`.trim();
-      askForFactsIfDue();
+      wordsSinceClaims = `${wordsSinceClaims} ${spoken}`.trim();
+      askForClaimsIfDue();
       noteEvent(wasSafety ? 'safetyReplyEnded' : wasLead ? 'leadEnded' : 'replyEnded');
     },
     noteCardLesson(plan) {
@@ -252,10 +249,10 @@ export function createLessonPlanner({ ask, askMore, askFacts, canSpend, charge, 
     onAskedToHold(listener) {
       onHold = listener;
     },
-    takeNewFacts() {
-      if (!hasNewFacts) return null;
-      hasNewFacts = false;
-      return factsSaid;
+    takeNewClaims() {
+      if (!hasNewClaims) return null;
+      hasNewClaims = false;
+      return claimsSaid;
     },
     whenSettled: () => asking ?? Promise.resolve(),
   };

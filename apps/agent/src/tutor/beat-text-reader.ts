@@ -252,7 +252,6 @@ export class BeatTextReader {
     this.#startBeat();
   }
 
-  /** A refused exercise the student never saw leaves no mark, so the next try starts from the board they have. */
   forgetCommands(board: BoardKinds): void {
     this.dropAttempt();
     this.#board = board;

@@ -19,7 +19,7 @@ import { createTutorBrain, type StudentProfile, type TurnSummary } from '../../t
 import { TUTOR_PROMPT, withScenes } from '../../tutor/prompt.ts';
 import { createSpendLedger } from '../../tutor/spend-ledger.ts';
 import { createTutorScenes } from '../../tutor/tutor-scenes.ts';
-import { askFacts, askMoreSteps, askPlanner } from '../ask-planner.ts';
+import { askClaims, askMoreSteps, askPlanner } from '../ask-planner.ts';
 import { createLessonPlanner } from '../lesson-planner.ts';
 import { getCardPictures, type CardMaterial } from '../card-lesson.ts';
 import { matchLibrary, toShelfScene } from '../../scene-queue/library-match.ts';
@@ -192,7 +192,7 @@ async function runLesson(script: LessonScript, student: StudentKind, ledger: Ret
   const planner = createLessonPlanner({
     ask: (request) => askPlanner(reader, request),
     askMore: (request) => askMoreSteps(reader, request),
-    askFacts: (request) => askFacts(reader, request),
+    askClaims: (request) => askClaims(reader, request),
     canSpend: () => !ledger.isOverModelLimit(),
     charge: (usd) => ledger.charge({ anthropicUsd: usd }),
     onTitleChange: () => {},

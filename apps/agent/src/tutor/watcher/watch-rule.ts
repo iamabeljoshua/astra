@@ -10,8 +10,7 @@ export interface WatchSituation {
   unanswered: { verdict: WorkVerdict; isSameWrongLineTwice: boolean } | null;
   hasOpenTask: boolean;
   hasLeanedInOnThisSilence: boolean;
-  /** They asked for quiet, so the tutor keeps that promise over a silence, and only unsent words about danger come first. */
-  isAskedToStop?: boolean;
+  isLeadStopped?: boolean;
 }
 
 export type WatchDecision = { act: 'stay'; why: string } | { act: 'speak'; why: string } | { act: 'readWords' };
@@ -24,9 +23,9 @@ const HOLDS_WORDS = /[a-z]{3,}/i;
 const stay = (why: string): WatchDecision => ({ act: 'stay', why });
 const speak = (why: string): WatchDecision => ({ act: 'speak', why });
 
-export function getGate({ isTutorTalking, secondsSinceQuestion, secondsSinceSpokeUp, isAskedToStop = false }: WatchSituation): WatchDecision | null {
+export function getGate({ isTutorTalking, secondsSinceQuestion, secondsSinceSpokeUp, isLeadStopped = false }: WatchSituation): WatchDecision | null {
   if (isTutorTalking) return stay('the tutor is talking');
-  if (isAskedToStop) return stay('they asked the tutor to wait');
+  if (isLeadStopped) return stay('nothing goes on by itself now');
   if (secondsSinceQuestion !== null && secondsSinceQuestion < WATCH_SECONDS.afterQuestion) return stay('the student is still answering a question');
   if (secondsSinceSpokeUp !== null && secondsSinceSpokeUp < WATCH_SECONDS.afterSpeakingUp) return stay('the tutor spoke up a moment ago');
   return null;

@@ -188,7 +188,7 @@ Abel heard the tutor as too fast. By the clock it was not, at 190 to 204 words a
 
 Each stretch is its own turn on the voice line. The session stops at the next stretch's first beat, waits for the audio to finish, takes a breath of 300 to 450 ms, and starts it, so the gap heard is 760 to 1080 ms once the voice's own start is counted, measured on the saved clip. A student who jumps in during a breath replaces the next stretch, and the next request says it was not heard. A noise or an "mm" lets it carry on. Code breathes on its own at the next sentence end past 25 words. Sentence gaps inside a stretch stay at the voice's own 180 to 260 ms, with nothing added. Chris runs on the voice's own defaults. Abel tried stability 0.45, similarity 0.8, at speed 1.0 and 0.95 on real lessons, and rejected them because one word stretched.
 
-The whole explanation stays in one request, so a breath adds no model wait. A tutor that carries on with no student message, as a new request after each pause, would hear more of what the student does, and it is not built.
+The whole explanation stays in one request, so a breath adds no model wait. A tutor that carries on with no student message, as a new request after each pause, hears more of what the student does. That is how a lesson runs on, and `docs/tests/lesson-flow.md` says what stops it.
 
 | Real turns on Sonnet 5.5 | Words a reply p50, p95 | Longest unbroken stretch a reply p50, p95 | Replies ending on a question | `text` commands |
 | --- | --- | --- | --- | --- |

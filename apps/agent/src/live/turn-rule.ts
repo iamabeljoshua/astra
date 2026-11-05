@@ -1,3 +1,4 @@
+import { readStudentWish } from '../lesson-plan/student-wish.ts';
 import { LEAD_WORDS, type LeadKind } from './tutor-lead.ts';
 import { dropWordsAlreadyAnswered, hasWords, isFiller, isSmallReaction } from './turn-words.ts';
 
@@ -31,8 +32,8 @@ const TIMER_MS: Record<TimerName, number> = {
 
 export type FloorPhase = 'clear' | 'yielding' | 'held' | 'stopped' | 'away';
 export type TutorPhase = 'silent' | 'thinking' | 'speaking';
-export type StopReason = 'real word' | 'no words' | 'typed' | 'link lost';
-export type ReplyVia = 'final' | 'partial' | 'typed' | 'link back' | 'lead';
+export type StopReason = 'real word' | 'no words' | 'typed' | 'link lost' | 'lead stopped';
+export type ReplyVia = 'final' | 'partial' | 'typed' | 'link back' | 'lead' | 'code';
 
 export interface TurnState {
   phase: FloorPhase;
@@ -85,7 +86,7 @@ export type TurnEvent =
   /** The transcript matches what the tutor is saying, so the sound counts as heard and no one is interrupting. */
   | { type: 'echoHeard' }
   | { type: 'turnDecided'; text: string }
-  | { type: 'typed'; text: string }
+  | { type: 'typed'; text: string; isFromCode?: boolean }
   | { type: 'leadDue'; lead: LeadKind }
   | { type: 'timer'; name: TimerName }
   | { type: 'tutorThinking' }
@@ -111,7 +112,8 @@ export type TurnAction =
   | { do: 'startTimer'; name: TimerName; ms: number }
   | { do: 'cancelTimer'; name: TimerName }
   | { do: 'setTurnCap'; ms: number }
-  | { do: 'promptAfterSilence' };
+  | { do: 'promptAfterSilence' }
+  | { do: 'holdLeads' };
 
 export interface TurnStep {
   state: TurnState;
@@ -219,13 +221,13 @@ function onTurnDecided(state: TurnState, { text }: { text: string }): TurnStep {
   const cleared = { ...state, answeredPartial: null, hasSpokenSinceAnswer: false };
   if (!hasWords(fresh)) return { state: cleared, actions: [] };
   if (isSmallReaction(fresh) && state.startedOverTutor && !state.isQuestionHeard) return { state: cleared, actions: [] };
-  if (isFiller(fresh)) return { state: { ...cleared, isWaitingOnStudent: true, partial: '', hasFinalWords: false }, actions: [startTimer('patience')] };
+  if (isFiller(fresh)) return { state: { ...cleared, isWaitingOnStudent: true, partial: '', hasFinalWords: false }, actions: [startTimer('patience'), ...(readStudentWish(fresh) === 'hold' ? [{ do: 'holdLeads' } as const] : [])] };
   return startReply(cleared, { fresh, carried: state.unanswered, via: 'final' });
 }
 
-function onTyped(state: TurnState, { text }: { text: string }): TurnStep {
+function onTyped(state: TurnState, { text, isFromCode = false }: { text: string; isFromCode?: boolean }): TurnStep {
   const stopFirst: TurnAction[] = state.tutor === 'silent' ? [] : [{ do: 'stop', reason: 'typed', keepsThought: false }];
-  const step = startReply({ ...state, hasReacted: false }, { fresh: text, via: 'typed' });
+  const step = startReply({ ...state, hasReacted: false }, { fresh: text, via: isFromCode ? 'code' : 'typed' });
   return { state: step.state, actions: [...stopFirst, ...step.actions] };
 }
 

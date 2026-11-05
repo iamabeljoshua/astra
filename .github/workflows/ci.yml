@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  # Each job has its own threads and its own limit, and they run at once. A job stopped at its limit can take over a minute to end, and that answer came at 324 s.
+  # A job stopped at its limit can take over a minute to end.
   typecheck-and-web:
     runs-on: ubuntu-latest
     timeout-minutes: 4
@@ -30,7 +30,7 @@ jobs:
         background: true
         run: pnpm exec playwright install chromium
       - run: pnpm typecheck
-      - name: Run the web tests on both threads
+      - name: Run the web tests on two workers
         run: pnpm --filter @astra/web test --maxWorkers=2
       - name: Wait for the browser
         wait: chromium
@@ -51,7 +51,6 @@ jobs:
       POSTGRES_DIGEST: sha256:82a04ba6c05f60950a74ae46be3726abb18d06ee44da936276fd782e72e36855
     steps:
       - uses: actions/checkout@v7
-      # How many workers the agent tests can use depends on this, and the log is the only place it shows.
       - name: Show how many threads this runner has
         run: nproc
       - id: postgres-image
@@ -99,7 +98,7 @@ jobs:
             exit 1
           }
       - run: pnpm lint
-      # Lint uses both threads, so these tests with real timers wait for it, and the API tests then run beside them.
+      # Lint uses the threads first, so these tests with real timers wait for it, and the API tests then run beside them.
       - name: Run the agent tests
         background: true
         run: pnpm --filter @astra/agent test

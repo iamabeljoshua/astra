@@ -12,7 +12,6 @@ import { createMessageGate } from './message-gate.ts';
 import { createSessionLog, isFurtherReport } from './session-log.ts';
 import { createTypedGate } from './typed-gate.ts';
 import { type SpokenTurn, speakTurn, type TurnMessenger } from './speak-turn.ts';
-import { readStudentWish } from '../lesson-plan/student-wish.ts';
 import { isAboutSafety } from '../tutor/beat-text-reader.ts';
 import type { RecapFacts } from '../recap/recap-facts.ts';
 import { getRecapBeats } from '../recap/recap-rules.ts';
@@ -132,7 +131,6 @@ interface Thought {
   latestReader: number;
   /** These words belong to a picture, and never play without it. */
   isScene: boolean;
-  /** Nobody asked for these words, so anything the student does ends them. */
   isLead: boolean;
 }
 
@@ -222,7 +220,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   const beatsByTurn = new Map<TurnId, readonly Beat[]>();
   const speakingByTurn = new Map<TurnId, Speaking>();
   const queuedEvents: TurnEvent[] = [];
-  const typedGate = createTypedGate({ getNowMs, onRelease: (text) => dispatch({ type: 'typed', text }), onHeld: () => trace('typedHeld') });
+  const typedGate = createTypedGate({ getNowMs, onRelease: (text, isFromCode) => dispatch({ type: 'typed', text, isFromCode }), onHeld: () => trace('typedHeld') });
   const messageGate = createMessageGate({ getNowMs });
   let isDroppingMessages = false;
   let lastFreezeAtMs = Number.NEGATIVE_INFINITY;
@@ -316,8 +314,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     tutor,
     writeLog: (message, checked) => void log.writeWorked(message, checked),
     speakUp: (words) => typedGate.offer(words),
+    speakUpAsCode: (words) => typedGate.offer(words, true),
     isTutorTalking: () => reply !== null || reaction !== null,
-    isHeld: () => tutor.isHeld?.() ?? false,
+    isLeadStopped: () => tutor.isLeadStopped?.() ?? false,
     getSecondsSinceQuestion: () => (questionHeardAtMs === null ? null : (getNowMs() - questionHeardAtMs) / 1000),
     readMeaning,
     readStrokes,
@@ -426,11 +425,9 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     dispatch({ type: 'leadDue', lead: lead.kind });
   }
 
-  // Works on any part of a lead, from the thinking gap to its last stretch, and what was not heard goes in the next request's note.
   function stopRunningLead(): void {
     if (!thought?.isLead) return;
-    stopSpeech({ do: 'stop', reason: 'typed', keepsThought: false });
-    armLead(LEAD_RECHECK_MS);
+    stopSpeech({ do: 'stop', reason: 'lead stopped', keepsThought: false });
   }
 
   function speak({ voiceToUse, beats, isReply, canResume, kind, continuesHeardReply = false }: { voiceToUse: tts.TTS; beats: Iterable<Beat> | AsyncIterable<Beat>; isReply: boolean; canResume: boolean; kind: string; continuesHeardReply?: boolean }): Speaking {
@@ -577,7 +574,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
   }
 
   function inviteToTalk(): void {
-    if (talkInvitation !== 'wanted' || isTutorTalking() || thought || !audioRunning || state.isVoiceOn || holdGate.isHolding() || tutor.getClosedReason?.() || tutor.isHeld?.()) return;
+    if (talkInvitation !== 'wanted' || isTutorTalking() || thought || !audioRunning || state.isVoiceOn || holdGate.isHolding() || tutor.getClosedReason?.() || tutor.isLeadStopped?.()) return;
     talkInvitation = 'settled';
     reaction = speakTake(['talkInvitation'], { isReply: false });
     void reaction?.spoken.finished.then(() => messenger.send({ type: 'talkInvited' }));
@@ -626,7 +623,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
     dispatch({ type: 'workLanded' });
   };
 
-  const isAtPause = () => !isEnding && !isPageHidden && !tutor.isHeld?.() && !boardWork.isWriting(leadTimings.afterKeyMs) && !isTutorTalking() && !thought && !cut && !isThinking && state.phase === 'clear' && !state.isVoiceOn && !holdGate.isWaitingForLine() && state.partial === '' && !boardWork.hasOpenTask() && getNowMs() - askedAtMs >= ROOM_TO_ANSWER_MS;
+  const isAtPause = () => !isEnding && !isPageHidden && !tutor.isLeadStopped?.() && !boardWork.isWriting(leadTimings.afterKeyMs) && !isTutorTalking() && !thought && !cut && !isThinking && state.phase === 'clear' && !state.isVoiceOn && !holdGate.isWaitingForLine() && state.partial === '' && !boardWork.hasOpenTask() && getNowMs() - askedAtMs >= ROOM_TO_ANSWER_MS;
 
   // The scene's beats are this thought's first beats, so a stop, a resume, and a breath treat them as any reply's.
   async function* openOnScene(request: TutorRequest, signal: AbortSignal, thoughtOf: () => Thought, getScene: () => Promise<readonly TutorBeat[] | null>): AsyncGenerator<TutorBeat> {
@@ -803,15 +800,17 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         // A closed tutor has nothing new to say, and the limit line a hold cut may be the only help this student hears.
         if (cut && tutor.getClosedReason?.()) return void resume();
         if ((action.via === 'final' || action.via === 'partial') && (boardWork.hasOpenTask() || wantsSomethingElse(action.text))) return void answerSpokenWords({ text: action.text, carried: action.carried });
-        return startReply({ text: action.text, carried: action.carried });
+        return startReply({ text: action.text, carried: action.carried, ...(action.via === 'code' ? { isFromCode: true } : {}) });
       case 'startTimer':
         return startNamedTimer(action.name, action.ms);
       case 'cancelTimer':
         return clearTimeout(timers.get(action.name));
       case 'setTurnCap':
         return setTurnCap(action.ms);
+      case 'holdLeads':
+        return tutor.holdLeads?.();
       case 'promptAfterSilence':
-        tutor.noteAskedToHold?.();
+        tutor.holdLeads?.();
         reply = speakTake(['prompt'], { isReply: true });
     }
   }
@@ -917,8 +916,6 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
       if (event.type === 'lineFlushed') return onLineFlushed();
       trace(event.type, event.type === 'words' ? { isFinal: event.isFinal, words: event.text.split(/\s+/).length, text: event.text } : {});
       if (event.type === 'voiceStarted') voiceStartedAtMs ??= getNowMs();
-      // "Let me think" keeps the student's turn open and never reaches the model, so the stop is noted here.
-      if (event.type === 'turnDecided' && readStudentWish(event.text) === 'hold') tutor.noteAskedToHold?.();
       if (event.type !== 'words' || hasWords(event.text)) noteStudentSign();
       if (event.type === 'words' && state.tutor === 'speaking' && echo.isEcho(event.text, getNowMs())) {
         trace('echoHeard');
@@ -970,7 +967,7 @@ export function createLiveSession({ messenger, line, voice, tutor, takes, allTak
         dispatch({ type: 'questionHeard' });
       }
       if (message.type === 'stopTutor') {
-        tutor.noteAskedToHold?.();
+        tutor.holdLeads?.();
         stopSpeech({ do: 'stop', reason: 'typed', keepsThought: false });
       }
       if (message.type === 'acted' && message.action.action === 'inkStroke') boardWork.onInkStroke(message.action);

@@ -5,7 +5,7 @@ export const TYPED_LIMITS = { burst: 3, refillEveryMs: 2000 };
 
 export interface TypedGateOptions {
   getNowMs(): number;
-  onRelease(text: string): void;
+  onRelease(text: string, isFromCode: boolean): void;
   onHeld(): void;
   limits?: typeof TYPED_LIMITS;
 }
@@ -15,6 +15,7 @@ export function createTypedGate({ getNowMs, onRelease, onHeld, limits = TYPED_LI
   let tokens = limits.burst;
   let refilledAtMs = getNowMs();
   let held: string | null = null;
+  let isHeldFromCode = true;
   let timer: ReturnType<typeof setTimeout> | undefined;
 
   const refill = () => {
@@ -35,20 +36,23 @@ export function createTypedGate({ getNowMs, onRelease, onHeld, limits = TYPED_LI
     if (held === null) return;
     if (tokens < 1) return scheduleRelease();
     const text = held;
+    const isFromCode = isHeldFromCode;
     held = null;
+    isHeldFromCode = true;
     tokens -= 1;
-    onRelease(text);
+    onRelease(text, isFromCode);
   };
 
   return {
-    offer(text: string) {
+    offer(text: string, isFromCode = false) {
       refill();
       if (held === null && tokens >= 1) {
         tokens -= 1;
-        onRelease(text);
+        onRelease(text, isFromCode);
         return;
       }
       onHeld();
+      isHeldFromCode &&= isFromCode;
       held = clipTypedText(held === null ? text : `${held}\n${text}`);
       scheduleRelease();
     },

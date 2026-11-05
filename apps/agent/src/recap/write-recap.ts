@@ -29,7 +29,6 @@ export interface WrittenRecap {
   costUsd: number;
 }
 
-/** A 20 minute lesson says about 3,000 words, and its last 600 hold only its last idea, so the words read come from all through it. */
 function getWordsFromAllOfIt(words: readonly string[]): string {
   if (words.length <= MOST_TUTOR_WORDS_READ) return words.join(' ');
   const partLength = Math.floor(MOST_TUTOR_WORDS_READ / PARTS_OF_A_LONG_LESSON);

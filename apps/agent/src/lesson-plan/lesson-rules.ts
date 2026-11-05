@@ -19,7 +19,7 @@ A lesson_plan note may reach you, from a quick planner working beside you. It ho
 export const LEAD_NOTES = {
   next: 'Nobody spoke, and they are listening. Say the next beat of the idea yourself as a statement, one that moves on and repeats nothing. Open on the idea itself, with no signpost such as Next or Now. Save questions for the exercise. Any example is true of the real world, never a scene made up to fit. It must agree with everything you have already told them, with the same numbers and the same comparisons, and a rule you state must hold for every case it names.',
   taskTried: 'They have had their go at the exercise and you have answered it, so it is closed now. If they missed it, show the right answer in a line. Then {"kind":"boardMode","mode":"teach"} and on to the next idea. Do not call it skipped.',
-  exercise: 'Nobody spoke, and this idea has been taught. Set the exercise in this reply, of the exercise_kind in the plan note: a few words, what it needs on the board, never its answer, then its task command. Settle the numbers before you speak, simple enough to work in their head, so you never correct yourself aloud.',
+  exercise: 'Nobody spoke, and this idea has been taught. Set the exercise in this reply, of the exercise_kind in the plan note: a few words, what it needs on the board, never its answer, then its task command. A new problem, never one they have already had in this lesson. Settle the numbers before you speak, simple enough to work in their head, so you never correct yourself aloud.',
   noAnswer: 'They did not answer. Say the answer yourself in a line, with no fuss, and teach on, asking nothing in this reply.',
   taskLeft: 'Nobody tried it, so work it yourself now in a line or two, ending on the answer. code_worked_it, when it is here, is the true number for that problem: use it, to at most three figures, and never a looser one. Never say skip, fine, or that they left it. Then {"kind":"boardMode","mode":"teach"} and on to the next idea.',
 } as const;
@@ -28,7 +28,7 @@ export const OPENING_A_CARD_NOTE = { opening_a_card: 'Open on the idea itself, i
 
 const NAMES_THE_PLAN = /\b(?:(?:whole|lesson|my|our|your) plan|plan (?:is |was )?(?:covered|done|finished|stale|out of date)|the student\b|(?:last|final) (?:idea|exercise|problem|one for this idea))\b/i;
 
-const ANNOUNCES_A_CORRECTION = /\b(?:quick|small|one) correction\b|\bcorrection on my\b|\bcorrect(?:ing)? myself\b|\bI misspoke\b|\bmy last line\b/i;
+const ANNOUNCES_A_CORRECTION = /\b(?:quick|small|one) correction\b|\bcorrection on my\b|\bcorrect(?:ing)? myself\b|\bI misspoke\b|\bmy last line\b|^\s*slight fix\b|\bfix to something i said\b/i;
 
 export function getLessonWordsProblem(text: string): string | null {
   if (NAMES_THE_PLAN.test(text)) return 'Never tell them about a plan, or how much of the lesson is left. Carry straight on, and say it without that.';
@@ -37,10 +37,8 @@ export function getLessonWordsProblem(text: string): string | null {
 
 const PROMISES_TO_WAIT = /\bi(?:'ll| will| am going to|'m going to)\s+(?:stop\b(?! there)|wait\b|pause\b|hold\b|be quiet\b|leave you\b|give you (?:a (?:sec|second|minute|moment|bit)|some time|time|space)\b)|\btake your time\b|\bno rush\b|\bwhen(?:ever)? you(?:'re| are) ready\b|\blet me know when\b/i;
 
-/** What the tutor said it would do, it does. A wish code's words miss can still reach the model, in any wording. */
 export const promisesToWait = (text: string) => PROMISES_TO_WAIT.test(text);
 
-/** Said beside their words, so a stop gets a word or two and nothing to do. */
 export const HOLD_NOTE = { hold_on: 'They asked you to stop or wait. Say so in two or three words, then stop. Ask nothing, set nothing, and teach nothing in this reply. You stay quiet until they do something.' };
 
 export const STAY_NOTE = { hold_on: 'They asked you not to move on, because they are lost. Say this idea again in a line or two, simpler, with one everyday picture and no new term. Set nothing, and then you stay quiet until they do something.' };
@@ -57,7 +55,7 @@ const ANSWERS_NOBODY = /^\s*(?:sure|ok(?:ay)?|alright|all right|right|got it|i'?
 /** Nobody spoke before a lead, so an opening that sounds like a reply has nothing to reply to. */
 export const withoutReplyToNobody = (text: string) => text.replace(ANSWERS_NOBODY, '');
 
-const NEXT_SIGNPOST = /(^|[.!?]\s+)next,\s+(\p{L})/giu;
+const NEXT_SIGNPOST = /(^|[.!?]\s+)next(?:\s+up)?[,:]\s+(\p{L})/giu;
 
 /** The tutor is told to go on to the next idea, and says so at the start of a sentence in most worked answers. */
 export const withoutNextSignpost = (text: string) => text.replace(NEXT_SIGNPOST, (_whole, before: string, letter: string) => `${before}${letter.toUpperCase()}`);

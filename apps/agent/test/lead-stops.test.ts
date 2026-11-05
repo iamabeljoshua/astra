@@ -1,8 +1,10 @@
 import { getBeatText } from '@astra/contracts';
 import { initializeLogger, tts } from '@livekit/agents';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { askPlanner } from '../src/lesson-plan/ask-planner.ts';
 import { asksToBeTaught, createLessonPlanner } from '../src/lesson-plan/lesson-planner.ts';
-import { getLessonWordsProblem } from '../src/lesson-plan/lesson-rules.ts';
+import { getLessonWordsProblem, withoutNextSignpost } from '../src/lesson-plan/lesson-rules.ts';
+import { readStudentWish } from '../src/lesson-plan/student-wish.ts';
 import { createLiveSession, type LiveSession } from '../src/live/live-session.ts';
 import { createTakePicker, type StoredTake } from '../src/live/reactions.ts';
 import { getLead, LEAD_TIMINGS, LEAD_WORDS } from '../src/live/tutor-lead.ts';
@@ -163,9 +165,29 @@ describe('a lead is never the student', () => {
     const brain = createTutorBrain({ model, timeouts: QUICK, safety });
     await say(brain, 'teach me rockets');
     await say(brain, LEAD_WORDS.next, 'next');
-    await say(brain, '(has paused)');
-    await say(brain, '(picked left)');
+    for await (const _beat of brain.reply({ text: '(has paused)', isFromCode: true }, new AbortController().signal)) void _beat;
     expect(safety.reads).toEqual(['teach me rockets']);
+  });
+
+  it('reads a student who types brackets, whatever they look like', async () => {
+    const safety = makeWatch(async () => 'none');
+    const { model } = makeModel(() => 'Gravity keeps pulling.');
+    const brain = createTutorBrain({ model, timeouts: QUICK, safety });
+    await say(brain, '(picked i want to die)');
+    await say(brain, '(has paused)');
+    expect(safety.reads).toEqual(['(picked i want to die)', '(has paused)']);
+    await say(brain, '(stop talking)');
+    expect(brain.canLead()).toBe(false);
+  });
+
+  it('marks a picked answer as code and a written line as the student, through the session', async () => {
+    const safety = makeWatch(async () => 'none');
+    const { session, asked } = startLesson({ answer: () => 'Your turn. {"kind":"writeMath","id":"p1","tex":"1 + 1","claim":"new"}One and one. {"kind":"task","id":"a1","way":"write","on":"p1"}Have a go.', brain: { safety } });
+    session.onBrowser({ type: 'typed', text: 'give me one', ...STAMP } as never);
+    await vi.waitFor(() => expect(asked.length).toBeGreaterThan(0), { timeout: 1000 });
+    await delay(50);
+    session.onBrowser({ type: 'worked', work: { way: 'write', id: 's1', text: 'i want to die', task: 'a1' }, ...STAMP } as never);
+    await vi.waitFor(() => expect(safety.reads).toContain('i want to die'), { timeout: 1000 });
   });
 
   it('tells a lead nothing about what the student asked for', async () => {
@@ -234,7 +256,7 @@ describe('their words stop it', () => {
     await delay(200);
     expect(session.isAtPause()).toBe(false);
     expect(asked).toHaveLength(1);
-    expect(decideWatch({ secondsPaused: 30, isTutorTalking: false, secondsSinceQuestion: null, secondsSinceSpokeUp: null, draft: null, unanswered: null, hasOpenTask: true, hasLeanedInOnThisSilence: false, isAskedToStop: true })).toMatchObject({ act: 'stay' });
+    expect(decideWatch({ secondsPaused: 30, isTutorTalking: false, secondsSinceQuestion: null, secondsSinceSpokeUp: null, draft: null, unanswered: null, hasOpenTask: true, hasLeanedInOnThisSilence: false, isLeadStopped: true })).toMatchObject({ act: 'stay' });
   });
 
   it('stops a running lead when the planner reads a wish to wait in another language', async () => {
@@ -253,6 +275,11 @@ describe('their words stop it', () => {
     const heldAt = leadsAsked();
     await delay(300);
     expect(leadsAsked()).toBe(heldAt);
+  });
+
+  it('keeps a wish to wait in what the planner answers', async () => {
+    const reader = { read: async () => ({ answer: { move: 'stay', topic: '', kind: 'teachFirst', steps: [], wants: 'hold' }, costUsd: 0 }) };
+    expect((await askPlanner(reader as never, { now: 'Rockets', earlier: [], said: 'espera', tutorSaid: '' })).wants).toBe('hold');
   });
 
   it('asks for the idea again when they are lost, and tells them to wait with no words of danger', async () => {
@@ -302,7 +329,15 @@ describe('their words stop it', () => {
     expect(asksToBeTaught(words)).toBe(false);
   });
 
-  it.each(['go on', 'keep going', 'teach me more', 'what is next', 'i dont know, go on', 'dont stop, keep going', 'yes please carry on'])('still takes "%s" as asking to be taught', (words) => {
+  it.each(['can we stop', 'can we stop here', 'lets stop', 'i want to stop', 'i have to go', 'gtg', 'bye', 'leave me alone', 'i dont want to learn this'])('holds on "%s"', (words) => {
+    expect(readStudentWish(words)).toBe('hold');
+  });
+
+  it.each(['how do you stop a rocket', 'can we stop a rocket in orbit', 'i want to stop gravity', 'what happens when they go to space', 'how long do they wait'])('does not hold on "%s"', (words) => {
+    expect(readStudentWish(words)).toBe('none');
+  });
+
+  it.each(['go on', 'please continue', 'keep going', 'teach me more', 'what is next', 'i dont know, go on', 'dont stop, keep going', 'yes please carry on'])('still takes "%s" as asking to be taught', (words) => {
     expect(asksToBeTaught(words)).toBe(true);
   });
 
@@ -411,8 +446,8 @@ describe('a steered exercise', () => {
 
 describe('a lesson remembers what it said', () => {
   it('carries a compact note of what has been said, once each time it changes', async () => {
-    const askFacts = vi.fn(async ({ said }: { said: string }) => ({ facts: [`Said: ${said.split(' ').slice(0, 3).join(' ')}`], costUsd: 0.0001 }));
-    const planner = makePlanner({ askFacts });
+    const askClaims = vi.fn(async ({ said }: { said: string }) => ({ claims: [`Said: ${said.split(' ').slice(0, 3).join(' ')}`], costUsd: 0.0001 }));
+    const planner = makePlanner({ askClaims });
     planner.noteCardLesson(LESSON);
     const { model, asked } = makeModel((_words, index) => `Most of a rocket at liftoff is fuel, beat ${index}.`);
     const brain = createTutorBrain({ model, timeouts: QUICK, lessonPlanner: planner });
@@ -422,9 +457,9 @@ describe('a lesson remembers what it said', () => {
       await delay(0);
     }
     const notes = asked.flatMap(({ notes: held }) => held).filter((note) => note.includes('said_so_far'));
-    expect(askFacts).toHaveBeenCalled();
+    expect(askClaims).toHaveBeenCalled();
     expect(notes.length).toBeGreaterThan(0);
-    expect(notes.length).toBeLessThanOrEqual(askFacts.mock.calls.length);
+    expect(notes.length).toBeLessThanOrEqual(askClaims.mock.calls.length);
     expect(notes[0]).toContain('Most of a');
   });
 
@@ -479,6 +514,13 @@ describe('small things a long lesson says', () => {
     expect(getLessonWordsProblem('The student switched to volcanoes, so the rocket plan is stale.')).not.toBeNull();
     expect(getLessonWordsProblem('The rocket plan is out of date.')).not.toBeNull();
     expect(getLessonWordsProblem('Their plan to reach orbit failed in 1957.')).toBeNull();
+  });
+
+  it('sends back a reply that announces a fix, and takes "Next up:" off a sentence', async () => {
+    expect(getLessonWordsProblem('One small fix to something I said earlier.')).not.toBeNull();
+    expect(getLessonWordsProblem('Slight fix: drag points down on the way up.')).not.toBeNull();
+    expect(getLessonWordsProblem('A slight fix to the orbit needs little fuel.')).toBeNull();
+    expect(withoutNextSignpost('It is about five. Next up: what fights a rocket.')).toBe('It is about five. What fights a rocket.');
   });
 
   it('gives the recap words from the whole lesson, not only its end', async () => {

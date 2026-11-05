@@ -12,9 +12,9 @@ export interface BoardWorkOptions {
   tutor: Pick<TutorBrain, 'noteWork' | 'noteWatcher' | 'getBoard'>;
   writeLog(message: BrowserMessage & { type: 'worked' }, checked: CheckedWork): void;
   speakUp(words: string): void;
+  speakUpAsCode?(words: string): void;
   isTutorTalking(): boolean;
-  /** They asked for quiet, or a crisis was read. */
-  isHeld?(): boolean;
+  isLeadStopped?(): boolean;
   getSecondsSinceQuestion(): number | null;
   readMeaning(words: string): Promise<WordMeaning | null>;
   readStrokes(strokes: readonly (readonly InkPoint[])[]): Promise<{ text: string; ink: { tex?: string; isUnsure: boolean } } | null>;
@@ -32,7 +32,6 @@ interface Unanswered {
 
 const MOST_STROKES_HELD = 400;
 const MOST_INK_READS = 300;
-/** A forged page can send a new draft every few milliseconds, and each read spends. */
 const MOST_DRAFT_READS = 60;
 const HOLDS_WORDS = /[a-z]{3,}/i;
 const HOLD_WHILE_TYPING_MS = 1200;
@@ -44,7 +43,7 @@ const NOT_READ = '(handwriting that could not be read)';
 const getWorkKey = (work: StudentWork) => JSON.stringify(work.way === 'write' ? cleanStudentText(work.text) : work);
 
 // What the student does on the board: code checks it, notes it, logs it, and decides whether the tutor answers.
-export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, isHeld = () => false, getSecondsSinceQuestion, readMeaning, readStrokes, readSpokenWords, writeHeardLog, send, getNowMs, trace }: BoardWorkOptions) {
+export function createBoardWork({ tutor, writeLog, speakUp, speakUpAsCode = speakUp, isTutorTalking, isLeadStopped = () => false, getSecondsSinceQuestion, readMeaning, readStrokes, readSpokenWords, writeHeardLog, send, getNowMs, trace }: BoardWorkOptions) {
   let spokenLines = 0;
   let inkReads = 0;
   let latestInkRead: { key: string; reading: ReturnType<BoardWorkOptions['readStrokes']> | Promise<null> } | null = null;
@@ -133,7 +132,8 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, isHe
       isAnsweringJudgedWork = checked.verdict.status !== 'unknown';
       // "Hm." in front of a line that turns out right sounds like doubt, so a line code cannot judge gets a sound that says nothing.
       nodDue = getNod(message.work, checked) ?? (checked.verdict.status === 'unknown' && checked.reading?.kind === 'math' ? NODS.neutral : null);
-      speakUp(getWorkWords(message.work));
+      if (message.work.way === 'write') speakUp(message.work.text);
+      else speakUpAsCode(getWorkWords(message.work));
     } else {
       unanswered = { checked, keys: wrongKeys };
     }
@@ -251,7 +251,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, isHe
       unanswered: unanswered && { verdict: unanswered.checked.verdict, isSameWrongLineTwice: new Set(unanswered.keys).size < unanswered.keys.length },
       hasOpenTask: board?.openTask != null,
       hasLeanedInOnThisSilence: hasLeanedIn,
-      isAskedToStop: isHeld(),
+      isLeadStopped: isLeadStopped(),
     };
   };
 
@@ -261,7 +261,7 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, isHe
     noteAnswered();
     tutor.noteWatcher?.({ why: decision.why, seconds_paused: seconds, ...(draftText ? { unsent_draft: cleanStudentText(draftText) } : {}) });
     trace('watcherSpoke', { why: decision.why, seconds });
-    speakUp('(has paused)');
+    speakUpAsCode('(has paused)');
   };
 
   const readDraftOnce = (text: string): Promise<WordMeaning | null> => {
@@ -273,7 +273,6 @@ export function createBoardWork({ tutor, writeLog, speakUp, isTutorTalking, isHe
     return meaning;
   };
 
-  // Danger in unsent words comes before whatever else is happening, so this read has no gate, and the words a student is typing cost one read each time they settle.
   const onPaused = async ({ seconds, draft }: BrowserMessage & { type: 'paused' }) => {
     const meaning = draft && HOLDS_WORDS.test(draft) ? await readDraftOnce(draft) : null;
     if (meaning === 'needsAPerson' && draft && draftSpokenFor !== draft) {

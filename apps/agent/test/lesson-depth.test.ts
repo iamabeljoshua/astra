@@ -296,8 +296,8 @@ function startLeading({ answers, canLead = () => true, hasLessonLeft = () => tru
       yield* answers(text, asked.length - 1);
     },
     canLead: () => !isHeld && canLead(),
-    isHeld: () => isHeld,
-    noteAskedToHold: () => {
+    isLeadStopped: () => isHeld,
+    holdLeads: () => {
       isHeld = true;
     },
     hasLessonLeft,
