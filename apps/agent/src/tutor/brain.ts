@@ -820,7 +820,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
           turn.hasModelWords = true;
           if (soundsLikeCrisisReply(getBeatText(beat))) safety?.showHelp();
           turn.hasWordsSinceToolResult = true;
-          addBeat(turn, parts.startsStretch ? { ...beat, pauseBeforeMs: getNextBreathMs() } : beat);
+          const voiced = canUseVoiceTags(turn) && parts.voiceTags.length > 0 ? { ...beat, voiceTags: parts.voiceTags } : beat;
+          addBeat(turn, parts.startsStretch ? { ...voiced, pauseBeforeMs: getNextBreathMs() } : voiced);
         },
       }),
       beats: [],
@@ -1218,6 +1219,8 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     turn.raw += help;
     turn.reader.push(help);
   };
+
+  const canUseVoiceTags = (turn: TurnWork) => !turn.reader.isSafetyReply && !turn.wasCrisisAtStart && (isCleanRead(turn.safetyReading) || didNobodySpeak(turn));
 
   const replyLacksHelp = (turn: TurnWork) => {
     if (!isAboutSafety(turn.safetyReading) || turn.hasStoppedForSafety) return false;

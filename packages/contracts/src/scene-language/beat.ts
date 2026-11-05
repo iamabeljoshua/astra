@@ -6,12 +6,21 @@ export const BEAT_LIMITS = { words: 60, characters: 600, commands: 12 } as const
 
 const FEWEST_OVER_WORDS = 1;
 
+export const VOICE_TAGS = ['[laughs]', '[chuckles]', '[warmly]'] as const;
+export type VoiceTag = (typeof VOICE_TAGS)[number];
+
+export interface VoiceTagAt {
+  beforeWord: number;
+  tag: VoiceTag;
+}
+
 /** One spoken phrase with its drawings written inside it. A command belongs to the word after it. */
 export interface Beat {
   id: BeatId;
   script: (string | SceneCommand)[];
   /** The tutor then waits at least 8 seconds (PRD T5). */
   expectsReply: boolean;
+  voiceTags?: readonly VoiceTagAt[];
 }
 
 export interface Cue {

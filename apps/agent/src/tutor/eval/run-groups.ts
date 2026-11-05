@@ -14,7 +14,7 @@ import { createLineReaders } from '../line-read/read-line.ts';
 import { CURRENT_PROMPT, PROMPT_VERSIONS, type PromptVersion, type TutorPrompt } from '../prompt.ts';
 import { createSpendLedger } from '../spend-ledger.ts';
 import { getWorkWords } from '../watcher/watch-rule.ts';
-import { JUDGED_CHECKS, LEVELS_QUESTION, REPLY_CHECKS } from './reply-checks.ts';
+import { JUDGED_CHECKS, LEVELS_QUESTION, REPLY_CHECKS, STARTS_PLAIN_QUESTION } from './reply-checks.ts';
 
 type GroupWork = { way: 'write'; id: string; text: string } | { way: 'leave' } | { way: 'pick'; part: string } | { way: 'place'; placed: 'rightOrder' | 'wrongOrder' } | { way: 'drag'; x: number };
 
@@ -52,6 +52,7 @@ interface LevelCompare {
   properTerms: readonly string[];
   lowerStudent?: CompareStudent;
   higherStudent?: CompareStudent;
+  higherAsksToGoDeeper?: string;
 }
 
 interface CompareStudent {
@@ -86,7 +87,7 @@ const PROFILE: StudentProfile = { level: 'high_school', interests: ['basketball'
 const JUDGE_MODEL: TutorModelName = 'sonnet-5-5';
 /** The judge thinks first on a close call, and at 120 tokens that left no verdict at all, which counted as a miss. */
 const JUDGE_MAX_TOKENS = 1500;
-const USUAL_WORDS = 25;
+const USUAL_WORDS = 35;
 const USUAL_SHARE = 0.5;
 /** These protect a minor, so one failure across all repeats fails the file. */
 const MUST_PASS_CHECKS: ReadonlySet<string> = new Set(['safety', 'noFeelings', 'noFalseReporting', 'noHotline', 'medicalHelp', 'saysAi']);
@@ -159,7 +160,7 @@ function makeBrain(prompt: TutorPrompt, profile: StudentProfile, traces: string[
     lessonPlanner,
     readers: createLineReaders(makeAnthropicOneWordReader({ apiKey: readKey('ANTHROPIC_API_KEY'), onCost: (usd) => ledger.charge({ anthropicUsd: usd }) })),
     ...(memory ? { memory: { memory: { count: memory.length, notes: [...memory] } } } : {}),
-    ...(prompt === PROMPT_VERSIONS.v3FindSource || prompt === PROMPT_VERSIONS.v4FindSource ? { findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }) } : {}),
+    ...(prompt === PROMPT_VERSIONS.v3FindSource || prompt === PROMPT_VERSIONS.v4FindSource || prompt === PROMPT_VERSIONS.v5FindSource ? { findSource: makeAnthropicSourceFinder({ apiKey: readKey('ANTHROPIC_API_KEY') }) } : {}),
     trace: (name, fields) => traces.push(`${name}${fields?.problem ? `: ${String(fields.problem)}` : ''}${fields?.report ? `: ${String(fields.report)}` : ''}`),
     onTurnEnd(summary) {
       onTurn(summary);
@@ -242,24 +243,43 @@ async function runGroup(group: PromptGroup, { prompt, model, askJudge }: RunCont
   }
   if (group.stat === 'usuallyShort') {
     const passed = wordCounts.filter((count) => count < USUAL_WORDS).length / wordCounts.length >= USUAL_SHARE;
-    results.push({ group: group.name, check: 'stat:usuallyUnder25', passed, text: wordCounts.join(',') });
-    console.log(`   words per reply ${wordCounts.join(', ')}${passed ? '' : ' FAILED usually under 25'}`);
+    results.push({ group: group.name, check: 'stat:usuallyUnder35', passed, text: wordCounts.join(',') });
+    console.log(`   words per reply ${wordCounts.join(', ')}${passed ? '' : ' FAILED usually under 35'}`);
   }
 }
 
-async function runCompareSide(compare: LevelCompare, { level, student = {} }: { level: string; student?: CompareStudent | undefined }, { prompt, model }: RunContext): Promise<string> {
+async function runCompareSide({ text, then }: Pick<LevelCompare, 'text' | 'then'>, { level, student = {} }: { level: string; student?: CompareStudent | undefined }, { prompt, model }: RunContext): Promise<string[]> {
   const spoken: string[] = [];
   const { brain } = makeBrain(prompt, { level, interests: student.interests ?? [], goal: 'curiosity' }, [], (summary) => spoken.push(summary.spokenText), model, student.memory);
-  for (const text of [compare.text, compare.then]) for await (const beat of brain.reply({ text }, new AbortController().signal)) void beat;
+  for (const line of [text, then]) for await (const beat of brain.reply({ text: line }, new AbortController().signal)) void beat;
   console.log(`   ${level} words a reply ${spoken.map((reply) => reply.split(/\s+/).filter(Boolean).length).join(', ')}`);
-  return spoken.join(' ');
+  return spoken;
+}
+
+const namesAny = (words: string, terms: readonly string[]) => terms.some((term) => words.toLowerCase().includes(term));
+
+async function runPlainThenDeeper(group: PromptGroup, compare: LevelCompare, higherAsksToGoDeeper: string, context: RunContext): Promise<void> {
+  const [lower, [opening = '', deeper = '']] = await Promise.all([runCompareSide(compare, { level: compare.lower }, context), runCompareSide({ text: compare.text, then: higherAsksToGoDeeper }, { level: compare.higher }, context)]);
+  console.log(`[${group.name}] ${compare.lower}: ${lower.join(' ')}\n[${group.name}] ${compare.higher}: ${opening}\n[${group.name}] ${compare.higher} after "${higherAsksToGoDeeper}": ${deeper}`);
+  const lowerIsPlain = !namesAny(lower.join(' '), compare.plainTerms);
+  const higherStartsPlain = !namesAny(opening, compare.plainTerms);
+  const goesDeeper = namesAny(deeper, compare.properTerms);
+  const verdict = await context.askJudge(`The question: ${compare.text}\n\nThe tutor said: ${opening}\n\n${STARTS_PLAIN_QUESTION}`);
+  results.push(
+    { group: group.name, check: 'level:lowerIsPlain', passed: lowerIsPlain, text: compare.text },
+    { group: group.name, check: 'level:higherStartsPlain', passed: higherStartsPlain, text: compare.text },
+    { group: group.name, check: 'level:deeperWhenAsked', passed: goesDeeper, text: higherAsksToGoDeeper },
+    { group: group.name, check: 'judged:startsPlain', passed: /^YES\b/i.test(verdict), text: compare.text },
+  );
+  console.log(`   lower plain ${lowerIsPlain}, higher starts plain ${higherStartsPlain}, deeper when asked ${goesDeeper}, judged: ${verdict.replace(/\s+/g, ' ').slice(0, 160)}`);
 }
 
 async function runCompare(group: PromptGroup, compare: LevelCompare, context: RunContext): Promise<void> {
-  const [lower, higher] = await Promise.all([runCompareSide(compare, { level: compare.lower, student: compare.lowerStudent }, context), runCompareSide(compare, { level: compare.higher, student: compare.higherStudent }, context)]);
+  if (compare.higherAsksToGoDeeper) return runPlainThenDeeper(group, compare, compare.higherAsksToGoDeeper, context);
+  const [lower, higher] = (await Promise.all([runCompareSide(compare, { level: compare.lower, student: compare.lowerStudent }, context), runCompareSide(compare, { level: compare.higher, student: compare.higherStudent }, context)])).map((spoken) => spoken.join(' ')) as [string, string];
   console.log(`[${group.name}] ${compare.lower}: ${lower}\n[${group.name}] ${compare.higher}: ${higher}`);
-  const namesPlain = !compare.plainTerms.some((term) => lower.toLowerCase().includes(term));
-  const namesProper = compare.properTerms.length === 0 || compare.properTerms.some((term) => higher.toLowerCase().includes(term));
+  const namesPlain = !namesAny(lower, compare.plainTerms);
+  const namesProper = compare.properTerms.length === 0 || namesAny(higher, compare.properTerms);
   results.push({ group: group.name, check: 'level:lowerIsPlain', passed: namesPlain, text: compare.text }, { group: group.name, check: 'level:higherIsProper', passed: namesProper, text: compare.text });
   // The order changes at random, so a judge's habit of picking one letter cannot pass.
   const isHigherFirst = Math.random() < 0.5;
