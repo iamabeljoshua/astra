@@ -153,6 +153,16 @@ describe('a pendulum and a lever, replayed from the session log', () => {
   });
 });
 
+describe('an arrow near the edge', () => {
+  it('stops at the edge of the sketch instead of running off it', () => {
+    const board = getBoardAt([command(0, { kind: 'sketch', id: 'walk' }), command(10, piece('me', 'walk', { shape: 'person', at: 'left' })), command(20, piece('back', 'walk', { shape: 'arrow', from: 'me', toward: 'left', length: 'long' }))], 5000);
+    const arrow = board.elements.get('back' as never);
+    const points = arrow ? getStrokePoints(board.elements, arrow.content as never, 5000, false) : [];
+    expect(points).toHaveLength(2);
+    for (const point of points) expect(point.x).toBeGreaterThanOrEqual(0.15 - 1e-9);
+  });
+});
+
 describe('turning an arrow', () => {
   it('points it the other way after half a turn, about its tail', () => {
     const arrow = [

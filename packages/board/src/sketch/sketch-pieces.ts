@@ -87,6 +87,14 @@ function getEndPlace(elements: Elements, end: string, timing: { atMs: number; is
 
 const toEdge = (end: EndPlace, toward: Point) => (end.edgeOf ? getEdgeToward(end.edgeOf.shape, end.edgeOf.box, end.edgeOf.pose, toward) : end.point);
 
+const EDGE_ROOM = 0.15;
+
+/** How far a line can run from `from` along `direction` and stay on the sketch, so an arrow never loses its head off the edge. */
+function getRoomToward(from: Point, direction: Point, length: number): number {
+  const limits = [direction.x > 0 ? (PAD.width - EDGE_ROOM - from.x) / direction.x : direction.x < 0 ? (EDGE_ROOM - from.x) / direction.x : length, direction.y > 0 ? (PAD.height - EDGE_ROOM - from.y) / direction.y : direction.y < 0 ? (EDGE_ROOM - from.y) / direction.y : length];
+  return Math.max(0, Math.min(length, ...limits));
+}
+
 export function getStrokePoints(elements: Elements, piece: StrokeCommand, atMs: number, isReducedMotion: boolean): Point[] {
   return getLinePoints(elements, piece, { atMs, isReducedMotion, depth: 0 });
 }
@@ -105,12 +113,14 @@ function getLinePoints(elements: Elements, piece: StrokeCommand, timing: { atMs:
     const from = getEndPlace(elements, piece.from, timing);
     if (!from) return [];
     const start = toEdge(from, { x: from.point.x + direction.x * 100, y: from.point.y + direction.y * 100 });
-    return [start, { x: start.x + direction.x * length, y: start.y + direction.y * length }];
+    const reach = getRoomToward(start, direction, length);
+    return [start, { x: start.x + direction.x * reach, y: start.y + direction.y * reach }];
   }
   const to = getEndPlace(elements, piece.to, timing);
   if (!to) return [];
   const end = toEdge(to, { x: to.point.x - direction.x * 100, y: to.point.y - direction.y * 100 });
-  return [{ x: end.x - direction.x * length, y: end.y - direction.y * length }, end];
+  const reach = getRoomToward(end, { x: -direction.x, y: -direction.y }, length);
+  return [{ x: end.x - direction.x * reach, y: end.y - direction.y * reach }, end];
 }
 
 export function getSketchPieces(elements: Elements, sketchId: ElementId): (BoardElement & { content: DrawShape })[] {
