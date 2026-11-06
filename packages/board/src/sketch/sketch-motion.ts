@@ -1,11 +1,10 @@
-import type { Animate, DrawShape, ElementId } from '@astra/contracts';
+import { type Animate, type DrawShape, type ElementId, isSketchLine } from '@astra/contracts';
 import type { BoardElement } from '../player/board-state.ts';
 import type { Point } from '../figure/figure-marks.ts';
 import type { Scene } from '../player/scene.ts';
 import { getAlongPath, getFallPath, getOrbitPath, getRollOffPath, getSpinPath, getSwingPath, getTiltPath, type SketchPath } from './sketch-paths.ts';
 import { getAnchorPoint, getBoxEdges, PAD, type PiecePose, type PlacedPiece, restingPose } from './sketch-layout.ts';
 import { type Elements, getPiecePose, getSketchPieces, getStrokePoints, isPiece, type PieceFrame } from './sketch-pieces.ts';
-import type { StrokeCommand } from './sketch-layout.ts';
 
 /** Squares a second squared, from real gravity at the sketch's own scale. */
 export const SKETCH_GRAVITY = 9.8 / PAD.metresPerSquare;
@@ -110,8 +109,8 @@ function getPath(elements: Elements, element: BoardElement & { content: DrawShap
       return asFrames(getFallPath({ start: start.at, floorY: getFloorBelow(elements, sketchId, { x: start.at.x, y: start.at.y + radius }, command.target), radius, gravity: SKETCH_GRAVITY }), start);
     case 'along': {
       const path = elements.get(command.path);
-      if (!isPiece(path) || path.piece) return null;
-      const points = getStrokePoints(elements, path.content as StrokeCommand, atMs, false);
+      if (!isPiece(path) || !isSketchLine(path.content)) return null;
+      const points = getStrokePoints(elements, path.content, atMs, false);
       return points.length < 2 ? null : asFrames(getAlongPath({ points, speed: SECONDS.alongSquaresPerSecond }), start);
     }
     case 'orbit': {

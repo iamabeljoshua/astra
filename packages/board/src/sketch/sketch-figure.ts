@@ -1,4 +1,4 @@
-import type { DrawShape, ElementId } from '@astra/contracts';
+import { type DrawShape, type ElementId, isSketchLine } from '@astra/contracts';
 import { type FigureFrame, getAttachedElements, getDrawnShare, getPartMark } from '../figure/figure-input.ts';
 import { addLabel, addPartMark, createFigureDraft, type FigureDraft, finishFigure } from '../figure/figure-draft.ts';
 import { type Branch, type FigureMark, getDistance, getLeadingShare, type MarkTone, type Point } from '../figure/figure-marks.ts';
@@ -69,11 +69,11 @@ function getHatching(center: Point, radius: number, isShaded: (local: Point) => 
 }
 
 /** The dark part of a moon as seen from `viewer`: its phase angle sets how far the shadow's edge reaches across the disc. */
-function getPhaseShading(elements: FigureFrame['board']['elements'], piece: Piece & { content: { shape: 'phase' } }, frame: FigureFrame): ((local: Point) => boolean) | null {
-  const moon = elements.get(piece.content.of);
+function getPhaseShading(elements: FigureFrame['board']['elements'], phase: Extract<DrawShape, { shape: 'phase' }>, frame: FigureFrame): ((local: Point) => boolean) | null {
+  const moon = elements.get(phase.of);
   const lightId = moon && isPiece(moon) && moon.content.shape === 'ball' ? moon.content.lit : undefined;
-  const moonPose = getPiecePose(elements, piece.content.of, frame.atMs, frame.isReducedMotion);
-  const viewerPose = getPiecePose(elements, piece.content.seenFrom, frame.atMs, frame.isReducedMotion);
+  const moonPose = getPiecePose(elements, phase.of, frame.atMs, frame.isReducedMotion);
+  const viewerPose = getPiecePose(elements, phase.seenFrom, frame.atMs, frame.isReducedMotion);
   const lightPose = lightId ? getPiecePose(elements, lightId, frame.atMs, frame.isReducedMotion) : null;
   if (!moonPose || !viewerPose || !lightPose) return null;
   const toLight = { x: lightPose.at.x - moonPose.at.x, y: lightPose.at.y - moonPose.at.y };
@@ -219,17 +219,18 @@ function addSolid(draft: FigureDraft, piece: Piece & { piece: NonNullable<BoardE
 }
 
 function getShading(elements: FigureFrame['board']['elements'], piece: Piece, frame: FigureFrame, pose: PiecePose): ((local: Point) => boolean) | null {
-  if (piece.content.shape === 'phase') return getPhaseShading(elements, piece as Piece & { content: { shape: 'phase' } }, frame);
-  if (piece.content.shape !== 'ball' || !piece.content.lit) return null;
-  const light = getPiecePose(elements, piece.content.lit, frame.atMs, frame.isReducedMotion);
+  const { content } = piece;
+  if (content.shape === 'phase') return getPhaseShading(elements, content, frame);
+  if (content.shape !== 'ball' || !content.lit) return null;
+  const light = getPiecePose(elements, content.lit, frame.atMs, frame.isReducedMotion);
   if (!light) return null;
   const toLight = { x: light.at.x - pose.at.x, y: light.at.y - pose.at.y };
   return ({ x, y }) => x * toLight.x + y * toLight.y < 0;
 }
 
-function addStroke(draft: FigureDraft, piece: Piece, { frame, view, tone, share }: { frame: FigureFrame; view: SketchView; tone: MarkTone; share: number }): Drawn | null {
+function addStroke(draft: FigureDraft, piece: Piece & { content: StrokeCommand }, { frame, view, tone, share }: { frame: FigureFrame; view: SketchView; tone: MarkTone; share: number }): Drawn | null {
   const look = getOwnFrame(piece, frame);
-  const points = turnAbout(getStrokePoints(frame.board.elements, piece.content as StrokeCommand, frame.atMs, frame.isReducedMotion).map(view.toPixel), look?.turn ?? 0);
+  const points = turnAbout(getStrokePoints(frame.board.elements, piece.content, frame.atMs, frame.isReducedMotion).map(view.toPixel), look?.turn ?? 0);
   if (points.length < 2) return null;
   const random = makeSeededRandom(piece.id);
   const branches = scaleAbout(getStrokeBranches(piece, points, view.scale), points[0] as Point, look?.scale ?? 1).map((branch) => (branch.length === 2 ? getPenLine(branch[0] as Point, branch[1] as Point, random) : branch));
@@ -263,7 +264,8 @@ export function getSketchMarks(frame: FigureFrame): FigureMark[] {
     const tone: MarkTone = element.content.pen ? 'pen' : 'ink';
     const share = getDrawnShare(element, frame);
     if (getOwnFrame(element, frame)?.leavesTrail && share >= 1) draft.marks.push({ kind: 'path', key: `trail-${element.id}`, tone: 'pen', weight: 'thin', isDashed: true, branches: [getTrail(element, frame, view)] });
-    const drawn = element.piece ? addSolid(draft, { ...element, piece: element.piece }, { frame, view, tone, share }) : addStroke(draft, element, { frame, view, tone, share });
+    const { content } = element;
+    const drawn = isSketchLine(content) ? addStroke(draft, { ...element, content }, { frame, view, tone, share }) : element.piece ? addSolid(draft, { ...element, piece: element.piece }, { frame, view, tone, share }) : null;
     if (!drawn) continue;
     drawnPieces.set(element.id, drawn);
     if (element.content.label && share >= 1) addLabel(draft, { key: `label-${element.id}`, text: element.content.label, anchor: drawn.center, gap: drawn.radius + 5, tone });

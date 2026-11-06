@@ -189,6 +189,16 @@ describe('the sketch on the page', () => {
     expect(marksAt(ROLLING, 900).map((mark) => mark.key)).toEqual(expect.arrayContaining(['piece-floor', 'piece-table', 'piece-ball']));
   });
 
+  it('draws a loop of lines that end on each other without hanging, when an id is drawn again', () => {
+    const looped = [
+      command(0, { kind: 'sketch', id: 'desk' }),
+      command(10, piece('a', 'desk', { shape: 'line', from: 'left', to: 'right' })),
+      command(20, piece('b', 'desk', { shape: 'line', from: 'a', to: 'top' })),
+      command(30, piece('a', 'desk', { shape: 'line', from: 'b', to: 'bottom' })),
+    ];
+    expect(() => marksAt(looped, 5000)).not.toThrow();
+  });
+
   it('shows the end of a motion at once under reduced motion', () => {
     const trail = (isReduced: boolean) => marksAt(ROLLING, ROLL_AT_MS + 10, isReduced).find((mark) => mark.key === 'trail-ball');
     const landed = marksAt(ROLLING, ROLL_AT_MS + ROLL_OVER_MS + 100).find((mark) => mark.key === 'trail-ball');

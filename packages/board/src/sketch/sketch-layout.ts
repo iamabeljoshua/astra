@@ -1,4 +1,4 @@
-import type { DrawShape, ElementId, SketchAnchor, SketchDirection, SketchGap, SketchSide, SketchSize, SketchSpot } from '@astra/contracts';
+import type { DrawShape, ElementId, SketchAnchor, SketchDirection, SketchGap, SketchSide, SketchSize, SketchSpot, SketchStroke } from '@astra/contracts';
 import type { Point } from '../figure/figure-marks.ts';
 import { STAMP_SHEETS, type StampName } from './stamp-sheets.ts';
 
@@ -19,8 +19,8 @@ export interface PlacedPiece {
   restsOn: ElementId | null;
 }
 
-type SolidCommand = Extract<DrawShape, { size?: SketchSize } | { shape: 'label' } | { shape: 'phase' }>;
-export type StrokeCommand = Extract<DrawShape, { from: string } | { to: string } | { through: string[] }>;
+export type StrokeCommand = Extract<DrawShape, { shape: SketchStroke | 'curve' }>;
+type SolidCommand = Exclude<DrawShape, StrokeCommand>;
 
 const SIZE_SHARE: Record<SketchSize, number> = { small: 0.6, medium: 1, large: 1.7 };
 const MEDIUM_SIZES: Record<string, { width: number; height: number }> = {

@@ -1,4 +1,4 @@
-import type { DrawShape, ElementId, SketchAnchor } from '@astra/contracts';
+import { type DrawShape, type ElementId, isSketchLine, type SketchAnchor } from '@astra/contracts';
 import type { Point } from '../figure/figure-marks.ts';
 import type { BoardElement } from '../player/board-state.ts';
 import { getMotionValue } from '../player/motion.ts';
@@ -68,42 +68,52 @@ interface EndPlace {
   edgeOf: { shape: string; box: PieceBox; pose: PiecePose } | null;
 }
 
-function getEndPlace(elements: Elements, end: string, atMs: number, isReducedMotion: boolean): EndPlace | null {
+// A line can end on another line, and an id drawn again can close a loop, so a chain of lines stops after a few.
+const MOST_LINES_IN_A_CHAIN = 6;
+
+function getEndPlace(elements: Elements, end: string, timing: { atMs: number; isReducedMotion: boolean; depth: number }): EndPlace | null {
   const spot = SPOT_POINTS[end];
   if (spot) return { point: spot, edgeOf: null };
   const [pieceId, anchor] = end.split('.') as [ElementId, SketchAnchor | undefined];
   const element = elements.get(pieceId);
   if (!isPiece(element)) return null;
-  if (!element.piece) {
-    const points = getStrokePoints(elements, element.content as StrokeCommand, atMs, isReducedMotion);
+  if (isSketchLine(element.content)) {
+    if (timing.depth >= MOST_LINES_IN_A_CHAIN) return null;
+    const points = getLinePoints(elements, element.content, { ...timing, depth: timing.depth + 1 });
     const point = anchor === 'left' || anchor === 'top' ? points[0] : points.at(-1);
     return point ? { point, edgeOf: null } : null;
   }
-  const pose = getPiecePose(elements, pieceId, atMs, isReducedMotion) ?? restingPose(element.piece.box);
-  if (anchor) return { point: getAnchorPoint(element.piece.box, pose, anchor), edgeOf: null };
-  return { point: pose.at, edgeOf: { shape: element.content.shape, box: element.piece.box, pose } };
+  const placed = element.piece;
+  if (!placed) return null;
+  const pose = getPiecePose(elements, pieceId, timing.atMs, timing.isReducedMotion) ?? restingPose(placed.box);
+  if (anchor) return { point: getAnchorPoint(placed.box, pose, anchor), edgeOf: null };
+  return { point: pose.at, edgeOf: { shape: element.content.shape, box: placed.box, pose } };
 }
 
 const toEdge = (end: EndPlace, toward: Point) => (end.edgeOf ? getEdgeToward(end.edgeOf.shape, end.edgeOf.box, end.edgeOf.pose, toward) : end.point);
 
 /** The points a stroke runs through now, from the pieces it joins as they are this moment, so a string follows its bob. */
 export function getStrokePoints(elements: Elements, piece: StrokeCommand, atMs: number, isReducedMotion: boolean): Point[] {
-  if ('through' in piece) return piece.through.flatMap((end) => getEndPlace(elements, end, atMs, isReducedMotion)?.point ?? []);
+  return getLinePoints(elements, piece, { atMs, isReducedMotion, depth: 0 });
+}
+
+function getLinePoints(elements: Elements, piece: StrokeCommand, timing: { atMs: number; isReducedMotion: boolean; depth: number }): Point[] {
+  if ('through' in piece) return piece.through.flatMap((end) => getEndPlace(elements, end, timing)?.point ?? []);
   const length = 'toward' in piece ? STROKE_LENGTHS[piece.length ?? 'medium'] : 0;
   const direction = 'toward' in piece ? getDirection(piece.toward) : { x: 0, y: 0 };
   if ('from' in piece && 'to' in piece) {
-    const from = getEndPlace(elements, piece.from, atMs, isReducedMotion);
-    const to = getEndPlace(elements, piece.to, atMs, isReducedMotion);
+    const from = getEndPlace(elements, piece.from, timing);
+    const to = getEndPlace(elements, piece.to, timing);
     if (!from || !to) return [];
     return [toEdge(from, to.point), toEdge(to, from.point)];
   }
   if ('from' in piece) {
-    const from = getEndPlace(elements, piece.from, atMs, isReducedMotion);
+    const from = getEndPlace(elements, piece.from, timing);
     if (!from) return [];
     const start = toEdge(from, { x: from.point.x + direction.x * 100, y: from.point.y + direction.y * 100 });
     return [start, { x: start.x + direction.x * length, y: start.y + direction.y * length }];
   }
-  const to = getEndPlace(elements, piece.to, atMs, isReducedMotion);
+  const to = getEndPlace(elements, piece.to, timing);
   if (!to) return [];
   const end = toEdge(to, { x: to.point.x - direction.x * 100, y: to.point.y - direction.y * 100 });
   return [{ x: end.x - direction.x * length, y: end.y - direction.y * length }, end];
