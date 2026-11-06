@@ -1,4 +1,4 @@
-import { type BoardModeName, type ElementId, type ElementRef, type FrozenFrame, getOverlappingSlider, type InkPoint, type SceneCommand, type SimulationPoint, type Slider } from '@astra/contracts';
+import { type BoardModeName, type ElementId, type ElementRef, type FrozenFrame, getOverlappingSlider, type InkPoint, isSketchLine, type SceneCommand, type SimulationPoint, type Slider } from '@astra/contracts';
 import { type MathLine, startMathLine, transformMathLine } from '../math/math-line.ts';
 import { getChangesInPairOf } from '../motion/projectile-scene.ts';
 import { applyWorked, closeOpenTasks, moveTaskPoint, startProgress, type StudentLineContent, type TaskProgress } from '../shared/student-work.ts';
@@ -6,6 +6,9 @@ import type { BoardOperation } from './board-operations.ts';
 import { getMotionEndMs, getMotionValue, holdMotion, isMoving, type Motion, moveOver, retimeMotion } from './motion.ts';
 import { PLANNED_SCENES } from './planned-scenes.ts';
 import type { Scene, SceneCatalog, SceneParameters } from './scene.ts';
+import { placeSolid, type PlacedPiece } from '../sketch/sketch-layout.ts';
+import { createPieceMotion } from '../sketch/sketch-motion.ts';
+import { getSketchPieces } from '../sketch/sketch-pieces.ts';
 
 const ENTRANCE_MS = 400;
 const REARRANGE_MS = 800;
@@ -19,7 +22,7 @@ const MS_PER_SECOND = 1000;
 
 type PlacingCommand = Extract<SceneCommand, { id: ElementId }>;
 
-const BRINGS_THE_BOARD: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'text', 'plot', 'numberLine', 'geometry', 'simulate', 'drawing', 'diagram', 'table', 'timeline', 'code', 'image', 'task']);
+const BRINGS_THE_BOARD: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'text', 'plot', 'numberLine', 'geometry', 'sketch', 'simulate', 'drawing', 'diagram', 'table', 'timeline', 'code', 'image', 'task']);
 
 export interface InkContent {
   kind: 'ink';
@@ -51,6 +54,8 @@ export interface BoardElement {
   targetSecondsWhenPlaced: number | null;
   progress?: TaskProgress;
   isStudentMark?: boolean;
+  /** Where a sketch's solid piece was put when it was drawn, worked out once so nothing later can move it. */
+  piece?: PlacedPiece;
 }
 
 export interface BoardStage {
@@ -219,7 +224,21 @@ function place(board: BoardDraft, command: PlacingCommand, { atMs, overMs, catal
     ...(command.kind === 'task' ? { progress: startProgress(command) } : {}),
     ghostScene: getGhostScene(board, command),
     targetSecondsWhenPlaced: getTargetSecondsNow(board, command, atMs),
+    ...getPlacedPiece(board, command),
   });
+}
+
+function getPlacedPiece(board: BoardDraft, command: PlacingCommand): { piece?: PlacedPiece } {
+  if (command.kind !== 'drawShape' || isSketchLine(command)) return {};
+  const earlier = new Map(getSketchPieces(board.elements, command.target).flatMap((element) => (element.piece && element.id !== command.id ? [[element.id as string, { shape: element.content.shape, box: element.piece.box }] as const] : [])));
+  return { piece: placeSolid(command, earlier) };
+}
+
+function startPieceMotion(board: BoardDraft, command: SceneCommand & { kind: 'animate' }, { atMs, overMs }: { atMs: number; overMs: number | null }): void {
+  const element = board.elements.get(command.target);
+  const scene = element ? createPieceMotion(board.elements, command, atMs) : null;
+  if (!element || !scene) return;
+  element.placedScene = { scene, parameterChanges: {}, playhead: moveOver({ from: 0, to: scene.durationSeconds, atMs, overMs: overMs ?? scene.durationSeconds * MS_PER_SECOND }), reshapingFrom: null };
 }
 
 function startMove(element: BoardElement, command: PendingMove['command'], { atMs, overMs }: { atMs: number; overMs: number | null }): void {
@@ -320,6 +339,9 @@ function applyCommand(board: BoardDraft, command: SceneCommand, { atMs, overMs, 
       if (element) runScene(element, command, { atMs, overMs });
       return;
     }
+    case 'animate':
+      startPieceMotion(board, command, { atMs, overMs });
+      return;
     case 'setParameter': {
       const element = board.elements.get(command.target);
       if (element && 'constant' in command) reshapeCurve(element, { constant: command.constant, value: command.value, atMs, overMs, catalog });
@@ -353,9 +375,10 @@ function reaimCommand(board: BoardDraft, { atMs, command, landsAtMs }: BoardOper
     pending.landsAtMs = landsAtMs;
     return;
   }
-  if (command.kind === 'runSimulation' && element.placedScene) element.placedScene.playhead = retimeMotion(element.placedScene.playhead, atMs, landsAtMs);
+  const isPlay = command.kind === 'runSimulation' || command.kind === 'animate';
+  if (isPlay && element.placedScene) element.placedScene.playhead = retimeMotion(element.placedScene.playhead, atMs, landsAtMs);
   else if (command.kind === 'reveal' && element.revealedUpTo) element.revealedUpTo = retimeMotion(element.revealedUpTo, atMs, landsAtMs);
-  else if (command.kind !== 'runSimulation' && command.kind !== 'reveal') element.entrance = retimeMotion(element.entrance, atMs, landsAtMs);
+  else if (!isPlay && command.kind !== 'reveal') element.entrance = retimeMotion(element.entrance, atMs, landsAtMs);
 }
 
 function addInk(board: BoardDraft, operation: BoardOperation & { kind: 'inkStroke' }): void {

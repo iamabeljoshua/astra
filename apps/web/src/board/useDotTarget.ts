@@ -2,11 +2,13 @@ import type { BoardElement, BoardState } from '@astra/board';
 import type { ElementId } from '@astra/contracts';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-const DOT_GOES_TO: ReadonlySet<BoardElement['content']['kind']> = new Set(['writeMath', 'studentLine', 'text', 'diagram', 'plot', 'task', 'table', 'timeline', 'code', 'image', 'drawing']);
+const DOT_GOES_TO: ReadonlySet<BoardElement['content']['kind']> = new Set(['writeMath', 'studentLine', 'text', 'diagram', 'plot', 'task', 'table', 'timeline', 'code', 'image', 'drawing', 'sketch']);
 
 export function getLatestRowId(board: BoardState): string | null {
   const focused = board.focus?.split('.')[0];
-  if (focused && board.elements.has(focused as ElementId)) return focused;
+  const focusedContent = focused ? board.elements.get(focused as ElementId)?.content : undefined;
+  if (focusedContent?.kind === 'drawShape') return focusedContent.target;
+  if (focused && focusedContent) return focused;
   const elements = [...board.elements.values()];
   for (const { id, content } of elements.reverse()) {
     const hangsOn = 'target' in content ? content.target : content.kind === 'task' && 'on' in content ? content.on : undefined;

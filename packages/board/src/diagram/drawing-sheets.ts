@@ -19,19 +19,19 @@ const HELD_CORNER_REACH = 1.2;
 const LEAF = { bellyAt: 0.45, bellyWidth: 0.38 };
 const PIANO = { whiteWidth: 96 / 7, top: 2, bottom: 44, blackHalfWidth: 4, blackBottom: 28, blackAfter: new Set([1, 2, 4, 5, 6]), shadingTurns: 10 };
 
-type Pair = readonly [number, number];
+export type Pair = readonly [number, number];
 
-const makeLine = (...points: readonly Pair[]) => points.map(([x, y]) => ({ x, y }));
+export const makeLine = (...points: readonly Pair[]) => points.map(([x, y]) => ({ x, y }));
 
-const makeCornered = (...points: readonly Pair[]) => holdCorners(makeLine(...points), HELD_CORNER_REACH);
+export const makeCornered = (...points: readonly Pair[]) => holdCorners(makeLine(...points), HELD_CORNER_REACH);
 
-function closeCurve(points: readonly InkPosition[]): InkPosition[] {
+export function closeCurve(points: readonly InkPosition[]): InkPosition[] {
   const [first, second] = points as [InkPosition, InkPosition];
   const seam = { x: (first.x + second.x) / 2, y: (first.y + second.y) / 2 };
   return [seam, ...points.slice(1, -1), first, seam];
 }
 
-function makeEllipse({ x, y, width, height = width, turnRadians = 0, from = 0, to = FULL_TURN, steps = CURVE_STEPS }: { x: number; y: number; width: number; height?: number; turnRadians?: number; from?: number; to?: number; steps?: number }): InkPosition[] {
+export function makeEllipse({ x, y, width, height = width, turnRadians = 0, from = 0, to = FULL_TURN, steps = CURVE_STEPS }: { x: number; y: number; width: number; height?: number; turnRadians?: number; from?: number; to?: number; steps?: number }): InkPosition[] {
   const points = Array.from({ length: steps + 1 }, (_, step) => {
     const angle = from + ((to - from) * step) / steps;
     const across = Math.cos(angle) * width;
@@ -41,7 +41,7 @@ function makeEllipse({ x, y, width, height = width, turnRadians = 0, from = 0, t
   return to - from === FULL_TURN ? closeCurve(points) : points;
 }
 
-const makeDot = (x: number, y: number, radius = 1) => makeEllipse({ x, y, width: radius, steps: 10 });
+export const makeDot = (x: number, y: number, radius = 1) => makeEllipse({ x, y, width: radius, steps: 10 });
 
 function makeWave({ fromX, toX, y, height, waves }: { fromX: number; toX: number; y: number; height: number; waves: number }): InkPosition[] {
   return Array.from({ length: CURVE_STEPS + 1 }, (_, step) => {
@@ -56,7 +56,7 @@ function makeLeaf([baseX, baseY]: Pair, [tipX, tipY]: Pair): InkPosition[] {
   return [base, ...holdCorners([getBelly(1), { x: tipX, y: tipY }, getBelly(-1)], HELD_CORNER_REACH), base];
 }
 
-const part = (x: number, y: number, radius = 4): SheetPart => ({ x, y, radius });
+export const part = (x: number, y: number, radius = 4): SheetPart => ({ x, y, radius });
 
 function drawAnimalCell(): DrawingSheet {
   const membrane = Array.from({ length: 49 }, (_, step) => {

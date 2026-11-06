@@ -8,6 +8,7 @@ import {
   checkRangeWidth,
   fail,
   type CheckedFields,
+  getField,
   type ParseResult,
   type Place,
   readBoolean,
@@ -42,6 +43,19 @@ import {
   SIMULATION_PARAMETERS,
   DRAG_SEEKS,
   type Simulation,
+  type DrawShape,
+  type SketchMotion,
+  type SketchPiece,
+  type SketchPlacement,
+  SKETCH_ANCHORS,
+  SKETCH_DIRECTIONS,
+  SKETCH_GAPS,
+  SKETCH_SIDES,
+  SKETCH_TILT_SIDES,
+  SKETCH_SIZES,
+  SKETCH_SOLIDS,
+  SKETCH_SPOTS,
+  SKETCH_STROKES,
   type SimulationModel,
   type SimulationParameter,
   type SimulationParameterRule,
@@ -73,6 +87,8 @@ const LIMITS = {
   plotConstants: 4,
   sceneMoments: 24,
   sceneParts: 24,
+  sketchText: 32,
+  sketchThrough: 6,
 } as const;
 
 const NUMBER_RANGES = {
@@ -83,6 +99,8 @@ const NUMBER_RANGES = {
   occurrence: { min: 0, max: LIMITS.tex - 1 },
   overWords: { min: 1, max: BEAT_LIMITS.words },
   playRate: { min: 0.1, max: 4 },
+  turns: { min: 0.25, max: 6 },
+  swings: { min: 0.5, max: 8 },
 } as const;
 
 const CODE_LANGUAGE = /^[a-z0-9+#-]{1,20}$/;
@@ -404,6 +422,107 @@ const TASKS: VariantTable<Task, 'way'> = {
   },
 };
 
+const SKETCH_RELATIONS = ['on', 'above', 'below', 'leftOf', 'rightOf', 'inside'] as const;
+const PLACEMENT_KEYS = ['at', ...SKETCH_RELATIONS, 'gap', 'side'];
+const PIECE_KEYS = ['kind', 'id', 'target', 'label', 'pen', 'shape'];
+const STROKE_KEYS = ['from', 'to', 'toward', 'length'];
+const SPOT_NAMES: ReadonlySet<string> = new Set(SKETCH_SPOTS);
+const ANCHOR_NAMES: ReadonlySet<string> = new Set(SKETCH_ANCHORS);
+const TAKES_A_GAP: ReadonlySet<string> = new Set(['above', 'below', 'leftOf', 'rightOf']);
+const TAKES_A_SIDE: ReadonlySet<string> = new Set(['on', 'above', 'below']);
+const SHAPES = [...SKETCH_SOLIDS, 'phase', ...SKETCH_STROKES, 'curve'] as const;
+
+// A spot name as a piece's id would make "center" mean two things in an end.
+function readPieceId(place: Place) {
+  const id = readElementId(place);
+  if (SPOT_NAMES.has(id)) fail(place, 'a piece name that is not a spot name');
+  return id;
+}
+
+function readSketchEnd(place: Place): string {
+  if (typeof place.value === 'string' && SPOT_NAMES.has(place.value)) return place.value;
+  const [piece, anchor, ...rest] = typeof place.value === 'string' ? place.value.split('.') : [];
+  if (piece === undefined || rest.length > 0 || (anchor !== undefined && !ANCHOR_NAMES.has(anchor))) fail(place, `a spot, a piece, or a piece and one of ${SKETCH_ANCHORS.join(', ')}, as "table.right"`);
+  readPieceId({ value: piece, path: place.path });
+  return place.value as string;
+}
+
+function readSketchPlacement(fields: CheckedFields): SketchPlacement {
+  const relations = SKETCH_RELATIONS.filter((key) => fields.at(key).value !== undefined);
+  const hasSpot = fields.at('at').value !== undefined;
+  if (relations.length + Number(hasSpot) > 1) fail(fields.place, 'at most one of at, on, above, below, leftOf, rightOf, inside');
+  const [relation] = relations;
+  const gap = fields.optional('gap', (place) => readOneOf(place, SKETCH_GAPS));
+  const side = fields.optional('side', (place) => readOneOf(place, SKETCH_SIDES));
+  if (gap.gap !== undefined && !(relation && TAKES_A_GAP.has(relation))) fail(fields.at('gap'), 'gap only with above, below, leftOf, or rightOf');
+  if (side.side !== undefined && !(relation && TAKES_A_SIDE.has(relation))) fail(fields.at('side'), 'side only with on, above, or below');
+  if (relation === undefined) return fields.optional('at', (place) => readOneOf(place, SKETCH_SPOTS));
+  return { [relation]: readPieceId(fields.at(relation)), ...gap, ...side } as SketchPlacement;
+}
+
+function readStrokeEnds(fields: CheckedFields) {
+  const { from, to } = { ...fields.optional('from', readSketchEnd), ...fields.optional('to', readSketchEnd) };
+  const toward = fields.optional('toward', (place) => readOneOf(place, SKETCH_DIRECTIONS));
+  const length = fields.optional('length', (place) => readOneOf(place, VECTOR_LENGTHS));
+  const endCount = Number(from !== undefined) + Number(to !== undefined);
+  if (toward.toward === undefined ? endCount !== 2 : endCount !== 1) fail(fields.place, 'from and to, or one of them with toward');
+  if (length.length !== undefined && toward.toward === undefined) fail(fields.at('length'), 'length only with toward');
+  return { ...(from === undefined ? {} : { from }), ...(to === undefined ? {} : { to }), ...toward, ...length };
+}
+
+function readSketchPiece(place: Place): SketchPiece {
+  const shape = readOneOf(getField(place, 'shape'), SHAPES);
+  if (shape === 'curve') {
+    const fields = readFields(place, [...PIECE_KEYS, 'through']);
+    const through = readList(fields.at('through'), { maxLength: LIMITS.sketchThrough, readItem: readSketchEnd });
+    if (through.length < 2) fail(fields.at('through'), 'at least 2 ends');
+    return { shape, through };
+  }
+  if ((SKETCH_STROKES as readonly string[]).includes(shape)) return { shape, ...readStrokeEnds(readFields(place, [...PIECE_KEYS, ...STROKE_KEYS])) } as SketchPiece;
+  if (shape === 'label') {
+    const fields = readFields(place, [...PIECE_KEYS, ...PLACEMENT_KEYS, 'text']);
+    return { shape, text: readWords(fields.at('text'), LIMITS.sketchText), ...readSketchPlacement(fields) };
+  }
+  if (shape === 'phase') {
+    const fields = readFields(place, [...PIECE_KEYS, ...PLACEMENT_KEYS, 'of', 'seenFrom']);
+    return { shape, of: readPieceId(fields.at('of')), seenFrom: readPieceId(fields.at('seenFrom')), ...readSketchPlacement(fields) };
+  }
+  const fields = readFields(place, [...PIECE_KEYS, ...PLACEMENT_KEYS, 'size', ...(shape === 'ball' ? ['lit'] : [])]);
+  const size = fields.optional('size', (sizePlace) => readOneOf(sizePlace, SKETCH_SIZES));
+  const lit = shape === 'ball' ? fields.optional('lit', readPieceId) : {};
+  return { shape, ...size, ...lit, ...readSketchPlacement(fields) } as SketchPiece;
+}
+
+function readDrawShape(fields: CheckedFields): DrawShape {
+  return {
+    kind: 'drawShape',
+    id: readPieceId(fields.at('id')),
+    target: readElementId(fields.at('target')),
+    ...fields.optional('label', readLabel),
+    ...fields.optional('pen', readBoolean),
+    ...readSketchPiece(fields.place),
+  } as DrawShape;
+}
+
+const ANIMATE_KEYS = ['kind', 'target', 'overWords'];
+const readTurns = (place: Place) => readNumberInRange(place, NUMBER_RANGES.turns);
+
+const SKETCH_MOTION_READERS: VariantTable<SketchMotion, 'motion'> = {
+  tag: 'motion',
+  variants: {
+    rollOff: { keys: ANIMATE_KEYS, read: () => ({ motion: 'rollOff' }) },
+    fall: { keys: ANIMATE_KEYS, read: () => ({ motion: 'fall' }) },
+    along: { keys: [...ANIMATE_KEYS, 'path'], read: (fields) => ({ motion: 'along', path: readPieceId(fields.at('path')) }) },
+    orbit: { keys: [...ANIMATE_KEYS, 'around', 'turns'], read: (fields) => ({ motion: 'orbit', around: readPieceId(fields.at('around')), ...fields.optional('turns', readTurns) }) },
+    swing: { keys: [...ANIMATE_KEYS, 'around', 'swings'], read: (fields) => ({ motion: 'swing', around: readPieceId(fields.at('around')), ...fields.optional('swings', (place) => readNumberInRange(place, NUMBER_RANGES.swings)) }) },
+    spin: { keys: [...ANIMATE_KEYS, 'turns'], read: (fields) => ({ motion: 'spin', ...fields.optional('turns', readTurns) }) },
+    tilt: { keys: [...ANIMATE_KEYS, 'around', 'toward'], read: (fields) => ({ motion: 'tilt', around: readPieceId(fields.at('around')), toward: readOneOf(fields.at('toward'), SKETCH_TILT_SIDES) }) },
+    grow: { keys: ANIMATE_KEYS, read: () => ({ motion: 'grow' }) },
+    pulse: { keys: ANIMATE_KEYS, read: () => ({ motion: 'pulse' }) },
+    fade: { keys: ANIMATE_KEYS, read: () => ({ motion: 'fade' }) },
+  },
+};
+
 const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
   tag: 'kind',
   variants: {
@@ -484,6 +603,18 @@ const COMMANDS: VariantTable<SceneCommand, 'kind'> = {
         target: readElementId(fields.at('target')),
         step: readVariant<GeometryStep>(fields.at('step'), GEOMETRY_STEPS),
       }),
+    },
+    sketch: {
+      keys: ['id', 'label'],
+      read: (fields) => ({ kind: 'sketch', id: readElementId(fields.at('id')), ...fields.optional('label', readLabel) }),
+    },
+    drawShape: {
+      keys: [...PIECE_KEYS.slice(1), ...PLACEMENT_KEYS, ...STROKE_KEYS, 'size', 'lit', 'text', 'through', 'of', 'seenFrom'],
+      read: readDrawShape,
+    },
+    animate: {
+      keys: ['target', 'overWords', 'motion', 'path', 'around', 'turns', 'swings', 'toward'],
+      read: (fields) => ({ kind: 'animate', target: readPieceId(fields.at('target')), ...fields.optional('overWords', readOverWords), ...readVariant<SketchMotion>(fields.place, SKETCH_MOTION_READERS) }),
     },
     vector: {
       keys: ['id', 'on', 'angleDegrees', 'length', 'label'],

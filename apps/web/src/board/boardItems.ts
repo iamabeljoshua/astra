@@ -236,6 +236,7 @@ function createStudentLineItem(wrapper: HTMLElement, element: BoardElement): Boa
 function getFigureDescription(content: BoardElement['content']): string {
   if (content.kind === 'plot') return content.label ?? `${BOARD_LABELS.graphOf} ${content.expression}`;
   if (content.kind === 'numberLine') return BOARD_LABELS.numberLine;
+  if (content.kind === 'sketch') return content.label ?? BOARD_LABELS.sketch;
   return content.kind === 'geometry' ? BOARD_LABELS.geometry : BOARD_LABELS.simulation;
 }
 
@@ -288,6 +289,7 @@ const ITEM_MAKERS: Partial<{ [Kind in BoardElement['content']['kind']]: (wrapper
   plot: (wrapper, content) => createFigureItem(wrapper, content),
   numberLine: (wrapper, content) => createFigureItem(wrapper, content),
   geometry: (wrapper, content) => createFigureItem(wrapper, content),
+  sketch: (wrapper, content) => createFigureItem(wrapper, content),
   simulate: (wrapper, content) => createFigureItem(wrapper, content),
   slider: (wrapper, content, handlers) => createSliderItem(wrapper, content, handlers),
   text: (wrapper, content) => (content.handwritten && canWriteByHand(content.text) ? createHandwrittenItem(wrapper, content.text) : createPlainItem(wrapper)),
@@ -296,7 +298,7 @@ const ITEM_MAKERS: Partial<{ [Kind in BoardElement['content']['kind']]: (wrapper
 
 /** A figure draws marks on its own parts, because they move with the part. */
 export function isFigure(content: BoardElement['content'] | undefined): boolean {
-  return content?.kind === 'plot' || content?.kind === 'numberLine' || content?.kind === 'geometry' || content?.kind === 'simulate';
+  return content?.kind === 'plot' || content?.kind === 'numberLine' || content?.kind === 'geometry' || content?.kind === 'simulate' || content?.kind === 'sketch';
 }
 
 export function hasOwnPlace(content: BoardElement['content']): boolean {

@@ -64,6 +64,8 @@ function paintMark(painted: PaintedMark, mark: FigureMark): void {
   }
   setAttribute(node, 'stroke', TONES[mark.tone]);
   setAttribute(node, 'class', mark.isDashed ? `${WEIGHT_CLASSES[mark.weight]} figure-dashed` : WEIGHT_CLASSES[mark.weight]);
+  if (mark.opacity === undefined) node.removeAttribute('opacity');
+  else setAttribute(node, 'opacity', String(Number(mark.opacity.toFixed(3))));
 }
 
 /** A mark that did not change writes nothing, so a frozen board stays untouched. */
