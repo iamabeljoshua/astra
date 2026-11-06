@@ -26,7 +26,7 @@ A recipe shows before its review, because it runs no model code. A Sonnet read b
 
 ## Parts
 
-`node scripts/parts-approval.ts` serves a page on 127.0.0.1:7670 to approve each part by eye, saved to `recipe/parts/approvals.json`. Editing a part takes back its approval. `getUsableParts` gives the model only approved parts, unless `ASTRA_FAST_SCENES_ANY_PART=1` outside production. `node scripts/check-parts.ts` draws every part in real Chrome with all its motions, and fails one that throws, draws nothing, or is not the same frame when drawn again. Misses go to `<store>/part-misses.jsonl` with their topic, reason, and level, and no student.
+`node scripts/parts-approval.ts` serves a page on 127.0.0.1:7670 to approve each part by eye, saved to `recipe/parts/approvals.json`. Abel approved all 31 parts on 6 November 2026, recorded against each part's code at that commit, so main uses them without `ASTRA_FAST_SCENES_ANY_PART`. Editing a part takes back its approval. `getUsableParts` gives the model only approved parts, unless `ASTRA_FAST_SCENES_ANY_PART=1` outside production. `node scripts/check-parts.ts` draws every part in real Chrome with all its motions, and fails one that throws, draws nothing, or is not the same frame when drawn again. Misses go to `<store>/part-misses.jsonl` with their topic, reason, and level, and no student.
 
 ## Where it can draw
 
