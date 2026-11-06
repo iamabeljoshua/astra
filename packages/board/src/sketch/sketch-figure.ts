@@ -153,11 +153,10 @@ function getOwnFrame(element: BoardElement, frame: FigureFrame): PieceFrame | nu
   return placed.scene.getFrame(frame.isReducedMotion ? placed.playhead.to : getMotionValue(placed.playhead, frame.atMs)) as PieceFrame;
 }
 
-function getTrail(element: BoardElement, frame: FigureFrame, view: SketchView): Branch {
+function getTrail(element: BoardElement, view: SketchView, untilSeconds: number): Branch {
   const placed = element.placedScene;
   if (!placed) return [];
-  const now = frame.isReducedMotion ? placed.playhead.to : getMotionValue(placed.playhead, frame.atMs);
-  return Array.from({ length: TRAIL_STEPS + 1 }, (_, step) => view.toPixel((placed.scene.getFrame((step / TRAIL_STEPS) * now) as PieceFrame).at));
+  return Array.from({ length: TRAIL_STEPS + 1 }, (_, step) => view.toPixel((placed.scene.getFrame((step / TRAIL_STEPS) * untilSeconds) as PieceFrame).at));
 }
 
 function turnAbout(points: readonly Point[], turn: number): Point[] {
@@ -263,7 +262,12 @@ export function getSketchMarks(frame: FigureFrame): FigureMark[] {
     if (!isPiece(element)) continue;
     const tone: MarkTone = element.content.pen ? 'pen' : 'ink';
     const share = getDrawnShare(element, frame);
-    if (getOwnFrame(element, frame)?.leavesTrail && share >= 1) draft.marks.push({ kind: 'path', key: `trail-${element.id}`, tone: 'pen', weight: 'thin', isDashed: true, branches: [getTrail(element, frame, view)] });
+    const placed = element.placedScene;
+    if (placed && getOwnFrame(element, frame)?.leavesTrail && share >= 1) {
+      const now = frame.isReducedMotion ? placed.playhead.to : getMotionValue(placed.playhead, frame.atMs);
+      draft.marks.push({ kind: 'path', key: `trail-${element.id}`, tone: 'pen', weight: 'thin', isDashed: true, branches: [getTrail(element, view, now)] });
+      draft.linesAhead.push(getTrail(element, view, placed.playhead.to));
+    }
     const { content } = element;
     const drawn = isSketchLine(content) ? addStroke(draft, { ...element, content }, { frame, view, tone, share }) : element.piece ? addSolid(draft, { ...element, piece: element.piece }, { frame, view, tone, share }) : null;
     if (!drawn) continue;

@@ -22,3 +22,6 @@ export function diagram(id: string, nodes: readonly (readonly [string, string])[
 
 export const flight = (id: string, parameters: { horizontalSpeed: number; upwardSpeed: number; releaseHeight: number; gravity: number }, over?: string) => ({ kind: 'simulate', id, simulation: { model: 'projectile', parameters }, ...(over ? { over } : {}) });
 export const SHOT = { horizontalSpeed: 4.2, upwardSpeed: 5.6, releaseHeight: 2.2, gravity: 9.8 };
+export const sketch = (id: string) => ({ kind: 'sketch', id });
+export const pen = (id: string, target: string, fields: object) => ({ kind: 'drawShape', id, target, ...fields });
+export const move = (target: string, fields: object) => ({ kind: 'animate', target, ...fields });
