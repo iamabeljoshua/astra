@@ -58,6 +58,7 @@ describe('a sketch command on the board', () => {
       return parsed.value;
     };
     expect(getBoardProblem(value(piece({ on: 'table' })), board)).toBeNull();
+    expect(getBoardProblem(value(piece({ on: 'table', lit: 'sun' })), board)).toBeNull();
     expect(getBoardProblem(value(piece({ on: 'shelf' })), board)).toBe('drawShape leans on shelf, which is not a piece of a sketch on the board');
     expect(getBoardProblem(value(piece({ on: 'notes' })), board)).toBe('drawShape leans on notes, which is not a piece of a sketch on the board');
     expect(getBoardProblem(value({ ...piece({}), target: 'notes' }), board)).toBe('drawShape needs sketch, but notes is a table');

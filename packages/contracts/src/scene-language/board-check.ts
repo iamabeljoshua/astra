@@ -58,7 +58,8 @@ function isUnknownSimulationMoment(command: SceneCommand, elementKind: BoardElem
   return moment !== null && elementKind === 'simulate' && !(SIMULATION_MOMENTS as readonly string[]).includes(moment);
 }
 
-const PIECE_FIELDS: ReadonlySet<string> = new Set(['on', 'above', 'below', 'leftOf', 'rightOf', 'inside', 'lit', 'of', 'seenFrom', 'path', 'around']);
+/** Light and sight are looked up as the sketch is painted, so the sun can come after the moon it lights. Places and paths cannot wait. */
+const PIECE_FIELDS: ReadonlySet<string> = new Set(['on', 'above', 'below', 'leftOf', 'rightOf', 'inside', 'path', 'around']);
 const END_FIELDS: ReadonlySet<string> = new Set(['from', 'to', 'through']);
 const SPOTS: ReadonlySet<string> = new Set(SKETCH_SPOTS);
 
