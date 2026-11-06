@@ -9,8 +9,16 @@ const BETWEEN_MESSAGES_MS = 10;
 const AMPLITUDE = 12000;
 const TONE_HZ = 700;
 
+/** One message a real voice sent, as its audio length and its alignment, whose times count from that message. */
+export interface RecordedReply {
+  audioMs: number;
+  text: string;
+  startsMs: readonly number[];
+}
+
 export interface FakeWireOptions {
   leadingSilenceMs?: number;
+  dialogueReplies?: readonly RecordedReply[];
 }
 
 export interface FakeWire {
@@ -78,8 +86,19 @@ function speakContext({ socket, context, text, leadingSilenceMs, sampleRate, isD
   }
 }
 
+function replayDialogueContext(socket: WebSocket, context: ContextState, replies: readonly RecordedReply[], sampleRate: number): void {
+  for (const { audioMs, text, startsMs } of replies) {
+    context.queue = context.queue.then(async () => {
+      await new Promise((done) => setTimeout(done, BETWEEN_MESSAGES_MS));
+      const audio = renderSamples(audioMs, false, sampleRate).toString('base64');
+      const alignment = text === '' ? undefined : { chars: [...text], char_start_times_ms: startsMs, char_durations_ms: startsMs.map(() => CHARACTER_MS) };
+      if (socket.readyState === socket.OPEN) socket.send(JSON.stringify({ context_id: context.id, audio, ...(alignment ? { alignment } : {}) }));
+    });
+  }
+}
+
 /** Speaks the wire of ElevenLabs' multi-stream socket, with a tone per word. It keeps sending after `close_context`, as the real one does. */
-export async function startFakeElevenLabsWire({ leadingSilenceMs = 0 }: FakeWireOptions = {}): Promise<FakeWire> {
+export async function startFakeElevenLabsWire({ leadingSilenceMs = 0, dialogueReplies }: FakeWireOptions = {}): Promise<FakeWire> {
   const server = new WebSocketServer({ port: 0, host: '127.0.0.1' });
   await new Promise((done) => server.once('listening', done));
   let connections = 0;
@@ -102,6 +121,9 @@ export async function startFakeElevenLabsWire({ leadingSilenceMs = 0 }: FakeWire
         context.queue = context.queue.then(() => {
           if (socket.readyState === socket.OPEN) socket.send(JSON.stringify(isDialogue ? { context_id: context.id, is_final: true } : { contextId: context.id, isFinal: true }));
         });
+      } else if (text?.trim() && dialogueReplies) {
+        if (!context.isStarted) replayDialogueContext(socket, context, dialogueReplies, sampleRate);
+        context.isStarted = true;
       } else if (text?.trim()) {
         speakContext({ socket, context, text, leadingSilenceMs, sampleRate, isDialogue, onSentAfterClose: () => (messagesAfterClose += 1) });
       }
