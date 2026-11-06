@@ -661,6 +661,7 @@ export class BeatTextReader {
   }
 
   #keepCommand(written: SceneCommand): void {
+    if (written.kind === 'drawShape' && !this.#board.has(written.target)) this.#keepCommand({ kind: 'sketch', id: written.target });
     const command = getWithTransformOfWordsAsNewLine(written, this.#board);
     const problem = this.#getCommandProblem(command);
     if (problem !== null) return this.#refuse(JSON.stringify(command), problem);

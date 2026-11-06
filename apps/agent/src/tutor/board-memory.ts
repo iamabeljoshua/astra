@@ -28,13 +28,14 @@ export interface BoardMemory {
   isLatestLineOffProblem: boolean;
   /** The page reloaded and brought the board back, so for this one reply nothing on it needs clearing. */
   hasComeBack: boolean;
+  sketchOf: ReadonlyMap<string, string>;
 }
 
 /** A change of subject never needs another session, and the real limits have spoken lines of their own, which this does not read. */
 const SENDS_THEM_AWAY = /\b(?:new|fresh|another|separate|different)\s+(?:session|chat|lesson|conversation)\b/i;
 const STAY_IN_THIS_SESSION = 'Never send them to another session. Anything they ask for belongs in this one. Follow what they just asked, right here.';
 
-export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), shownLines: new Set(), lastAssertedLine: null, verdicts: new Map(), openTask: null, doneTasks: new Set(), isLatestWorkWrong: false, isLatestMathUnjudged: false, offProblemLines: new Set(), isLatestLineOffProblem: false, hasComeBack: false };
+export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), shownLines: new Set(), lastAssertedLine: null, verdicts: new Map(), openTask: null, doneTasks: new Set(), isLatestWorkWrong: false, isLatestMathUnjudged: false, offProblemLines: new Set(), isLatestLineOffProblem: false, hasComeBack: false, sketchOf: new Map() };
 
 export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'plot', 'markValue', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate', 'diagram', 'note', 'tangent', 'task', 'boardMode', 'table', 'timeline', 'code', 'image', 'drawing', 'numberLine', 'shadeArea', 'geometry', 'construct', 'setParameter', 'trackVector', 'readout', 'ghostPath', 'reveal', 'sketch', 'drawShape', 'animate']);
 
@@ -199,7 +200,15 @@ export function getMemoryAfter(command: SceneCommand, memory: BoardMemory): Boar
       lastAssertedLine = lineId;
     }
   }
-  return { ...memory, kinds, lines, shownLines, lastAssertedLine, openTask: getOpenTaskAfter(command, memory) };
+  const sketchOf = new Map(memory.sketchOf);
+  if (command.kind === 'drawShape') sketchOf.set(command.id, command.target);
+  if (command.kind === 'hide') sketchOf.delete(command.target);
+  return { ...memory, kinds, lines, shownLines, lastAssertedLine, openTask: getOpenTaskAfter(command, memory), sketchOf };
+}
+
+export function getBoardTheStudentSees({ kinds, lines, sketchOf }: BoardMemory): Record<string, string> {
+  const drawnIn = new Set([...sketchOf].filter(([piece]) => kinds.get(piece) === 'drawShape').map(([, sketch]) => sketch));
+  return Object.fromEntries([...kinds].filter(([id, kind]) => kind !== 'sketch' || drawnIn.has(id)).map(([id, kind]) => [id, lines.get(id) ?? kind]));
 }
 
 export function getMemoryOnComingBack(memory: BoardMemory): BoardMemory {

@@ -116,7 +116,7 @@ export function placeSolid(piece: SolidCommand, earlier: ReadonlyMap<string, Ear
   const at = (center: Point, restsOn: ElementId | null = null): PlacedPiece => ({ box: keepInside({ ...center, ...size }), restsOn });
   if ('on' in piece) {
     const support = earlier.get(piece.on);
-    if (!support) return at(getSpotCenter('center', size));
+    if (!support) return at({ x: PAD.width / 2, y: PAD.floorY - size.height / 2 });
     const x = getAlongX(support.box, size.width, piece.side);
     return at({ x, y: getSurfaceY(support, x) - size.height / 2 }, piece.on);
   }
