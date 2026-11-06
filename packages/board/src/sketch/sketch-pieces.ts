@@ -6,10 +6,8 @@ import { getAnchorPoint, getDirection, getEdgeToward, PAD, type PieceBox, type P
 
 export type Elements = ReadonlyMap<ElementId, BoardElement>;
 
-/** A motion's frame. `carries` is the turn riders take with it, so a load on a tipping plank tips too, while a rolling ball's spin is its own. */
 export interface PieceFrame extends PiecePose {
-  carries: number;
-  /** A path a student should see traced, as a fall or an orbit is, and not a spin or a tip. */
+  turnForRiders: number;
   leavesTrail: boolean;
 }
 
@@ -24,7 +22,6 @@ function getOwnFrame(element: BoardElement, atMs: number, isReducedMotion: boole
   return placed.scene.getFrame(seconds) as PieceFrame;
 }
 
-/** Where a solid piece is now: its own motion first, else carried by what it sits on, else where it was drawn. */
 export function getPiecePose(elements: Elements, id: ElementId, atMs: number, isReducedMotion = false, depth = 0): PiecePose | null {
   const element = elements.get(id);
   const placed = element?.piece;
@@ -37,7 +34,7 @@ export function getPiecePose(elements: Elements, id: ElementId, atMs: number, is
   if (!support?.piece || !supportId) return resting;
   const supportPose = getPiecePose(elements, supportId, atMs, isReducedMotion, depth + 1);
   if (!supportPose) return resting;
-  const turn = (getOwnFrame(support, atMs, isReducedMotion)?.carries ?? 0) + getCarriedTurn(elements, support, atMs, isReducedMotion, depth + 1);
+  const turn = (getOwnFrame(support, atMs, isReducedMotion)?.turnForRiders ?? 0) + getCarriedTurn(elements, support, atMs, isReducedMotion, depth + 1);
   const from = { x: placed.box.x - support.piece.box.x, y: placed.box.y - support.piece.box.y };
   const turned = { x: from.x * Math.cos(turn) - from.y * Math.sin(turn), y: from.x * Math.sin(turn) + from.y * Math.cos(turn) };
   return { at: { x: supportPose.at.x + turned.x, y: supportPose.at.y + turned.y }, turn, scale: 1, opacity: 1 };
@@ -47,7 +44,7 @@ function getCarriedTurn(elements: Elements, element: BoardElement, atMs: number,
   const supportId = element.piece?.restsOn;
   const support = supportId && depth < MOST_RIDER_LEVELS ? elements.get(supportId) : undefined;
   if (!support) return 0;
-  return (getOwnFrame(support, atMs, isReducedMotion)?.carries ?? 0) + getCarriedTurn(elements, support, atMs, isReducedMotion, depth + 1);
+  return (getOwnFrame(support, atMs, isReducedMotion)?.turnForRiders ?? 0) + getCarriedTurn(elements, support, atMs, isReducedMotion, depth + 1);
 }
 
 const SPOT_POINTS: Record<string, Point> = {
@@ -64,11 +61,9 @@ const SPOT_POINTS: Record<string, Point> = {
 
 interface EndPlace {
   point: Point;
-  /** The piece the end sits on, when it names a piece with no anchor, so the line can stop at its edge. */
   edgeOf: { shape: string; box: PieceBox; pose: PiecePose } | null;
 }
 
-// A line can end on another line, and an id drawn again can close a loop, so a chain of lines stops after a few.
 const MOST_LINES_IN_A_CHAIN = 6;
 
 function getEndPlace(elements: Elements, end: string, timing: { atMs: number; isReducedMotion: boolean; depth: number }): EndPlace | null {
@@ -92,7 +87,6 @@ function getEndPlace(elements: Elements, end: string, timing: { atMs: number; is
 
 const toEdge = (end: EndPlace, toward: Point) => (end.edgeOf ? getEdgeToward(end.edgeOf.shape, end.edgeOf.box, end.edgeOf.pose, toward) : end.point);
 
-/** The points a stroke runs through now, from the pieces it joins as they are this moment, so a string follows its bob. */
 export function getStrokePoints(elements: Elements, piece: StrokeCommand, atMs: number, isReducedMotion: boolean): Point[] {
   return getLinePoints(elements, piece, { atMs, isReducedMotion, depth: 0 });
 }
@@ -119,7 +113,6 @@ function getLinePoints(elements: Elements, piece: StrokeCommand, timing: { atMs:
   return [{ x: end.x - direction.x * length, y: end.y - direction.y * length }, end];
 }
 
-/** Every piece of one sketch, in the order they were drawn. */
 export function getSketchPieces(elements: Elements, sketchId: ElementId): (BoardElement & { content: DrawShape })[] {
   return [...elements.values()].filter((element): element is BoardElement & { content: DrawShape } => isPiece(element) && element.content.target === sketchId);
 }

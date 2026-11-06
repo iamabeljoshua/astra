@@ -58,23 +58,21 @@ function isUnknownSimulationMoment(command: SceneCommand, elementKind: BoardElem
   return moment !== null && elementKind === 'simulate' && !(SIMULATION_MOMENTS as readonly string[]).includes(moment);
 }
 
-/** Light and sight are looked up as the sketch is painted, so the sun can come after the moon it lights. Places and paths cannot wait. */
-const PIECE_FIELDS: ReadonlySet<string> = new Set(['on', 'above', 'below', 'leftOf', 'rightOf', 'inside', 'path', 'around']);
+const DRAWN_FIRST_FIELDS: ReadonlySet<string> = new Set(['on', 'above', 'below', 'leftOf', 'rightOf', 'inside', 'path', 'around']);
 const END_FIELDS: ReadonlySet<string> = new Set(['from', 'to', 'through']);
 const SPOTS: ReadonlySet<string> = new Set(SKETCH_SPOTS);
 
-/** The pieces a sketch command leans on, with the field that names each, which must already be drawn, because a piece is placed from where they are. */
-function getSketchPieces(command: SceneCommand): { field: string; piece: string }[] {
+function getLeanedOnPieces(command: SceneCommand): { field: string; piece: string }[] {
   if (command.kind !== 'drawShape' && command.kind !== 'animate') return [];
   return Object.entries(command).flatMap(([field, value]) => {
-    if (PIECE_FIELDS.has(field) && typeof value === 'string') return [{ field, piece: value }];
+    if (DRAWN_FIRST_FIELDS.has(field) && typeof value === 'string') return [{ field, piece: value }];
     if (!END_FIELDS.has(field)) return [];
     return [value].flat().flatMap((end) => (typeof end === 'string' && !SPOTS.has(end) ? [{ field, piece: end.split('.')[0] as string }] : []));
   });
 }
 
 function getSketchProblem(command: SceneCommand, board: BoardKinds): string | null {
-  const missing = getSketchPieces(command).find(({ piece }) => board.get(piece) !== 'drawShape');
+  const missing = getLeanedOnPieces(command).find(({ piece }) => board.get(piece) !== 'drawShape');
   if (missing === undefined) return null;
   if (board.get(missing.piece) === 'sketch') return `${missing.field} names ${missing.piece}, the sketch itself, so put the piece at a spot instead, as in "at":"left"`;
   return `${command.kind} leans on ${missing.piece}, which is not a piece of a sketch on the board`;

@@ -1,22 +1,18 @@
 import { closeCurve, makeCornered, makeDot, makeEllipse, makeLine, part, type DrawingSheet, type Pair } from '../diagram/drawing-sheets.ts';
 import type { InkPosition } from '../ink/ink-stroke.ts';
 
-export const STAMP_NAMES = ['ball', 'person', 'car', 'table', 'ramp', 'hill', 'house', 'tree', 'sun'] as const;
+export const STAMP_NAMES = ['person', 'car', 'table', 'ramp', 'hill', 'house', 'tree', 'sun'] as const;
 
 export type StampName = (typeof STAMP_NAMES)[number];
 
 export interface StampSheet extends DrawingSheet {
-  /** Where it rests on whatever it sits on, in sheet units: the bottom middle for most, the centre for a ball or the sun. */
   base: { x: number; y: number };
-  /** The top surface something can sit on or roll along, as a polyline in sheet units, left to right. */
   surface: readonly { x: number; y: number }[];
 }
 
 const QUARTER_TURN = Math.PI / 2;
 const CROWN = { x: 50, y: 46, radius: 38, puff: 6, bumps: 8, trunkHalfWidth: 7, stepsPerBump: 8 };
 const HILL = { left: 2, right: 98, foot: 36, peak: 4, roundness: 0.15, steps: 32 };
-const BALL_SEAM_TURN = (10 * Math.PI) / 9;
-const BALL_SEAM_SWAY = 12;
 
 const toPairs = (points: readonly InkPosition[]) => points.map(({ x, y }): Pair => [x, y]);
 
@@ -38,15 +34,6 @@ function makeStamp({ height, strokes, parts }: DrawingSheet, { base, surface }: 
   const top = Math.min(...points.map(({ y }) => y));
   const bottom = Math.max(...points.map(({ y }) => y));
   return { height, strokes, parts, base: base ?? { x: (left + right) / 2, y: bottom }, surface: surface ?? [{ x: left, y: top }, { x: right, y: top }] };
-}
-
-function drawBall(): StampSheet {
-  const [fromX, fromY] = [50 + 46 * Math.cos(BALL_SEAM_TURN), 50 + 46 * Math.sin(BALL_SEAM_TURN)];
-  const seam = Array.from({ length: 25 }, (_, step): Pair => {
-    const along = step / 24;
-    return [fromX + (100 - 2 * fromX) * along, fromY + (100 - 2 * fromY) * along + BALL_SEAM_SWAY * Math.sin(2 * Math.PI * along)];
-  });
-  return makeStamp({ height: 100, strokes: [makeEllipse({ x: 50, y: 50, width: 46 }), makeLine(...seam)], parts: { ball: part(50, 50, 12) } }, { base: { x: 50, y: 50 } });
 }
 
 function drawPerson(): StampSheet {
@@ -151,7 +138,6 @@ function drawSun(): StampSheet {
 }
 
 export const STAMP_SHEETS: Readonly<Record<StampName, StampSheet>> = {
-  ball: drawBall(),
   person: drawPerson(),
   car: drawCar(),
   table: drawTable(),

@@ -432,7 +432,6 @@ const TAKES_A_GAP: ReadonlySet<string> = new Set(['above', 'below', 'leftOf', 'r
 const TAKES_A_SIDE: ReadonlySet<string> = new Set(['on', 'above', 'below']);
 const SHAPES = [...SKETCH_SOLIDS, 'phase', ...SKETCH_STROKES, 'curve'] as const;
 
-// A spot name as a piece's id would make "center" mean two things in an end.
 function readPieceId(place: Place) {
   const id = readElementId(place);
   if (SPOT_NAMES.has(id)) fail(place, 'a piece name that is not a spot name');

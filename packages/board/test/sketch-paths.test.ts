@@ -5,7 +5,7 @@ const sample = (durationSeconds: number, count = 40) => Array.from({ length: cou
 
 describe('a ball rolling off a table', () => {
   const start = { x: 2, y: 3 };
-  const path = getRollOffPath({ start, edgeX: 5, floorY: 6, radius: 0.25, landsAfter: 2 });
+  const path = getRollOffPath({ start, edgeX: 5, floorY: 6, radius: 0.25, landsAfter: 2, gravity: GRAVITY });
 
   it('rolls level to the edge, then falls on a true parabola', () => {
     const speed = 2 / Math.sqrt((2 * (6 - 0.25 - 3)) / GRAVITY);
@@ -25,7 +25,7 @@ describe('a ball rolling off a table', () => {
 
 describe('a fall', () => {
   it('takes the time a real drop of that height takes', () => {
-    const path = getFallPath({ start: { x: 1, y: 1 }, floorY: 5.9, radius: 0.1 });
+    const path = getFallPath({ start: { x: 1, y: 1 }, floorY: 5.9, radius: 0.1, gravity: GRAVITY });
     expect(path.durationSeconds).toBeCloseTo(Math.sqrt((2 * 4.8) / GRAVITY), 9);
     expect(path.getPoint(path.durationSeconds).at.y).toBeCloseTo(5.8, 9);
   });
@@ -49,7 +49,7 @@ describe('an orbit', () => {
 
 describe('a pendulum', () => {
   const pivot = { x: 4, y: 1 };
-  const path = getSwingPath({ start: { x: 4, y: 3.45 }, pivot, amplitudeRadians: 0.4, swings: 2 });
+  const path = getSwingPath({ start: { x: 4, y: 3.45 }, pivot, amplitudeRadians: 0.4, swings: 2, gravity: GRAVITY });
 
   it('swings with the period a real string of that length has', () => {
     expect(path.durationSeconds).toBeCloseTo(2 * 2 * Math.PI * Math.sqrt(2.45 / GRAVITY), 9);

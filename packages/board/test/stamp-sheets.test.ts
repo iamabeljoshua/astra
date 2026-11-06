@@ -4,7 +4,6 @@ import { STAMP_NAMES, STAMP_SHEETS, type StampName } from '../src/sketch/stamp-s
 const SHEET_WIDTH = 100;
 
 const PART_NAMES: Record<StampName, readonly string[]> = {
-  ball: ['ball'],
   person: ['head', 'hand', 'foot'],
   car: ['body', 'front-wheel', 'back-wheel'],
   table: ['top', 'leg'],
@@ -15,7 +14,7 @@ const PART_NAMES: Record<StampName, readonly string[]> = {
   sun: ['sun'],
 };
 
-const RESTS_ON_ITS_CENTRE: readonly StampName[] = ['ball', 'sun'];
+const RESTS_ON_ITS_CENTRE: readonly StampName[] = ['sun'];
 
 type Position = { x: number; y: number };
 

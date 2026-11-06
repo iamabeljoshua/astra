@@ -36,7 +36,6 @@ function getView(width: number, height: number): SketchView {
   return { scale, toPixel: ({ x, y }) => ({ x: left + x * scale, y: top + y * scale }) };
 }
 
-/** How much of each stroke is drawn when `share` of the piece is, so the pen moves at one speed through all of them. */
 function getDrawnBranches(branches: readonly Branch[], share: number): Branch[] {
   if (share >= 1) return [...branches];
   const lengths = branches.map((branch) => branch.slice(1).reduce((sum, point, index) => sum + getDistance(branch[index] as Point, point), 0));
@@ -49,7 +48,6 @@ function getDrawnBranches(branches: readonly Branch[], share: number): Branch[] 
   });
 }
 
-/** Short slanted lines filling the part of a disc `isShaded` picks, the way a teacher shades a dark side. */
 function getHatching(center: Point, radius: number, isShaded: (local: Point) => boolean): Branch[] {
   const lines: Branch[] = [];
   const inner = radius - HATCH.inset;
@@ -68,7 +66,6 @@ function getHatching(center: Point, radius: number, isShaded: (local: Point) => 
   return lines;
 }
 
-/** The dark part of a moon as seen from `viewer`: its phase angle sets how far the shadow's edge reaches across the disc. */
 function getPhaseShading(elements: FigureFrame['board']['elements'], phase: Extract<DrawShape, { shape: 'phase' }>, frame: FigureFrame): ((local: Point) => boolean) | null {
   const moon = elements.get(phase.of);
   const lightId = moon && isPiece(moon) && moon.content.shape === 'ball' ? moon.content.lit : undefined;
@@ -96,7 +93,6 @@ function getStampBranches(shape: string, box: PieceBox): Branch[] {
   return sheet.strokes.map((stroke) => stroke.map((point) => ({ x: (point.x - 50) * scale, y: (point.y - sheet.height / 2) * scale })));
 }
 
-/** A solid's strokes around its own centre, in squares, before it is moved to where it is now. */
 function getSolidBranches(piece: Piece, box: PieceBox): Branch[] {
   const halfWidth = box.width / 2;
   const halfHeight = box.height / 2;
@@ -114,7 +110,6 @@ function getSolidBranches(piece: Piece, box: PieceBox): Branch[] {
 
 const MOST_POLYGON_CORNERS = 5;
 
-/** Straight sides get a hand's drift. A stamp's curves are already drawn by hand, so they stay as they are. */
 function toPenStrokes(branches: readonly Branch[], random: () => number): Branch[] {
   return branches.map((branch) => {
     if (branch.length === 2) return getPenLine(branch[0] as Point, branch[1] as Point, random);
@@ -252,7 +247,6 @@ function addOnPiece(draft: FigureDraft, mark: BoardElement, drawn: Drawn, frame:
   if (partMark.label && share >= 1) addLabel(draft, { key: `note-${mark.id}-label`, text: partMark.label, anchor: drawn.center, gap: drawn.radius + PEN_RING_ROOM + 4, tone: 'pen' });
 }
 
-/** Everything a sketch shows at this moment, from the board alone, so a live board, a replay, and a seek draw the same picture. */
 export function getSketchMarks(frame: FigureFrame): FigureMark[] {
   const draft = createFigureDraft(frame.width, frame.height);
   const view = getView(frame.width, frame.height);

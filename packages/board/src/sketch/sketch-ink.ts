@@ -5,7 +5,6 @@ const PEN = { bowPx: 0.9, wigglePx: 0.35, stepPx: 4, ringOverlapRadians: 0.4, ri
 
 const along = (from: Point, to: Point, share: number): Point => ({ x: from.x + (to.x - from.x) * share, y: from.y + (to.y - from.y) * share });
 
-/** A straight stroke with the slow drift of a hand, a slight bow and a gentle wave, the same each time for the same seed. */
 export function getPenLine(from: Point, to: Point, random: () => number): Point[] {
   const length = Math.hypot(to.x - from.x, to.y - from.y);
   const steps = Math.max(2, Math.ceil(length / PEN.stepPx));
@@ -21,7 +20,6 @@ export function getPenLine(from: Point, to: Point, random: () => number): Point[
   });
 }
 
-/** A loop drawn in one stroke that runs a little past where it began, so it reads as a pen and not a compass. */
 export function getPenRing(center: Point, radius: number, random: () => number): Point[] {
   const start = -2.2 + getSpread(random, 0.3);
   const wander = Math.min(radius * PEN.ringWander, PEN.ringLargestWanderPx);
@@ -47,7 +45,6 @@ export function getArrowHead(points: Branch): Branch {
   return [barb(1), tip, barb(-1)];
 }
 
-/** A smooth curve through every point, as a hand draws one through a few dots. */
 export function getCurveThrough(points: readonly Point[], stepsPerSpan = 12): Point[] {
   if (points.length < 3) return [...points];
   const at = (index: number) => points[Math.max(0, Math.min(points.length - 1, index))] as Point;
@@ -78,7 +75,6 @@ export function getWave(from: Point, to: Point, { height, cycles }: { height: nu
   });
 }
 
-/** A coil spring between two ends, with short straight leads so it joins what it hangs from. */
 export function getSpring(from: Point, to: Point, { width, coils }: { width: number; coils: number }): Point[] {
   const { normal } = getAcross(from, to);
   const lead = 0.12;
@@ -91,7 +87,6 @@ export function getSpring(from: Point, to: Point, { width, coils }: { width: num
   return [from, ...middle, to];
 }
 
-/** A curly bracket along one side of a span, its point facing away from what it groups. */
 export function getBracket(from: Point, to: Point, depth: number): Point[] {
   const { normal } = getAcross(from, to);
   const out = (point: Point, share: number) => ({ x: point.x + normal.x * depth * share, y: point.y + normal.y * depth * share });

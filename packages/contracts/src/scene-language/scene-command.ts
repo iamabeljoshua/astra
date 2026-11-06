@@ -97,15 +97,12 @@ export interface ProjectileSimulation {
 
 export type Simulation = ProjectileSimulation;
 
-/** Things a sketch draws in the tutor's pen. Solids take up room and are placed by a relation or a spot. */
 export const SKETCH_SOLIDS = ['ball', 'dot', 'box', 'bar', 'triangle', 'ground', 'label', 'person', 'car', 'table', 'ramp', 'hill', 'house', 'tree', 'sun'] as const;
 export type SketchSolid = (typeof SKETCH_SOLIDS)[number];
 
-/** Strokes run between two ends, or from one end a set way. */
 export const SKETCH_STROKES = ['line', 'arrow', 'curvedArrow', 'wave', 'spring', 'bracket'] as const;
 export type SketchStroke = (typeof SKETCH_STROKES)[number];
 
-/** A stroke or a curve runs between ends and has no place of its own, so it follows the pieces it joins. */
 export function isSketchLine<Piece extends { shape: string }>(piece: Piece): piece is Extract<Piece, { shape: SketchStroke | 'curve' }> {
   return piece.shape === 'curve' || (SKETCH_STROKES as readonly string[]).includes(piece.shape);
 }
@@ -113,11 +110,9 @@ export function isSketchLine<Piece extends { shape: string }>(piece: Piece): pie
 export const SKETCH_SIZES = ['small', 'medium', 'large'] as const;
 export type SketchSize = (typeof SKETCH_SIZES)[number];
 
-/** A coarse grid over the sketch, for a piece with nothing to stand beside. */
 export const SKETCH_SPOTS = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'] as const;
 export type SketchSpot = (typeof SKETCH_SPOTS)[number];
 
-/** Points on a piece an end can name, as "table.right". */
 export const SKETCH_ANCHORS = ['top', 'bottom', 'left', 'right', 'center', 'top-left', 'top-right', 'bottom-left', 'bottom-right'] as const;
 export type SketchAnchor = (typeof SKETCH_ANCHORS)[number];
 
@@ -147,7 +142,6 @@ export type SketchPlacement =
 
 export type SketchPiece =
   | ({ shape: Exclude<SketchSolid, 'label' | 'ball'>; size?: SketchSize } & SketchPlacement)
-  /** `lit` names what lights it, so its lit half always faces that piece, as the Moon's faces the Sun. */
   | ({ shape: 'ball'; size?: SketchSize; lit?: ElementId } & SketchPlacement)
   | ({ shape: 'label'; text: string } & SketchPlacement)
   /** What `seenFrom` sees of the lit ball `of`, as a small disc whose lit part follows where they are, so a moon's phase is always true. */
@@ -157,20 +151,18 @@ export type SketchPiece =
   | { shape: SketchStroke; to: SketchEnd; toward: SketchDirection; length?: VectorLength }
   | { shape: 'curve'; through: SketchEnd[] };
 
-/** Every motion's path, angle, and speed is worked out from the sketch and real physics, never written by the model. */
 export const SKETCH_MOTIONS = ['rollOff', 'fall', 'along', 'orbit', 'swing', 'spin', 'tilt', 'grow', 'pulse', 'fade'] as const;
 export type SketchMotionName = (typeof SKETCH_MOTIONS)[number];
 
 export type SketchMotion =
-  /** Rolls along what it sits on, off the edge with more room, and lands on the ground. */
+  /** Rolls along what it sits on, off the edge with more room, and lands on what is below that edge. */
   | { motion: 'rollOff' }
   | { motion: 'fall' }
   | { motion: 'along'; path: ElementId }
   | { motion: 'orbit'; around: ElementId; turns?: number }
-  /** Swings about `around`, the point its string hangs from. */
   | { motion: 'swing'; around: ElementId; swings?: number }
   | { motion: 'spin'; turns?: number }
-  /** Tips about `around` toward one end until that end meets what is below it, and whatever sits on it tips with it. */
+  /** Tips about `around` toward one end until that end touches the floor, at most 50 degrees, and whatever sits on it tips with it. */
   | { motion: 'tilt'; around: ElementId; toward: SketchTiltSide }
   | { motion: 'grow' }
   | { motion: 'pulse' }
@@ -278,7 +270,6 @@ export interface Construct {
   step: GeometryStep;
 }
 
-/** An empty page the tutor sketches on, in the pen, a piece at a time. Its pieces keep their place, so a later scene can take each one's place. */
 export interface Sketch {
   kind: 'sketch';
   id: ElementId;
@@ -286,10 +277,8 @@ export interface Sketch {
   label?: string;
 }
 
-/** Draws one piece of a sketch as its word is spoken. `id` names the piece, so later commands can point at it, move it, or hide it. */
 export type DrawShape = { kind: 'drawShape'; id: ElementId; target: ElementId; label?: string; pen?: boolean } & SketchPiece;
 
-/** Moves a sketch piece on a path the board works out, over `overWords` words. */
 export type Animate = { kind: 'animate'; target: ElementId; overWords?: number } & SketchMotion;
 
 /** Draws a fixed arrow on an element. */

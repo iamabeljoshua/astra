@@ -1,12 +1,9 @@
 import type { Point } from '../figure/figure-marks.ts';
 
-/** Real gravity in metres a second squared. A path takes gravity in its own units, y down, so it pulls toward larger y. */
 export const GRAVITY = 9.8;
 
-/** Where a piece is at one moment of its own path, from which everything drawn on it follows. */
 export interface PathPoint {
   at: Point;
-  /** Turns about its own centre, clockwise, in radians. */
   turn: number;
 }
 
@@ -18,8 +15,7 @@ export interface SketchPath {
 
 const clampTime = (seconds: number, duration: number) => Math.min(Math.max(seconds, 0), duration);
 
-/** Rolls along its support to the edge at one speed, then flies off it as a projectile and stops on the floor. The speed is picked so it lands `landsAfter` past the edge. */
-export function getRollOffPath({ start, edgeX, floorY, radius, landsAfter, gravity = GRAVITY }: { start: Point; edgeX: number; floorY: number; radius: number; landsAfter: number; gravity?: number }): SketchPath {
+export function getRollOffPath({ start, edgeX, floorY, radius, landsAfter, gravity }: { start: Point; edgeX: number; floorY: number; radius: number; landsAfter: number; gravity: number }): SketchPath {
   const direction = Math.sign(edgeX - start.x) || 1;
   const drop = Math.max(0, floorY - radius - start.y);
   const fallSeconds = Math.sqrt((2 * drop) / gravity);
@@ -38,8 +34,7 @@ export function getRollOffPath({ start, edgeX, floorY, radius, landsAfter, gravi
   };
 }
 
-/** Falls straight down from rest and stops on the floor. */
-export function getFallPath({ start, floorY, radius, gravity = GRAVITY }: { start: Point; floorY: number; radius: number; gravity?: number }): SketchPath {
+export function getFallPath({ start, floorY, radius, gravity }: { start: Point; floorY: number; radius: number; gravity: number }): SketchPath {
   const drop = Math.max(0, floorY - radius - start.y);
   const durationSeconds = Math.sqrt((2 * drop) / gravity);
   return {
@@ -67,8 +62,7 @@ export function getOrbitPath({ start, center, turns, secondsPerTurn }: { start: 
   };
 }
 
-/** Swings from where it hangs like a pendulum given a push, so it starts at the bottom at full speed. The period comes from the string's real length. */
-export function getSwingPath({ start, pivot, amplitudeRadians, swings, gravity = GRAVITY }: { start: Point; pivot: Point; amplitudeRadians: number; swings: number; gravity?: number }): SketchPath {
+export function getSwingPath({ start, pivot, amplitudeRadians, swings, gravity }: { start: Point; pivot: Point; amplitudeRadians: number; swings: number; gravity: number }): SketchPath {
   const length = Math.max(Math.hypot(start.x - pivot.x, start.y - pivot.y), 1e-6);
   const restAngle = Math.atan2(start.x - pivot.x, start.y - pivot.y);
   const angularSpeed = Math.sqrt(gravity / length);
@@ -90,7 +84,6 @@ function getLengths(points: readonly Point[]): number[] {
   return lengths;
 }
 
-/** Travels a drawn line at one speed from its first point to its last. */
 export function getAlongPath({ points, speed }: { points: readonly Point[]; speed: number }): SketchPath {
   const lengths = getLengths(points);
   const total = lengths.at(-1) ?? 0;
@@ -110,7 +103,6 @@ export function getAlongPath({ points, speed }: { points: readonly Point[]; spee
   };
 }
 
-/** Turns about a pivot by a fixed angle, eased at both ends, as a lever tips. */
 export function getTiltPath({ start, pivot, radians, seconds: durationSeconds }: { start: Point; pivot: Point; radians: number; seconds: number }): SketchPath {
   return {
     durationSeconds,
@@ -124,7 +116,6 @@ export function getTiltPath({ start, pivot, radians, seconds: durationSeconds }:
   };
 }
 
-/** Spins in place at one speed. */
 export function getSpinPath({ start, turns, secondsPerTurn }: { start: Point; turns: number; secondsPerTurn: number }): SketchPath {
   const durationSeconds = turns * secondsPerTurn;
   return {

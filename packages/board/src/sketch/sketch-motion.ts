@@ -6,24 +6,22 @@ import { getAlongPath, getFallPath, getOrbitPath, getRollOffPath, getSpinPath, g
 import { getAnchorPoint, getBoxEdges, PAD, type PiecePose, type PlacedPiece, restingPose } from './sketch-layout.ts';
 import { type Elements, getPiecePose, getSketchPieces, getStrokePoints, isPiece, type PieceFrame } from './sketch-pieces.ts';
 
-/** Squares a second squared, from real gravity at the sketch's own scale. */
 export const SKETCH_GRAVITY = 9.8 / PAD.metresPerSquare;
 const SWING_RADIANS = (25 * Math.PI) / 180;
 const SECONDS = { orbitTurn: 6, spinTurn: 1.6, tilt: 1.2, grow: 0.8, pulse: 1.2, fade: 0.8, alongSquaresPerSecond: 3 };
 const LONGEST_TILT_RADIANS = (50 * Math.PI) / 180;
 const LAND_SHARE_OF_ROOM = 0.55;
-/** A line has no place of its own, so it turns about its first end and changes how it looks from where it is. */
 const STILL: PiecePose = { at: { x: 0, y: 0 }, turn: 0, scale: 1, opacity: 1 };
 
 type Motion = Animate extends infer Each ? (Each extends Animate ? Each : never) : never;
 
-const asFrames = (path: SketchPath, start: PiecePose, { carries = false, leavesTrail = true }: { carries?: boolean; leavesTrail?: boolean } = {}): Scene<PieceFrame> => ({
+const asFrames = (path: SketchPath, start: PiecePose, { isCarried = false, leavesTrail = true }: { isCarried?: boolean; leavesTrail?: boolean } = {}): Scene<PieceFrame> => ({
   parts: [],
   moments: path.moments,
   durationSeconds: path.durationSeconds,
   getFrame(seconds) {
     const { at, turn } = path.getPoint(seconds);
-    return { at, turn: start.turn + turn, scale: start.scale, opacity: start.opacity, carries: carries ? turn : 0, leavesTrail };
+    return { at, turn: start.turn + turn, scale: start.scale, opacity: start.opacity, turnForRiders: isCarried ? turn : 0, leavesTrail };
   },
 });
 
@@ -35,12 +33,11 @@ function getLook(start: PiecePose, durationSeconds: number, look: (share: number
     getFrame(seconds) {
       const share = Math.min(1, Math.max(0, seconds / durationSeconds));
       const { scale, opacity } = look(share);
-      return { ...start, scale: start.scale * scale, opacity: start.opacity * opacity, carries: 0, leavesTrail: false };
+      return { ...start, scale: start.scale * scale, opacity: start.opacity * opacity, turnForRiders: 0, leavesTrail: false };
     },
   };
 }
 
-/** The floor under a point: the top of the highest piece below it there, or the ground. */
 function getFloorBelow(elements: Elements, sketchId: ElementId, point: Point, except: ElementId): number {
   const below = getSketchPieces(elements, sketchId).flatMap((element) => {
     if (element.id === except || !element.piece || element.content.shape === 'label') return [];
@@ -77,10 +74,9 @@ function getTilt(elements: Elements, id: ElementId, start: PiecePose, motion: Ex
   const reachDown = Math.asin(Math.min(1, (PAD.floorY - pivot.y) / reach));
   const touchingAngle = isRight ? reachDown : Math.PI - reachDown;
   const radians = Math.max(-LONGEST_TILT_RADIANS, Math.min(LONGEST_TILT_RADIANS, Math.atan2(Math.sin(touchingAngle - startAngle), Math.cos(touchingAngle - startAngle))));
-  return asFrames(getTiltPath({ start: start.at, pivot, radians, seconds: SECONDS.tilt }), start, { carries: true, leavesTrail: false });
+  return asFrames(getTiltPath({ start: start.at, pivot, radians, seconds: SECONDS.tilt }), start, { isCarried: true, leavesTrail: false });
 }
 
-/** Works out a piece's motion from where everything is now and real physics, so the model names the motion and never the numbers. */
 export function createPieceMotion(elements: Elements, command: Animate, atMs: number): Scene<PieceFrame> | null {
   const element = elements.get(command.target);
   if (!isPiece(element)) return null;

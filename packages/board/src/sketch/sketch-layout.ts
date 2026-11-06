@@ -2,10 +2,8 @@ import type { DrawShape, ElementId, SketchAnchor, SketchDirection, SketchGap, Sk
 import type { Point } from '../figure/figure-marks.ts';
 import { STAMP_SHEETS, type StampName } from './stamp-sheets.ts';
 
-/** A sketch is 12 squares across and 8 down, y down, and stands for 4 metres across, which sets how fast things fall and swing. */
 export const PAD = { width: 12, height: 8, floorY: 7.4, metresPerSquare: 4 / 12 } as const;
 
-/** A centre and a size, in squares. */
 export interface PieceBox {
   x: number;
   y: number;
@@ -13,7 +11,6 @@ export interface PieceBox {
   height: number;
 }
 
-/** Where a solid piece was put when it was drawn. It never moves after that, except by its own motion or by what it sits on. */
 export interface PlacedPiece {
   box: PieceBox;
   restsOn: ElementId | null;
@@ -53,8 +50,7 @@ const DIRECTIONS: Record<SketchDirection, Point> = {
 
 export const getDirection = (direction: SketchDirection): Point => DIRECTIONS[direction];
 
-/** A ball stays a plain pen ring, because a seam would be wrong on a moon or a pendulum's bob. */
-export const isStamp = (shape: string): shape is Exclude<StampName, 'ball'> => shape !== 'ball' && Object.hasOwn(STAMP_SHEETS, shape);
+export const isStamp = (shape: string): shape is StampName => Object.hasOwn(STAMP_SHEETS, shape);
 
 export function getSolidSize(piece: SolidCommand): { width: number; height: number } {
   if (piece.shape === 'label') return { width: Math.max(1, piece.text.length * LABEL.squaresPerCharacter), height: LABEL.height };
@@ -74,7 +70,6 @@ const getRight = (box: PieceBox) => box.x + box.width / 2;
 const getTop = (box: PieceBox) => box.y - box.height / 2;
 const getBottom = (box: PieceBox) => box.y + box.height / 2;
 
-/** The height of what a piece sits on at `x`, along a stamp's own surface or the top of its box. */
 export function getSurfaceY(support: { shape: string; box: PieceBox }, x: number): number {
   const { box, shape } = support;
   if (!isStamp(shape)) return getTop(box);
@@ -115,7 +110,6 @@ export interface EarlierPiece {
   box: PieceBox;
 }
 
-/** Puts a solid where its relation says, from where the earlier pieces were drawn, so a later piece never moves an earlier one. */
 export function placeSolid(piece: SolidCommand, earlier: ReadonlyMap<string, EarlierPiece>): PlacedPiece {
   const size = getSolidSize(piece);
   if (piece.shape === 'ground') return { box: { x: PAD.width / 2, y: PAD.floorY, ...size }, restsOn: null };
@@ -167,7 +161,6 @@ const ANCHOR_OFFSETS: Record<SketchAnchor, Point> = {
   'bottom-right': { x: 0.5, y: 0.5 },
 };
 
-/** A piece where it is now: its centre, how far it has turned, and how it looks. */
 export interface PiecePose {
   at: Point;
   turn: number;
@@ -179,7 +172,6 @@ export const restingPose = (box: PieceBox): PiecePose => ({ at: { x: box.x, y: b
 
 const rotate = (point: Point, turn: number): Point => ({ x: point.x * Math.cos(turn) - point.y * Math.sin(turn), y: point.x * Math.sin(turn) + point.y * Math.cos(turn) });
 
-/** A point of the piece's own box, moved with the piece. */
 export function getPosedPoint(box: PieceBox, pose: PiecePose, local: Point): Point {
   const turned = rotate({ x: local.x * pose.scale, y: local.y * pose.scale }, pose.turn);
   return { x: pose.at.x + turned.x, y: pose.at.y + turned.y };
@@ -190,7 +182,6 @@ export function getAnchorPoint(box: PieceBox, pose: PiecePose, anchor: SketchAnc
   return getPosedPoint(box, pose, { x: offset.x * box.width, y: offset.y * box.height });
 }
 
-/** Where a line meets a piece's edge on its way toward `toward`, so an arrow stops at the ball and not inside it. */
 export function getEdgeToward(shape: string, box: PieceBox, pose: PiecePose, toward: Point): Point {
   const dx = toward.x - pose.at.x;
   const dy = toward.y - pose.at.y;
