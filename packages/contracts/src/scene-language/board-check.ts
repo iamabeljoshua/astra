@@ -58,14 +58,14 @@ function isUnknownSimulationMoment(command: SceneCommand, elementKind: BoardElem
   return moment !== null && elementKind === 'simulate' && !(SIMULATION_MOMENTS as readonly string[]).includes(moment);
 }
 
-const DRAWN_FIRST_FIELDS: ReadonlySet<string> = new Set(['on', 'above', 'below', 'leftOf', 'rightOf', 'inside', 'path', 'around']);
+const MOTION_ANCHOR_FIELDS: ReadonlySet<string> = new Set(['path', 'around']);
 const END_FIELDS: ReadonlySet<string> = new Set(['from', 'to', 'through']);
 const SPOTS: ReadonlySet<string> = new Set(SKETCH_SPOTS);
 
 function getLeanedOnPieces(command: SceneCommand): { field: string; piece: string }[] {
   if (command.kind !== 'drawShape' && command.kind !== 'animate') return [];
   return Object.entries(command).flatMap(([field, value]) => {
-    if (DRAWN_FIRST_FIELDS.has(field) && typeof value === 'string') return [{ field, piece: value }];
+    if (MOTION_ANCHOR_FIELDS.has(field) && typeof value === 'string') return [{ field, piece: value }];
     if (!END_FIELDS.has(field)) return [];
     return [value].flat().flatMap((end) => (typeof end === 'string' && !SPOTS.has(end) ? [{ field, piece: end.split('.')[0] as string }] : []));
   });

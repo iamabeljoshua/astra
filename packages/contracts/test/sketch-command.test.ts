@@ -51,18 +51,23 @@ describe('reading a motion', () => {
 describe('a sketch command on the board', () => {
   const board = new Map([['desk', 'sketch'], ['table', 'drawShape'], ['notes', 'table']] as const);
 
-  it('needs its sketch and every piece it leans on to be there already', () => {
-    const value = (fields: Record<string, unknown>) => {
-      const parsed = parseSceneCommand(fields);
-      if (!parsed.ok) throw new Error(parsed.problem);
-      return parsed.value;
-    };
+  const value = (fields: Record<string, unknown>) => {
+    const parsed = parseSceneCommand(fields);
+    if (!parsed.ok) throw new Error(parsed.problem);
+    return parsed.value;
+  };
+
+  it('needs its sketch, and the pieces a motion or a line runs between', () => {
     expect(getBoardProblem(value(piece({ on: 'table' })), board)).toBeNull();
     expect(getBoardProblem(value(piece({ on: 'table', lit: 'sun' })), board)).toBeNull();
-    expect(getBoardProblem(value(piece({ on: 'shelf' })), board)).toBe('drawShape leans on shelf, which is not a piece of a sketch on the board');
-    expect(getBoardProblem(value(piece({ on: 'notes' })), board)).toBe('drawShape leans on notes, which is not a piece of a sketch on the board');
     expect(getBoardProblem(value({ ...piece({}), target: 'notes' }), board)).toBe('drawShape needs sketch, but notes is a table');
     expect(getBoardProblem(value({ kind: 'animate', target: 'table', motion: 'orbit', around: 'sun' }), board)).toBe('animate leans on sun, which is not a piece of a sketch on the board');
-    expect(getBoardProblem(value(piece({ inside: 'desk' })), board)).toBe('inside names desk, the sketch itself, so put the piece at a spot instead, as in "at":"left"');
+    expect(getBoardProblem(value({ kind: 'drawShape', id: 'pull', target: 'desk', shape: 'arrow', from: 'shelf', toward: 'down' }), board)).toBe('drawShape leans on shelf, which is not a piece of a sketch on the board');
+  });
+
+  it('places a piece by one that is not drawn, because the layout still puts it somewhere true', () => {
+    expect(getBoardProblem(value(piece({ on: 'shelf' })), board)).toBeNull();
+    expect(getBoardProblem(value(piece({ on: 'notes' })), board)).toBeNull();
+    expect(getBoardProblem(value(piece({ inside: 'desk' })), board)).toBeNull();
   });
 });

@@ -73,6 +73,35 @@ describe('the ElevenLabs adapter', () => {
     expect(times.at(-1)).toBeGreaterThan(times[1] ?? 0);
   });
 
+  it('keeps word times in order on v4 turbo when a message times more than its own audio, as Chris did on 6 November', async () => {
+    const lookRunsPastItsAudio = { audioMs: 158, text: '[warmly] Look', startsMs: [0, 60, 80, 93, 107, 120, 140, 160, 200, 240, 260, 280, 300] };
+    const dialogueReplies = [
+      { audioMs: 32, text: '', startsMs: [] },
+      { audioMs: 95, text: '', startsMs: [] },
+      lookRunsPastItsAudio,
+      { audioMs: 63, text: ' ', startsMs: [0] },
+      { audioMs: 253, text: 'at the', startsMs: [0, 40, 80, 160, 187, 213] },
+      { audioMs: 633, text: ' ball', startsMs: [0, 80, 220, 360, 500] },
+      { audioMs: 253, text: '. ', startsMs: [0, 240] },
+      { audioMs: 221, text: 'Then ', startsMs: [0, 250, 300, 350, 400] },
+      { audioMs: 95, text: 'it', startsMs: [0, 40] },
+      { audioMs: 633, text: ' falls', startsMs: [0, 160, 256, 352, 448, 544] },
+      { audioMs: 253, text: '. ', startsMs: [0, 320] },
+    ];
+    wire = await startFakeElevenLabsWire({ dialogueReplies });
+    const voice = makeElevenLabsVoice({ name: 'wire', apiKey: 'fake', voiceId: 'fake-voice', baseURL: wire.baseURL, model: 'eleven_v4_turbo' }).makeTts();
+    const stream = voice.stream();
+    const heard = hearVoice(stream);
+    stream.pushText('[warmly] Look at the ball. Then it falls. ');
+    stream.endInput();
+    const { words, audioSeconds } = await heard;
+    await voice.close();
+    const times = words.map(({ startSeconds }) => startSeconds);
+    expect(words.map(({ text }) => text)).toEqual(['[warmly]', 'Look', 'at', 'the', 'ball.', 'Then', 'it', 'falls.']);
+    expect(times).toEqual([...times].sort((a, b) => a - b));
+    expect(times.at(-1)).toBeLessThan(audioSeconds);
+  });
+
   it('keeps word times from the first character, not the second, so no word lands early', async () => {
     const voice = (await makeWireVoice()).makeTts();
     const stream = voice.stream();

@@ -14,7 +14,7 @@ import { createAttemptTracker } from './attempts.ts';
 import { type RequestAhead, startRequestAhead } from './request-ahead.ts';
 import { BeatTextReader, type WrittenBeatParts } from './beat-text-reader.ts';
 import { MAY_BE_ABOUT_SAFETY, PLAIN_REFUSALS } from './safety-words.ts';
-import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getRepeatedLineProblem, getAnswerShownProblem, getClaimProblem, getExerciseProblem, getGivenAwayProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getPictureProblem, getWordsProblem, isWrittenWordsTask, showsItsAnswer } from './board-memory.ts';
+import { type BoardMemory, checkAgainstBoard, EMPTY_BOARD, getRepeatedLineProblem, getAnswerShownProblem, getBoardTheStudentSees, getClaimProblem, getExerciseProblem, getGivenAwayProblem, getMemoryAfter, getMemoryAfterAnswering, getMemoryAfterWork, getMemoryOnComingBack, getMemoryOnNewTurn, getPictureProblem, getWordsProblem, isWrittenWordsTask, showsItsAnswer } from './board-memory.ts';
 import type { MemoryLine, MemoryNote } from '../learner-record/memory-note.ts';
 import type { StudentFacts } from '../scenes/live-words/write-speech.ts';
 import { TUTOR_PROMPT, type TutorPrompt } from './prompt.ts';
@@ -510,7 +510,7 @@ export function createTutorBrain({ model, profile = null, loadProfile, memory: k
     const note: Record<string, unknown> = {};
     if (missed.length > 0 && !hidesLastWords) note.cut = { heard: heard.join(' '), not_heard: missed.join(' ') };
     if (lastRefused.length > 0) note.refused = lastRefused;
-    const board = JSON.stringify(Object.fromEntries([...memoryAfter.kinds].map(([id, kind]) => [id, memoryAfter.lines.get(id) ?? kind])));
+    const board = JSON.stringify(getBoardTheStudentSees(memoryAfter));
     if (board !== toldBoard) note.board = JSON.parse(board);
     // Words that may be serious get no plan at all, and the step waits for a turn that can use it. A scene turn has no student words, and a note held from one would reach whatever they say next.
     const step = studentText !== null && !MAY_BE_ABOUT_SAFETY.test(studentText) ? JSON.stringify(lessonPlanner?.getStepNote() ?? null) : toldStep;
