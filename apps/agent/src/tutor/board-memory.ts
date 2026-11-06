@@ -36,7 +36,7 @@ const STAY_IN_THIS_SESSION = 'Never send them to another session. Anything they 
 
 export const EMPTY_BOARD: BoardMemory = { kinds: new Map(), lines: new Map(), shownLines: new Set(), lastAssertedLine: null, verdicts: new Map(), openTask: null, doneTasks: new Set(), isLatestWorkWrong: false, isLatestMathUnjudged: false, offProblemLines: new Set(), isLatestLineOffProblem: false, hasComeBack: false };
 
-export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'plot', 'markValue', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate', 'diagram', 'note', 'tangent', 'task', 'boardMode', 'table', 'timeline', 'code', 'image', 'drawing', 'numberLine', 'shadeArea', 'geometry', 'construct', 'setParameter', 'trackVector', 'readout', 'ghostPath', 'reveal']);
+export const DRAWN_KINDS: ReadonlySet<SceneCommand['kind']> = new Set(['writeMath', 'transformMath', 'plot', 'markValue', 'highlight', 'text', 'hide', 'clearBoard', 'focus', 'simulate', 'runSimulation', 'vector', 'annotate', 'diagram', 'note', 'tangent', 'task', 'boardMode', 'table', 'timeline', 'code', 'image', 'drawing', 'numberLine', 'shadeArea', 'geometry', 'construct', 'setParameter', 'trackVector', 'readout', 'ghostPath', 'reveal', 'sketch', 'drawShape', 'animate']);
 
 const FEWEST_TURNS_BEFORE_THE_ANSWER = 2;
 const PRAISE = /^\s*(yes|yep|yeah|right|correct|exactly|perfect|nice|great|good( job| work)?|well done|that'?s (right|correct|it)|spot on|you got it)\b/i;

@@ -97,6 +97,77 @@ export interface ProjectileSimulation {
 
 export type Simulation = ProjectileSimulation;
 
+export const SKETCH_SOLIDS = ['ball', 'dot', 'box', 'bar', 'triangle', 'ground', 'label', 'person', 'car', 'table', 'ramp', 'hill', 'house', 'tree', 'sun'] as const;
+export type SketchSolid = (typeof SKETCH_SOLIDS)[number];
+
+export const SKETCH_STROKES = ['line', 'arrow', 'curvedArrow', 'wave', 'spring', 'bracket'] as const;
+export type SketchStroke = (typeof SKETCH_STROKES)[number];
+
+export function isSketchLine<Piece extends { shape: string }>(piece: Piece): piece is Extract<Piece, { shape: SketchStroke | 'curve' }> {
+  return piece.shape === 'curve' || (SKETCH_STROKES as readonly string[]).includes(piece.shape);
+}
+
+export const SKETCH_SIZES = ['small', 'medium', 'large'] as const;
+export type SketchSize = (typeof SKETCH_SIZES)[number];
+
+export const SKETCH_SPOTS = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'] as const;
+export type SketchSpot = (typeof SKETCH_SPOTS)[number];
+
+export const SKETCH_ANCHORS = ['top', 'bottom', 'left', 'right', 'center', 'top-left', 'top-right', 'bottom-left', 'bottom-right'] as const;
+export type SketchAnchor = (typeof SKETCH_ANCHORS)[number];
+
+export const SKETCH_DIRECTIONS = ['up', 'down', 'left', 'right', 'up-left', 'up-right', 'down-left', 'down-right'] as const;
+export type SketchDirection = (typeof SKETCH_DIRECTIONS)[number];
+
+export const SKETCH_GAPS = ['none', 'near', 'far'] as const;
+export type SketchGap = (typeof SKETCH_GAPS)[number];
+
+export const SKETCH_SIDES = ['left', 'middle', 'right'] as const;
+export type SketchSide = (typeof SKETCH_SIDES)[number];
+
+export const SKETCH_TILT_SIDES = ['left', 'right'] as const;
+export type SketchTiltSide = (typeof SKETCH_TILT_SIDES)[number];
+
+/** A spot, a piece, or a piece's anchor, as "center", "ball", or "table.right". */
+export type SketchEnd = string;
+
+export type SketchPlacement =
+  | { at?: SketchSpot }
+  | { on: ElementId; side?: SketchSide }
+  | { above: ElementId; gap?: SketchGap; side?: SketchSide }
+  | { below: ElementId; gap?: SketchGap; side?: SketchSide }
+  | { leftOf: ElementId; gap?: SketchGap }
+  | { rightOf: ElementId; gap?: SketchGap }
+  | { inside: ElementId };
+
+export type SketchPiece =
+  | ({ shape: Exclude<SketchSolid, 'label' | 'ball'>; size?: SketchSize } & SketchPlacement)
+  | ({ shape: 'ball'; size?: SketchSize; lit?: ElementId } & SketchPlacement)
+  | ({ shape: 'label'; text: string } & SketchPlacement)
+  /** What `seenFrom` sees of the lit ball `of`, as a small disc whose lit part follows where they are, so a moon's phase is always true. */
+  | ({ shape: 'phase'; of: ElementId; seenFrom: ElementId } & SketchPlacement)
+  | { shape: SketchStroke; from: SketchEnd; to: SketchEnd }
+  | { shape: SketchStroke; from: SketchEnd; toward: SketchDirection; length?: VectorLength }
+  | { shape: SketchStroke; to: SketchEnd; toward: SketchDirection; length?: VectorLength }
+  | { shape: 'curve'; through: SketchEnd[] };
+
+export const SKETCH_MOTIONS = ['rollOff', 'fall', 'along', 'orbit', 'swing', 'spin', 'tilt', 'grow', 'pulse', 'fade'] as const;
+export type SketchMotionName = (typeof SKETCH_MOTIONS)[number];
+
+export type SketchMotion =
+  /** Rolls along what it sits on, off the edge with more room, and lands on what is below that edge. */
+  | { motion: 'rollOff' }
+  | { motion: 'fall' }
+  | { motion: 'along'; path: ElementId }
+  | { motion: 'orbit'; around: ElementId; turns?: number }
+  | { motion: 'swing'; around: ElementId; swings?: number }
+  | { motion: 'spin'; turns?: number }
+  /** Tips about `around` toward one end until that end touches the floor, at most 50 degrees, and whatever sits on it tips with it. */
+  | { motion: 'tilt'; around: ElementId; toward: SketchTiltSide }
+  | { motion: 'grow' }
+  | { motion: 'pulse' }
+  | { motion: 'fade' };
+
 export type GeometryStep =
   | { shape: 'point'; name: string; x: number; y: number }
   | { shape: 'segment'; from: string; to: string }
@@ -198,6 +269,17 @@ export interface Construct {
   target: ElementId;
   step: GeometryStep;
 }
+
+export interface Sketch {
+  kind: 'sketch';
+  id: ElementId;
+  /** What the sketch shows, for a screen reader. */
+  label?: string;
+}
+
+export type DrawShape = { kind: 'drawShape'; id: ElementId; target: ElementId; label?: string; pen?: boolean } & SketchPiece;
+
+export type Animate = { kind: 'animate'; target: ElementId; overWords?: number } & SketchMotion;
 
 /** Draws a fixed arrow on an element. */
 export interface Vector {
@@ -421,6 +503,9 @@ export type SceneCommand =
   | MarkValue
   | Geometry
   | Construct
+  | Sketch
+  | DrawShape
+  | Animate
   | Vector
   | Simulate
   | RichScene

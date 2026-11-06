@@ -532,6 +532,7 @@ export const BOARD_LABELS = {
   },
   numberLine: 'Number line',
   geometry: 'Geometry figure',
+  sketch: 'A sketch',
   simulation: 'Moving ball, with its path',
   graphOf: 'Graph of y =',
 };

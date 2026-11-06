@@ -16,7 +16,7 @@ export type TextAnchor = 'start' | 'middle';
 export type Branch = readonly Point[];
 
 export type FigureMark =
-  | { kind: 'path'; key: string; branches: readonly Branch[]; tone: MarkTone; weight: MarkWeight; isDashed?: boolean }
+  | { kind: 'path'; key: string; branches: readonly Branch[]; tone: MarkTone; weight: MarkWeight; isDashed?: boolean; opacity?: number }
   | { kind: 'area'; key: string; polygons: readonly Branch[]; tone: MarkTone }
   | { kind: 'dot'; key: string; at: Point; radius: number; tone: MarkTone }
   | { kind: 'text'; key: string; at: Point; lines: readonly string[]; anchor: TextAnchor; tone: MarkTone };

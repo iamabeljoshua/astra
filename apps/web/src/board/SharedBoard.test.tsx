@@ -102,6 +102,7 @@ describe('the shared board', () => {
     ['a figure built a step at a time', [{ kind: 'geometry', id: 'tri', xRange: [0, 6], yRange: [0, 5] }, { kind: 'construct', id: 'pa', target: 'tri', step: { shape: 'point', name: 'A', x: 1, y: 1 } }, { kind: 'construct', id: 'pb', target: 'tri', step: { shape: 'point', name: 'B', x: 5, y: 1 } }, { kind: 'construct', id: 'pc', target: 'tri', step: { shape: 'point', name: 'C', x: 1, y: 4 } }, { kind: 'construct', id: 'ab', target: 'tri', step: { shape: 'segment', from: 'A', to: 'B' } }, { kind: 'construct', id: 'round', target: 'tri', step: { shape: 'circle', center: 'A', through: 'B' } }, { kind: 'construct', id: 'at-a', target: 'tri', step: { shape: 'angle', at: 'A', from: 'B', to: 'C' } }], ['point-pa', 'segment-ab', 'circle-round', 'angle-at-a']],
     ['a number line with a dot', [{ kind: 'numberLine', id: 'line', domain: [-5, 5] }, { kind: 'markValue', id: 'here', target: 'line', at: -2, label: 'minus two' }], ['line', 'mark-here']],
     ['a shaded area under a curve', [{ kind: 'plot', id: 'curve', expression: 'x^2', domain: [0, 3] }, { kind: 'shadeArea', id: 'under', target: 'curve', from: 0, to: 2, label: 'distance' }], ['curve-curve', 'shade-under-curve']],
+    ['a sketch of a ball on a table, ringed in the pen as it rolls off', [{ kind: 'sketch', id: 'desk' }, { kind: 'drawShape', id: 'floor', target: 'desk', shape: 'ground' }, { kind: 'drawShape', id: 'table', target: 'desk', shape: 'table', on: 'floor', side: 'left' }, { kind: 'drawShape', id: 'ball', target: 'desk', shape: 'ball', size: 'small', on: 'table', side: 'left', label: 'ball' }, { kind: 'animate', target: 'ball', motion: 'rollOff' }, { kind: 'annotate', id: 'look', target: 'ball', mark: 'circle' }], ['piece-floor', 'piece-table', 'piece-ball', 'trail-ball', 'note-look']],
     ['a flight with a tracked arrow, a readout, and a ghost path', [{ kind: 'simulate', id: 'shot', simulation: { model: 'projectile', parameters: { horizontalSpeed: 4, upwardSpeed: 5, releaseHeight: 1, gravity: 9.8 } } }, { kind: 'runSimulation', target: 'shot', action: 'seek', to: 'peak' }, { kind: 'trackVector', id: 'speed', target: 'shot', quantity: 'velocity', label: 'speed' }, { kind: 'readout', id: 'high', target: 'shot', quantity: 'height' }, { kind: 'ghostPath', id: 'first', target: 'shot' }], ['ball', 'tracked-speed', 'ghost-first']],
   ])('draws %s on the live board', (_, commands, marks) => {
     vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(600);
@@ -109,6 +110,14 @@ describe('the shared board', () => {
     const drawn = new Set([...container.querySelectorAll('[data-mark]')].map((mark) => mark.getAttribute('data-mark')));
     expect(marks.filter((mark) => !drawn.has(mark))).toEqual([]);
     expect(container.innerHTML).not.toContain('NaN');
+  });
+
+  it('never tells the tutor a ring on a sketch piece went undrawn, because the sketch draws it', () => {
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(600);
+    const onBoardProblem = vi.fn();
+    const operations = [command({ kind: 'sketch', id: 'desk' }, 1), command({ kind: 'drawShape', id: 'ball', target: 'desk', shape: 'ball' }, 2), command({ kind: 'annotate', id: 'look', target: 'ball', mark: 'circle' }, 3)];
+    render(<SharedBoard board={getBoardAt(operations, LONG_AFTER)} atMs={LONG_AFTER} onBoardProblem={onBoardProblem} />);
+    expect(onBoardProblem).not.toHaveBeenCalled();
   });
 
   it('builds a diagram a node at a time as reveal goes', () => {
